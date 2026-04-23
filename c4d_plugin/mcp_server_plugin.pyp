@@ -7308,20 +7308,73 @@ class C4DSocketServer(threading.Thread):
         params = []
         truncated = False
         try:
-            for bc, paramid, groupid in desc:
+            for entry_tuple in desc:
+                # In C4D 2026 the iter() over a Description yields
+                # (BaseContainer, paramid, groupid) tuples where paramid/groupid
+                # may be either DescID objects OR raw tuples like (id, dtype, creator).
+                # Handle both shapes defensively.
+                try:
+                    bc, paramid, groupid = entry_tuple
+                except Exception:
+                    params.append({"name": "<error>", "error": f"unexpected entry shape: {type(entry_tuple).__name__}"})
+                    continue
                 if not bc:
                     continue
+
+                # Path + dtype extraction that works for both DescID and tuple shapes
+                def _tuple_or_descid_path(pid):
+                    if pid is None:
+                        return []
+                    # DescID object
+                    if hasattr(pid, "GetDepth"):
+                        try:
+                            d = pid.GetDepth()
+                            return [int(pid[i].id) for i in range(d)]
+                        except Exception:
+                            pass
+                    # Plain tuple/list
+                    try:
+                        if isinstance(pid, (list, tuple)):
+                            # Could be a single (id, dtype, creator) or a sequence of those
+                            if len(pid) > 0 and isinstance(pid[0], (list, tuple)):
+                                return [int(level[0]) for level in pid]
+                            return [int(pid[0])]
+                    except Exception:
+                        pass
+                    return [str(pid)]
+
+                def _tuple_or_descid_dtype(pid):
+                    if pid is None:
+                        return None
+                    if hasattr(pid, "GetDepth"):
+                        try:
+                            d = pid.GetDepth()
+                            if d > 0:
+                                return int(pid[d - 1].dtype)
+                        except Exception:
+                            pass
+                    try:
+                        if isinstance(pid, (list, tuple)) and len(pid) >= 2:
+                            if isinstance(pid[0], (list, tuple)):
+                                last = pid[-1]
+                                if len(last) >= 2:
+                                    return int(last[1])
+                            return int(pid[1])
+                    except Exception:
+                        pass
+                    return None
+
                 try:
                     name = bc.GetString(c4d.DESC_NAME) or bc.GetString(c4d.DESC_SHORTNAME) or ""
                     short_name = bc.GetString(c4d.DESC_SHORTNAME) or ""
 
-                    # Filtering
+                    # Filtering (do BEFORE expensive value reads)
                     if name_filter and name_filter not in name.lower():
                         continue
                     if name_pattern and not fnmatch.fnmatch(name, name_pattern):
                         continue
 
-                    path = self._descid_to_path(paramid)
+                    path = _tuple_or_descid_path(paramid)
                     if top_level_only and len(path) > 1:
                         continue
 
@@ -7329,8 +7382,8 @@ class C4DSocketServer(threading.Thread):
                         "path": path,
                         "name": name,
                         "short_name": short_name,
-                        "dtype": self._descid_dtype(paramid),
-                        "group_path": self._descid_to_path(groupid),
+                        "dtype": _tuple_or_descid_dtype(paramid),
+                        "group_path": _tuple_or_descid_path(groupid),
                     }
 
                     if include_values:
@@ -7345,7 +7398,7 @@ class C4DSocketServer(threading.Thread):
                         truncated = True
                         break
                 except Exception as e:
-                    params.append({"name": "<error>", "error": str(e), "traceback": traceback.format_exc()})
+                    params.append({"name": "<error>", "error": str(e), "traceback": traceback.format_exc()[-300:]})
         except Exception as e:
             return {
                 "error": f"Description iteration failed: {e}",
@@ -7617,27 +7670,34 @@ class C4DSocketServer(threading.Thread):
         id_min = command.get("id_min")
         id_max = command.get("id_max")
 
-        type_str_to_const = {
-            "object": c4d.PLUGINTYPE_OBJECT,
-            "tag": c4d.PLUGINTYPE_TAG,
-            "shader": c4d.PLUGINTYPE_SHADER,
-            "material": c4d.PLUGINTYPE_MATERIAL,
-            "command": c4d.PLUGINTYPE_COMMAND,
-            "tool": c4d.PLUGINTYPE_TOOL,
-            "node": c4d.PLUGINTYPE_NODE,
-            "bitmapsaver": c4d.PLUGINTYPE_BITMAPSAVER,
-            "bitmaploader": c4d.PLUGINTYPE_BITMAPLOADER,
-            "videopost": c4d.PLUGINTYPE_VIDEOPOST,
-            "sculptbrush": c4d.PLUGINTYPE_SCULPTBRUSH,
-            "falloff": c4d.PLUGINTYPE_FALLOFF,
-            "library": c4d.PLUGINTYPE_LIBRARY,
-            "prefs": c4d.PLUGINTYPE_PREFS,
-            "scenesaver": c4d.PLUGINTYPE_SCENESAVER,
-            "sceneloader": c4d.PLUGINTYPE_SCENELOADER,
-            "bitmapfilter": c4d.PLUGINTYPE_BITMAPFILTER,
+        # Defensive: not every C4D version exposes every PLUGINTYPE_* constant.
+        # In C4D 2026 PLUGINTYPE_SCULPTBRUSH is missing for example. Build the
+        # map with getattr fallbacks and drop unresolved entries.
+        _candidate_types = {
+            "object": "PLUGINTYPE_OBJECT",
+            "tag": "PLUGINTYPE_TAG",
+            "shader": "PLUGINTYPE_SHADER",
+            "material": "PLUGINTYPE_MATERIAL",
+            "command": "PLUGINTYPE_COMMAND",
+            "tool": "PLUGINTYPE_TOOL",
+            "node": "PLUGINTYPE_NODE",
+            "bitmapsaver": "PLUGINTYPE_BITMAPSAVER",
+            "bitmaploader": "PLUGINTYPE_BITMAPLOADER",
+            "videopost": "PLUGINTYPE_VIDEOPOST",
+            "sculptbrush": "PLUGINTYPE_SCULPTBRUSH",
+            "falloff": "PLUGINTYPE_FALLOFF",
+            "library": "PLUGINTYPE_LIBRARY",
+            "prefs": "PLUGINTYPE_PREFS",
+            "scenesaver": "PLUGINTYPE_SCENESAVER",
+            "sceneloader": "PLUGINTYPE_SCENELOADER",
+            "bitmapfilter": "PLUGINTYPE_BITMAPFILTER",
+            "field": "PLUGINTYPE_FIELD",
         }
-        if hasattr(c4d, "PLUGINTYPE_FIELD"):
-            type_str_to_const["field"] = c4d.PLUGINTYPE_FIELD
+        type_str_to_const = {}
+        for short, attr in _candidate_types.items():
+            v = getattr(c4d, attr, None)
+            if v is not None:
+                type_str_to_const[short] = v
 
         if type_str == "all":
             type_filters = list(set(type_str_to_const.values()))
@@ -8500,6 +8560,43 @@ class SocketServerPlugin(c4d.plugins.CommandData):
         return c4d.CMD_ENABLED
 
 
+# ============================================================
+# Luminary: module-level plugin instance + auto-start hook.
+# When C4D finishes loading, automatically open the dialog and click
+# "Start Server" so the socket comes up without manual intervention.
+# Disable by setting env var LUMINARY_NO_AUTOSTART=1 before launching C4D.
+# ============================================================
+_socket_server_plugin = SocketServerPlugin()
+
+
+def PluginMessage(msg_id, data):
+    """Module-level plugin message handler. C4D calls this for global plugin events."""
+    try:
+        program_started_const = getattr(c4d, "C4DPL_PROGRAM_STARTED", None)
+        if program_started_const is not None and msg_id == program_started_const:
+            if os.environ.get("LUMINARY_NO_AUTOSTART"):
+                luminary_log_append("luminary", "Socket auto-start skipped (LUMINARY_NO_AUTOSTART env set)")
+                return True
+            try:
+                doc = c4d.documents.GetActiveDocument()
+                _socket_server_plugin.Execute(doc)
+                dlg = _socket_server_plugin.dialog
+                if dlg:
+                    dlg.StartServer()
+                    luminary_log_append("luminary", "Socket auto-started on C4DPL_PROGRAM_STARTED")
+                else:
+                    luminary_log_append("luminary", "Auto-start: dialog not allocated after Execute()")
+            except Exception as e:
+                luminary_log_append("luminary", f"Auto-start failed: {e}\n{traceback.format_exc()[-400:]}")
+    except Exception as e:
+        # Never let PluginMessage crash C4D
+        try:
+            print(f"[Luminary MCP] PluginMessage error: {e}")
+        except Exception:
+            pass
+    return True
+
+
 if __name__ == "__main__":
     c4d.plugins.RegisterCommandPlugin(
         SocketServerPlugin.PLUGIN_ID,
@@ -8507,5 +8604,5 @@ if __name__ == "__main__":
         0,
         None,
         None,
-        SocketServerPlugin(),
+        _socket_server_plugin,
     )
