@@ -8522,14 +8522,39 @@ class SocketServerDialog(gui.GeDialog):
         return False
 
     def StartServer(self):
-        """Start the socket server thread."""
-        if not self.server:
-            # Luminary: install c4d.GePrint hook so MCP can read C4D console output
+        """Start the socket server thread.
+
+        Defensive: if a previous server thread died unexpectedly (e.g.,
+        Octane workspace switch wedged the main thread long enough that
+        the socket worker errored out), `self.server` is still non-None
+        but the thread itself is dead. Detect that and restart cleanly
+        instead of becoming a no-op.
+        """
+        server_is_alive = (
+            self.server is not None
+            and hasattr(self.server, "is_alive")
+            and self.server.is_alive()
+        )
+        if not server_is_alive:
+            # Best-effort cleanup of dead reference before re-spawning.
+            if self.server is not None:
+                try:
+                    self.server.running = False
+                except Exception:
+                    pass
+                try:
+                    if getattr(self.server, "socket", None):
+                        self.server.socket.close()
+                except Exception:
+                    pass
+                self.server = None
+
             luminary_install_geprint_hook()
             self.server = C4DSocketServer(msg_queue=self.msg_queue)
             self.server.start()
-            self.Enable(1011, False)
-            self.Enable(1012, True)
+
+        self.Enable(1011, False)
+        self.Enable(1012, True)
 
     def StopServer(self):
         """Stop the socket server."""
