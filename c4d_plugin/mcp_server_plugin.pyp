@@ -7715,10 +7715,15 @@ class C4DSocketServer(threading.Thread):
             except Exception as e:
                 self.log(f"[LIST_PLUGINS] FilterPluginList({ptype}) failed: {e}")
                 continue
+            self.log(f"[LIST_PLUGINS] type={ptype} returned {len(pl)} entries")
             for p in pl:
                 try:
                     pid = p.GetID()
-                    if pid in seen_ids:
+                    # Track which type FOUND this plugin (some plugins surface via
+                    # multiple types — Luminary appears in TOOL, COMMAND, and NODE).
+                    # Don't dedup by id alone if the user explicitly asked for a
+                    # narrower type filter; only dedup when scanning "all".
+                    if type_str == "all" and pid in seen_ids:
                         continue
                     seen_ids.add(pid)
                     name = p.GetName()
