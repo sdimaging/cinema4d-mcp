@@ -128,7 +128,11 @@ if C4D_VERSION_MAJOR < 20:
 class C4DSocketServer(threading.Thread):
     """Socket Server running in a background thread, sending logs & status via queue."""
 
-    def __init__(self, msg_queue, host="127.0.0.1", port=5555):
+    def __init__(self, msg_queue, host="0.0.0.0", port=5555):
+        # Luminary: bind 0.0.0.0 (all interfaces) by default so WSL2 clients
+        # can reach the socket from a separate network namespace. Original
+        # upstream default was "127.0.0.1". Pass host="127.0.0.1" explicitly
+        # to restore localhost-only behavior.
         super(C4DSocketServer, self).__init__()
         self.host = host
         self.port = port
