@@ -16,8 +16,100 @@ import os
 import sys
 import base64
 import traceback
+from collections import deque
 
 PLUGIN_ID = 1057843  # Unique plugin ID for SpecialEventAdd
+
+# ============================================================
+# Luminary MCP extensions — module-level console log buffer
+# Captures both plugin self.log() output AND C4D's c4d.GePrint() output
+# (via runtime monkey-patch) into a single timestamped ring buffer.
+# Read it back via the get_console_log tool.
+# ============================================================
+
+LUMINARY_LOG_BUFFER_MAX = 10000
+_luminary_log_buffer = deque(maxlen=LUMINARY_LOG_BUFFER_MAX)
+_luminary_log_lock = threading.Lock()
+_luminary_geprint_original = None
+_luminary_geprint_patched = False
+
+
+def luminary_log_append(source, message):
+    """Append a single log entry to the ring buffer. Thread-safe."""
+    try:
+        ts = time.time()
+        entry = (ts, str(source), str(message))
+        with _luminary_log_lock:
+            _luminary_log_buffer.append(entry)
+    except Exception:
+        pass  # never let logging crash the plugin
+
+
+def luminary_log_get(limit=None, since_ts=None, source_filter=None, contains=None):
+    """Return a list of {ts, iso, source, message} dicts from the buffer, newest last."""
+    with _luminary_log_lock:
+        snapshot = list(_luminary_log_buffer)
+    out = []
+    for ts, src, msg in snapshot:
+        if since_ts is not None and ts <= since_ts:
+            continue
+        if source_filter and src != source_filter:
+            continue
+        if contains and contains.lower() not in msg.lower():
+            continue
+        out.append({
+            "ts": ts,
+            "iso": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ts)) + f".{int((ts % 1) * 1000):03d}",
+            "source": src,
+            "message": msg,
+        })
+    if limit is not None and limit > 0:
+        out = out[-int(limit):]
+    return out
+
+
+def luminary_log_clear():
+    """Empty the ring buffer."""
+    with _luminary_log_lock:
+        _luminary_log_buffer.clear()
+
+
+def luminary_install_geprint_hook():
+    """Install a runtime hook on c4d.GePrint that mirrors output to the buffer.
+    Idempotent — calling twice is a no-op."""
+    global _luminary_geprint_original, _luminary_geprint_patched
+    if _luminary_geprint_patched:
+        return
+    try:
+        _luminary_geprint_original = c4d.GePrint
+
+        def _patched_geprint(*args, **kwargs):
+            try:
+                msg = " ".join(str(a) for a in args)
+                luminary_log_append("c4d.GePrint", msg)
+            except Exception:
+                pass
+            return _luminary_geprint_original(*args, **kwargs)
+
+        c4d.GePrint = _patched_geprint
+        _luminary_geprint_patched = True
+        luminary_log_append("luminary", "c4d.GePrint hook installed")
+    except Exception as e:
+        luminary_log_append("luminary", f"Failed to install GePrint hook: {e}")
+
+
+def luminary_uninstall_geprint_hook():
+    """Restore the original c4d.GePrint. Idempotent."""
+    global _luminary_geprint_original, _luminary_geprint_patched
+    if not _luminary_geprint_patched:
+        return
+    try:
+        if _luminary_geprint_original is not None:
+            c4d.GePrint = _luminary_geprint_original
+        _luminary_geprint_patched = False
+        luminary_log_append("luminary", "c4d.GePrint hook removed")
+    except Exception:
+        pass
 
 # Check Cinema 4D version and log compatibility info
 C4D_VERSION = c4d.GetC4DVersion()
@@ -58,9 +150,11 @@ class C4DSocketServer(threading.Thread):
         )  # Maps guid -> {'requested_name': str, 'actual_name': str}
 
     def log(self, message):
-        """Send log messages to UI via queue and trigger an event."""
+        """Send log messages to UI via queue and trigger an event.
+        Also mirrored to the Luminary console buffer for MCP get_console_log tool."""
         self.msg_queue.put(("LOG", message))
         c4d.SpecialEventAdd(PLUGIN_ID)  # Notify UI thread
+        luminary_log_append("plugin", message)
 
     def update_status(self, status):
         """Update status via queue and trigger an event."""
@@ -276,6 +370,44 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_create_soft_body(command)
                         elif command_type == "apply_dynamics":
                             response = self.handle_apply_dynamics(command)
+                        # ----- Luminary MCP extensions -----
+                        # Introspection (read-only, fast)
+                        elif command_type == "enumerate_descids":
+                            response = self.handle_enumerate_descids(command)
+                        elif command_type == "enumerate_userdata":
+                            response = self.handle_enumerate_userdata(command)
+                        elif command_type == "find_objects":
+                            response = self.handle_find_objects(command)
+                        elif command_type == "get_object_info":
+                            response = self.handle_get_object_info(command)
+                        elif command_type == "dump_object_tree":
+                            response = self.handle_dump_object_tree(command)
+                        # Console log capture
+                        elif command_type == "get_console_log":
+                            response = self.handle_get_console_log(command)
+                        elif command_type == "clear_console_log":
+                            response = self.handle_clear_console_log(command)
+                        # Plugin lifecycle
+                        elif command_type == "list_installed_plugins":
+                            response = self.handle_list_installed_plugins(command)
+                        elif command_type == "get_c4d_info":
+                            response = self.handle_get_c4d_info(command)
+                        # Viewport / render engine
+                        elif command_type == "viewport_screenshot":
+                            response = self.handle_viewport_screenshot(command)
+                        elif command_type == "get_viewport_state":
+                            response = self.handle_get_viewport_state(command)
+                        elif command_type == "list_render_engines":
+                            response = self.handle_list_render_engines(command)
+                        elif command_type == "get_active_renderer":
+                            response = self.handle_get_active_renderer(command)
+                        # Material graph / shader / CallCommand (Octane tier)
+                        elif command_type == "dump_material_graph":
+                            response = self.handle_dump_material_graph(command)
+                        elif command_type == "create_via_command":
+                            response = self.handle_create_via_command(command)
+                        elif command_type == "link_shader_to_parameter":
+                            response = self.handle_link_shader_to_parameter(command)
                         else:
                             response = {"error": f"Unknown command: {command_type}"}
 
@@ -7048,6 +7180,1163 @@ class C4DSocketServer(threading.Thread):
             }
 
 
+    # ================================================================
+    # Luminary MCP extensions — Tier 1: Introspection
+    # Added 2026-04-23 for plugin development workflow (any plugin).
+    # All read-only; safe to run on the worker thread without main-thread
+    # synchronization (mirrors handle_get_scene_info / handle_list_objects).
+    # ================================================================
+
+    def _resolve_object(self, doc, command):
+        """Resolve an object reference from a command dict.
+        Accepts 'guid' (preferred) or 'object_name' / 'name' / 'identifier'.
+        Returns (BaseObject_or_None, error_message_or_None)."""
+        guid = command.get("guid")
+        name = command.get("object_name") or command.get("identifier") or command.get("name")
+        if guid:
+            obj = self.find_object_by_name(doc, guid, use_guid=True)
+            if not obj:
+                return None, f"Object not found by GUID: {guid}"
+            return obj, None
+        if name:
+            obj = self.find_object_by_name(doc, name, use_guid=False)
+            if not obj:
+                return None, f"Object not found by name: {name}"
+            return obj, None
+        return None, "Must provide 'guid' or 'object_name'"
+
+    def _value_to_jsonable(self, value):
+        """Convert a c4d value (Vector / Matrix / BaseTime / BaseList2D / scalar) to JSON-friendly form."""
+        try:
+            if value is None or isinstance(value, (int, float, str, bool)):
+                return value
+            if isinstance(value, c4d.Vector):
+                return [value.x, value.y, value.z]
+            if isinstance(value, c4d.Matrix):
+                return {
+                    "off": [value.off.x, value.off.y, value.off.z],
+                    "v1":  [value.v1.x,  value.v1.y,  value.v1.z],
+                    "v2":  [value.v2.x,  value.v2.y,  value.v2.z],
+                    "v3":  [value.v3.x,  value.v3.y,  value.v3.z],
+                }
+            if isinstance(value, c4d.BaseTime):
+                try:
+                    fps = c4d.documents.GetActiveDocument().GetFps()
+                    return {"frame": value.GetFrame(fps), "seconds": value.Get()}
+                except Exception:
+                    return {"seconds": value.Get()}
+            if hasattr(value, "GetName") and hasattr(value, "GetType"):
+                # BaseList2D / BaseObject / BaseShader / BaseMaterial reference
+                try:
+                    return {"_ref": True, "name": value.GetName(), "type_id": value.GetType()}
+                except Exception:
+                    return f"<{type(value).__name__}>"
+            if isinstance(value, (list, tuple)):
+                return [self._value_to_jsonable(v) for v in value]
+            if isinstance(value, dict):
+                return {str(k): self._value_to_jsonable(v) for k, v in value.items()}
+            return str(value)
+        except Exception as e:
+            return f"<unconvertible {type(value).__name__}: {e}>"
+
+    def _descid_to_path(self, descid):
+        """Convert a c4d.DescID to a list of integer parameter IDs (one per nesting level)."""
+        if descid is None:
+            return []
+        try:
+            depth = descid.GetDepth()
+        except Exception:
+            return []
+        path = []
+        for i in range(depth):
+            try:
+                path.append(int(descid[i].id))
+            except Exception:
+                path.append(None)
+        return path
+
+    def _descid_dtype(self, descid):
+        """Best-effort extraction of the dtype of the deepest level of a DescID."""
+        try:
+            depth = descid.GetDepth()
+            if depth <= 0:
+                return None
+            return int(descid[depth - 1].dtype)
+        except Exception:
+            return None
+
+    def handle_enumerate_descids(self, command):
+        """Walk an object's full Description and return every parameter as JSON.
+
+        This is the canonical way to discover undocumented plugin parameter IDs
+        (Octane Area Light's texture/distribution input, Redshift node params, etc).
+        Mirrors the workflow of C4D's 'customize palettes' attribute inspector
+        but returns structured data scriptable from the MCP client side.
+
+        Optional command params:
+          name_filter (str): substring (case-insensitive) — only return params whose name contains this
+          name_pattern (str): fnmatch pattern — only return params whose name matches
+          include_values (bool, default True): include current_value for each param
+          max_results (int, default 5000): cap on returned params
+          top_level_only (bool, default False): only include params at depth 1 (skip nested groups)
+        """
+        doc = c4d.documents.GetActiveDocument()
+        if not doc:
+            return {"error": "No active document"}
+        obj, err = self._resolve_object(doc, command)
+        if err:
+            return {"error": err}
+
+        import fnmatch
+        name_filter = (command.get("name_filter") or "").lower()
+        name_pattern = command.get("name_pattern")
+        include_values = bool(command.get("include_values", True))
+        max_results = int(command.get("max_results", 5000))
+        top_level_only = bool(command.get("top_level_only", False))
+
+        try:
+            desc = obj.GetDescription(c4d.DESCFLAGS_DESC_0)
+        except Exception as e:
+            return {"error": f"GetDescription failed: {e}"}
+        if not desc:
+            return {"error": "Object returned no description"}
+
+        params = []
+        truncated = False
+        try:
+            for bc, paramid, groupid in desc:
+                if not bc:
+                    continue
+                try:
+                    name = bc.GetString(c4d.DESC_NAME) or bc.GetString(c4d.DESC_SHORTNAME) or ""
+                    short_name = bc.GetString(c4d.DESC_SHORTNAME) or ""
+
+                    # Filtering
+                    if name_filter and name_filter not in name.lower():
+                        continue
+                    if name_pattern and not fnmatch.fnmatch(name, name_pattern):
+                        continue
+
+                    path = self._descid_to_path(paramid)
+                    if top_level_only and len(path) > 1:
+                        continue
+
+                    entry = {
+                        "path": path,
+                        "name": name,
+                        "short_name": short_name,
+                        "dtype": self._descid_dtype(paramid),
+                        "group_path": self._descid_to_path(groupid),
+                    }
+
+                    if include_values:
+                        try:
+                            current = obj[paramid]
+                            entry["current_value"] = self._value_to_jsonable(current)
+                        except Exception as e:
+                            entry["current_value_error"] = str(e)
+
+                    params.append(entry)
+                    if len(params) >= max_results:
+                        truncated = True
+                        break
+                except Exception as e:
+                    params.append({"name": "<error>", "error": str(e), "traceback": traceback.format_exc()})
+        except Exception as e:
+            return {
+                "error": f"Description iteration failed: {e}",
+                "partial_count": len(params),
+                "parameters": params,
+                "traceback": traceback.format_exc(),
+            }
+
+        return {
+            "object": {
+                "name": obj.GetName(),
+                "type_id": obj.GetType(),
+                "type_name": self.get_object_type_name(obj),
+                "guid": str(obj.GetGUID()),
+            },
+            "parameter_count": len(params),
+            "parameters": params,
+            "truncated": truncated,
+            "filter_applied": {
+                "name_filter": name_filter or None,
+                "name_pattern": name_pattern,
+                "top_level_only": top_level_only,
+            },
+        }
+
+    def handle_enumerate_userdata(self, command):
+        """Enumerate user data (UserData container) on an object — separate from the regular Description."""
+        doc = c4d.documents.GetActiveDocument()
+        if not doc:
+            return {"error": "No active document"}
+        obj, err = self._resolve_object(doc, command)
+        if err:
+            return {"error": err}
+
+        items = []
+        try:
+            ud_container = obj.GetUserDataContainer()
+        except Exception as e:
+            return {"error": f"GetUserDataContainer failed: {e}"}
+
+        for descid, bc in ud_container:
+            try:
+                name = bc.GetString(c4d.DESC_NAME) or ""
+                entry = {
+                    "path": self._descid_to_path(descid),
+                    "name": name,
+                    "dtype": self._descid_dtype(descid),
+                }
+                try:
+                    entry["current_value"] = self._value_to_jsonable(obj[descid])
+                except Exception as e:
+                    entry["current_value_error"] = str(e)
+                items.append(entry)
+            except Exception as e:
+                items.append({"name": "<error>", "error": str(e)})
+
+        return {
+            "object": {"name": obj.GetName(), "guid": str(obj.GetGUID())},
+            "userdata_count": len(items),
+            "userdata": items,
+        }
+
+    def handle_find_objects(self, command):
+        """Find scene objects matching one or more filters.
+
+        Filters (any/all combine AND-style):
+          name_pattern (str): fnmatch pattern against object name
+          name_contains (str): case-insensitive substring of object name
+          type_id (int): exact GetType() match
+          type_id_min, type_id_max (int): range filter on GetType()
+          max_results (int, default 200)
+        """
+        doc = c4d.documents.GetActiveDocument()
+        if not doc:
+            return {"error": "No active document"}
+
+        import fnmatch
+        name_pattern = command.get("name_pattern")
+        name_contains = (command.get("name_contains") or "").lower()
+        type_id = command.get("type_id")
+        type_id_min = command.get("type_id_min")
+        type_id_max = command.get("type_id_max")
+        max_results = int(command.get("max_results", 200))
+
+        results = []
+        truncated = [False]
+
+        def walk(obj, depth=0):
+            while obj is not None:
+                if len(results) >= max_results:
+                    truncated[0] = True
+                    return
+                try:
+                    name = obj.GetName()
+                    tid = obj.GetType()
+                    matches = True
+                    if type_id is not None and tid != int(type_id):
+                        matches = False
+                    if matches and type_id_min is not None and tid < int(type_id_min):
+                        matches = False
+                    if matches and type_id_max is not None and tid > int(type_id_max):
+                        matches = False
+                    if matches and name_pattern and not fnmatch.fnmatch(name, name_pattern):
+                        matches = False
+                    if matches and name_contains and name_contains not in name.lower():
+                        matches = False
+                    if matches:
+                        results.append({
+                            "name": name,
+                            "type_id": tid,
+                            "type_name": self.get_object_type_name(obj),
+                            "guid": str(obj.GetGUID()),
+                            "depth": depth,
+                        })
+                    walk(obj.GetDown(), depth + 1)
+                except Exception as e:
+                    self.log(f"[FIND_OBJECTS] error on object: {e}")
+                obj = obj.GetNext()
+
+        walk(doc.GetFirstObject(), 0)
+
+        return {
+            "match_count": len(results),
+            "matches": results,
+            "truncated": truncated[0],
+        }
+
+    def handle_get_object_info(self, command):
+        """Return comprehensive info on a single object: transform, visibility, layer, parent, children, tags."""
+        doc = c4d.documents.GetActiveDocument()
+        if not doc:
+            return {"error": "No active document"}
+        obj, err = self._resolve_object(doc, command)
+        if err:
+            return {"error": err}
+
+        try:
+            pos = obj.GetAbsPos()
+            rot = obj.GetAbsRot()
+            scale = obj.GetAbsScale()
+
+            tags = []
+            tag = obj.GetFirstTag()
+            while tag:
+                try:
+                    tags.append({
+                        "name": tag.GetName(),
+                        "type_id": tag.GetType(),
+                    })
+                except Exception:
+                    tags.append({"name": "<error>"})
+                tag = tag.GetNext()
+
+            child_count = 0
+            ch = obj.GetDown()
+            while ch:
+                child_count += 1
+                ch = ch.GetNext()
+
+            parent = obj.GetUp()
+            try:
+                layer_obj = obj.GetLayerObject(doc)
+                layer_name = layer_obj.GetName() if layer_obj else None
+            except Exception:
+                layer_name = None
+
+            return {
+                "name": obj.GetName(),
+                "type_id": obj.GetType(),
+                "type_name": self.get_object_type_name(obj),
+                "guid": str(obj.GetGUID()),
+                "position": [pos.x, pos.y, pos.z],
+                "rotation": [rot.x, rot.y, rot.z],
+                "scale": [scale.x, scale.y, scale.z],
+                "editor_mode": obj.GetEditorMode(),
+                "render_mode": obj.GetRenderMode(),
+                "layer_name": layer_name,
+                "parent_name": parent.GetName() if parent else None,
+                "parent_guid": str(parent.GetGUID()) if parent else None,
+                "child_count": child_count,
+                "tag_count": len(tags),
+                "tags": tags,
+            }
+        except Exception as e:
+            return {"error": f"get_object_info failed: {e}", "traceback": traceback.format_exc()}
+
+    # ---- Console log capture (Tier 2) ----
+
+    def handle_get_console_log(self, command):
+        """Return recent log entries from the Luminary ring buffer.
+
+        Combines plugin self.log() output and c4d.GePrint() output (when the
+        GePrint hook is installed — happens automatically on StartServer).
+        Optional filters: limit, since_ts, source ('plugin'|'c4d.GePrint'|'luminary'),
+        contains (case-insensitive substring).
+        """
+        limit = command.get("limit")
+        since_ts = command.get("since_ts")
+        source_filter = command.get("source")
+        contains = command.get("contains")
+        try:
+            entries = luminary_log_get(
+                limit=int(limit) if limit else None,
+                since_ts=float(since_ts) if since_ts is not None else None,
+                source_filter=source_filter,
+                contains=contains,
+            )
+        except Exception as e:
+            return {"error": f"get_console_log failed: {e}"}
+        return {
+            "entry_count": len(entries),
+            "buffer_max": LUMINARY_LOG_BUFFER_MAX,
+            "geprint_hooked": _luminary_geprint_patched,
+            "entries": entries,
+        }
+
+    def handle_clear_console_log(self, command):
+        """Empty the Luminary console log ring buffer."""
+        try:
+            luminary_log_clear()
+        except Exception as e:
+            return {"error": f"clear_console_log failed: {e}"}
+        return {"status": "ok", "buffer_cleared": True}
+
+    # ---- Plugin lifecycle (Tier 3) ----
+
+    def _plugin_type_name(self, type_id):
+        """Map a c4d.PLUGINTYPE_* int to a human-readable label."""
+        type_map = {
+            c4d.PLUGINTYPE_OBJECT: "Object",
+            c4d.PLUGINTYPE_TAG: "Tag",
+            c4d.PLUGINTYPE_SHADER: "Shader",
+            c4d.PLUGINTYPE_MATERIAL: "Material",
+            c4d.PLUGINTYPE_COMMAND: "Command",
+            c4d.PLUGINTYPE_TOOL: "Tool",
+            c4d.PLUGINTYPE_NODE: "Node",
+            c4d.PLUGINTYPE_PREFS: "Prefs",
+            c4d.PLUGINTYPE_SCENESAVER: "SceneSaver",
+            c4d.PLUGINTYPE_SCENELOADER: "SceneLoader",
+            c4d.PLUGINTYPE_BITMAPFILTER: "BitmapFilter",
+            c4d.PLUGINTYPE_BITMAPLOADER: "BitmapLoader",
+            c4d.PLUGINTYPE_BITMAPSAVER: "BitmapSaver",
+            c4d.PLUGINTYPE_VIDEOPOST: "VideoPost",
+            c4d.PLUGINTYPE_LIBRARY: "Library",
+            c4d.PLUGINTYPE_SCULPTBRUSH: "SculptBrush",
+            c4d.PLUGINTYPE_FALLOFF: "Falloff",
+        }
+        if hasattr(c4d, "PLUGINTYPE_FIELD"):
+            type_map[c4d.PLUGINTYPE_FIELD] = "Field"
+        return type_map.get(type_id, f"Unknown({type_id})")
+
+    def handle_list_installed_plugins(self, command):
+        """List loaded C4D plugins matching a type filter and/or name pattern.
+
+        Optional command params:
+          plugin_type (str): one of 'object', 'tag', 'shader', 'material', 'command',
+                             'tool', 'node', 'bitmapsaver', 'bitmaploader', 'videopost',
+                             'sculptbrush', 'falloff', 'field' — or 'all' (default)
+          plugin_id (int): exact ID match (overrides plugin_type)
+          name_contains (str): case-insensitive substring on plugin name
+          id_min, id_max (int): scan a plugin ID range (useful for finding Octane plugins
+                                — e.g. id_min=1029525, id_max=1030000 enumerates all plugins
+                                in Octane's typical ID range)
+        """
+        import fnmatch
+        type_str = (command.get("plugin_type") or "all").lower()
+        plugin_id = command.get("plugin_id")
+        name_contains = (command.get("name_contains") or "").lower()
+        id_min = command.get("id_min")
+        id_max = command.get("id_max")
+
+        type_str_to_const = {
+            "object": c4d.PLUGINTYPE_OBJECT,
+            "tag": c4d.PLUGINTYPE_TAG,
+            "shader": c4d.PLUGINTYPE_SHADER,
+            "material": c4d.PLUGINTYPE_MATERIAL,
+            "command": c4d.PLUGINTYPE_COMMAND,
+            "tool": c4d.PLUGINTYPE_TOOL,
+            "node": c4d.PLUGINTYPE_NODE,
+            "bitmapsaver": c4d.PLUGINTYPE_BITMAPSAVER,
+            "bitmaploader": c4d.PLUGINTYPE_BITMAPLOADER,
+            "videopost": c4d.PLUGINTYPE_VIDEOPOST,
+            "sculptbrush": c4d.PLUGINTYPE_SCULPTBRUSH,
+            "falloff": c4d.PLUGINTYPE_FALLOFF,
+            "library": c4d.PLUGINTYPE_LIBRARY,
+            "prefs": c4d.PLUGINTYPE_PREFS,
+            "scenesaver": c4d.PLUGINTYPE_SCENESAVER,
+            "sceneloader": c4d.PLUGINTYPE_SCENELOADER,
+            "bitmapfilter": c4d.PLUGINTYPE_BITMAPFILTER,
+        }
+        if hasattr(c4d, "PLUGINTYPE_FIELD"):
+            type_str_to_const["field"] = c4d.PLUGINTYPE_FIELD
+
+        if type_str == "all":
+            type_filters = list(set(type_str_to_const.values()))
+        else:
+            t = type_str_to_const.get(type_str)
+            if t is None:
+                return {"error": f"Unknown plugin_type: {type_str}. Options: {sorted(type_str_to_const.keys()) + ['all']}"}
+            type_filters = [t]
+
+        results = []
+        seen_ids = set()
+        for ptype in type_filters:
+            try:
+                pl = c4d.plugins.FilterPluginList(ptype, True) or []
+            except Exception as e:
+                self.log(f"[LIST_PLUGINS] FilterPluginList({ptype}) failed: {e}")
+                continue
+            for p in pl:
+                try:
+                    pid = p.GetID()
+                    if pid in seen_ids:
+                        continue
+                    seen_ids.add(pid)
+                    name = p.GetName()
+
+                    if plugin_id is not None and pid != int(plugin_id):
+                        continue
+                    if name_contains and name_contains not in name.lower():
+                        continue
+                    if id_min is not None and pid < int(id_min):
+                        continue
+                    if id_max is not None and pid > int(id_max):
+                        continue
+
+                    results.append({
+                        "id": pid,
+                        "name": name,
+                        "type_id": ptype,
+                        "type_name": self._plugin_type_name(ptype),
+                    })
+                except Exception as e:
+                    self.log(f"[LIST_PLUGINS] error reading plugin: {e}")
+
+        results.sort(key=lambda r: (r["type_name"], r["name"]))
+        return {
+            "plugin_count": len(results),
+            "plugins": results,
+            "filter": {
+                "plugin_type": type_str,
+                "plugin_id": plugin_id,
+                "name_contains": name_contains or None,
+                "id_min": id_min,
+                "id_max": id_max,
+            },
+        }
+
+    # ---- Viewport / render engine (Tier 4) ----
+
+    def _renderer_name(self, renderer_id):
+        """Human-readable name for a RDATA_RENDERENGINE_* id when known."""
+        known = {}
+        for attr in dir(c4d):
+            if attr.startswith("RDATA_RENDERENGINE_"):
+                try:
+                    known[getattr(c4d, attr)] = attr.replace("RDATA_RENDERENGINE_", "").lower()
+                except Exception:
+                    pass
+        # Common third-party renderers (well-known IDs)
+        third_party = {
+            1029525: "Octane (octane_render)",     # OctaneRender plugin id (typical)
+            1036219: "Octane (alt id seen in some builds)",
+            1036220: "Redshift",
+            1029988: "Arnold",
+            1019642: "VRay",
+            1041270: "Corona",
+            1037639: "Maxwell",
+            1054421: "Cycles",
+        }
+        return known.get(renderer_id) or third_party.get(renderer_id) or f"Unknown({renderer_id})"
+
+    def handle_viewport_screenshot(self, command):
+        """Render a quick viewport-style snapshot via the C4D render pipeline and return base64 PNG.
+
+        Optional command params:
+          width (int, default 800), height (int, default 450)
+          renderer (str): 'standard' | 'hardware' | 'current' (default 'standard' for speed)
+          frame (int): which frame to render (default current)
+
+        Use 'current' to grab through the user's active renderer (Octane/Redshift/etc).
+        Use 'standard' for a fast software preview that bypasses heavy renderers.
+        Use 'hardware' for the OpenGL preview renderer.
+        """
+        doc = c4d.documents.GetActiveDocument()
+        if not doc:
+            return {"error": "No active document"}
+
+        width = int(command.get("width", 800))
+        height = int(command.get("height", 450))
+        renderer_pref = (command.get("renderer") or "standard").lower()
+        frame_override = command.get("frame")
+
+        def _render():
+            # Pick the renderer override id
+            renderer_id = None
+            if renderer_pref == "standard":
+                renderer_id = c4d.RDATA_RENDERENGINE_STANDARD if hasattr(c4d, "RDATA_RENDERENGINE_STANDARD") else 0
+            elif renderer_pref == "hardware":
+                renderer_id = c4d.RDATA_RENDERENGINE_PREVIEWHARDWARE if hasattr(c4d, "RDATA_RENDERENGINE_PREVIEWHARDWARE") else None
+            elif renderer_pref == "current":
+                renderer_id = None  # leave as-is
+
+            # Active camera check
+            bd = doc.GetActiveBaseDraw()
+            cam = bd.GetSceneCamera(doc) if bd else None
+
+            rd = doc.GetActiveRenderData()
+            if not rd:
+                return {"error": "No active RenderData"}
+            clone = rd.GetClone()
+            doc.InsertRenderData(clone)
+            try:
+                doc.SetActiveRenderData(clone)
+                settings = clone.GetData()
+                settings[c4d.RDATA_XRES] = width
+                settings[c4d.RDATA_YRES] = height
+                settings[c4d.RDATA_FRAMESEQUENCE] = c4d.RDATA_FRAMESEQUENCE_CURRENTFRAME
+                if renderer_id is not None:
+                    try:
+                        settings[c4d.RDATA_RENDERENGINE] = renderer_id
+                    except Exception as e:
+                        self.log(f"[VIEWPORT_SHOT] failed to override renderer: {e}")
+
+                bmp = c4d.bitmaps.MultipassBitmap(width, height, c4d.COLORMODE_RGB)
+                bmp.AddChannel(True, True)
+
+                if frame_override is not None:
+                    doc.SetTime(c4d.BaseTime(int(frame_override), doc.GetFps()))
+                doc.ExecutePasses(None, True, True, True, c4d.BUILDFLAGS_INTERNALRENDERER)
+
+                render_flags = c4d.RENDERFLAGS_EXTERNAL | c4d.RENDERFLAGS_NODOCUMENTCLONE
+                result = c4d.documents.RenderDocument(doc, settings, bmp, render_flags)
+                if result != c4d.RENDERRESULT_OK:
+                    return {"error": f"RenderDocument failed (result={result})"}
+
+                mem_file = c4d.storage.MemoryFileStruct()
+                mem_file.SetMemoryWriteMode()
+                bmp.Save(mem_file, c4d.FILTER_PNG)
+                data, _ = mem_file.GetData()
+                if not data:
+                    return {"error": "PNG encode produced empty data"}
+                b64 = base64.b64encode(data).decode("ascii")
+                return {
+                    "image_data": b64,
+                    "width": width,
+                    "height": height,
+                    "format": "png",
+                    "renderer": self._renderer_name(settings.GetInt32(c4d.RDATA_RENDERENGINE) if hasattr(settings, "GetInt32") else -1),
+                    "camera": cam.GetName() if cam else None,
+                }
+            finally:
+                try:
+                    doc.RemoveRenderData(clone)
+                except Exception:
+                    pass
+                c4d.EventAdd()
+
+        return self.execute_on_main_thread(_render, _timeout=120)
+
+    def handle_get_viewport_state(self, command):
+        """Return the active viewport's state: dims, frame rect, active camera + matrix, projection."""
+        doc = c4d.documents.GetActiveDocument()
+        if not doc:
+            return {"error": "No active document"}
+        bd = doc.GetActiveBaseDraw()
+        if not bd:
+            return {"error": "No active BaseDraw"}
+
+        try:
+            frame = bd.GetFrame()
+            cam = bd.GetSceneCamera(doc)
+            if not cam:
+                cam = bd.GetEditorCamera()
+            cam_info = None
+            if cam:
+                mg = cam.GetMg()
+                cam_info = {
+                    "name": cam.GetName(),
+                    "type_id": cam.GetType(),
+                    "guid": str(cam.GetGUID()),
+                    "matrix": self._value_to_jsonable(mg),
+                    "position": [mg.off.x, mg.off.y, mg.off.z],
+                }
+                try:
+                    cam_info["focal_length_mm"] = cam[c4d.CAMERA_FOCUS]
+                except Exception:
+                    pass
+                try:
+                    cam_info["fov_horizontal_rad"] = cam[c4d.CAMERAOBJECT_FOV]
+                except Exception:
+                    pass
+
+            try:
+                projection = bd[c4d.BASEDRAW_DATA_PROJECTION]
+            except Exception:
+                projection = None
+
+            return {
+                "frame": {
+                    "left": frame.get("CL"),
+                    "top": frame.get("CT"),
+                    "right": frame.get("CR"),
+                    "bottom": frame.get("CB"),
+                    "width": (frame.get("CR", 0) - frame.get("CL", 0)),
+                    "height": (frame.get("CB", 0) - frame.get("CT", 0)),
+                } if hasattr(frame, "get") else None,
+                "raw_frame": {k: frame[k] for k in [c4d.CL, c4d.CT, c4d.CR, c4d.CB] if k in frame.GetIndexId()} if hasattr(frame, "GetIndexId") else None,
+                "camera": cam_info,
+                "projection_mode": projection,
+                "active_renderer": self._renderer_name(doc.GetActiveRenderData()[c4d.RDATA_RENDERENGINE]) if doc.GetActiveRenderData() else None,
+            }
+        except Exception as e:
+            return {"error": f"get_viewport_state failed: {e}", "traceback": traceback.format_exc()}
+
+    def handle_list_render_engines(self, command):
+        """List all registered render engines (VideoPost plugins of renderer kind, plus c4d.PLUGINTYPE_VIDEOPOST entries).
+
+        Also flags which is currently active. Useful for verifying that a custom
+        viewport renderer plugin (e.g. SplatFlow viewport shader) registered correctly.
+        """
+        try:
+            engines = []
+            seen = set()
+            try:
+                vps = c4d.plugins.FilterPluginList(c4d.PLUGINTYPE_VIDEOPOST, True) or []
+                for p in vps:
+                    pid = p.GetID()
+                    if pid in seen:
+                        continue
+                    seen.add(pid)
+                    engines.append({
+                        "id": pid,
+                        "name": p.GetName(),
+                        "type": "VideoPost",
+                    })
+            except Exception as e:
+                self.log(f"[LIST_RENDER_ENGINES] VideoPost enum failed: {e}")
+
+            doc = c4d.documents.GetActiveDocument()
+            active_id = None
+            if doc:
+                try:
+                    rd = doc.GetActiveRenderData()
+                    if rd:
+                        active_id = rd[c4d.RDATA_RENDERENGINE]
+                except Exception:
+                    pass
+
+            for e in engines:
+                e["is_active"] = (e["id"] == active_id)
+
+            engines.sort(key=lambda e: e["name"])
+
+            return {
+                "engine_count": len(engines),
+                "active_renderer_id": active_id,
+                "active_renderer_name": self._renderer_name(active_id) if active_id is not None else None,
+                "engines": engines,
+            }
+        except Exception as e:
+            return {"error": f"list_render_engines failed: {e}", "traceback": traceback.format_exc()}
+
+    def handle_get_active_renderer(self, command):
+        """Return the active document's render engine id, name, and full RenderData parameter dump."""
+        doc = c4d.documents.GetActiveDocument()
+        if not doc:
+            return {"error": "No active document"}
+        rd = doc.GetActiveRenderData()
+        if not rd:
+            return {"error": "No active RenderData"}
+        try:
+            engine_id = rd[c4d.RDATA_RENDERENGINE]
+            xres = rd[c4d.RDATA_XRES] if c4d.RDATA_XRES in rd.GetData() else None
+            yres = rd[c4d.RDATA_YRES] if c4d.RDATA_YRES in rd.GetData() else None
+            return {
+                "renderer_id": engine_id,
+                "renderer_name": self._renderer_name(engine_id),
+                "render_data_name": rd.GetName(),
+                "resolution": [xres, yres] if xres and yres else None,
+            }
+        except Exception as e:
+            return {"error": f"get_active_renderer failed: {e}", "traceback": traceback.format_exc()}
+
+    # ---- Material graph / shader / CallCommand (Tier 5: Octane workflow) ----
+
+    def _walk_shader(self, shader, depth=0, max_depth=20, visited=None):
+        """Recursively walk a shader tree. Returns a list of {depth, name, type_id, guid, params}."""
+        if visited is None:
+            visited = set()
+        nodes = []
+        cur = shader
+        while cur is not None:
+            try:
+                key = id(cur)
+                if key in visited or depth > max_depth:
+                    cur = cur.GetNext() if hasattr(cur, "GetNext") else None
+                    continue
+                visited.add(key)
+                node = {
+                    "depth": depth,
+                    "name": cur.GetName(),
+                    "type_id": cur.GetType(),
+                    "guid": str(cur.GetGUID()) if hasattr(cur, "GetGUID") else None,
+                }
+                # Try to extract a few common parameters by enumerating description
+                try:
+                    desc = cur.GetDescription(c4d.DESCFLAGS_DESC_0)
+                    if desc:
+                        params_summary = []
+                        count = 0
+                        for bc, paramid, groupid in desc:
+                            if not bc:
+                                continue
+                            if count >= 30:  # cap per-shader to keep response manageable
+                                break
+                            try:
+                                pname = bc.GetString(c4d.DESC_NAME)
+                                if not pname:
+                                    continue
+                                val = self._value_to_jsonable(cur[paramid])
+                                params_summary.append({
+                                    "path": self._descid_to_path(paramid),
+                                    "name": pname,
+                                    "value": val,
+                                })
+                                count += 1
+                            except Exception:
+                                pass
+                        node["params"] = params_summary
+                except Exception as e:
+                    node["params_error"] = str(e)
+
+                # Children: shader.GetDown() for nested shader graphs
+                child = cur.GetDown() if hasattr(cur, "GetDown") else None
+                if child is not None:
+                    node["children"] = self._walk_shader(child, depth + 1, max_depth, visited)
+                nodes.append(node)
+                cur = cur.GetNext() if hasattr(cur, "GetNext") else None
+            except Exception as e:
+                nodes.append({"depth": depth, "name": "<error>", "error": str(e)})
+                break
+        return nodes
+
+    def handle_dump_material_graph(self, command):
+        """Walk the shader tree of a material (or any object that exposes GetFirstShader).
+
+        Required: 'material_name' or 'guid' (or 'object_name' to dump shaders attached
+        to a non-material object — e.g. an Octane Area Light's emission shader).
+        Optional: 'max_depth' (int, default 20).
+        """
+        doc = c4d.documents.GetActiveDocument()
+        if not doc:
+            return {"error": "No active document"}
+
+        max_depth = int(command.get("max_depth", 20))
+        material_name = command.get("material_name")
+
+        target = None
+        # Try material lookup first
+        if material_name:
+            for m in doc.GetMaterials():
+                if m.GetName() == material_name:
+                    target = m
+                    break
+            if target is None:
+                return {"error": f"Material not found: {material_name}"}
+        else:
+            # Fall back to object lookup
+            target, err = self._resolve_object(doc, command)
+            if err:
+                return {"error": err}
+
+        try:
+            first_shader = target.GetFirstShader() if hasattr(target, "GetFirstShader") else None
+        except Exception as e:
+            return {"error": f"GetFirstShader failed: {e}"}
+
+        graph = self._walk_shader(first_shader, depth=0, max_depth=max_depth) if first_shader else []
+
+        # Also dump tags if the target is an object (some shaders live on tags, e.g. Octane tag)
+        tag_shaders = []
+        if hasattr(target, "GetFirstTag"):
+            tag = target.GetFirstTag()
+            while tag:
+                try:
+                    ts = tag.GetFirstShader() if hasattr(tag, "GetFirstShader") else None
+                    if ts:
+                        tag_shaders.append({
+                            "tag_name": tag.GetName(),
+                            "tag_type_id": tag.GetType(),
+                            "shaders": self._walk_shader(ts, depth=0, max_depth=max_depth),
+                        })
+                except Exception as e:
+                    tag_shaders.append({"tag_name": tag.GetName(), "error": str(e)})
+                tag = tag.GetNext()
+
+        return {
+            "target": {
+                "name": target.GetName(),
+                "type_id": target.GetType(),
+                "guid": str(target.GetGUID()) if hasattr(target, "GetGUID") else None,
+            },
+            "shader_count": len(graph),
+            "shader_graph": graph,
+            "tag_shader_graphs": tag_shaders,
+        }
+
+    def handle_create_via_command(self, command):
+        """Execute c4d.CallCommand(id) on the main thread and return what was newly created/selected.
+
+        Required: 'command_id' (int) — the C4D command ID (e.g. 1033864 for Octane Area Light).
+        Optional: 'object_name' (str) — rename the newly-created active object after creation.
+
+        Returns the new active object's name + guid + type. The new object is what
+        ended up selected after the command ran (most creator commands set the new
+        object as active).
+        """
+        doc = c4d.documents.GetActiveDocument()
+        if not doc:
+            return {"error": "No active document"}
+        cmd_id = command.get("command_id")
+        if cmd_id is None:
+            return {"error": "Required: command_id (int)"}
+
+        rename_to = command.get("object_name")
+
+        def _exec():
+            try:
+                # Snapshot what's selected before
+                before_active = doc.GetActiveObject()
+                before_guid = str(before_active.GetGUID()) if before_active else None
+
+                c4d.CallCommand(int(cmd_id))
+
+                # The new object is typically selected
+                after_active = doc.GetActiveObject()
+                if not after_active or (before_guid and str(after_active.GetGUID()) == before_guid):
+                    # Maybe it landed at root and isn't active — check first object
+                    return {
+                        "warning": f"CallCommand({cmd_id}) executed but no new active object detected",
+                        "before_active": before_guid,
+                    }
+
+                if rename_to:
+                    try:
+                        after_active.SetName(rename_to)
+                    except Exception as e:
+                        self.log(f"[CREATE_VIA_CMD] rename failed: {e}")
+
+                c4d.EventAdd()
+                return {
+                    "status": "ok",
+                    "command_id": int(cmd_id),
+                    "new_object": {
+                        "name": after_active.GetName(),
+                        "type_id": after_active.GetType(),
+                        "type_name": self.get_object_type_name(after_active),
+                        "guid": str(after_active.GetGUID()),
+                    },
+                }
+            except Exception as e:
+                return {"error": f"create_via_command failed: {e}", "traceback": traceback.format_exc()}
+
+        return self.execute_on_main_thread(_exec, _timeout=30)
+
+    def handle_link_shader_to_parameter(self, command):
+        """Create or attach a shader and link it as the value of a parameter on an object.
+
+        Required:
+          - target_name or target_guid: the object/material/light to receive the shader
+          - parameter_path: list of int DescID levels (e.g. [1003] or [1003, 0])
+                            OR parameter_name: we'll resolve via enumerate_descids match
+          - shader_plugin_id: the plugin ID of the shader to create (e.g. Octane Image Texture)
+
+        Optional:
+          - shader_params: dict of {parameter_path_str: value} to set on the new shader
+                           (e.g. {"OCTANE_IMAGETEX_FILE": "/tmp/canvas.png"}; falls back to
+                           heuristic for "filename" / "path" / "image" parameter names if
+                           an integer key isn't given)
+
+        Returns the new shader's guid + the actual DescID that was set.
+        """
+        doc = c4d.documents.GetActiveDocument()
+        if not doc:
+            return {"error": "No active document"}
+
+        # Resolve target
+        target_name = command.get("target_name")
+        target_guid = command.get("target_guid")
+        target = None
+        if target_guid:
+            target = self.find_object_by_name(doc, target_guid, use_guid=True)
+        elif target_name:
+            # Try object first
+            target = self.find_object_by_name(doc, target_name, use_guid=False)
+            # Then material
+            if not target:
+                for m in doc.GetMaterials():
+                    if m.GetName() == target_name:
+                        target = m
+                        break
+        if target is None:
+            return {"error": f"Target not found: {target_name or target_guid}"}
+
+        shader_plugin_id = command.get("shader_plugin_id")
+        if shader_plugin_id is None:
+            return {"error": "Required: shader_plugin_id (int)"}
+
+        param_path = command.get("parameter_path")
+        param_name = command.get("parameter_name")
+        if not param_path and not param_name:
+            return {"error": "Required: parameter_path (list of int) or parameter_name (str)"}
+
+        shader_params = command.get("shader_params") or {}
+
+        def _exec():
+            try:
+                # Create the shader
+                shader = c4d.BaseShader(int(shader_plugin_id))
+                if not shader:
+                    return {"error": f"Failed to create shader with plugin_id {shader_plugin_id}"}
+
+                # Set shader_params if any
+                applied_shader_params = []
+                for k, v in shader_params.items():
+                    try:
+                        # If k is an int (or string of int), use directly
+                        try:
+                            kid = int(k)
+                            shader[kid] = v
+                            applied_shader_params.append({"id": kid, "value": v})
+                            continue
+                        except (TypeError, ValueError):
+                            pass
+                        # Otherwise enumerate shader params and find matching name
+                        sdesc = shader.GetDescription(c4d.DESCFLAGS_DESC_0)
+                        matched = False
+                        for sbc, sparamid, _gid in sdesc:
+                            if not sbc:
+                                continue
+                            sname = sbc.GetString(c4d.DESC_NAME) or ""
+                            if k.lower() in sname.lower():
+                                try:
+                                    shader[sparamid] = v
+                                    applied_shader_params.append({"path": self._descid_to_path(sparamid), "matched_name": sname, "value": v})
+                                    matched = True
+                                    break
+                                except Exception as e:
+                                    self.log(f"[LINK_SHADER] failed setting {sname}: {e}")
+                        if not matched:
+                            self.log(f"[LINK_SHADER] no shader param matched name '{k}'")
+                    except Exception as e:
+                        self.log(f"[LINK_SHADER] error setting shader param '{k}': {e}")
+
+                # Insert the shader on the target so it's owned
+                if hasattr(target, "InsertShader"):
+                    target.InsertShader(shader)
+                else:
+                    return {"error": "Target does not support InsertShader (not a material/light/tag)"}
+
+                # Resolve the parameter DescID
+                resolved_descid = None
+                resolved_name = None
+                if param_path:
+                    # Build a DescID from a list of int ids
+                    levels = []
+                    for pid in param_path:
+                        levels.append(c4d.DescLevel(int(pid), 0, 0))
+                    resolved_descid = c4d.DescID(*levels)
+                else:
+                    # Find by name
+                    desc = target.GetDescription(c4d.DESCFLAGS_DESC_0)
+                    pn_lower = param_name.lower()
+                    for tbc, tparamid, _gid in desc:
+                        if not tbc:
+                            continue
+                        tname = tbc.GetString(c4d.DESC_NAME) or ""
+                        if pn_lower in tname.lower():
+                            resolved_descid = tparamid
+                            resolved_name = tname
+                            break
+                    if resolved_descid is None:
+                        return {"error": f"Could not find parameter matching name '{param_name}' on target"}
+
+                # Set the shader on the parameter
+                try:
+                    target[resolved_descid] = shader
+                except Exception as e:
+                    return {"error": f"Failed to assign shader to parameter: {e}", "resolved_descid_path": self._descid_to_path(resolved_descid)}
+
+                c4d.EventAdd()
+
+                return {
+                    "status": "ok",
+                    "target": {"name": target.GetName(), "guid": str(target.GetGUID()) if hasattr(target, "GetGUID") else None},
+                    "shader": {
+                        "plugin_id": int(shader_plugin_id),
+                        "guid": str(shader.GetGUID()) if hasattr(shader, "GetGUID") else None,
+                    },
+                    "parameter": {
+                        "path": self._descid_to_path(resolved_descid),
+                        "name": resolved_name,
+                    },
+                    "applied_shader_params": applied_shader_params,
+                }
+            except Exception as e:
+                return {"error": f"link_shader_to_parameter failed: {e}", "traceback": traceback.format_exc()}
+
+        return self.execute_on_main_thread(_exec, _timeout=30)
+
+    def handle_get_c4d_info(self, command):
+        """Return Cinema 4D environment info: version, python, install paths, prefs path, etc.
+        Useful for diagnostics, bug reports, and figuring out where to install plugins."""
+        try:
+            info = {
+                "c4d_version_int": c4d.GetC4DVersion(),
+                "c4d_version_major": c4d.GetC4DVersion() // 1000,
+                "c4d_version_minor": (c4d.GetC4DVersion() // 100) % 10,
+                "python_version": sys.version,
+                "platform": sys.platform,
+                "starter_path": str(c4d.storage.GeGetStartupPath()) if hasattr(c4d.storage, "GeGetStartupPath") else None,
+                "plugins_path": str(c4d.storage.GeGetPluginPath()) if hasattr(c4d.storage, "GeGetPluginPath") else None,
+                "prefs_path": str(c4d.storage.GeGetC4DPath(c4d.C4D_PATH_PREFS)) if hasattr(c4d.storage, "GeGetC4DPath") else None,
+                "default_capture_path": str(c4d.storage.GeGetC4DPath(c4d.C4D_PATH_STARTUPWRITE)) if hasattr(c4d.storage, "GeGetC4DPath") else None,
+                "luminary_geprint_hooked": _luminary_geprint_patched,
+                "luminary_log_buffer_size": len(_luminary_log_buffer),
+                "luminary_log_buffer_max": LUMINARY_LOG_BUFFER_MAX,
+            }
+            doc = c4d.documents.GetActiveDocument()
+            if doc:
+                info["active_document"] = {
+                    "name": doc.GetDocumentName() or "Untitled",
+                    "path": str(doc.GetDocumentPath()) if doc.GetDocumentPath() else None,
+                    "fps": doc.GetFps(),
+                    "frame": doc.GetTime().GetFrame(doc.GetFps()),
+                }
+            return info
+        except Exception as e:
+            return {"error": f"get_c4d_info failed: {e}", "traceback": traceback.format_exc()}
+
+    def handle_dump_object_tree(self, command):
+        """Dump the scene hierarchy as a flat list of {depth, name, type_name, type_id, guid}.
+        Pass 'guid' or 'object_name' to start at a specific subtree; omit both to dump from doc root.
+        """
+        doc = c4d.documents.GetActiveDocument()
+        if not doc:
+            return {"error": "No active document"}
+        max_depth = int(command.get("max_depth", 100))
+
+        root_obj = None
+        if command.get("guid") or command.get("object_name") or command.get("name") or command.get("identifier"):
+            root_obj, err = self._resolve_object(doc, command)
+            if err:
+                return {"error": err}
+
+        nodes = []
+
+        def walk(obj, depth):
+            while obj is not None:
+                if depth > max_depth:
+                    obj = obj.GetNext()
+                    continue
+                try:
+                    nodes.append({
+                        "depth": depth,
+                        "name": obj.GetName(),
+                        "type_id": obj.GetType(),
+                        "type_name": self.get_object_type_name(obj),
+                        "guid": str(obj.GetGUID()),
+                    })
+                except Exception as e:
+                    nodes.append({"depth": depth, "name": "<error>", "error": str(e)})
+                walk(obj.GetDown(), depth + 1)
+                obj = obj.GetNext()
+
+        if root_obj is not None:
+            # Include the root itself, then walk children
+            try:
+                nodes.append({
+                    "depth": 0,
+                    "name": root_obj.GetName(),
+                    "type_id": root_obj.GetType(),
+                    "type_name": self.get_object_type_name(root_obj),
+                    "guid": str(root_obj.GetGUID()),
+                })
+            except Exception as e:
+                nodes.append({"depth": 0, "name": "<error>", "error": str(e)})
+            walk(root_obj.GetDown(), 1)
+        else:
+            walk(doc.GetFirstObject(), 0)
+
+        return {"node_count": len(nodes), "nodes": nodes}
+
+
 class SocketServerDialog(gui.GeDialog):
     """GUI Dialog to control the server and display logs."""
 
@@ -7166,6 +8455,8 @@ class SocketServerDialog(gui.GeDialog):
     def StartServer(self):
         """Start the socket server thread."""
         if not self.server:
+            # Luminary: install c4d.GePrint hook so MCP can read C4D console output
+            luminary_install_geprint_hook()
             self.server = C4DSocketServer(msg_queue=self.msg_queue)
             self.server.start()
             self.Enable(1011, False)
@@ -7178,6 +8469,8 @@ class SocketServerDialog(gui.GeDialog):
             self.server = None
             self.Enable(1011, True)
             self.Enable(1012, False)
+            # Luminary: leave the GePrint hook in place so the buffer keeps
+            # capturing output even when the socket server is briefly down.
 
 
 class SocketServerPlugin(c4d.plugins.CommandData):

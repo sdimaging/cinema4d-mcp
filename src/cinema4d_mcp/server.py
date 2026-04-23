@@ -398,6 +398,259 @@ def format_c4d_response(response: Dict[str, Any], command_type: str) -> str:
             lines.append(f"  - **Assets**: {len(snap['assets'])}")
         return "\n".join(lines)
 
+    # ----- Luminary MCP extensions: introspection -----
+
+    elif command_type == "enumerate_descids":
+        obj = response.get("object", {})
+        params = response.get("parameters", [])
+        truncated = response.get("truncated", False)
+        filt = response.get("filter_applied", {})
+        lines = [
+            f"✅ Enumerated **{response.get('parameter_count', len(params))}** parameters on **{obj.get('name', '?')}** "
+            f"(type_id={obj.get('type_id')}, guid={obj.get('guid')})"
+        ]
+        if any(filt.values()):
+            applied = [f"{k}={v}" for k, v in filt.items() if v]
+            lines.append(f"  - **Filters**: {', '.join(applied)}")
+        if truncated:
+            lines.append("  - ⚠️ Result truncated — increase max_results to see more")
+        if not params:
+            lines.append("  - (no parameters matched)")
+        else:
+            # Show up to 50 inline; full data is in the JSON response anyway
+            preview = params[:50]
+            lines.append("")
+            lines.append("| Path | Name | dtype | Current value |")
+            lines.append("|------|------|-------|---------------|")
+            for p in preview:
+                path_str = ".".join(str(x) for x in p.get("path", []))
+                name = p.get("name", "")[:40]
+                dtype = p.get("dtype", "")
+                val = p.get("current_value", p.get("current_value_error", ""))
+                if isinstance(val, (dict, list)):
+                    val = str(val)[:60] + ("…" if len(str(val)) > 60 else "")
+                else:
+                    val = str(val)[:60]
+                lines.append(f"| `{path_str}` | {name} | {dtype} | {val} |")
+            if len(params) > 50:
+                lines.append(f"\n_…showing first 50 of {len(params)} parameters._")
+        return "\n".join(lines)
+
+    elif command_type == "enumerate_userdata":
+        obj = response.get("object", {})
+        items = response.get("userdata", [])
+        lines = [f"✅ **{len(items)}** userdata entries on **{obj.get('name', '?')}**"]
+        if not items:
+            lines.append("  - (no userdata)")
+        else:
+            for it in items[:50]:
+                path_str = ".".join(str(x) for x in it.get("path", []))
+                lines.append(f"  - `{path_str}` **{it.get('name', '')}** (dtype={it.get('dtype')}) = `{it.get('current_value', '')}`")
+            if len(items) > 50:
+                lines.append(f"  - …and {len(items) - 50} more")
+        return "\n".join(lines)
+
+    elif command_type == "find_objects":
+        matches = response.get("matches", [])
+        truncated = response.get("truncated", False)
+        lines = [f"✅ Found **{len(matches)}** matching object(s)" + (" _(truncated)_" if truncated else "")]
+        for m in matches[:100]:
+            indent = "  " * m.get("depth", 0)
+            lines.append(f"  - {indent}**{m.get('name', '?')}** ({m.get('type_name', '?')}, type_id={m.get('type_id')}, guid={m.get('guid')})")
+        if len(matches) > 100:
+            lines.append(f"  - …and {len(matches) - 100} more")
+        return "\n".join(lines)
+
+    elif command_type == "get_object_info":
+        lines = [f"✅ **{response.get('name', '?')}** ({response.get('type_name', '?')})"]
+        lines.append(f"  - **Type ID**: {response.get('type_id')}")
+        lines.append(f"  - **GUID**: `{response.get('guid')}`")
+        if "position" in response:
+            lines.append(f"  - **Position**: {_fmt_vec(response['position'])}")
+        if "rotation" in response:
+            lines.append(f"  - **Rotation**: {_fmt_vec(response['rotation'])}")
+        if "scale" in response:
+            lines.append(f"  - **Scale**: {_fmt_vec(response['scale'])}")
+        if response.get("layer_name"):
+            lines.append(f"  - **Layer**: {response['layer_name']}")
+        if response.get("parent_name"):
+            lines.append(f"  - **Parent**: {response['parent_name']} (`{response.get('parent_guid')}`)")
+        lines.append(f"  - **Children**: {response.get('child_count', 0)}")
+        lines.append(f"  - **Tags**: {response.get('tag_count', 0)}")
+        for t in response.get("tags", [])[:20]:
+            lines.append(f"    - {t.get('name')} (type_id={t.get('type_id')})")
+        return "\n".join(lines)
+
+    elif command_type == "dump_object_tree":
+        nodes = response.get("nodes", [])
+        lines = [f"✅ **{len(nodes)}** nodes in tree"]
+        for n in nodes[:200]:
+            indent = "  " * n.get("depth", 0)
+            lines.append(f"  {indent}- **{n.get('name', '?')}** _{n.get('type_name', '?')}_ (id={n.get('type_id')}, guid={n.get('guid')})")
+        if len(nodes) > 200:
+            lines.append(f"  _…and {len(nodes) - 200} more nodes._")
+        return "\n".join(lines)
+
+    elif command_type == "get_console_log":
+        entries = response.get("entries", [])
+        hooked = response.get("geprint_hooked", False)
+        lines = [
+            f"✅ **{len(entries)}** log entries  "
+            f"(buffer_max={response.get('buffer_max')}, GePrint_hook={'on' if hooked else 'off'})"
+        ]
+        if not hooked:
+            lines.append("  - ⚠️ GePrint hook not installed — only plugin self.log() output is captured. Restart socket server to install hook.")
+        if not entries:
+            lines.append("  - (empty)")
+        else:
+            for e in entries[-300:]:
+                lines.append(f"  `{e.get('iso', '')}` [{e.get('source', '')}] {e.get('message', '')}")
+        return "\n".join(lines)
+
+    elif command_type == "clear_console_log":
+        return f"✅ Console log buffer cleared"
+
+    elif command_type == "list_installed_plugins":
+        plugins = response.get("plugins", [])
+        flt = response.get("filter", {})
+        lines = [f"✅ Found **{len(plugins)}** plugins"]
+        applied = [f"{k}={v}" for k, v in flt.items() if v]
+        if applied:
+            lines.append(f"  - **Filter**: {', '.join(applied)}")
+        # Group by type for readability
+        by_type: Dict[str, List[Dict[str, Any]]] = {}
+        for p in plugins:
+            by_type.setdefault(p.get("type_name", "?"), []).append(p)
+        for tname in sorted(by_type.keys()):
+            entries = by_type[tname]
+            lines.append(f"\n  **{tname}** ({len(entries)})")
+            for p in entries[:50]:
+                lines.append(f"  - id=`{p.get('id')}`  {p.get('name', '?')}")
+            if len(entries) > 50:
+                lines.append(f"  - …and {len(entries) - 50} more")
+        return "\n".join(lines)
+
+    elif command_type == "get_c4d_info":
+        lines = ["✅ **Cinema 4D environment**"]
+        for k, v in response.items():
+            if k == "status" or k == "active_document":
+                continue
+            label = k.replace("_", " ").title()
+            lines.append(f"  - **{label}**: `{v}`")
+        if "active_document" in response:
+            doc = response["active_document"]
+            lines.append("\n  **Active document**:")
+            for k, v in doc.items():
+                lines.append(f"    - **{k.title()}**: {v}")
+        return "\n".join(lines)
+
+    elif command_type == "viewport_screenshot":
+        if "image_data" not in response:
+            return f"❌ No image data returned ({response.get('error', 'unknown')})"
+        w = response.get("width", "?")
+        h = response.get("height", "?")
+        renderer = response.get("renderer", "?")
+        cam = response.get("camera", "?")
+        lines = [f"✅ Viewport screenshot ({w}×{h}) — renderer: **{renderer}**, camera: **{cam}**"]
+        lines.append(f"![viewport](data:image/png;base64,{response['image_data']})")
+        return "\n".join(lines)
+
+    elif command_type == "get_viewport_state":
+        lines = ["✅ **Viewport state**"]
+        if "frame" in response and response["frame"]:
+            f = response["frame"]
+            lines.append(f"  - **Frame**: {f.get('width')}×{f.get('height')} (L={f.get('left')}, T={f.get('top')}, R={f.get('right')}, B={f.get('bottom')})")
+        if response.get("camera"):
+            c = response["camera"]
+            lines.append(f"  - **Camera**: {c.get('name')} (type_id={c.get('type_id')}, guid={c.get('guid')})")
+            lines.append(f"    - Position: {_fmt_vec(c.get('position', []))}")
+            if c.get("focal_length_mm") is not None:
+                lines.append(f"    - Focal length: {c['focal_length_mm']:.2f}mm")
+        if response.get("projection_mode") is not None:
+            lines.append(f"  - **Projection mode**: {response['projection_mode']}")
+        if response.get("active_renderer"):
+            lines.append(f"  - **Active renderer**: {response['active_renderer']}")
+        return "\n".join(lines)
+
+    elif command_type == "list_render_engines":
+        engines = response.get("engines", [])
+        active_id = response.get("active_renderer_id")
+        active_name = response.get("active_renderer_name")
+        lines = [
+            f"✅ **{len(engines)}** render engine(s) registered",
+            f"  - **Active**: {active_name} (id={active_id})",
+            "",
+        ]
+        for e in engines:
+            mark = "▶ " if e.get("is_active") else "  "
+            lines.append(f"  {mark}id=`{e.get('id')}`  **{e.get('name', '?')}**")
+        return "\n".join(lines)
+
+    elif command_type == "get_active_renderer":
+        lines = ["✅ **Active renderer**"]
+        for k, v in response.items():
+            if k == "status":
+                continue
+            lines.append(f"  - **{k.replace('_', ' ').title()}**: {v}")
+        return "\n".join(lines)
+
+    elif command_type == "dump_material_graph":
+        target = response.get("target", {})
+        graph = response.get("shader_graph", [])
+        tag_graphs = response.get("tag_shader_graphs", [])
+        lines = [f"✅ Material graph: **{target.get('name', '?')}** (type_id={target.get('type_id')})"]
+        lines.append(f"  - Top-level shaders: {len(graph)}")
+        if tag_graphs:
+            lines.append(f"  - Tags with shaders: {len(tag_graphs)}")
+
+        def _render_node(n, indent=2):
+            out = []
+            pad = "  " * indent
+            out.append(f"{pad}- **{n.get('name', '?')}** (type_id={n.get('type_id')}, guid={n.get('guid')})")
+            for p in n.get("params", [])[:10]:
+                pname = p.get("name", "?")[:30]
+                pval = str(p.get("value", ""))[:50]
+                out.append(f"{pad}    `{p.get('path')}` {pname} = `{pval}`")
+            for child in n.get("children", []):
+                out.extend(_render_node(child, indent + 1))
+            return out
+
+        for n in graph:
+            lines.extend(_render_node(n, indent=1))
+
+        for tg in tag_graphs:
+            lines.append(f"\n  **Tag**: {tg.get('tag_name')} (type_id={tg.get('tag_type_id')})")
+            for n in tg.get("shaders", []):
+                lines.extend(_render_node(n, indent=2))
+
+        return "\n".join(lines)
+
+    elif command_type == "create_via_command":
+        new_obj = response.get("new_object", {})
+        if not new_obj:
+            return f"⚠️ {response.get('warning', 'No new object detected')}"
+        lines = [f"✅ Created **{new_obj.get('name', '?')}** via CallCommand({response.get('command_id')})"]
+        lines.append(f"  - **Type**: {new_obj.get('type_name')} (id={new_obj.get('type_id')})")
+        lines.append(f"  - **GUID**: `{new_obj.get('guid')}`")
+        return "\n".join(lines)
+
+    elif command_type == "link_shader_to_parameter":
+        tgt = response.get("target", {})
+        sh = response.get("shader", {})
+        param = response.get("parameter", {})
+        applied = response.get("applied_shader_params", [])
+        lines = [
+            f"✅ Linked shader (plugin_id={sh.get('plugin_id')}) → **{tgt.get('name', '?')}**.{param.get('name') or param.get('path')}",
+            f"  - **Target GUID**: `{tgt.get('guid')}`",
+            f"  - **Shader GUID**: `{sh.get('guid')}`",
+            f"  - **Parameter path**: `{param.get('path')}`",
+        ]
+        if applied:
+            lines.append(f"  - **Shader params applied**:")
+            for ap in applied:
+                lines.append(f"    - {ap}")
+        return "\n".join(lines)
+
     # Fallback: format the dict generically
     lines = [f"✅ {status}"]
     for k, v in response.items():
@@ -1195,6 +1448,892 @@ async def snapshot_scene(
         response = send_to_c4d(connection, command)
 
         return format_c4d_response(response, "snapshot_scene")
+
+
+# ============================================================
+# Luminary MCP extensions — Tier 1: Introspection tools
+# Added 2026-04-23. These are read-only and unblock plugin development
+# by exposing C4D's full description/userdata/scene-tree state to the
+# MCP client. enumerate_descids in particular cracks undocumented
+# plugin parameter IDs (Octane, Redshift, third-party tags).
+# ============================================================
+
+
+@mcp.tool()
+async def enumerate_descids(
+    object_name: Optional[str] = None,
+    guid: Optional[str] = None,
+    name_filter: Optional[str] = None,
+    name_pattern: Optional[str] = None,
+    include_values: bool = True,
+    max_results: int = 5000,
+    top_level_only: bool = False,
+    ctx: Context = None,
+) -> str:
+    """Enumerate every parameter (DescID) of a Cinema 4D object.
+
+    THIS IS THE MOST IMPORTANT TOOL FOR DISCOVERING UNDOCUMENTED PLUGIN
+    PARAMETER IDS. Use it to find Octane Area Light's texture/distribution
+    input, Redshift node parameters, third-party tag IDs, etc. Mirrors
+    the workflow of C4D's Customize Palettes attribute inspector.
+
+    Provide either `object_name` or `guid` to identify the target object.
+    Filter the result with `name_filter` (case-insensitive substring) or
+    `name_pattern` (fnmatch wildcard) to narrow large parameter sets —
+    e.g. name_filter="texture" surfaces texture-related params on an
+    Octane light in seconds.
+
+    Set `top_level_only=True` to skip nested group parameters.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        command: Dict[str, Any] = {
+            "command": "enumerate_descids",
+            "include_values": include_values,
+            "max_results": max_results,
+            "top_level_only": top_level_only,
+        }
+        if guid:
+            command["guid"] = guid
+        if object_name:
+            command["object_name"] = object_name
+        if name_filter:
+            command["name_filter"] = name_filter
+        if name_pattern:
+            command["name_pattern"] = name_pattern
+        response = send_to_c4d(connection, command)
+        return format_c4d_response(response, "enumerate_descids")
+
+
+@mcp.tool()
+async def enumerate_userdata(
+    object_name: Optional[str] = None,
+    guid: Optional[str] = None,
+    ctx: Context = None,
+) -> str:
+    """Enumerate the User Data container on an object (separate from regular Description params)."""
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        command: Dict[str, Any] = {"command": "enumerate_userdata"}
+        if guid:
+            command["guid"] = guid
+        if object_name:
+            command["object_name"] = object_name
+        response = send_to_c4d(connection, command)
+        return format_c4d_response(response, "enumerate_userdata")
+
+
+@mcp.tool()
+async def find_objects(
+    name_pattern: Optional[str] = None,
+    name_contains: Optional[str] = None,
+    type_id: Optional[int] = None,
+    type_id_min: Optional[int] = None,
+    type_id_max: Optional[int] = None,
+    max_results: int = 200,
+    ctx: Context = None,
+) -> str:
+    """Find scene objects matching name pattern, substring, and/or type id.
+
+    Combine filters AND-style. Examples:
+      - name_pattern="Cube*" matches "Cube", "Cube.1", "Cube_test"
+      - name_contains="light" — case-insensitive substring match
+      - type_id=5159 — exact type match (c4d.Ocube)
+      - type_id_min=1029525, type_id_max=1029999 — Octane-plugin ID range scan
+
+    Results include name, type, type_id, guid, and depth in the hierarchy.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        command: Dict[str, Any] = {"command": "find_objects", "max_results": max_results}
+        if name_pattern:
+            command["name_pattern"] = name_pattern
+        if name_contains:
+            command["name_contains"] = name_contains
+        if type_id is not None:
+            command["type_id"] = type_id
+        if type_id_min is not None:
+            command["type_id_min"] = type_id_min
+        if type_id_max is not None:
+            command["type_id_max"] = type_id_max
+        response = send_to_c4d(connection, command)
+        return format_c4d_response(response, "find_objects")
+
+
+@mcp.tool()
+async def get_object_info(
+    object_name: Optional[str] = None,
+    guid: Optional[str] = None,
+    ctx: Context = None,
+) -> str:
+    """Return comprehensive info on a single object: name, type, GUID, transform,
+    visibility flags, layer, parent, child count, and all tags."""
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        command: Dict[str, Any] = {"command": "get_object_info"}
+        if guid:
+            command["guid"] = guid
+        if object_name:
+            command["object_name"] = object_name
+        response = send_to_c4d(connection, command)
+        return format_c4d_response(response, "get_object_info")
+
+
+@mcp.tool()
+async def dump_object_tree(
+    root_name: Optional[str] = None,
+    root_guid: Optional[str] = None,
+    max_depth: int = 100,
+    ctx: Context = None,
+) -> str:
+    """Dump the scene hierarchy as a flat list of {depth, name, type, guid}.
+    Pass `root_name` or `root_guid` to start from a specific subtree; omit both
+    to dump the entire scene from the document root."""
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        command: Dict[str, Any] = {"command": "dump_object_tree", "max_depth": max_depth}
+        if root_guid:
+            command["guid"] = root_guid
+        if root_name:
+            command["object_name"] = root_name
+        response = send_to_c4d(connection, command)
+        return format_c4d_response(response, "dump_object_tree")
+
+
+# ---- Tier 2: Console log capture ----
+
+
+@mcp.tool()
+async def get_console_log(
+    limit: Optional[int] = 200,
+    since_ts: Optional[float] = None,
+    source: Optional[str] = None,
+    contains: Optional[str] = None,
+    ctx: Context = None,
+) -> str:
+    """Read recent entries from the Luminary console log buffer.
+
+    Captures both Cinema 4D's c4d.GePrint() output (via runtime hook installed
+    when the socket server starts) AND the plugin's internal self.log() messages.
+    This lets the MCP client see what's happening in C4D without manually
+    inspecting the console window.
+
+    Filters:
+      - limit: max number of entries to return (default 200, newest last)
+      - since_ts: only entries with timestamp > since_ts (epoch seconds)
+      - source: filter by source — 'plugin', 'c4d.GePrint', or 'luminary'
+      - contains: case-insensitive substring filter on message content
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        command: Dict[str, Any] = {"command": "get_console_log"}
+        if limit is not None:
+            command["limit"] = limit
+        if since_ts is not None:
+            command["since_ts"] = since_ts
+        if source:
+            command["source"] = source
+        if contains:
+            command["contains"] = contains
+        response = send_to_c4d(connection, command)
+        return format_c4d_response(response, "get_console_log")
+
+
+@mcp.tool()
+async def clear_console_log(ctx: Context = None) -> str:
+    """Empty the Luminary console log ring buffer (does NOT clear C4D's own console window)."""
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        command: Dict[str, Any] = {"command": "clear_console_log"}
+        response = send_to_c4d(connection, command)
+        return format_c4d_response(response, "clear_console_log")
+
+
+# ---- Tier 3: Plugin lifecycle ----
+
+
+@mcp.tool()
+async def list_installed_plugins(
+    plugin_type: str = "all",
+    plugin_id: Optional[int] = None,
+    name_contains: Optional[str] = None,
+    id_min: Optional[int] = None,
+    id_max: Optional[int] = None,
+    ctx: Context = None,
+) -> str:
+    """List loaded Cinema 4D plugins, filterable by type, id, or name.
+
+    plugin_type options: 'object', 'tag', 'shader', 'material', 'command',
+    'tool', 'node', 'bitmapsaver', 'bitmaploader', 'videopost', 'sculptbrush',
+    'falloff', 'field', 'all' (default).
+
+    Use id_min/id_max to scan a plugin ID range — invaluable for discovering
+    Octane/Redshift/third-party plugins. Example: id_min=1029525, id_max=1030000
+    to enumerate plugins in Octane's typical range.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        command: Dict[str, Any] = {"command": "list_installed_plugins", "plugin_type": plugin_type}
+        if plugin_id is not None:
+            command["plugin_id"] = plugin_id
+        if name_contains:
+            command["name_contains"] = name_contains
+        if id_min is not None:
+            command["id_min"] = id_min
+        if id_max is not None:
+            command["id_max"] = id_max
+        response = send_to_c4d(connection, command)
+        return format_c4d_response(response, "list_installed_plugins")
+
+
+@mcp.tool()
+async def get_c4d_info(ctx: Context = None) -> str:
+    """Return C4D environment info: version, Python version, install paths, prefs path,
+    active document, and Luminary MCP buffer state. Useful for diagnostics."""
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        command: Dict[str, Any] = {"command": "get_c4d_info"}
+        response = send_to_c4d(connection, command)
+        return format_c4d_response(response, "get_c4d_info")
+
+
+# ---- Tier 4: Viewport / render engine ----
+
+
+@mcp.tool()
+async def viewport_screenshot(
+    width: int = 800,
+    height: int = 450,
+    renderer: str = "standard",
+    frame: Optional[int] = None,
+    ctx: Context = None,
+) -> str:
+    """Capture a viewport-style screenshot of the active C4D scene.
+
+    `renderer` options:
+      - 'standard' (default): C4D's software renderer — fast, bypasses Octane/Redshift
+      - 'hardware': OpenGL preview renderer
+      - 'current': uses whatever the user has set as the active renderer
+
+    Use 'standard' for quick checks during plugin dev. Use 'current' to see
+    exactly what the active renderer (Octane/Redshift) produces. The image is
+    returned inline as a base64 PNG for direct display in the chat.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        command: Dict[str, Any] = {
+            "command": "viewport_screenshot",
+            "width": width,
+            "height": height,
+            "renderer": renderer,
+        }
+        if frame is not None:
+            command["frame"] = frame
+        response = send_to_c4d(connection, command)
+        return format_c4d_response(response, "viewport_screenshot")
+
+
+@mcp.tool()
+async def get_viewport_state(ctx: Context = None) -> str:
+    """Return the active viewport's state: dimensions, frame rect, active camera matrix,
+    projection mode, and active renderer. Useful for debugging plugin viewport draws."""
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        command: Dict[str, Any] = {"command": "get_viewport_state"}
+        response = send_to_c4d(connection, command)
+        return format_c4d_response(response, "get_viewport_state")
+
+
+@mcp.tool()
+async def list_render_engines(ctx: Context = None) -> str:
+    """List all registered render engines (VideoPost plugins) and flag the active one.
+
+    Critical for verifying that custom viewport-renderer plugins (e.g. SplatFlow's
+    upcoming GLSL splat shader) registered correctly. Also surfaces Octane,
+    Redshift, Arnold, Standard, etc. with their plugin IDs.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        command: Dict[str, Any] = {"command": "list_render_engines"}
+        response = send_to_c4d(connection, command)
+        return format_c4d_response(response, "list_render_engines")
+
+
+@mcp.tool()
+async def get_active_renderer(ctx: Context = None) -> str:
+    """Return the active document's renderer id, name, and resolution."""
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        command: Dict[str, Any] = {"command": "get_active_renderer"}
+        response = send_to_c4d(connection, command)
+        return format_c4d_response(response, "get_active_renderer")
+
+
+# ---- Tier 5: Octane workflow ----
+
+
+@mcp.tool()
+async def tap_octane_log(
+    lines: int = 200,
+    contains: Optional[str] = None,
+    level: Optional[str] = None,
+    log_path: Optional[str] = None,
+    ctx: Context = None,
+) -> str:
+    """Read recent lines from the C4D Octane plugin log file (`c4doctanelog.txt`).
+
+    SERVER-SIDE TOOL — does not require a live C4D connection. Reads the file
+    directly from `%APPDATA%/Maxon/Maxon Cinema 4D <VER>_<HASH>/c4doctanelog.txt`.
+    Auto-discovers the path by globbing if log_path is not provided; if multiple
+    C4D versions are installed, prefers the highest-numbered (newest).
+
+    Args:
+        lines: how many trailing lines to return (default 200, max 5000)
+        contains: case-insensitive substring filter on message content
+        level: filter by log level — 'Info' | 'Warning' | 'Error'
+        log_path: explicit path override (skip auto-discovery)
+    """
+    import glob
+    import os
+
+    candidates: List[str] = []
+    if log_path:
+        candidates = [_native_to_wsl(log_path)]
+    else:
+        # Try common Windows locations
+        appdata_globs = [
+            "/mnt/c/Users/*/AppData/Roaming/Maxon/Maxon Cinema 4D */c4doctanelog.txt",
+            "/mnt/c/Users/*/AppData/Roaming/Maxon/Maxon Cinema 4D *_*/c4doctanelog.txt",
+        ]
+        for g in appdata_globs:
+            for path in glob.glob(g):
+                # Skip _BACKUP variants
+                if "_BACKUP" in path or "_backup" in path:
+                    continue
+                candidates.append(path)
+        # Sort by version preference (2026 > 2025 > R22 ...) — heuristic: take last numeric token
+        def _version_key(p: str) -> int:
+            try:
+                folder = os.path.basename(os.path.dirname(p))
+                # e.g. "Maxon Cinema 4D 2026_1ABCDC12"
+                parts = folder.split()
+                for tok in reversed(parts):
+                    head = tok.split("_")[0]
+                    if head.isdigit():
+                        return int(head)
+                    if head.startswith("R") and head[1:].isdigit():
+                        return int(head[1:])
+            except Exception:
+                pass
+            return 0
+        candidates.sort(key=_version_key, reverse=True)
+
+    if not candidates:
+        return (
+            "❌ No `c4doctanelog.txt` found via glob. "
+            "Either C4D Octane plugin isn't installed/run yet, or pass `log_path` explicitly."
+        )
+
+    chosen = candidates[0]
+    if not os.path.isfile(chosen):
+        return f"❌ Log file not found: {chosen}"
+
+    try:
+        # Read efficiently — large logs would be slow with full read; cap at 1 MB tail
+        size = os.path.getsize(chosen)
+        with open(chosen, "rb") as f:
+            if size > 1024 * 1024:
+                f.seek(-1024 * 1024, 2)
+                _ = f.readline()  # skip partial
+            raw = f.read().decode("utf-8", errors="replace")
+    except Exception as e:
+        return f"❌ Failed to read log file `{chosen}`: {e}"
+
+    all_lines = raw.splitlines()
+    filtered = []
+    contains_lc = contains.lower() if contains else None
+    level_filter = level.lower() if level else None
+    for ln in all_lines:
+        if contains_lc and contains_lc not in ln.lower():
+            continue
+        if level_filter:
+            # Lines look like "[2026-04-20 16:07:30][Info][Core]..."
+            try:
+                bracketed = ln.split("]")[1].lstrip("[")
+                if bracketed.lower() != level_filter:
+                    continue
+            except Exception:
+                continue
+        filtered.append(ln)
+
+    cap = min(int(lines), 5000)
+    tail = filtered[-cap:]
+
+    out = [
+        f"✅ **{len(tail)}** lines from `{chosen}`",
+        f"  - Total lines in file: {len(all_lines)}, after filter: {len(filtered)}",
+    ]
+    if contains:
+        out.append(f"  - **Filter contains**: `{contains}`")
+    if level:
+        out.append(f"  - **Filter level**: `{level}`")
+    if len(candidates) > 1:
+        out.append(f"  - _Found {len(candidates)} candidate logs; chose newest._")
+    out.append("")
+    out.append("```")
+    out.extend(tail)
+    out.append("```")
+    return "\n".join(out)
+
+
+@mcp.tool()
+async def find_command_by_name(
+    name_contains: str,
+    max_results: int = 50,
+    ctx: Context = None,
+) -> str:
+    """Find C4D commands (CallCommand-able plugin commands) matching a name substring.
+
+    Use this to discover the integer command ID for things like 'Octane Area Light',
+    'Redshift Sun', 'Alembic Export', etc. Once you have the ID, pass it to
+    `create_via_command` to actually invoke it.
+
+    Example: name_contains="area light" → returns ids for 'Light' (Octane Area), 'Area Light' (C4D), etc.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        command: Dict[str, Any] = {
+            "command": "list_installed_plugins",
+            "plugin_type": "command",
+            "name_contains": name_contains,
+        }
+        response = send_to_c4d(connection, command)
+        return format_c4d_response(response, "list_installed_plugins")
+
+
+@mcp.tool()
+async def enumerate_octane_plugins(
+    name_contains: Optional[str] = None,
+    plugin_type: str = "all",
+    ctx: Context = None,
+) -> str:
+    """List all loaded Octane-related plugins (objects, commands, shaders, materials, tags, videoposts).
+
+    Octane registers plugins across many types. This wraps `list_installed_plugins`
+    with a name filter for 'octane' (and 'oct' for short-name variants). Pass
+    `name_contains` to further narrow (e.g. 'image texture', 'area light',
+    'directional').
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        # We do two passes since the plugin's name_contains is a single substring filter
+        # First pass: name_contains="octane"
+        results_combined: Dict[int, Dict[str, Any]] = {}
+        for needle in ["octane", "oct"]:
+            command: Dict[str, Any] = {
+                "command": "list_installed_plugins",
+                "plugin_type": plugin_type,
+                "name_contains": needle,
+            }
+            response = send_to_c4d(connection, command)
+            for p in response.get("plugins", []):
+                results_combined[p["id"]] = p
+
+        # Optional further narrowing
+        plugins = list(results_combined.values())
+        if name_contains:
+            nc = name_contains.lower()
+            plugins = [p for p in plugins if nc in p.get("name", "").lower()]
+        plugins.sort(key=lambda p: (p.get("type_name", ""), p.get("name", "")))
+
+        if not plugins:
+            return "✅ No Octane plugins matched."
+
+        # Build readable output
+        lines = [f"✅ **{len(plugins)}** Octane plugin(s) matched"]
+        if name_contains:
+            lines.append(f"  - **Filter**: `{name_contains}`")
+        by_type: Dict[str, List[Dict[str, Any]]] = {}
+        for p in plugins:
+            by_type.setdefault(p.get("type_name", "?"), []).append(p)
+        for tname in sorted(by_type.keys()):
+            entries = by_type[tname]
+            lines.append(f"\n  **{tname}** ({len(entries)})")
+            for p in entries:
+                lines.append(f"  - id=`{p.get('id')}`  {p.get('name', '?')}")
+        return "\n".join(lines)
+
+
+@mcp.tool()
+async def dump_material_graph(
+    material_name: Optional[str] = None,
+    object_name: Optional[str] = None,
+    guid: Optional[str] = None,
+    max_depth: int = 20,
+    ctx: Context = None,
+) -> str:
+    """Walk and dump the shader/node graph of a material (or any shader-bearing object/tag).
+
+    Provide `material_name` to dump a specific material from the doc.GetMaterials() list,
+    OR `object_name`/`guid` to dump shaders attached to that object (covers Octane Area
+    Lights' emission-shader inputs, OctaneTag shader graphs on objects, etc.).
+
+    Returns a tree of {name, type_id, guid, params, children}. Each node's params
+    include the first ~30 description parameters with their current values — usually
+    enough to identify what an Octane node does and where its inputs live.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        command: Dict[str, Any] = {"command": "dump_material_graph", "max_depth": max_depth}
+        if material_name:
+            command["material_name"] = material_name
+        if object_name:
+            command["object_name"] = object_name
+        if guid:
+            command["guid"] = guid
+        response = send_to_c4d(connection, command)
+        return format_c4d_response(response, "dump_material_graph")
+
+
+@mcp.tool()
+async def create_via_command(
+    command_id: int,
+    object_name: Optional[str] = None,
+    ctx: Context = None,
+) -> str:
+    """Execute c4d.CallCommand(command_id) and return the new active object.
+
+    Use this for plugin objects that can't be instantiated via BaseObject.Alloc() —
+    notably Octane lights/cameras/postprocess, which require the CallCommand pattern.
+    Example: command_id=1033864 creates an Octane Area Light.
+
+    Pass `object_name` to rename the new object after creation.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        command: Dict[str, Any] = {"command": "create_via_command", "command_id": command_id}
+        if object_name:
+            command["object_name"] = object_name
+        response = send_to_c4d(connection, command)
+        return format_c4d_response(response, "create_via_command")
+
+
+@mcp.tool()
+async def link_shader_to_parameter(
+    target_name: Optional[str] = None,
+    target_guid: Optional[str] = None,
+    parameter_path: Optional[List[int]] = None,
+    parameter_name: Optional[str] = None,
+    shader_plugin_id: int = 0,
+    shader_params: Optional[Dict[str, Any]] = None,
+    ctx: Context = None,
+) -> str:
+    """Create a shader, optionally configure it, and link it as the value of a parameter
+    on a target object/material/light.
+
+    THIS IS THE LUMINARY KILLER HELPER for the paint-bitmap → Octane-Area-Light pipeline.
+    Once you've discovered the Octane Image Texture shader plugin ID and the Area
+    Light's texture parameter ID (via enumerate_octane_plugins + enumerate_descids),
+    call this with shader_params={"file": "/path/to/canvas.png", ...} to wire it up
+    in one shot.
+
+    Args:
+        target_name / target_guid: the receiver (object, material, light)
+        parameter_path (list[int]): explicit DescID path on target; OR
+        parameter_name (str): substring match on parameter name (auto-resolves)
+        shader_plugin_id: plugin ID of the shader to create (e.g. Octane ImageTexture)
+        shader_params: dict of {param_id_or_name_substring: value} to set on the new shader
+                       Examples:
+                         {"file": "/tmp/x.png"}        — fuzzy match by name
+                         {1003: "/tmp/x.png"}          — explicit param id
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        command: Dict[str, Any] = {
+            "command": "link_shader_to_parameter",
+            "shader_plugin_id": shader_plugin_id,
+        }
+        if target_name:
+            command["target_name"] = target_name
+        if target_guid:
+            command["target_guid"] = target_guid
+        if parameter_path:
+            command["parameter_path"] = parameter_path
+        if parameter_name:
+            command["parameter_name"] = parameter_name
+        if shader_params:
+            command["shader_params"] = shader_params
+        response = send_to_c4d(connection, command)
+        return format_c4d_response(response, "link_shader_to_parameter")
+
+
+def _wsl_to_native(path: str) -> str:
+    """Convert /mnt/c/... to C:\\... if running on WSL; otherwise return as-is."""
+    import os
+    if os.name == "posix" and path.startswith("/mnt/") and len(path) >= 7 and path[6] == "/":
+        drive = path[5].upper()
+        rest = path[7:].replace("/", "\\")
+        return f"{drive}:\\{rest}"
+    return path
+
+
+def _native_to_wsl(path: str) -> str:
+    """Convert C:\\... to /mnt/c/... if running on WSL; otherwise return as-is."""
+    import os
+    if os.name == "posix" and len(path) >= 3 and path[1] == ":" and path[2] in ("\\", "/"):
+        drive = path[0].lower()
+        rest = path[3:].replace("\\", "/")
+        return f"/mnt/{drive}/{rest}"
+    return path
+
+
+@mcp.tool()
+async def install_plugin(
+    source_dir: str,
+    install_dir: Optional[str] = None,
+    plugin_name: Optional[str] = None,
+    include_res: bool = True,
+    overwrite: bool = True,
+    ctx: Context = None,
+) -> str:
+    """Copy a built C4D plugin (.xdl64 + res/) into Cinema 4D's plugin directory.
+
+    SERVER-SIDE TOOL — works without a live C4D connection (file operation only).
+
+    Args:
+        source_dir: directory containing the built plugin. e.g.
+                    `<sdk_root>/_build_v143/bin/Release/plugins/<PluginName>`.
+                    Accepts WSL or Windows-native paths.
+        install_dir: target directory. Defaults to env var C4D_PLUGINS_DIR if set,
+                     otherwise `/mnt/c/Program Files/Maxon Cinema 4D 2026/plugins/<plugin_name>`.
+        plugin_name: explicit plugin name. If omitted, derived from source_dir's basename.
+        include_res: also copy the `res/` subdirectory (defaults True).
+        overwrite: overwrite existing files in install_dir (defaults True).
+
+    Returns a summary of files copied. **Note:** C4D must be restarted to load
+    a freshly-installed compiled plugin — there's no hot-reload for .xdl64.
+    """
+    import os
+    import shutil
+
+    src = _native_to_wsl(source_dir)
+    if not os.path.isdir(src):
+        return f"❌ Source directory does not exist: {src}"
+
+    name = plugin_name or os.path.basename(os.path.normpath(src))
+    if not name:
+        return "❌ Could not derive plugin_name from source_dir; pass plugin_name explicitly."
+
+    if install_dir is None:
+        env_plugins_dir = os.environ.get("C4D_PLUGINS_DIR")
+        if env_plugins_dir:
+            install_dir = os.path.join(env_plugins_dir, name)
+        else:
+            install_dir = f"/mnt/c/Program Files/Maxon Cinema 4D 2026/plugins/{name}"
+    install_dir = _native_to_wsl(install_dir)
+
+    try:
+        os.makedirs(install_dir, exist_ok=True)
+    except Exception as e:
+        return f"❌ Failed to create install_dir `{install_dir}`: {e}"
+
+    copied = []
+    skipped = []
+
+    # Copy .xdl64 binary (and pdb if present)
+    for fname in os.listdir(src):
+        full = os.path.join(src, fname)
+        if not os.path.isfile(full):
+            continue
+        if not (fname.endswith(".xdl64") or fname.endswith(".pdb") or fname.endswith(".dylib")):
+            continue
+        dest = os.path.join(install_dir, fname)
+        if os.path.exists(dest) and not overwrite:
+            skipped.append(fname)
+            continue
+        try:
+            shutil.copy2(full, dest)
+            copied.append(fname)
+        except Exception as e:
+            return f"❌ Failed to copy {fname}: {e}"
+
+    # Copy res/ subdirectory (recursive). Some builds have res/ as a sibling of source_dir
+    # (i.e. the SDK's plugins/<name>/res/, not _build/<name>/res/) — try both.
+    if include_res:
+        res_candidates = [
+            os.path.join(src, "res"),
+            os.path.join(os.path.dirname(src), "res"),  # one level up
+        ]
+        # Also try plugins/<name>/res/ in the SDK root if we can guess it
+        for res_src in res_candidates:
+            if os.path.isdir(res_src):
+                res_dest = os.path.join(install_dir, "res")
+                try:
+                    if os.path.isdir(res_dest):
+                        if overwrite:
+                            shutil.rmtree(res_dest)
+                        else:
+                            skipped.append("res/ (exists)")
+                            break
+                    shutil.copytree(res_src, res_dest)
+                    copied.append(f"res/ (from {res_src})")
+                except Exception as e:
+                    return f"❌ Failed to copy res/: {e}"
+                break
+        else:
+            skipped.append("res/ (not found in source or sibling dir)")
+
+    if not copied:
+        return f"⚠️ Nothing copied from `{src}` to `{install_dir}` (skipped: {skipped})"
+
+    lines = [f"✅ Installed **{name}** to `{install_dir}`"]
+    for f in copied:
+        lines.append(f"  - copied: {f}")
+    for f in skipped:
+        lines.append(f"  - skipped: {f}")
+    lines.append("")
+    lines.append("⚠️  **Restart Cinema 4D** to load the new plugin (no hot-reload for compiled plugins).")
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def build_and_install_plugin(
+    target: str,
+    sdk_root: Optional[str] = None,
+    config: str = "Release",
+    build_dir: str = "_build_v143",
+    install_dir: Optional[str] = None,
+    cmake_cmd: Optional[str] = None,
+    deploy: bool = True,
+    ctx: Context = None,
+) -> str:
+    """Build a C4D plugin via CMake and (optionally) deploy it to the C4D plugins folder.
+
+    SERVER-SIDE TOOL — runs subprocess on the host. Wraps the standard C4D SDK
+    workflow:
+        cmake --build <build_dir> --config Release --target <target>
+        cp <build_dir>/bin/Release/plugins/<target>/<target>.xdl64 <install_dir>/
+        cp -r plugins/<target>/res <install_dir>/
+
+    Args:
+        target: CMake target name (e.g. plugin module name)
+        sdk_root: path to the C4D SDK root containing CMakeLists.txt.
+                  Defaults to env var C4D_SDK_ROOT if set, else cwd.
+        config: "Release" (default) or "Debug"
+        build_dir: name of the build directory under sdk_root (default "_build_v143")
+        install_dir: where to deploy. Defaults to env var C4D_PLUGINS_DIR + target,
+                     else `/mnt/c/Program Files/Maxon Cinema 4D 2026/plugins/<target>`.
+        cmake_cmd: explicit cmake binary path. Defaults to trying "cmake.exe" then "cmake".
+        deploy: if True (default), also copy the built artifacts to install_dir after build.
+
+    Returns build log + install summary. Does NOT restart C4D.
+    """
+    import os
+    import shutil
+    import subprocess
+
+    if sdk_root is None:
+        sdk_root = os.environ.get("C4D_SDK_ROOT") or os.getcwd()
+    sdk_root = _native_to_wsl(sdk_root)
+    if not os.path.isdir(sdk_root):
+        return f"❌ sdk_root does not exist: {sdk_root}"
+
+    # Resolve cmake binary
+    candidates = [cmake_cmd] if cmake_cmd else ["cmake.exe", "cmake"]
+    cmake_bin = None
+    for c in candidates:
+        if not c:
+            continue
+        if shutil.which(c):
+            cmake_bin = c
+            break
+    if not cmake_bin:
+        return f"❌ Could not find cmake. Tried: {candidates}. Install cmake or pass `cmake_cmd` explicitly."
+
+    build_path = os.path.join(sdk_root, build_dir)
+    if not os.path.isdir(build_path):
+        return (
+            f"❌ Build directory does not exist: {build_path}\n"
+            f"Run `cmake --preset windows_vs2022_v143` from {sdk_root} first."
+        )
+
+    cmd = [cmake_bin, "--build", build_path, "--config", config, "--target", target]
+    try:
+        proc = subprocess.run(
+            cmd,
+            cwd=sdk_root,
+            capture_output=True,
+            text=True,
+            timeout=600,  # 10 minutes max for a build
+        )
+    except subprocess.TimeoutExpired:
+        return f"❌ Build timed out after 10 minutes: {' '.join(cmd)}"
+    except Exception as e:
+        return f"❌ Build invocation failed: {e}\nCommand: {' '.join(cmd)}"
+
+    # Tail of build output
+    stdout_tail = "\n".join((proc.stdout or "").splitlines()[-40:])
+    stderr_tail = "\n".join((proc.stderr or "").splitlines()[-20:])
+
+    if proc.returncode != 0:
+        return (
+            f"❌ Build failed (exit {proc.returncode})\n"
+            f"Command: {' '.join(cmd)}\n\n"
+            f"--- stdout (tail) ---\n{stdout_tail}\n\n"
+            f"--- stderr (tail) ---\n{stderr_tail}"
+        )
+
+    lines = [
+        f"✅ Build succeeded: **{target}** ({config})",
+        f"  - cmake: `{cmake_bin}`",
+        f"  - build_dir: `{build_path}`",
+        "",
+        "--- build output (tail) ---",
+        f"```\n{stdout_tail or '(no stdout)'}\n```",
+    ]
+
+    if not deploy:
+        lines.append("\n_(deploy=False — not installing)_")
+        return "\n".join(lines)
+
+    # Deploy
+    src_dir = os.path.join(build_path, "bin", config, "plugins", target)
+    if not os.path.isdir(src_dir):
+        lines.append(f"\n❌ Build artifacts not found at expected path: `{src_dir}`")
+        return "\n".join(lines)
+
+    target_install = install_dir or f"/mnt/c/Program Files/Maxon Cinema 4D 2026/plugins/{target}"
+    target_install = _native_to_wsl(target_install)
+
+    install_result = await install_plugin(
+        source_dir=src_dir,
+        install_dir=target_install,
+        plugin_name=target,
+        include_res=True,
+        overwrite=True,
+    )
+    lines.append("")
+    lines.append("--- install ---")
+    lines.append(install_result)
+    return "\n".join(lines)
 
 
 @mcp.resource("c4d://primitives")
