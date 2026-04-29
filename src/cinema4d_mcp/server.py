@@ -1927,6 +1927,91 @@ async def run_modeling_command(
 
 
 @mcp.tool()
+async def vertex_map_stats(
+    target: Optional[str] = None,
+    vmap_name: Optional[str] = None,
+    ctx: Context = None,
+) -> str:
+    """Compute statistics for a Vertex Map tag on a polygon mesh.
+
+    Returns: vertex count, min/max/sum/mean weight, painted_count (weight > 0),
+    zero/full counts, and a 10-bin histogram of the weight distribution.
+
+    Args:
+      target: object name; defaults to active selection.
+      vmap_name: specific vertex map name; defaults to first vertex map tag found.
+
+    Useful for verifying a painted hole map has the expected coverage before
+    using it as a Field source or driving a polygon selection.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        command: Dict[str, Any] = {"command": "vertex_map_stats"}
+        if target is not None:
+            command["target"] = target
+        if vmap_name is not None:
+            command["vmap_name"] = vmap_name
+        response = send_to_c4d(connection, command)
+        return format_c4d_response(response, "vertex_map_stats")
+
+
+@mcp.tool()
+async def vertex_map_threshold_to_polygon_selection(
+    target: Optional[str] = None,
+    vmap_name: Optional[str] = None,
+    threshold: float = 0.5,
+    require_all: bool = False,
+    selection_name: str = "vmap_threshold",
+    replace_existing: bool = True,
+    ctx: Context = None,
+) -> str:
+    """Convert a vertex map weight threshold into a polygon selection tag.
+
+    For each polygon, evaluates whether the polygon's vertices meet the
+    threshold and selects the polygon if so:
+
+      - require_all=False (default): polygon is selected if ANY vertex
+        has weight >= threshold (broad — picks edge polygons where painting
+        bleeds onto a single corner)
+      - require_all=True: polygon is selected only if ALL vertices have
+        weight >= threshold (conservative — only fully-inside polygons)
+
+    Result is a polygon selection tag named `selection_name` on the target.
+    From there you can drive any operation that takes a polygon selection
+    (Boolean, Inner Extrude + Delete for hole-cutting, Field Layer, etc.).
+
+    Args:
+      target: object name; defaults to active selection.
+      vmap_name: specific vertex map name; defaults to first found.
+      threshold: weight cutoff in [0, 1]. Default 0.5.
+      require_all: see above. Default False (any-vertex match).
+      selection_name: name for the resulting polygon selection tag.
+      replace_existing: if a selection tag with this name exists, overwrite it.
+
+    Pipeline example: paint hole regions with a vertex map → run this with
+    threshold=0.5 → use `run_modeling_command(op='delete', mode='polygons')`
+    to cut the hole pattern in real geometry.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        command: Dict[str, Any] = {
+            "command": "vertex_map_threshold_to_polygon_selection",
+            "threshold": threshold,
+            "require_all": require_all,
+            "selection_name": selection_name,
+            "replace_existing": replace_existing,
+        }
+        if target is not None:
+            command["target"] = target
+        if vmap_name is not None:
+            command["vmap_name"] = vmap_name
+        response = send_to_c4d(connection, command)
+        return format_c4d_response(response, "vertex_map_threshold_to_polygon_selection")
+
+
+@mcp.tool()
 async def get_viewport_state(ctx: Context = None) -> str:
     """Return the active viewport's state: dimensions, frame rect, active camera matrix,
     projection mode, and active renderer. Useful for debugging plugin viewport draws."""

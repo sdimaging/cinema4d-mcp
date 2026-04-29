@@ -405,6 +405,10 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_set_viewport_shading_mode(command)
                         elif command_type == "run_modeling_command":
                             response = self.handle_run_modeling_command(command)
+                        elif command_type == "vertex_map_stats":
+                            response = self.handle_vertex_map_stats(command)
+                        elif command_type == "vertex_map_threshold_to_polygon_selection":
+                            response = self.handle_vertex_map_threshold_to_polygon_selection(command)
                         elif command_type == "get_viewport_state":
                             response = self.handle_get_viewport_state(command)
                         elif command_type == "list_render_engines":
@@ -8373,6 +8377,214 @@ class C4DSocketServer(threading.Thread):
             return {"status": "ok", "op": op, "mode": mode_str, "results": results}
         except Exception as e:
             return {"error": f"run_modeling_command failed: {e}", "traceback": traceback.format_exc()}
+
+    # === Vertex Map ops ======================================================
+
+    def _resolve_target_object(self, command, doc, key="target"):
+        """Resolve a target polygon object from command[key] (name) or selection."""
+        name = command.get(key)
+        if name:
+            obj = self.find_object_by_name(doc, name)
+            if obj is None:
+                return None, f"Object '{name}' not found"
+            return obj, None
+        sel = doc.GetActiveObjects(c4d.GETACTIVEOBJECTFLAGS_NONE) or []
+        if not sel:
+            return None, "No target specified and no active selection"
+        return sel[0], None
+
+    def _find_vertex_map_tag(self, obj, name=None):
+        """Find a Vertex Map tag on obj. If name is given, find by name; else first."""
+        t = obj.GetFirstTag()
+        first = None
+        while t:
+            if t.GetType() == c4d.Tvertexmap:
+                if name is None:
+                    return t
+                if t.GetName() == name:
+                    return t
+                if first is None:
+                    first = t
+            t = t.GetNext()
+        return first if name is None else None
+
+    def handle_vertex_map_stats(self, command):
+        """Compute statistics for a Vertex Map tag.
+
+        Args (in command):
+          target (str, optional)   — object name; defaults to active selection
+          vmap_name (str, optional) — vertex map tag name; defaults to first
+
+        Returns: count, min, max, sum, mean, painted_count (weight > 0),
+        zero_count, full_count (weight >= 0.999), histogram (10 bins).
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+
+            obj, err = self._resolve_target_object(command, doc, key="target")
+            if err:
+                return {"error": err}
+            if obj.GetType() != c4d.Opolygon:
+                return {"error": f"Target '{obj.GetName()}' is not a polygon mesh"}
+
+            vmap_name = command.get("vmap_name")
+            tag = self._find_vertex_map_tag(obj, vmap_name)
+            if tag is None:
+                return {"error": f"No vertex map tag found on '{obj.GetName()}'" + (f" with name '{vmap_name}'" if vmap_name else "")}
+
+            data = tag.GetAllHighlevelData()
+            if data is None:
+                return {"error": "Vertex map has no data"}
+
+            data = list(data)
+            n = len(data)
+            if n == 0:
+                return {"error": "Vertex map is empty"}
+
+            mn = min(data)
+            mx = max(data)
+            s = sum(data)
+            mean = s / n
+            painted = sum(1 for v in data if v > 0.0)
+            zeroes = sum(1 for v in data if v == 0.0)
+            fulls = sum(1 for v in data if v >= 0.999)
+
+            # 10-bin histogram of weights in [0,1]
+            bins = [0] * 10
+            for v in data:
+                idx = max(0, min(9, int(v * 10)))
+                bins[idx] += 1
+
+            return {
+                "status": "ok",
+                "object": obj.GetName(),
+                "vmap_name": tag.GetName(),
+                "vertex_count": n,
+                "min": mn,
+                "max": mx,
+                "sum": s,
+                "mean": mean,
+                "painted_count": painted,
+                "painted_fraction": painted / n if n else 0.0,
+                "zero_count": zeroes,
+                "full_count": fulls,
+                "histogram": {
+                    "bins": bins,
+                    "edges": [round(i * 0.1, 1) for i in range(11)],
+                    "labels": [
+                        f"{round(i*0.1,1)}-{round((i+1)*0.1,1)}" for i in range(10)
+                    ],
+                },
+            }
+        except Exception as e:
+            return {"error": f"vertex_map_stats failed: {e}", "traceback": traceback.format_exc()}
+
+    def handle_vertex_map_threshold_to_polygon_selection(self, command):
+        """Convert a vertex map threshold into a polygon selection tag.
+
+        For each polygon, if any vertex (default) or all vertices (require_all=True)
+        of the polygon has weight >= threshold, the polygon is added to the
+        selection. Creates or updates a polygon selection tag with the given name.
+
+        Args (in command):
+          target (str, optional)        — object name; defaults to active selection
+          vmap_name (str, optional)     — vertex map tag name; defaults to first
+          threshold (float, default 0.5)
+          require_all (bool, default False) — if True, ALL of poly's verts must
+                                               meet threshold; default any-vert
+          selection_name (str, default 'vmap_threshold')
+          replace_existing (bool, default True) — if a selection tag with this
+                                                   name exists, replace its content
+
+        Returns: object name, vmap name, threshold, polygon_count_selected,
+        selection_tag_name.
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+
+            obj, err = self._resolve_target_object(command, doc, key="target")
+            if err:
+                return {"error": err}
+            if obj.GetType() != c4d.Opolygon:
+                return {"error": f"Target '{obj.GetName()}' is not a polygon mesh"}
+
+            vmap_name = command.get("vmap_name")
+            tag = self._find_vertex_map_tag(obj, vmap_name)
+            if tag is None:
+                return {"error": f"No vertex map tag found on '{obj.GetName()}'"}
+
+            threshold = float(command.get("threshold", 0.5))
+            require_all = bool(command.get("require_all", False))
+            selection_name = command.get("selection_name", "vmap_threshold")
+            replace_existing = bool(command.get("replace_existing", True))
+
+            weights = tag.GetAllHighlevelData()
+            if weights is None or len(weights) != obj.GetPointCount():
+                return {"error": f"Vertex map weight count ({len(weights) if weights else 0}) != point count ({obj.GetPointCount()})"}
+
+            n_polys = obj.GetPolygonCount()
+            selected_indices = []
+            for i in range(n_polys):
+                p = obj.GetPolygon(i)
+                is_quad = (p.c != p.d)
+                idxs = (p.a, p.b, p.c, p.d) if is_quad else (p.a, p.b, p.c)
+                vals = [weights[k] for k in idxs]
+                if require_all:
+                    if all(v >= threshold for v in vals):
+                        selected_indices.append(i)
+                else:
+                    if any(v >= threshold for v in vals):
+                        selected_indices.append(i)
+
+            # Find or create selection tag
+            existing = None
+            t = obj.GetFirstTag()
+            while t:
+                if t.GetType() == c4d.Tpolygonselection and t.GetName() == selection_name:
+                    existing = t
+                    break
+                t = t.GetNext()
+
+            if existing and not replace_existing:
+                return {
+                    "error": f"Polygon selection '{selection_name}' already exists; "
+                             f"set replace_existing=True to overwrite",
+                    "existing_count": existing.GetBaseSelect().GetCount() if existing else None,
+                }
+
+            if existing:
+                sel = existing
+                sel.GetBaseSelect().DeselectAll()
+            else:
+                sel = obj.MakeTag(c4d.Tpolygonselection)
+                sel.SetName(selection_name)
+
+            bs = sel.GetBaseSelect()
+            for idx in selected_indices:
+                bs.Select(idx)
+
+            c4d.EventAdd()
+
+            return {
+                "status": "ok",
+                "object": obj.GetName(),
+                "vmap_name": tag.GetName(),
+                "threshold": threshold,
+                "require_all": require_all,
+                "polygon_count_total": n_polys,
+                "polygon_count_selected": len(selected_indices),
+                "selection_tag_name": selection_name,
+                "selection_replaced": existing is not None,
+            }
+        except Exception as e:
+            return {
+                "error": f"vertex_map_threshold_to_polygon_selection failed: {e}",
+                "traceback": traceback.format_exc(),
+            }
 
     def handle_list_render_engines(self, command):
         """List all registered render engines (VideoPost plugins of renderer kind, plus c4d.PLUGINTYPE_VIDEOPOST entries).
