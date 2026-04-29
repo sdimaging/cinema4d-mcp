@@ -2293,6 +2293,115 @@ async def volume_to_polygons(
 
 
 @mcp.tool()
+async def list_field_types(ctx: Context = None) -> str:
+    """Discover what field object types this C4D build supports + default
+    parameter shape.
+
+    Fields are layered evaluators that produce scalar/vector/color values
+    at points in 3D space. They drive MoGraph effectors, vertex maps,
+    selections, and some deformers.
+
+    Read-only. Run before add_field_to_scene to know the type catalog.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        response = send_to_c4d(connection, {"command": "list_field_types"})
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
+async def add_field_to_scene(
+    field_type: str,
+    name: Optional[str] = None,
+    position: Optional[List[float]] = None,
+    size: Optional[List[float]] = None,
+    parent_name: Optional[str] = None,
+    ctx: Context = None,
+) -> str:
+    """Add a field object to the scene.
+
+    Args:
+      field_type: canonical name from list_field_types
+                  (linear, spherical, box, cylinder, cone, random,
+                  shader, formula, noise, ...)
+      name: name for the new field (default = canonical type name)
+      position: optional [x, y, z] world position
+      size: optional [x, y, z] for shape fields
+      parent_name: optional parent object name (groups under it instead
+        of free top-level)
+
+    Field objects generate the layered evaluation; you reference them
+    from a FieldList parameter on an effector / vmap tag / selection /
+    deformer to drive procedural behavior. Pair with bake_field_to_vmap
+    to convert a field's per-point values into a static vertex map.
+
+    UNSAFE — mutates scene.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {"command": "add_field_to_scene", "field_type": field_type}
+        if name is not None: cmd["name"] = name
+        if position is not None: cmd["position"] = position
+        if size is not None: cmd["size"] = size
+        if parent_name is not None: cmd["parent_name"] = parent_name
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
+async def bake_field_to_vmap(
+    field_target: str,
+    dest_object: str,
+    vmap_name: str = "field_baked",
+    space: str = "world",
+    ctx: Context = None,
+) -> str:
+    """Sample a field at every vertex of a target mesh, write to a vmap.
+
+    Bridge from procedural field evaluation to vmap-driven downstream tools
+    (threshold-to-poly-selection, masked deformer restriction, etc).
+
+    Args:
+      field_target: name of the field object to sample
+      dest_object: poly mesh whose vertices will be sampled
+      vmap_name: name of the vmap to write (created if missing, overwritten)
+      space: 'world' (default) or 'local' for sampling positions
+
+    Uses c4d.modules.mograph.FieldList + FieldInput / FieldOutput. Field's
+    transform is honored automatically — sampling happens in world space
+    with the field's matrix factored in.
+
+    Pattern (procedural creative loop):
+      add_field_to_scene("spherical", name="MaskField", position=[0,100,0], size=[200,200,200])
+      bake_field_to_vmap("MaskField", "MyMesh", vmap_name="mask")
+      vertex_map_threshold_to_polygon_selection("MyMesh", vmap="mask", threshold=0.5)
+      apply_deformer("MyMesh", "bend", restrict_vmap="mask")
+      → procedural masked deformation driven by a SPATIAL field.
+
+    UNSAFE — mutates dest's vmap.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        response = send_to_c4d(connection, {
+            "command": "bake_field_to_vmap",
+            "field_target": field_target,
+            "dest_object": dest_object,
+            "vmap_name": vmap_name,
+            "space": space,
+        })
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
 async def list_deformer_types(ctx: Context = None) -> str:
     """Discover what deformer types this C4D build supports + their default
     parameter shape.

@@ -528,6 +528,12 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_list_deformer_types(command)
                         elif command_type == "apply_deformer":
                             response = self.handle_apply_deformer(command)
+                        elif command_type == "list_field_types":
+                            response = self.handle_list_field_types(command)
+                        elif command_type == "add_field_to_scene":
+                            response = self.handle_add_field_to_scene(command)
+                        elif command_type == "bake_field_to_vmap":
+                            response = self.handle_bake_field_to_vmap(command)
                         elif command_type == "create_volume_builder":
                             response = self.handle_create_volume_builder(command)
                         elif command_type == "create_volume_mesher":
@@ -10710,6 +10716,7 @@ class C4DSocketServer(threading.Thread):
         "scene_nodes_status", "scene_nodes_create_graph", "scene_nodes_open_editor",
         "paint_vertex_map_from_formula", "paint_vertex_map_radial",
         "list_deformer_types", "apply_deformer",
+        "list_field_types", "add_field_to_scene", "bake_field_to_vmap",
         "create_volume_builder", "create_volume_mesher", "volume_to_polygons",
         "image_inspect", "images_compare", "scene_assert",
     )
@@ -10741,6 +10748,7 @@ class C4DSocketServer(threading.Thread):
         "scene_snapshot", "scene_diff",
         "scene_nodes_status",  # read-only inspection of Scene Nodes graphs
         "list_deformer_types",  # discovery only, no scene mutation
+        "list_field_types",     # discovery only, no scene mutation
         "image_inspect", "images_compare",  # disk-read only, no C4D state
         "scene_assert",                     # read-only declarative verification
     })
@@ -11701,6 +11709,256 @@ class C4DSocketServer(threading.Thread):
             }
         except Exception as e:
             return {"error": f"volume_to_polygons failed: {e}", "traceback": traceback.format_exc()}
+
+    # === Field tools — pair with vmap painting for procedural masking =====
+    #
+    # Fields are layered evaluators that produce scalar/vector/color values
+    # at points in 3D space. They drive MoGraph effectors, vertex maps,
+    # selections, and some deformers. The classic c4d API is well-known.
+
+    # Curated field types: canonical_name → (object_id_attr, default_params).
+    # Object IDs resolved at runtime so missing constants degrade gracefully.
+    _FIELD_TYPES = {
+        "linear":      ("Flinear",      {"size": [200, 200, 200]}),
+        "spherical":   ("Fspherical",   {"size": [200, 200, 200]}),
+        "box":         ("Fbox",         {"size": [200, 200, 200]}),
+        "cylinder":    ("Fcylinder",    {"size": [200, 200, 200]}),
+        "cone":        ("Fcone",        {"size": [200, 200, 200]}),
+        "torus":       ("Ftorus",       {}),
+        "random":      ("Frandom",      {}),
+        "shader":      ("Fshader",      {}),
+        "sound":       ("Fsound",       {}),
+        "delay":       ("Fdelay",       {}),
+        "decay":       ("Fdecay",       {}),
+        "formula":     ("Fformula",     {}),
+        "python":      ("Fpython",      {}),
+        "group":       ("Fgroup",       {}),
+        "freeze":      ("Ffreeze",      {}),
+        "remap":       ("Fremap",       {}),
+        "clamp":       ("Fclamp",       {}),
+        "curve":       ("Fcurve",       {}),
+        "noise":       ("Fnoise",       {}),
+        "step":        ("Fstep",        {}),
+    }
+
+    def handle_list_field_types(self, command):
+        """Discover what field types this C4D build supports + canonical params.
+
+        Read-only. Run before add_field_to_target to know:
+          - which field types exist (some build configurations omit constants)
+          - which canonical params each accepts
+          - underlying type_id for advanced use
+        """
+        try:
+            available = []
+            unavailable = []
+            for canonical, (attr, defaults) in self._FIELD_TYPES.items():
+                tid = getattr(c4d, attr, None)
+                if tid is None:
+                    unavailable.append({"name": canonical, "missing_constant": attr})
+                else:
+                    available.append({
+                        "name": canonical,
+                        "type_id": tid,
+                        "c4d_attr": attr,
+                        "default_params": defaults,
+                    })
+            return {
+                "ok": True,
+                "available": available,
+                "unavailable": unavailable,
+                "available_count": len(available),
+            }
+        except Exception as e:
+            return {"error": f"list_field_types failed: {e}", "traceback": traceback.format_exc()}
+
+    def handle_add_field_to_scene(self, command):
+        """Add a field object to the scene as a free top-level object.
+
+        Field objects are what generate the layered evaluation; you typically
+        reference them from a FieldList parameter on an effector / vmap tag /
+        selection / deformer to drive procedural behavior.
+
+        Args:
+          field_type: canonical name from list_field_types
+                      (linear, spherical, box, cylinder, cone, random,
+                      shader, formula, noise, ...)
+          name: name for the field object (default = canonical type name)
+          position: optional [x, y, z] world position
+          size: optional [x, y, z] for shape fields (overrides default)
+          parent_name: optional parent object name (for grouping fields)
+
+        UNSAFE — mutates scene. Wrap in begin_undo_group for reversibility.
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+            ftype = command.get("field_type", "").lower()
+            if ftype not in self._FIELD_TYPES:
+                return {
+                    "error": f"Unknown field_type '{ftype}'",
+                    "valid": list(self._FIELD_TYPES.keys()),
+                }
+            attr, defaults = self._FIELD_TYPES[ftype]
+            tid = getattr(c4d, attr, None)
+            if tid is None:
+                return {"error": f"This C4D build is missing constant {attr}"}
+
+            field = c4d.BaseObject(tid)
+            if not field:
+                return {"error": f"Could not instantiate field {attr}"}
+            field.SetName(command.get("name", ftype))
+
+            # Position
+            pos = command.get("position")
+            if pos and len(pos) == 3:
+                field.SetAbsPos(c4d.Vector(*[float(v) for v in pos]))
+
+            # Size for shape fields
+            size = command.get("size") or defaults.get("size")
+            if size and len(size) == 3:
+                # Most field shape constants follow the c4d.FIELD_*_SIZE
+                # naming. Try a few common ones; fall back to a generic
+                # "size" param at the standard description container ID.
+                for pid_name in (f"FIELD_{ftype.upper()}_SIZE", "FIELD_SIZE"):
+                    pid = getattr(c4d, pid_name, None)
+                    if pid is not None:
+                        try:
+                            field[pid] = c4d.Vector(*[float(v) for v in size])
+                            break
+                        except Exception:
+                            pass
+
+            # Parent
+            parent_name = command.get("parent_name")
+            parent_obj = None
+            if parent_name:
+                parent_obj = doc.SearchObject(parent_name)
+                if parent_obj is None:
+                    return {"error": f"parent_name '{parent_name}' not found"}
+
+            if parent_obj:
+                field.InsertUnder(parent_obj)
+            else:
+                doc.InsertObject(field)
+            c4d.EventAdd()
+
+            return {
+                "ok": True,
+                "field_name": field.GetName(),
+                "field_type": ftype,
+                "field_type_id": tid,
+                "field_guid": str(field.GetGUID()),
+                "parent": parent_name,
+            }
+        except Exception as e:
+            return {"error": f"add_field_to_scene failed: {e}", "traceback": traceback.format_exc()}
+
+    def handle_bake_field_to_vmap(self, command):
+        """Sample a field object's value at every vertex of a target mesh and
+        write the result to a vertex map.
+
+        This is the bridge from field-driven procedural evaluation to
+        vmap-consumed downstream tools (threshold-to-poly-selection,
+        masked deformer restriction, etc).
+
+        Args:
+          field_target: name of the field object to sample
+          dest_object: poly mesh whose vertices will be sampled
+          vmap_name: name of the vmap to write (created if missing)
+          space: 'world' (default) or 'local' for the sampling positions
+
+        Uses c4d.modules.mograph.FieldList + FieldInput / FieldOutput. The
+        field's transform is honored automatically (sampling happens in
+        world space, with the field's matrix factored in by the API).
+
+        UNSAFE — mutates the dest object's vmap.
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+
+            field_name = command.get("field_target")
+            dest_name = command.get("dest_object")
+            if not field_name or not dest_name:
+                return {"error": "Provide both field_target and dest_object"}
+
+            field = doc.SearchObject(field_name)
+            if field is None:
+                return {"error": f"field_target '{field_name}' not found"}
+            dest = doc.SearchObject(dest_name)
+            if dest is None:
+                return {"error": f"dest_object '{dest_name}' not found"}
+            if dest.GetType() != c4d.Opolygon:
+                return {"error": f"dest_object '{dest_name}' is not a polygon mesh"}
+
+            vmap_name = command.get("vmap_name", "field_baked")
+            space = command.get("space", "world")
+
+            # Build a FieldList containing only this field
+            try:
+                from c4d.modules import mograph as _mg
+                FieldList = _mg.FieldList
+                FieldLayer = _mg.FieldLayer
+                FieldInput = _mg.FieldInput
+                FieldInfo = _mg.FieldInfo
+                FieldOutput = _mg.FieldOutput
+            except Exception as e:
+                return {"error": f"c4d.modules.mograph FieldList API not available: {e}"}
+
+            flist = FieldList()
+            layer = FieldLayer(c4d.FLfield)
+            layer.SetLinkedObject(field)
+            flist.InsertLayer(layer)
+
+            # Build inputs from dest verts (in world space)
+            n = dest.GetPointCount()
+            mg = dest.GetMg() if space == "world" else c4d.Matrix()
+            positions = [mg.Mul(dest.GetPoint(i)) for i in range(n)]
+
+            field_input = FieldInput(positions, n)
+            field_info = FieldInfo.Create(c4d.FIELDSAMPLE_FLAG_VALUE, field_input,
+                                          flist.GetSampleFlags(False, False))
+            field_output = FieldOutput.Create(n, c4d.FIELDSAMPLE_FLAG_VALUE)
+            flist.SampleListSimple(dest, field_input, field_output)
+
+            weights = [field_output.GetValue(i) for i in range(n)]
+
+            # Write to vmap
+            tag, created = self._ensure_vertex_map(dest, vmap_name)
+            if tag.GetDataCount() != n:
+                tag.Resize(n)
+            tag.SetAllHighlevelData(weights)
+            dest.Message(c4d.MSG_UPDATE)
+            c4d.EventAdd()
+
+            wmin = min(weights) if weights else 0.0
+            wmax = max(weights) if weights else 0.0
+            wmean = (sum(weights) / n) if n else 0.0
+            warnings = []
+            if wmin == wmax:
+                warnings.append(
+                    f"baked vmap is uniform ({wmin}) — field may not be "
+                    f"covering the dest mesh's vertex positions, OR the "
+                    f"field's value is constant. Check field shape + size + position."
+                )
+            return {
+                "ok": True,
+                "field_target": field.GetName(),
+                "dest_object": dest.GetName(),
+                "vmap_name": vmap_name,
+                "vmap_created": created,
+                "vertex_count": n,
+                "min": wmin,
+                "max": wmax,
+                "mean": wmean,
+                "space": space,
+                "warnings": warnings or None,
+            }
+        except Exception as e:
+            return {"error": f"bake_field_to_vmap failed: {e}", "traceback": traceback.format_exc()}
 
     # === Deformer application — pair with vmap painting for masked deformation ===
 
