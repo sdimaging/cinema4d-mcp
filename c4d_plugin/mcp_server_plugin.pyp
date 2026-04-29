@@ -524,6 +524,10 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_paint_vertex_map_from_formula(command)
                         elif command_type == "paint_vertex_map_radial":
                             response = self.handle_paint_vertex_map_radial(command)
+                        elif command_type == "list_deformer_types":
+                            response = self.handle_list_deformer_types(command)
+                        elif command_type == "apply_deformer":
+                            response = self.handle_apply_deformer(command)
                         elif command_type == "scene_snapshot":
                             response = self.handle_scene_snapshot(command)
                         elif command_type == "scene_diff":
@@ -10652,6 +10656,7 @@ class C4DSocketServer(threading.Thread):
         "begin_undo_group", "end_undo_group", "undo", "redo",
         "scene_nodes_status", "scene_nodes_create_graph", "scene_nodes_open_editor",
         "paint_vertex_map_from_formula", "paint_vertex_map_radial",
+        "list_deformer_types", "apply_deformer",
     )
     # NOTE: this list reflects what the C4D PLUGIN's run() dispatcher actually
     # routes. Some MCP tool wrappers in server.py (tap_octane_log,
@@ -10680,6 +10685,7 @@ class C4DSocketServer(threading.Thread):
         "get_c4d_info", "get_capabilities", "doctor", "ping",
         "scene_snapshot", "scene_diff",
         "scene_nodes_status",  # read-only inspection of Scene Nodes graphs
+        "list_deformer_types",  # discovery only, no scene mutation
     })
 
     def handle_get_capabilities(self, command):
@@ -10922,6 +10928,227 @@ class C4DSocketServer(threading.Thread):
         "scenenodes": "net.maxon.scenenodes.basescenenodesnodespace",
         "core": "net.maxon.nodespace.core",
     }
+
+    # === Deformer application — pair with vmap painting for masked deformation ===
+
+    # Curated deformer types: canonical_name → (object_id_attr, default_params).
+    # `object_id_attr` is the c4d.O* constant name; resolved at runtime so
+    # missing constants on a given C4D build degrade gracefully.
+    _DEFORMER_TYPES = {
+        "bend":       ("Obend", {"size": [200, 200, 200], "strength_deg": 45}),
+        "twist":      ("Otwist", {"size": [200, 200, 200], "strength_deg": 45}),
+        "taper":      ("Otaper", {"size": [200, 200, 200], "strength": 0.5}),
+        "shear":      ("Oshear", {"size": [200, 200, 200], "strength": 0.5}),
+        "bulge":      ("Obulge", {"size": [200, 200, 200], "strength": 0.3}),
+        "shrink_wrap":("Oshrinkwrap", {}),
+        "wrap":       ("Owrap", {"width": 200, "height": 200, "radius": 100}),
+        "smoothing":  ("Osmoothing", {"strength": 0.5, "iterations": 5}),
+        "jiggle":     ("Ojiggle", {"strength": 0.5, "stiffness": 0.7}),
+        "bevel":      ("Obevel", {"offset": 5.0, "subdivision": 1}),
+        "spherify":   ("Ospherify", {"radius": 100, "strength": 0.5}),
+        "displacer":  ("Odisplacer", {"height": 10}),
+        "explosion":  ("Oexplosion", {"strength": 50}),
+        "explosion_fx":("Oexplosionfx", {}),
+        "formula":    ("Oformula", {}),
+        "melt":       ("Omelt", {"strength": 0.5}),
+        "shatter":    ("Oshatter", {"strength": 50}),
+        "morph":      ("Omorph", {}),
+        "mesh_deformer":("Omeshdeformer", {}),
+        "surface":    ("Osurface", {}),
+    }
+
+    def handle_list_deformer_types(self, command):
+        """List the deformer types this build of C4D supports + their canonical
+        parameter shape. Discovery tool — use before apply_deformer.
+        """
+        try:
+            available = []
+            unavailable = []
+            for canonical, (attr, defaults) in self._DEFORMER_TYPES.items():
+                tid = getattr(c4d, attr, None)
+                if tid is None:
+                    unavailable.append({"name": canonical, "missing_constant": attr})
+                else:
+                    available.append({
+                        "name": canonical,
+                        "type_id": tid,
+                        "c4d_attr": attr,
+                        "default_params": defaults,
+                    })
+            return {
+                "ok": True,
+                "available": available,
+                "unavailable": unavailable,
+                "available_count": len(available),
+            }
+        except Exception as e:
+            return {"error": f"list_deformer_types failed: {e}", "traceback": traceback.format_exc()}
+
+    def _apply_deformer_params(self, deformer, deformer_type, params):
+        """Map canonical params to C4D deformer parameter IDs. Best-effort —
+        unknown params are ignored with a warning."""
+        warnings = []
+        params = params or {}
+
+        def _setp(pid_attr, value):
+            pid = getattr(c4d, pid_attr, None)
+            if pid is None:
+                warnings.append(f"missing param const {pid_attr}, skipped")
+                return
+            try:
+                deformer[pid] = value
+            except Exception as e:
+                warnings.append(f"set {pid_attr} failed: {e}")
+
+        # size param common to many deformers
+        if "size" in params and len(params["size"]) == 3:
+            _setp("DEFORMOBJECT_SIZE", c4d.Vector(*[float(v) for v in params["size"]]))
+
+        if deformer_type == "bend":
+            if "strength_deg" in params:
+                _setp("BENDOBJECT_STRENGTH", c4d.utils.Rad(float(params["strength_deg"])))
+            if "angle_deg" in params:
+                _setp("BENDOBJECT_ANGLE", c4d.utils.Rad(float(params["angle_deg"])))
+        elif deformer_type == "twist":
+            if "strength_deg" in params:
+                _setp("TWISTOBJECT_ANGLE", c4d.utils.Rad(float(params["strength_deg"])))
+        elif deformer_type == "taper":
+            if "strength" in params:
+                _setp("TAPEROBJECT_STRENGTH", float(params["strength"]))
+        elif deformer_type == "shear":
+            if "strength" in params:
+                _setp("SHEAROBJECT_STRENGTH", float(params["strength"]))
+        elif deformer_type == "bulge":
+            if "strength" in params:
+                _setp("BULGEOBJECT_STRENGTH", float(params["strength"]))
+        elif deformer_type == "wrap":
+            if "width" in params:
+                _setp("WRAPOBJECT_WIDTH", float(params["width"]))
+            if "height" in params:
+                _setp("WRAPOBJECT_HEIGHT", float(params["height"]))
+            if "radius" in params:
+                _setp("WRAPOBJECT_RADIUS", float(params["radius"]))
+        elif deformer_type == "smoothing":
+            if "strength" in params:
+                _setp("MGSMOOTHDEFORMER_STRENGTH", float(params["strength"]))
+            if "iterations" in params:
+                _setp("MGSMOOTHDEFORMER_ITERATIONS", int(params["iterations"]))
+        elif deformer_type == "spherify":
+            if "radius" in params:
+                _setp("SPHERIFYOBJECT_RADIUS", float(params["radius"]))
+            if "strength" in params:
+                _setp("SPHERIFYOBJECT_STRENGTH", float(params["strength"]))
+        elif deformer_type == "bevel":
+            if "offset" in params:
+                _setp("O_BEVEL_OFFSET", float(params["offset"]))
+            if "subdivision" in params:
+                _setp("O_BEVEL_SUBDIVISION", int(params["subdivision"]))
+        elif deformer_type == "displacer":
+            if "height" in params:
+                _setp("DISPLACEROBJECT_HEIGHT", float(params["height"]))
+
+        return warnings
+
+    def handle_apply_deformer(self, command):
+        """Apply a deformer to a target object (added as a child).
+
+        Args:
+          target: name of the object to deform
+          deformer_type: canonical name from list_deformer_types
+          params: dict of deformer-specific params (best-effort apply)
+          name: name for the new deformer (default = "<type>")
+          restrict_vmap: optional vertex-map name on the target to use as
+            a deformation mask (where vmap == 0 → no deformation; == 1 →
+            full deformation). Adds a Restriction tag bound to the vmap
+            on the deformer when set.
+
+        Pairs naturally with paint_vertex_map_from_formula:
+          1. paint_vertex_map_from_formula(target=Cube, vmap_name=mask,
+                                           formula="smoothstep(0,100,sqrt(x*x+z*z))")
+          2. apply_deformer(target=Cube, deformer_type=bend,
+                            params={strength_deg: 60}, restrict_vmap=mask)
+          → Cube bends only where the radial mask is non-zero.
+
+        UNSAFE — mutates the scene.
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+            target_name = command.get("target")
+            if not target_name:
+                return {"error": "Missing 'target'"}
+            target = doc.SearchObject(target_name)
+            if not target:
+                return {"error": f"target '{target_name}' not found"}
+
+            dtype = command.get("deformer_type", "").lower()
+            if dtype not in self._DEFORMER_TYPES:
+                return {
+                    "error": f"Unknown deformer_type '{dtype}'",
+                    "valid": list(self._DEFORMER_TYPES.keys()),
+                }
+
+            attr, defaults = self._DEFORMER_TYPES[dtype]
+            tid = getattr(c4d, attr, None)
+            if tid is None:
+                return {"error": f"This C4D build is missing constant {attr}"}
+
+            params = dict(defaults)
+            params.update(command.get("params") or {})
+
+            deformer = c4d.BaseObject(tid)
+            if not deformer:
+                return {"error": f"Could not instantiate deformer {attr}"}
+            deformer.SetName(command.get("name", dtype))
+            warnings = self._apply_deformer_params(deformer, dtype, params)
+
+            # Insert as child of target
+            deformer.InsertUnder(target)
+
+            # Optional: bind a vertex-map restriction
+            restrict_vmap = command.get("restrict_vmap")
+            restrict_tag_name = None
+            if restrict_vmap:
+                # Find the vmap tag on target
+                vmap_tag = None
+                for t in target.GetTags():
+                    if t.GetType() == c4d.Tvertexmap and t.GetName() == restrict_vmap:
+                        vmap_tag = t
+                        break
+                if vmap_tag is None:
+                    warnings.append(f"restrict_vmap '{restrict_vmap}' not found on target — deformer applied without restriction")
+                else:
+                    # Add a Restriction tag on the deformer pointing at the vmap
+                    rtag = c4d.BaseTag(c4d.Trestriction)
+                    if rtag:
+                        deformer.InsertTag(rtag)
+                        try:
+                            # Restriction tag binds via vmap selection
+                            # parameter naming varies; try common ones
+                            for pid_name in ("RESTRICTION_VMAPS", "ID_RESTRICTION_VMAPS"):
+                                pid = getattr(c4d, pid_name, None)
+                                if pid is not None:
+                                    rtag[pid] = restrict_vmap
+                                    break
+                            restrict_tag_name = rtag.GetName() or "Restriction"
+                        except Exception as e:
+                            warnings.append(f"restriction tag setup partial: {e}")
+
+            c4d.EventAdd()
+            return {
+                "ok": True,
+                "target": target.GetName(),
+                "deformer_name": deformer.GetName(),
+                "deformer_type": dtype,
+                "deformer_type_id": tid,
+                "params_applied": params,
+                "restrict_vmap": restrict_vmap,
+                "restriction_tag": restrict_tag_name,
+                "warnings": warnings or None,
+            }
+        except Exception as e:
+            return {"error": f"apply_deformer failed: {e}", "traceback": traceback.format_exc()}
 
     # === Vertex-map painting (creative leverage — fields/effectors/deformers
     #     all consume vmaps; this lets you paint them procedurally) =========

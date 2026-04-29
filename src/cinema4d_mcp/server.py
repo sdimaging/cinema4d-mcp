@@ -1914,6 +1914,81 @@ async def scene_diff(
 
 
 @mcp.tool()
+async def list_deformer_types(ctx: Context = None) -> str:
+    """Discover what deformer types this C4D build supports + their default
+    parameter shape.
+
+    Read-only. Run before apply_deformer to know:
+      - which deformers exist (some build configurations omit constants)
+      - which canonical params each accepts (size, strength_deg, radius, ...)
+      - the underlying type_id (for advanced use)
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        response = send_to_c4d(connection, {"command": "list_deformer_types"})
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
+async def apply_deformer(
+    target: str,
+    deformer_type: str,
+    params: Optional[Dict[str, Any]] = None,
+    name: Optional[str] = None,
+    restrict_vmap: Optional[str] = None,
+    ctx: Context = None,
+) -> str:
+    """Add a deformer as a child of the target object, optionally restricted
+    to a vertex map.
+
+    Args:
+      target: object to deform
+      deformer_type: canonical name from list_deformer_types
+                     (bend, twist, taper, shear, bulge, shrink_wrap, wrap,
+                     smoothing, jiggle, bevel, spherify, displacer, ...)
+      params: deformer-specific parameters. Common: size=[x,y,z],
+              strength_deg, strength, radius, width, height, iterations.
+              Run list_deformer_types for the per-type schema.
+      name: name for the new deformer (default = deformer_type)
+      restrict_vmap: vertex-map name on the target. When set, the deformer
+                     gets a Restriction tag bound to that vmap so the
+                     deformation is masked: 0 = no deform, 1 = full deform.
+                     PAIRS WITH paint_vertex_map_from_formula / radial.
+
+    Procedural-mask creative loop in 2 calls:
+      1. paint_vertex_map_radial(target=Cube, vmap_name=mask, radius=80,
+                                 falloff=smooth)
+      2. apply_deformer(target=Cube, deformer_type=bend,
+                        params={strength_deg: 60}, restrict_vmap=mask)
+      → Cube bends only inside the radial mask. Full procedural workflow.
+
+    UNSAFE — mutates the scene. Wrap in begin/end_undo_group for
+    reversibility.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {
+            "command": "apply_deformer",
+            "target": target,
+            "deformer_type": deformer_type,
+        }
+        if params is not None:
+            cmd["params"] = params
+        if name is not None:
+            cmd["name"] = name
+        if restrict_vmap is not None:
+            cmd["restrict_vmap"] = restrict_vmap
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
 async def paint_vertex_map_from_formula(
     target: str,
     formula: str,
