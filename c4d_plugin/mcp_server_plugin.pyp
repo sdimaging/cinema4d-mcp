@@ -10546,15 +10546,16 @@ class C4DSocketServer(threading.Thread):
         "save_scene", "load_scene", "set_keyframe",
         "add_primitive", "modify_object", "create_abstract_shape",
         "create_material", "apply_material", "apply_shader",
+        "link_shader_to_parameter",
         "inspect_redshift_materials", "validate_redshift_materials",
         "render_frame", "render_preview", "snapshot_scene",
         "create_camera", "animate_camera", "create_light",
         "create_mograph_cloner", "add_effector",
         "apply_dynamics", "create_soft_body", "apply_mograph_fields",
-        "find_object_by_guid", "find_command_by_name", "create_via_command",
+        "create_via_command",
         "find_objects", "get_object_info", "list_render_engines",
         "get_active_renderer", "list_installed_plugins",
-        "enumerate_octane_plugins", "enumerate_descids", "enumerate_userdata",
+        "enumerate_descids", "enumerate_userdata",
         "dump_object_tree", "dump_material_graph",
         "set_viewport_shading_mode", "viewport_screenshot",
         "viewport_screenshot_multiview", "get_viewport_state",
@@ -10563,11 +10564,19 @@ class C4DSocketServer(threading.Thread):
         "uv_from_projection", "uv_transfer", "sample_vmap_via_uv",
         "sample_bitmap_at_uv",
         "run_modeling_command",
-        "tap_octane_log", "get_console_log", "clear_console_log",
-        "install_plugin", "build_and_install_plugin", "get_c4d_info",
+        "get_console_log", "clear_console_log",
+        "get_c4d_info",
         "get_capabilities", "doctor",
         "scene_snapshot", "scene_diff",
     )
+    # NOTE: this list reflects what the C4D PLUGIN's run() dispatcher actually
+    # routes. Some MCP tool wrappers in server.py (tap_octane_log,
+    # install_plugin, build_and_install_plugin) execute server-side without
+    # roundtripping to C4D, and aren't part of this set. Others (e.g.
+    # find_command_by_name, enumerate_octane_plugins, find_object_by_guid)
+    # are convenience aliases that delegate to other plugin commands
+    # (list_installed_plugins, find_objects) — they're advertised through
+    # server.py's @mcp.tool() decorators, not through this list.
 
     # Tags for read-only vs scene-mutating tools (Phase 5 prep).
     # SAFE = read-only inspection, no scene mutation, no file write.
@@ -10576,15 +10585,14 @@ class C4DSocketServer(threading.Thread):
     _SAFE_COMMANDS = frozenset({
         "get_scene_info", "list_objects",
         "inspect_redshift_materials",
-        "find_object_by_guid", "find_command_by_name",
         "find_objects", "get_object_info", "list_render_engines",
         "get_active_renderer", "list_installed_plugins",
-        "enumerate_octane_plugins", "enumerate_descids", "enumerate_userdata",
+        "enumerate_descids", "enumerate_userdata",
         "dump_object_tree", "dump_material_graph",
         "viewport_screenshot", "viewport_screenshot_multiview",
         "get_viewport_state",
         "vertex_map_stats", "uv_layout_stats",
-        "tap_octane_log", "get_console_log", "clear_console_log",
+        "get_console_log", "clear_console_log",
         "get_c4d_info", "get_capabilities", "doctor",
         "scene_snapshot", "scene_diff",
     })
