@@ -2119,6 +2119,59 @@ async def sample_bitmap_at_uv(
 
 
 @mcp.tool()
+async def uv_islands_to_objects(
+    target: Optional[str] = None,
+    quantize: int = 1000000,
+    name_prefix: Optional[str] = None,
+    parent_name: Optional[str] = None,
+    min_polygons: int = 1,
+    ctx: Context = None,
+) -> str:
+    """Split a polygon mesh into separate objects, one per UV island.
+
+    Output objects retain their original 3D positions (NOT flattened).
+    UV tag and any vertex map tags are carried over with weights remapped.
+    Each island's polygons become an independent polygon mesh.
+
+    Args:
+      target: object name; defaults to active selection.
+      quantize: UV-position dedup precision (default 6 decimal places).
+      name_prefix: prefix for new objects. Default = source name.
+                   Output named "{prefix}_island_00", "_island_01", ...
+                   (sorted largest-first).
+      parent_name: optional Null name to parent results under.
+                   Created if not present at top level.
+      min_polygons: skip islands smaller than this. Default 1.
+
+    Returns: per-island stats + naming + parent.
+
+    Use cases:
+      - process each panel of a chair / shoe / car independently
+        (different hole density per panel, different material)
+      - export each piece separately for fab / 3D print
+      - apply per-island procedural workflows (Spikr scatter at
+        different rates, MoGraph effectors per region, etc.)
+      - debugging UV layout — see each island as a separate object
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        command: Dict[str, Any] = {
+            "command": "uv_islands_to_objects",
+            "quantize": quantize,
+            "min_polygons": min_polygons,
+        }
+        if target is not None:
+            command["target"] = target
+        if name_prefix is not None:
+            command["name_prefix"] = name_prefix
+        if parent_name is not None:
+            command["parent_name"] = parent_name
+        response = send_to_c4d(connection, command)
+        return format_c4d_response(response, "uv_islands_to_objects")
+
+
+@mcp.tool()
 async def get_viewport_state(ctx: Context = None) -> str:
     """Return the active viewport's state: dimensions, frame rect, active camera matrix,
     projection mode, and active renderer. Useful for debugging plugin viewport draws."""

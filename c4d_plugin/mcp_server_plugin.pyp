@@ -413,6 +413,8 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_uv_layout_stats(command)
                         elif command_type == "sample_bitmap_at_uv":
                             response = self.handle_sample_bitmap_at_uv(command)
+                        elif command_type == "uv_islands_to_objects":
+                            response = self.handle_uv_islands_to_objects(command)
                         elif command_type == "get_viewport_state":
                             response = self.handle_get_viewport_state(command)
                         elif command_type == "list_render_engines":
@@ -8929,6 +8931,185 @@ class C4DSocketServer(threading.Thread):
             }
         except Exception as e:
             return {"error": f"sample_bitmap_at_uv failed: {e}", "traceback": traceback.format_exc()}
+
+    def handle_uv_islands_to_objects(self, command):
+        """Split each UV island into its own polygon object (3D positions
+        preserved — not flattened). Useful for per-island procedural workflows
+        (different hole densities per panel, separate materials, etc).
+
+        Args (in command):
+          target (str, optional)         — object name; defaults to selection
+          quantize (int, default 1000000) — UV-position dedup precision
+          name_prefix (str, default same as source name)
+          parent_name (str, optional)    — name of a Null to parent results under;
+                                           created if not exists
+          min_polygons (int, default 1)  — skip islands smaller than this
+
+        Returns: list of created objects with island stats.
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+
+            obj, err = self._resolve_target_object(command, doc, key="target")
+            if err:
+                return {"error": err}
+            if obj.GetType() != c4d.Opolygon:
+                return {"error": f"Target '{obj.GetName()}' is not a polygon mesh"}
+
+            uv_tag = obj.GetTag(c4d.Tuvw)
+            if uv_tag is None:
+                return {"error": f"'{obj.GetName()}' has no UVW tag"}
+
+            quantize = int(command.get("quantize", 1000000))
+            name_prefix = command.get("name_prefix", obj.GetName())
+            parent_name = command.get("parent_name")
+            min_polys = int(command.get("min_polygons", 1))
+
+            n_polys = obj.GetPolygonCount()
+            src_pts = obj.GetAllPoints()
+
+            # Union-find for UV-island detection (same as uv_layout_stats)
+            parent = list(range(n_polys))
+            def find(x):
+                while parent[x] != x:
+                    parent[x] = parent[parent[x]]
+                    x = parent[x]
+                return x
+            def union(a, b):
+                ra, rb = find(a), find(b)
+                if ra != rb:
+                    parent[ra] = rb
+
+            uv_vert_to_poly = {}
+            for i in range(n_polys):
+                uv = uv_tag.GetSlow(i)
+                for u_pt in (uv["a"], uv["b"], uv["c"], uv["d"]):
+                    key = (int(u_pt.x * quantize + 0.5), int(u_pt.y * quantize + 0.5))
+                    if key in uv_vert_to_poly:
+                        union(i, uv_vert_to_poly[key])
+                    else:
+                        uv_vert_to_poly[key] = i
+
+            # Group poly indices by island root
+            islands = {}
+            for i in range(n_polys):
+                islands.setdefault(find(i), []).append(i)
+
+            # Optional parent null
+            parent_null = None
+            if parent_name:
+                # Reuse existing if found at top level
+                top = doc.GetFirstObject()
+                while top:
+                    if top.GetName() == parent_name and top.GetType() == c4d.Onull:
+                        parent_null = top
+                        break
+                    top = top.GetNext()
+                if parent_null is None:
+                    parent_null = c4d.BaseObject(c4d.Onull)
+                    parent_null.SetName(parent_name)
+                    doc.InsertObject(parent_null)
+
+            created = []
+            # Sort islands by size desc for deterministic naming
+            sorted_islands = sorted(islands.items(), key=lambda kv: -len(kv[1]))
+            for island_idx, (root, poly_indices) in enumerate(sorted_islands):
+                if len(poly_indices) < min_polys:
+                    continue
+
+                # Build vertex remap: source vert idx → new vert idx
+                vert_remap = {}
+                new_pts = []
+                new_polys = []
+
+                for pi in poly_indices:
+                    p = obj.GetPolygon(pi)
+                    is_quad = (p.c != p.d)
+                    src_idxs = (p.a, p.b, p.c, p.d) if is_quad else (p.a, p.b, p.c)
+                    new_idxs = []
+                    for vi in src_idxs:
+                        ni = vert_remap.get(vi)
+                        if ni is None:
+                            ni = len(new_pts)
+                            new_pts.append(src_pts[vi])
+                            vert_remap[vi] = ni
+                        new_idxs.append(ni)
+                    if is_quad:
+                        new_polys.append(c4d.CPolygon(new_idxs[0], new_idxs[1], new_idxs[2], new_idxs[3]))
+                    else:
+                        new_polys.append(c4d.CPolygon(new_idxs[0], new_idxs[1], new_idxs[2], new_idxs[2]))
+
+                out = c4d.PolygonObject(len(new_pts), len(new_polys))
+                out.SetAllPoints(new_pts)
+                for j, polyobj in enumerate(new_polys):
+                    out.SetPolygon(j, polyobj)
+                out.Message(c4d.MSG_UPDATE)
+                out.SetName(f"{name_prefix}_island_{island_idx:02d}")
+                out.MakeTag(c4d.Tphong)
+
+                # Copy world transform from source
+                out.SetMg(obj.GetMg())
+
+                # Carry UVs by mapping back via the same poly_indices order
+                try:
+                    new_uv = c4d.UVWTag(len(new_polys))
+                    out.InsertTag(new_uv)
+                    for new_i, src_i in enumerate(poly_indices):
+                        uv = uv_tag.GetSlow(src_i)
+                        new_uv.SetSlow(new_i, uv["a"], uv["b"], uv["c"], uv["d"])
+                except Exception:
+                    pass
+
+                # Carry vertex maps (remap weights via vert_remap)
+                try:
+                    src_vmaps = []
+                    t = obj.GetFirstTag()
+                    while t:
+                        if t.GetType() == c4d.Tvertexmap:
+                            src_vmaps.append(t)
+                        t = t.GetNext()
+                    for src_vm in src_vmaps:
+                        src_w = src_vm.GetAllHighlevelData()
+                        if src_w is None:
+                            continue
+                        # Build new-vert-index → source-vert-index reverse map
+                        inv_remap = [0] * len(new_pts)
+                        for src_vi, new_vi in vert_remap.items():
+                            inv_remap[new_vi] = src_vi
+                        new_w = [src_w[inv_remap[i]] for i in range(len(new_pts))]
+                        new_vm = c4d.VariableTag(c4d.Tvertexmap, len(new_pts))
+                        new_vm.SetName(src_vm.GetName())
+                        out.InsertTag(new_vm)
+                        new_vm.SetAllHighlevelData(new_w)
+                except Exception:
+                    pass
+
+                if parent_null:
+                    out.InsertUnder(parent_null)
+                else:
+                    doc.InsertObject(out)
+
+                created.append({
+                    "name": out.GetName(),
+                    "polygon_count": len(new_polys),
+                    "vertex_count": len(new_pts),
+                    "island_id": root,
+                })
+
+            c4d.EventAdd()
+            return {
+                "status": "ok",
+                "source": obj.GetName(),
+                "island_count_total": len(islands),
+                "objects_created": len(created),
+                "skipped_below_min_polygons": len(islands) - len(created),
+                "objects": created,
+                "parent_null": parent_null.GetName() if parent_null else None,
+            }
+        except Exception as e:
+            return {"error": f"uv_islands_to_objects failed: {e}", "traceback": traceback.format_exc()}
 
     def handle_list_render_engines(self, command):
         """List all registered render engines (VideoPost plugins of renderer kind, plus c4d.PLUGINTYPE_VIDEOPOST entries).
