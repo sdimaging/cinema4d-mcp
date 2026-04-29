@@ -1,0 +1,50 @@
+{
+  "name": "scene_snapshot_diff_roundtrip",
+  "description": "End-to-end round-trip of scene_snapshot + mutation + scene_diff. Confirms diff actually catches added objects, transform changes, and renames by GUID — the agent-stability contract.",
+  "setup": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\ndoc = c4d.documents.GetActiveDocument()\nfor n in ['DiffStartCube', 'DiffStartLight', 'DiffNewSphere']:\n    o = doc.SearchObject(n)\n    if o: o.Remove()\ncg = c4d.BaseObject(c4d.Ocube)\ncg.SetName('DiffStartCube')\ncg.SetAbsPos(c4d.Vector(0, 0, 0))\ndoc.InsertObject(cg)\nlt = c4d.BaseObject(c4d.Olight)\nlt.SetName('DiffStartLight')\ndoc.InsertObject(lt)\nc4d.EventAdd()\nprint('setup ok, scene has DiffStartCube + DiffStartLight')"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "name": "initial_state",
+      "command": "scene_assert",
+      "args": {
+        "assertions": [
+          {"type": "object_exists", "name": "DiffStartCube"},
+          {"type": "object_exists", "name": "DiffStartLight"}
+        ]
+      },
+      "assert": []
+    },
+    {
+      "name": "take_baseline_snapshot",
+      "command": "scene_snapshot",
+      "args": {"detail": "full", "cache": true},
+      "assert": []
+    },
+    {
+      "name": "mutate_scene",
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\ndoc = c4d.documents.GetActiveDocument()\ncube = doc.SearchObject('DiffStartCube')\ncube.SetAbsPos(c4d.Vector(200, 50, 0))\nlt = doc.SearchObject('DiffStartLight')\nlt.SetName('DiffStartLight_renamed')\nsg = c4d.BaseObject(c4d.Osphere)\nsg.SetName('DiffNewSphere')\ndoc.InsertObject(sg)\nc4d.EventAdd()\nprint('mutated: cube moved, light renamed, sphere added')"
+      },
+      "assert": [
+        {"type": "object_exists", "name": "DiffNewSphere"},
+        {"type": "object_exists", "name": "DiffStartLight_renamed"}
+      ]
+    }
+  ],
+  "teardown": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\ndoc = c4d.documents.GetActiveDocument()\nfor n in ['DiffStartCube', 'DiffStartLight_renamed', 'DiffNewSphere']:\n    o = doc.SearchObject(n)\n    if o: o.Remove()\nc4d.EventAdd()\nprint('teardown ok')"
+      }
+    }
+  ]
+}

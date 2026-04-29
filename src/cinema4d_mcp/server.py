@@ -1914,6 +1914,170 @@ async def scene_diff(
 
 
 @mcp.tool()
+async def recipe_run(
+    recipe_path: Optional[str] = None,
+    recipe: Optional[Dict[str, Any]] = None,
+    stop_on_fail: bool = False,
+    ctx: Context = None,
+) -> str:
+    """Run a recipe — a JSON sequence of tool-calls + scene_assert checks.
+
+    A recipe is the unit of regression testing: bundle a known-good
+    operation sequence + the scene-state assertions that should hold,
+    then run as one tool call. Accumulating a folder of recipes turns
+    "did this still work after my last commit?" into a single call.
+
+    Recipe schema:
+      {
+        "name": "<recipe_name>",
+        "description": "...",
+        "setup":     [{"command": "<cmd>", "args": {...}}, ...],
+        "steps":     [{"name": "<step>",
+                       "command": "<cmd>", "args": {...},
+                       "assert": [<scene_assert assertion>, ...]}, ...],
+        "teardown":  [{"command": "<cmd>", "args": {...}}, ...]
+      }
+
+    Args:
+      recipe_path: path to a JSON recipe file (preferred — versioned in git)
+      recipe: inline recipe dict (for ad-hoc one-shot use)
+      stop_on_fail: if True, stop running steps after the first failure.
+                    Default False — every step runs even if earlier ones fail,
+                    so you see the full damage report.
+
+    Returns:
+      {ok, name, total_steps, passed, failed, results: [...], setup_results,
+       teardown_results, duration_ms}
+    """
+    import os
+    if recipe_path and recipe:
+        return "❌ Provide exactly one of recipe_path or recipe"
+    if not recipe_path and not recipe:
+        return "❌ Provide one of recipe_path or recipe"
+
+    if recipe_path:
+        if not os.path.exists(recipe_path):
+            return f"❌ Recipe file not found: {recipe_path}"
+        try:
+            with open(recipe_path, "r") as f:
+                recipe = json.load(f)
+        except Exception as e:
+            return f"❌ Failed to load recipe: {e}"
+
+    name = recipe.get("name", "<unnamed>")
+    desc = recipe.get("description", "")
+    setup_steps = recipe.get("setup") or []
+    main_steps = recipe.get("steps") or []
+    teardown_steps = recipe.get("teardown") or []
+
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+
+        report: Dict[str, Any] = {
+            "ok": True,
+            "name": name,
+            "description": desc,
+            "total_steps": len(main_steps),
+            "passed": 0,
+            "failed": 0,
+            "setup_results": [],
+            "results": [],
+            "teardown_results": [],
+        }
+        t0 = time.time()
+
+        # Setup phase
+        for s in setup_steps:
+            cmd = dict(s.get("args") or {})
+            cmd["command"] = s["command"]
+            r = send_to_c4d(connection, cmd)
+            ok = "error" not in r
+            report["setup_results"].append({
+                "command": s["command"],
+                "ok": ok,
+                "error": r.get("error") if not ok else None,
+            })
+            if not ok and stop_on_fail:
+                report["ok"] = False
+                report["aborted"] = "setup failed"
+                report["duration_ms"] = int((time.time() - t0) * 1000)
+                return json.dumps(report, indent=2)
+
+        # Main steps
+        for idx, st in enumerate(main_steps):
+            step_name = st.get("name", f"step_{idx}")
+            step_cmd = st.get("command")
+            step_args = dict(st.get("args") or {})
+            step_args["command"] = step_cmd
+            step_assertions = st.get("assert") or []
+
+            step_report: Dict[str, Any] = {
+                "step": step_name,
+                "command": step_cmd,
+                "args": st.get("args") or {},
+            }
+
+            # Run the command
+            cmd_resp = send_to_c4d(connection, step_args)
+            cmd_ok = "error" not in cmd_resp
+            step_report["command_ok"] = cmd_ok
+            if not cmd_ok:
+                step_report["command_error"] = cmd_resp.get("error")
+            else:
+                step_report["command_response_summary"] = {
+                    k: v for k, v in cmd_resp.items()
+                    if k in ("ok", "duration_ms", "warnings", "status")
+                }
+
+            # Run the assertions
+            assert_passed = True
+            assert_report = None
+            if step_assertions:
+                a_resp = send_to_c4d(connection, {
+                    "command": "scene_assert",
+                    "assertions": step_assertions,
+                })
+                assert_passed = a_resp.get("ok", False) and "error" not in a_resp
+                assert_report = {
+                    "ok": a_resp.get("ok"),
+                    "passed": a_resp.get("passed"),
+                    "failed": a_resp.get("failed"),
+                    "results": a_resp.get("results"),
+                    "error": a_resp.get("error"),
+                }
+                step_report["assertions"] = assert_report
+
+            step_passed = cmd_ok and assert_passed
+            step_report["passed"] = step_passed
+            if step_passed:
+                report["passed"] += 1
+            else:
+                report["failed"] += 1
+                report["ok"] = False
+            report["results"].append(step_report)
+
+            if not step_passed and stop_on_fail:
+                report["aborted"] = f"step '{step_name}' failed"
+                break
+
+        # Teardown phase (always runs, even after failures, unless explicitly stopped)
+        for s in teardown_steps:
+            cmd = dict(s.get("args") or {})
+            cmd["command"] = s["command"]
+            r = send_to_c4d(connection, cmd)
+            ok = "error" not in r
+            report["teardown_results"].append({
+                "command": s["command"],
+                "ok": ok,
+                "error": r.get("error") if not ok else None,
+            })
+
+        report["duration_ms"] = int((time.time() - t0) * 1000)
+        return json.dumps(report, indent=2)
+
+
+@mcp.tool()
 async def scene_assert(
     assertions: List[Dict[str, Any]],
     ctx: Context = None,

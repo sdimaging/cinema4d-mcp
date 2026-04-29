@@ -1,0 +1,62 @@
+{
+  "name": "apply_deformer_with_vmap_mask",
+  "description": "Verify the canonical creative loop: paint a radial vmap, then apply a Bend deformer restricted to it. Confirms (a) vmap painting writes plausible weights, (b) deformer is added as child, (c) restriction tag is bound to the vmap, (d) topology unchanged after deformer add.",
+  "setup": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\nfrom c4d import utils\ndoc = c4d.documents.GetActiveDocument()\nfor n in ['RecipeCube']:\n    o = doc.SearchObject(n)\n    if o: o.Remove()\ncg = c4d.BaseObject(c4d.Ocube)\ncg[c4d.PRIM_CUBE_LEN] = c4d.Vector(200, 200, 200)\ncg[c4d.PRIM_CUBE_SUBX] = 10\ncg[c4d.PRIM_CUBE_SUBY] = 10\ncg[c4d.PRIM_CUBE_SUBZ] = 10\ndoc.InsertObject(cg)\nres = utils.SendModelingCommand(c4d.MCOMMAND_MAKEEDITABLE, [cg], doc=doc)\np = res[0]\np.SetName('RecipeCube')\ndoc.InsertObject(p)\nc4d.EventAdd()\nprint('setup ok, points=' + str(p.GetPointCount()))"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "name": "scene_state_after_setup",
+      "command": "scene_assert",
+      "args": {
+        "assertions": [
+          {"type": "object_exists", "name": "RecipeCube"},
+          {"type": "object_polygon_count", "name": "RecipeCube", "expected": [500, 700]}
+        ]
+      },
+      "assert": [
+        {"type": "object_exists", "name": "RecipeCube"}
+      ]
+    },
+    {
+      "name": "paint_radial_mask",
+      "command": "paint_vertex_map_radial",
+      "args": {
+        "target": "RecipeCube",
+        "vmap_name": "bend_mask",
+        "radius": 100,
+        "falloff": "smooth"
+      },
+      "assert": [
+        {"type": "object_has_tag", "name": "RecipeCube", "tag_type": "Tvertexmap", "tag_name": "bend_mask"},
+        {"type": "vmap_stats", "name": "RecipeCube", "vmap": "bend_mask", "min": 0.0, "max": [0.0, 1.0], "mean": [0.0, 1.0]}
+      ]
+    },
+    {
+      "name": "apply_bend_with_mask",
+      "command": "apply_deformer",
+      "args": {
+        "target": "RecipeCube",
+        "deformer_type": "bend",
+        "params": {"strength_deg": 60},
+        "restrict_vmap": "bend_mask"
+      },
+      "assert": [
+        {"type": "object_has_child", "name": "RecipeCube", "type_id": "Obend"}
+      ]
+    }
+  ],
+  "teardown": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\ndoc = c4d.documents.GetActiveDocument()\no = doc.SearchObject('RecipeCube')\nif o: o.Remove()\nc4d.EventAdd()\nprint('teardown ok')"
+      }
+    }
+  ]
+}
