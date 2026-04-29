@@ -4,11 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cinema4d-mcp"
-version = "0.1.2"
-description = "Cinema 4D MCP Server for Claude Desktop with MoGraph support"
+version = "0.2.0"
+description = "Cinema 4D MCP Server — extended fork with introspection, plugin-dev, render-engine, and Octane-aware tooling for AI-assisted C4D workflows"
 authors = [
-    {name = "Your Name", email = "your.email@example.com"}
+    {name = "Spenser Dickerson", email = "spenser@sdimaging.art"}
 ]
+license = "MIT"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

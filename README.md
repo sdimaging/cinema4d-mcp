@@ -1,94 +1,71 @@
-# Cinema4D MCP — Model Context Protocol (MCP) Server
+# Cinema 4D MCP — Extended Fork
 
-Cinema4D MCP Server connects Cinema 4D to Claude, enabling prompt-assisted 3D manipulation.
+Cinema 4D ↔ Claude bridge over [Model Context Protocol](https://modelcontextprotocol.io). Lets Claude read scene state, run Python in the C4D evaluation context, render previews, manipulate objects, manage materials, and a lot more — driven from a chat conversation.
 
-## Table of Contents
+This is a **substantially extended fork** of [`ttiimmaacc/cinema4d-mcp`](https://github.com/ttiimmaacc/cinema4d-mcp). The original 25 tools are still here; this fork adds **+21 more tools** (46 total) plus production hardening for C4D 2026, WSL2, and Octane workflows.
 
-- [Components](#components)
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [Setup](#setup)
-- [Usage](#usage)
-- [Agent Skill](#agent-skill)
-- [Development](#development)
-- [Troubleshooting & Debugging](#troubleshooting--debugging)
-- [File Structure](#file-structure)
-- [Tool Commands](#tool-commands)
-- [Usage Guide](docs/USAGE_GUIDE.md) — practical tips, extraction patterns, and known issues
+---
+
+## What this fork adds over upstream
+
+### Production hardening
+- **C4D 2026 compatibility** — verified against current C4D Python API
+- **WSL2 reachability** — plugin binds `0.0.0.0`; MCP server auto-detects Windows host IP from default gateway when running inside WSL
+- **Socket auto-start** — plugin starts its socket on `C4DPL_PROGRAM_STARTED` (no manual menu click needed; opt out via `C4D_MCP_NO_AUTOSTART=1`)
+- **Lifecycle recovery** — Stop→Start now recovers cleanly from dead-thread states without restarting C4D
+- **Console log ring buffer** — 10K-entry in-process buffer with `c4d.GePrint` hook; surface via `get_console_log` tool
+
+### viewport_screenshot fix
+The default `Standard` renderer returns all-black bitmaps when Octane is installed (Octane hooks the standard render pipeline). This fork:
+- Defaults `renderer` to `"hardware"` (OpenGL preview — always works)
+- Auto-detects all-black renders and falls back to `"hardware"` with a warning surfaced in the response
+- Fixes the underlying engine-override mechanism (sets engine on `clone` directly rather than the `GetData()` copy)
+
+### +21 introspection / plugin-dev / render-engine tools
+- **Introspection**: `enumerate_descids`, `enumerate_userdata`, `dump_object_tree`, `get_viewport_state`, `find_command_by_name`, `dump_material_graph`, `inspect_redshift_materials`, `find_objects`, `get_object_info`
+- **Plugin development**: `build_and_install_plugin`, `install_plugin`, `list_installed_plugins`, `get_console_log`, `clear_console_log`, `get_c4d_info`
+- **Render engine awareness**: `list_render_engines`, `get_active_renderer`, `enumerate_octane_plugins`, `tap_octane_log`
+- **Generic helpers**: `link_shader_to_parameter`, `create_via_command`, `viewport_screenshot` (rebuilt with auto-fallback)
+
+---
 
 ## Components
 
-1. **C4D Plugin**: A socket server that listens for commands from the MCP server and executes them in the Cinema 4D environment.
-2. **MCP Server**: A Python server that implements the MCP protocol and provides tools for Cinema 4D integration.
+1. **C4D Plugin** (`c4d_plugin/mcp_server_plugin.pyp`) — Cinema 4D plugin that runs a TCP socket server inside the C4D process. Handles JSON commands and returns JSON responses.
+2. **MCP Server** (`src/cinema4d_mcp/`) — Python MCP server. Receives tool calls from Claude, sends them to the plugin over TCP, formats responses.
+
+---
 
 ## Prerequisites
 
-- Cinema 4D (R2024+ recommended)
-- Python 3.10 or higher (for the MCP Server component)
+- Cinema 4D 2024+ (primary target: 2026)
+- Python 3.10+
 
 ## Installation
 
-To install the project, follow these steps:
-
-### Clone the Repository
-
 ```bash
-git clone https://github.com/ttiimmaacc/cinema4d-mcp.git
+git clone https://github.com/sdimaging/cinema4d-mcp.git
 cd cinema4d-mcp
-```
-
-### Install the MCP Server Package
-
-```bash
 pip install -e .
-```
-
-### Make the Wrapper Script Executable
-
-```bash
 chmod +x bin/cinema4d-mcp-wrapper
 ```
 
 ## Setup
 
-### Cinema 4D Plugin Setup
+### 1. Install the C4D plugin
 
-To set up the Cinema 4D plugin, follow these steps:
+Copy `c4d_plugin/mcp_server_plugin.pyp` to your Cinema 4D plugins folder:
 
-1. **Copy the Plugin File**: Copy the `c4d_plugin/mcp_server_plugin.pyp` file to Cinema 4D's plugin folder. The path varies depending on your operating system:
+- **Windows**: `%APPDATA%\Maxon\Maxon Cinema 4D <version>_<hash>\plugins\`
+- **macOS**: `~/Library/Preferences/Maxon/Maxon Cinema 4D <version>_<hash>/plugins/`
 
-   - macOS: `/Users/USERNAME/Library/Preferences/Maxon/Maxon Cinema 4D/plugins/`
-   - Windows: `C:\Users\USERNAME\AppData\Roaming\Maxon\Maxon Cinema 4D\plugins\`
+Then either:
+- Restart C4D (the plugin auto-starts its socket on launch), or
+- `Extensions → Socket Server Plugin → Start Server`
 
-2. **Start the Socket Server**:
-   - Open Cinema 4D.
-   - Go to Extensions > Socket Server Plugin
-   - You should see a Socket Server Control dialog window. Click Start Server.
+### 2. Configure Claude Desktop
 
-### Claude Desktop Configuration
-
-To configure Claude Desktop, you need to modify its configuration file:
-
-1. **Open the Configuration File**:
-
-   - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
-   - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
-   - Alternatively, use the Settings menu in Claude Desktop (Settings > Developer > Edit Config).
-
-2. **Add MCP Server Configuration**:
-   For development/unpublished server, add the following configuration:
-   ```json
-   "mcpServers": {
-     "cinema4d": {
-       "command": "python3",
-       "args": ["/Users/username/cinema4d-mcp/main.py"]
-     }
-   }
-   ```
-3. **Restart Claude Desktop** after updating the configuration file.
-<details>
-
-  <summary>[TODO] For published server</summary>
+Edit `claude_desktop_config.json` (Settings → Developer → Edit Config):
 
 ```json
 {
@@ -101,191 +78,147 @@ To configure Claude Desktop, you need to modify its configuration file:
 }
 ```
 
-   </details>
+Restart Claude Desktop. Look for the 🔨 icon to confirm tools are loaded.
 
-## Usage
+### 3. (Optional) WSL2 environment
 
-1. Ensure the Cinema 4D Socket Server is running.
-2. Open Claude Desktop and look for the hammer icon 🔨 in the input box, indicating MCP tools are available.
-3. Use the available [Tool Commands](#tool-commands) to interact with Cinema 4D through Claude.
-
-## Agent Skill
-
-If you use agent skills, the maintained companion skill for this MCP lives in [vladmdgolam/agent-skills](https://github.com/vladmdgolam/agent-skills/tree/main/skills/cinema4d-mcp).
-
-The skill captures production-oriented guidance that sits on top of the raw MCP tools, including:
-
-- when to prefer `inspect_redshift_materials` over ad-hoc Python for Redshift inspection
-- when to fall back to `execute_python_script` for full C4D API access
-- current Redshift limits when the runtime or node space is unavailable
-- practical MoGraph extraction and debugging workflows
-
-## Testing
-
-### Command Line Testing
-
-To test the Cinema 4D socket server directly from the command line:
+If you run the MCP server inside WSL2 while C4D runs on Windows host, the server auto-detects the Windows IP. To override:
 
 ```bash
-python main.py
+export C4D_HOST=192.168.x.x   # your Windows host IP
+export C4D_PORT=5555           # default
 ```
 
-You should see output confirming the server's successful start and connection to Cinema 4D.
+---
 
-### Testing with MCP Test Harness
+## Companion: standalone Cinema 4D scripts
 
-The repository includes a simple test harness for running predefined command sequences:
+For procedural scripts that run directly in C4D's Script Manager (no MCP needed), see the companion repo: **[sdimaging/c4d-scripts](https://github.com/sdimaging/c4d-scripts)**.
 
-1. **Test Command File** (`tests/mcp_test_harness.jsonl`): Contains a sequence of commands in JSONL format that can be executed in order. Each line represents a single MCP command with its parameters.
+Currently includes:
+- **UV pipeline** — flatten a mesh into its UV layout as planar geo, modify the flat geo (boolean cuts, polygon delete, etc.), then deform the modified flat back to the curved 3D source. Useful for any "cut holes via painted UV map" workflow.
 
-2. **GUI Test Runner** (`tests/mcp_test_harness_gui.py`): A simple Tkinter GUI for running the test commands:
+---
 
-   ```bash
-   python tests/mcp_test_harness_gui.py
-   ```
+## Tool inventory (46 total)
 
-   The GUI allows you to:
+### Scene & objects
+- `get_scene_info`, `list_objects`, `find_objects`, `get_object_info`, `dump_object_tree`, `group_objects`, `modify_object`
 
-   - Select a JSONL test file
-   - Run the commands in sequence
-   - View the responses from Cinema 4D
+### Primitives & shapes
+- `add_primitive`, `create_abstract_shape`
 
-This test harness is particularly useful for:
+### Materials & shaders
+- `create_material`, `apply_material`, `apply_shader`, `inspect_redshift_materials`, `dump_material_graph`, `link_shader_to_parameter`
 
-- Rapidly testing new commands
-- Verifying plugin functionality after updates
-- Recreating complex scenes for debugging
-- Testing compatibility across different Cinema 4D versions
+### Cameras & lighting
+- `create_camera`, `animate_camera`, `create_light`
 
-## Troubleshooting & Debugging
+### MoGraph & dynamics
+- `create_mograph_cloner`, `add_effector`, `apply_mograph_fields`, `create_soft_body`, `apply_dynamics`
 
-1. Check the log files:
+### Animation
+- `set_keyframe`
 
-   ```bash
-   tail -f ~/Library/Logs/Claude/mcp*.log
-   ```
+### File I/O
+- `save_scene`, `load_scene`, `snapshot_scene`
 
-2. Verify Cinema 4D shows connections in its console after you open Claude Desktop.
+### Rendering
+- `render_frame`, `render_preview`, `viewport_screenshot`, `list_render_engines`, `get_active_renderer`
 
-3. Test the wrapper script directly:
+### Python execution
+- `execute_python_script`
 
-   ```bash
-   cinema4d-mcp-wrapper
-   ```
+### Introspection (new in this fork)
+- `enumerate_descids`, `enumerate_userdata`, `find_command_by_name`, `get_viewport_state`, `enumerate_octane_plugins`
 
-4. If there are errors finding the mcp module, install it system-wide:
+### Plugin development (new in this fork)
+- `list_installed_plugins`, `build_and_install_plugin`, `install_plugin`, `get_c4d_info`
 
-   ```bash
-   pip install mcp
-   ```
+### Console & diagnostics (new in this fork)
+- `get_console_log`, `clear_console_log`, `tap_octane_log`
 
-5. For advanced debugging, use the [MCP Inspector](https://github.com/modelcontextprotocol/inspector):
-   ```bash
-   npx @modelcontextprotocol/inspector uv --directory /Users/username/cinema4d-mcp run cinema4d-mcp
-   ```
+### Generic command runner
+- `create_via_command`
 
-## Project File Structure
+---
+
+## Development
+
+### Testing
+
+```bash
+python main.py                              # Direct test of the bridge
+python tests/mcp_test_harness_gui.py        # GUI for replaying test JSONL command sequences
+```
+
+### Adding a new tool
+
+Tools are defined in two places:
+
+1. **MCP server side** (`src/cinema4d_mcp/server.py`): add an `@mcp.tool()` async function that builds a command dict and calls `send_to_c4d()`.
+2. **C4D plugin side** (`c4d_plugin/mcp_server_plugin.pyp`): add a `handle_<command>()` method to the dispatcher and register it in the command-dispatch table.
+
+Response envelope convention: `{"status": "ok", ...}` on success, `{"error": "..."}` on failure. Use `format_c4d_response()` for consistent markdown output.
+
+---
+
+## Troubleshooting
+
+```bash
+tail -f ~/Library/Logs/Claude/mcp*.log         # macOS Claude logs
+cinema4d-mcp-wrapper                            # Test the wrapper standalone
+pip install mcp                                 # If "module not found"
+
+# MCP Inspector for live debugging:
+npx @modelcontextprotocol/inspector uv --directory /path/to/cinema4d-mcp run cinema4d-mcp
+```
+
+If the socket auto-start log doesn't appear in the C4D console, the plugin didn't load — check that `mcp_server_plugin.pyp` is in the right plugins folder and that no other plugin is blocking on import. Set `C4D_MCP_NO_AUTOSTART=1` in your environment if you want manual start instead.
+
+---
+
+## Project structure
 
 ```
 cinema4d-mcp/
-├── .gitignore
-├── LICENSE
+├── LICENSE                              MIT (dual copyright: upstream + this fork)
 ├── README.md
-├── main.py
 ├── pyproject.toml
-├── setup.py
+├── main.py                              Server entry point (direct test runner)
 ├── bin/
-│   └── cinema4d-mcp-wrapper
+│   └── cinema4d-mcp-wrapper             Shell launcher resolved by Claude Desktop
 ├── c4d_plugin/
-│   └── mcp_server_plugin.pyp
-├── src/
-│   └── cinema4d_mcp/
-│       ├── __init__.py
-│       ├── server.py
-│       ├── config.py
-│       └── utils.py
+│   └── mcp_server_plugin.pyp            C4D-side socket server + handlers
+├── src/cinema4d_mcp/
+│   ├── __init__.py
+│   ├── server.py                        FastMCP server + 46 tool definitions
+│   ├── config.py                        Host/port resolution (incl. WSL2 detection)
+│   └── utils.py                         Logging
 └── tests/
     ├── test_server.py
     ├── mcp_test_harness.jsonl
     └── mcp_test_harness_gui.py
 ```
 
-## Tool Commands
+---
 
-### General Scene & Execution
+## License
 
-- `get_scene_info`: Get summary info about the active Cinema 4D scene. ✅
-- `list_objects`: List all scene objects (with hierarchy). ✅
-- `group_objects`: Group selected objects under a new null. ✅
-- `execute_python`: Execute custom Python code inside Cinema 4D. ✅
-- `save_scene`: Save the current Cinema 4D project to disk. ✅
-- `load_scene`: Load a `.c4d` file into the scene. ✅
-- `set_keyframe`: Set a keyframe on an objects property (position, rotation, etc.). ✅
+MIT. See [LICENSE](LICENSE).
 
-### Object Creation & Modification
+This fork carries dual copyright:
+- Original work © 2025 Tim Mac ([github.com/ttiimmaacc/cinema4d-mcp](https://github.com/ttiimmaacc/cinema4d-mcp))
+- Modifications and extensions © 2026 Spenser Dickerson / SD Imaging
 
-- `add_primitive`: Add a primitive (cube, sphere, cone, etc.) to the scene. ✅
-- `modify_object`: Modify transform or attributes of an existing object. ✅
-- `create_abstract_shape`: Create an organic, non-standard abstract form. ✅
+---
 
-### Cameras & Animation
+## C4D version compatibility
 
-- `create_camera`: Add a new camera to the scene. ✅
-- `animate_camera`: Animate a camera along a path (linear or spline-based). ✅
-
-### Lighting & Materials
-
-- `create_light`: Add a light (omni, spot, etc.) to the scene. ✅
-- `create_material`: Create a standard Cinema 4D material. ✅
-- `apply_material`: Apply a material to a target object. ✅
-- `apply_shader`: Generate and apply a stylized or procedural shader. ✅
-
-### Redshift Support
-
-- `inspect_redshift_materials`: Read-only Redshift inspector with fallbacks for assignments, preview colors, readable params, a renderEngine-style node-material probe, and a Redshift GraphView fallback via `redshift.GetRSMaterialNodeMaster(...)`. ✅
-  Known quirk: the top-level `capabilities.redshift_module_available` flag can still be `false` on some builds even when the per-material GraphView fallback succeeds. Treat each material's `graph.backend` and `graph.graphview.redshift_module_imported` as the authoritative signal.
-- `validate_redshift_materials`: Check Redshift material setup and connections. ✅ ⚠️ (Redshift materials not fully implemented)
-
-### MoGraph & Fields
-
-- `create_mograph_cloner`: Add a MoGraph Cloner (linear, radial, grid, etc.). ✅
-- `add_effector`: Add a MoGraph Effector (Random, Plain, etc.). ✅
-- `apply_mograph_fields`: Add and link a MoGraph Field to objects. ✅
-
-### Dynamics & Physics
-
-- `create_soft_body`: Add a Soft Body tag to an object. ✅
-- `apply_dynamics`: Apply Rigid or Soft Body physics. ✅
-
-### Rendering & Preview
-
-- `render_frame`: Render a frame and save it to disk (file-based output only). ⚠️ (Works, but fails on large resolutions due to MemoryError: Bitmap Init failed. This is a resource limitation.)
-- `render_preview`: Render a quick preview and return base64 image (for AI). ✅
-- `snapshot_scene`: Capture a snapshot of the scene (objects + preview image). ✅
-
-## Compatibility Plan & Roadmap
-
-| Cinema 4D Version | Python Version | Compatibility Status | Notes                                             |
-| ----------------- | -------------- | -------------------- | ------------------------------------------------- |
-| R21 / S22         | Python 2.7     | ❌ Not supported     | Legacy API and Python version too old             |
-| R23               | Python 3.7     | 🔍 Not planned       | Not currently tested                              |
-| S24 / R25 / S26   | Python 3.9     | ⚠️ Possible (TBD)    | Requires testing and fallbacks for missing APIs   |
-| 2023.0 / 2023.1   | Python 3.9     | 🧪 In progress       | Targeting fallback support for core functionality |
-| 2023.2            | Python 3.10    | 🧪 In progress       | Aligns with planned testing base                  |
-| 2024.0            | Python 3.11    | ✅ Supported         | Verified                                          |
-| 2025.0+           | Python 3.11    | ✅ Fully Supported   | Primary development target                        |
-
-### Compatibility Goals
-
-- **Short Term**: Ensure compatibility with C4D 2023.1+ (Python 3.9 and 3.10)
-- **Mid Term**: Add conditional handling for missing MoGraph and Field APIs
-- **Long Term**: Consider optional legacy plugin module for R23–S26 support if demand arises
-
-## Recent Fixes
-
-- Context Awareness: Implemented robust object tracking using GUIDs. Commands creating objects return context (guid, actual_name, etc.). Subsequent commands correctly use GUIDs passed by the test harness/server to find objects reliably.
-- Object Finding: Reworked find_object_by_name to correctly handle GUIDs (numeric string format), fixed recursion errors, and improved reliability when doc.SearchObject fails.
-- GUID Detection: Command handlers (apply_material, create_mograph_cloner, add_effector, apply_mograph_fields, set_keyframe, group_objects) now correctly detect if identifiers passed in various parameters (object_name, target, target_name, list items) are GUIDs and search accordingly.
-- create_mograph_cloner: Fixed AttributeError for missing MoGraph parameters (like MG_LINEAR_PERSTEP) by using getattr fallbacks. Fixed logic bug where the found object wasn't correctly passed for cloning.
-- Rendering: Fixed TypeError in render_frame related to doc.ExecutePasses. snapshot_scene now correctly uses the working base64 render logic. Large render_frame still faces memory limits.
-- Registration: Fixed AttributeError for c4d.NilGuid.
+| C4D version | Status |
+| --- | --- |
+| 2026 | ✅ Primary target |
+| 2025 | ✅ Supported |
+| 2024 | ✅ Supported |
+| 2023.x | ⚠️ Likely works, untested on this fork |
+| ≤ R25 | ❌ Not supported |

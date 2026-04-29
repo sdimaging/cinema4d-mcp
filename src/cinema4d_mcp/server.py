@@ -398,7 +398,7 @@ def format_c4d_response(response: Dict[str, Any], command_type: str) -> str:
             lines.append(f"  - **Assets**: {len(snap['assets'])}")
         return "\n".join(lines)
 
-    # ----- Luminary MCP extensions: introspection -----
+    # ----- MCP extensions: introspection -----
 
     elif command_type == "enumerate_descids":
         obj = response.get("object", {})
@@ -552,6 +552,8 @@ def format_c4d_response(response: Dict[str, Any], command_type: str) -> str:
         renderer = response.get("renderer", "?")
         cam = response.get("camera", "?")
         lines = [f"✅ Viewport screenshot ({w}×{h}) — renderer: **{renderer}**, camera: **{cam}**"]
+        for warn in response.get("warnings", []) or []:
+            lines.append(f"⚠️  {warn}")
         lines.append(f"![viewport](data:image/png;base64,{response['image_data']})")
         return "\n".join(lines)
 
@@ -1451,7 +1453,7 @@ async def snapshot_scene(
 
 
 # ============================================================
-# Luminary MCP extensions — Tier 1: Introspection tools
+# MCP extensions — Tier 1: Introspection tools
 # Added 2026-04-23. These are read-only and unblock plugin development
 # by exposing C4D's full description/userdata/scene-tree state to the
 # MCP client. enumerate_descids in particular cracks undocumented
@@ -1616,7 +1618,7 @@ async def get_console_log(
     contains: Optional[str] = None,
     ctx: Context = None,
 ) -> str:
-    """Read recent entries from the Luminary console log buffer.
+    """Read recent entries from the MCP console log buffer.
 
     Captures both Cinema 4D's c4d.GePrint() output (via runtime hook installed
     when the socket server starts) AND the plugin's internal self.log() messages.
@@ -1626,7 +1628,7 @@ async def get_console_log(
     Filters:
       - limit: max number of entries to return (default 200, newest last)
       - since_ts: only entries with timestamp > since_ts (epoch seconds)
-      - source: filter by source — 'plugin', 'c4d.GePrint', or 'luminary'
+      - source: filter by source — 'plugin', 'c4d.GePrint', or 'mcp'
       - contains: case-insensitive substring filter on message content
     """
     async with c4d_connection_context() as connection:
@@ -1647,7 +1649,7 @@ async def get_console_log(
 
 @mcp.tool()
 async def clear_console_log(ctx: Context = None) -> str:
-    """Empty the Luminary console log ring buffer (does NOT clear C4D's own console window)."""
+    """Empty the MCP console log ring buffer (does NOT clear C4D's own console window)."""
     async with c4d_connection_context() as connection:
         if not connection.connected:
             return "❌ Not connected to Cinema 4D"
@@ -1697,7 +1699,7 @@ async def list_installed_plugins(
 @mcp.tool()
 async def get_c4d_info(ctx: Context = None) -> str:
     """Return C4D environment info: version, Python version, install paths, prefs path,
-    active document, and Luminary MCP buffer state. Useful for diagnostics."""
+    active document, and Cinema 4D MCP buffer state. Useful for diagnostics."""
     async with c4d_connection_context() as connection:
         if not connection.connected:
             return "❌ Not connected to Cinema 4D"
@@ -1713,20 +1715,25 @@ async def get_c4d_info(ctx: Context = None) -> str:
 async def viewport_screenshot(
     width: int = 800,
     height: int = 450,
-    renderer: str = "standard",
+    renderer: str = "hardware",
     frame: Optional[int] = None,
     ctx: Context = None,
 ) -> str:
     """Capture a viewport-style screenshot of the active C4D scene.
 
     `renderer` options:
-      - 'standard' (default): C4D's software renderer — fast, bypasses Octane/Redshift
-      - 'hardware': OpenGL preview renderer
-      - 'current': uses whatever the user has set as the active renderer
+      - 'hardware' (default): C4D's OpenGL preview renderer. Always works,
+        doesn't need a scene light, fast. Use this unless you need otherwise.
+      - 'standard': C4D's software renderer. WARNING: in installs with Octane
+        (or some other 3rd-party render plugin), Octane's hooks intercept the
+        Standard pipeline and produce all-black output. The plugin auto-detects
+        an all-black render and falls back to 'hardware', surfacing a warning
+        in the response. Standard also requires at least one scene light.
+      - 'current': render through the user's active engine (Octane/Redshift).
+        Note: Octane viewport_screenshot output may not match the live Octane
+        viewer — verify Octane-specific behavior in C4D directly.
 
-    Use 'standard' for quick checks during plugin dev. Use 'current' to see
-    exactly what the active renderer (Octane/Redshift) produces. The image is
-    returned inline as a base64 PNG for direct display in the chat.
+    The image is returned inline as a base64 PNG for direct display in chat.
     """
     async with c4d_connection_context() as connection:
         if not connection.connected:
@@ -1759,9 +1766,9 @@ async def get_viewport_state(ctx: Context = None) -> str:
 async def list_render_engines(ctx: Context = None) -> str:
     """List all registered render engines (VideoPost plugins) and flag the active one.
 
-    Critical for verifying that custom viewport-renderer plugins (e.g. SplatFlow's
-    upcoming GLSL splat shader) registered correctly. Also surfaces Octane,
-    Redshift, Arnold, Standard, etc. with their plugin IDs.
+    Critical for verifying that custom viewport-renderer plugins (custom GLSL
+    shaders, third-party engines, etc.) registered correctly. Also surfaces
+    Octane, Redshift, Arnold, Standard, etc. with their plugin IDs.
     """
     async with c4d_connection_context() as connection:
         if not connection.connected:
@@ -2048,7 +2055,7 @@ async def link_shader_to_parameter(
     """Create a shader, optionally configure it, and link it as the value of a parameter
     on a target object/material/light.
 
-    THIS IS THE LUMINARY KILLER HELPER for the paint-bitmap → Octane-Area-Light pipeline.
+    Killer helper for any "create shader, configure, link to parameter" workflow.
     Once you've discovered the Octane Image Texture shader plugin ID and the Area
     Light's texture parameter ID (via enumerate_octane_plugins + enumerate_descids),
     call this with shader_params={"file": "/path/to/canvas.png", ...} to wire it up

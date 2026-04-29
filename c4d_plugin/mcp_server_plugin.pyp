@@ -21,34 +21,34 @@ from collections import deque
 PLUGIN_ID = 1057843  # Unique plugin ID for SpecialEventAdd
 
 # ============================================================
-# Luminary MCP extensions — module-level console log buffer
+# MCP extensions — module-level console log buffer
 # Captures both plugin self.log() output AND C4D's c4d.GePrint() output
 # (via runtime monkey-patch) into a single timestamped ring buffer.
 # Read it back via the get_console_log tool.
 # ============================================================
 
-LUMINARY_LOG_BUFFER_MAX = 10000
-_luminary_log_buffer = deque(maxlen=LUMINARY_LOG_BUFFER_MAX)
-_luminary_log_lock = threading.Lock()
-_luminary_geprint_original = None
-_luminary_geprint_patched = False
+MCP_LOG_BUFFER_MAX = 10000
+_mcp_log_buffer = deque(maxlen=MCP_LOG_BUFFER_MAX)
+_mcp_log_lock = threading.Lock()
+_mcp_geprint_original = None
+_mcp_geprint_patched = False
 
 
-def luminary_log_append(source, message):
+def mcp_log_append(source, message):
     """Append a single log entry to the ring buffer. Thread-safe."""
     try:
         ts = time.time()
         entry = (ts, str(source), str(message))
-        with _luminary_log_lock:
-            _luminary_log_buffer.append(entry)
+        with _mcp_log_lock:
+            _mcp_log_buffer.append(entry)
     except Exception:
         pass  # never let logging crash the plugin
 
 
-def luminary_log_get(limit=None, since_ts=None, source_filter=None, contains=None):
+def mcp_log_get(limit=None, since_ts=None, source_filter=None, contains=None):
     """Return a list of {ts, iso, source, message} dicts from the buffer, newest last."""
-    with _luminary_log_lock:
-        snapshot = list(_luminary_log_buffer)
+    with _mcp_log_lock:
+        snapshot = list(_mcp_log_buffer)
     out = []
     for ts, src, msg in snapshot:
         if since_ts is not None and ts <= since_ts:
@@ -68,46 +68,46 @@ def luminary_log_get(limit=None, since_ts=None, source_filter=None, contains=Non
     return out
 
 
-def luminary_log_clear():
+def mcp_log_clear():
     """Empty the ring buffer."""
-    with _luminary_log_lock:
-        _luminary_log_buffer.clear()
+    with _mcp_log_lock:
+        _mcp_log_buffer.clear()
 
 
-def luminary_install_geprint_hook():
+def mcp_install_geprint_hook():
     """Install a runtime hook on c4d.GePrint that mirrors output to the buffer.
     Idempotent — calling twice is a no-op."""
-    global _luminary_geprint_original, _luminary_geprint_patched
-    if _luminary_geprint_patched:
+    global _mcp_geprint_original, _mcp_geprint_patched
+    if _mcp_geprint_patched:
         return
     try:
-        _luminary_geprint_original = c4d.GePrint
+        _mcp_geprint_original = c4d.GePrint
 
         def _patched_geprint(*args, **kwargs):
             try:
                 msg = " ".join(str(a) for a in args)
-                luminary_log_append("c4d.GePrint", msg)
+                mcp_log_append("c4d.GePrint", msg)
             except Exception:
                 pass
-            return _luminary_geprint_original(*args, **kwargs)
+            return _mcp_geprint_original(*args, **kwargs)
 
         c4d.GePrint = _patched_geprint
-        _luminary_geprint_patched = True
-        luminary_log_append("luminary", "c4d.GePrint hook installed")
+        _mcp_geprint_patched = True
+        mcp_log_append("mcp", "c4d.GePrint hook installed")
     except Exception as e:
-        luminary_log_append("luminary", f"Failed to install GePrint hook: {e}")
+        mcp_log_append("mcp", f"Failed to install GePrint hook: {e}")
 
 
-def luminary_uninstall_geprint_hook():
+def mcp_uninstall_geprint_hook():
     """Restore the original c4d.GePrint. Idempotent."""
-    global _luminary_geprint_original, _luminary_geprint_patched
-    if not _luminary_geprint_patched:
+    global _mcp_geprint_original, _mcp_geprint_patched
+    if not _mcp_geprint_patched:
         return
     try:
-        if _luminary_geprint_original is not None:
-            c4d.GePrint = _luminary_geprint_original
-        _luminary_geprint_patched = False
-        luminary_log_append("luminary", "c4d.GePrint hook removed")
+        if _mcp_geprint_original is not None:
+            c4d.GePrint = _mcp_geprint_original
+        _mcp_geprint_patched = False
+        mcp_log_append("mcp", "c4d.GePrint hook removed")
     except Exception:
         pass
 
@@ -129,7 +129,7 @@ class C4DSocketServer(threading.Thread):
     """Socket Server running in a background thread, sending logs & status via queue."""
 
     def __init__(self, msg_queue, host="0.0.0.0", port=5555):
-        # Luminary: bind 0.0.0.0 (all interfaces) by default so WSL2 clients
+        # bind 0.0.0.0 (all interfaces) by default so WSL2 clients
         # can reach the socket from a separate network namespace. Original
         # upstream default was "127.0.0.1". Pass host="127.0.0.1" explicitly
         # to restore localhost-only behavior.
@@ -155,10 +155,10 @@ class C4DSocketServer(threading.Thread):
 
     def log(self, message):
         """Send log messages to UI via queue and trigger an event.
-        Also mirrored to the Luminary console buffer for MCP get_console_log tool."""
+        Also mirrored to the MCP console buffer for MCP get_console_log tool."""
         self.msg_queue.put(("LOG", message))
         c4d.SpecialEventAdd(PLUGIN_ID)  # Notify UI thread
-        luminary_log_append("plugin", message)
+        mcp_log_append("plugin", message)
 
     def update_status(self, status):
         """Update status via queue and trigger an event."""
@@ -374,7 +374,7 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_create_soft_body(command)
                         elif command_type == "apply_dynamics":
                             response = self.handle_apply_dynamics(command)
-                        # ----- Luminary MCP extensions -----
+                        # ----- MCP extensions -----
                         # Introspection (read-only, fast)
                         elif command_type == "enumerate_descids":
                             response = self.handle_enumerate_descids(command)
@@ -7185,7 +7185,7 @@ class C4DSocketServer(threading.Thread):
 
 
     # ================================================================
-    # Luminary MCP extensions — Tier 1: Introspection
+    # MCP extensions — Tier 1: Introspection
     # Added 2026-04-23 for plugin development workflow (any plugin).
     # All read-only; safe to run on the worker thread without main-thread
     # synchronization (mirrors handle_get_scene_info / handle_list_objects).
@@ -7588,11 +7588,11 @@ class C4DSocketServer(threading.Thread):
     # ---- Console log capture (Tier 2) ----
 
     def handle_get_console_log(self, command):
-        """Return recent log entries from the Luminary ring buffer.
+        """Return recent log entries from the MCP ring buffer.
 
         Combines plugin self.log() output and c4d.GePrint() output (when the
         GePrint hook is installed — happens automatically on StartServer).
-        Optional filters: limit, since_ts, source ('plugin'|'c4d.GePrint'|'luminary'),
+        Optional filters: limit, since_ts, source ('plugin'|'c4d.GePrint'|'mcp'),
         contains (case-insensitive substring).
         """
         limit = command.get("limit")
@@ -7600,7 +7600,7 @@ class C4DSocketServer(threading.Thread):
         source_filter = command.get("source")
         contains = command.get("contains")
         try:
-            entries = luminary_log_get(
+            entries = mcp_log_get(
                 limit=int(limit) if limit else None,
                 since_ts=float(since_ts) if since_ts is not None else None,
                 source_filter=source_filter,
@@ -7610,15 +7610,15 @@ class C4DSocketServer(threading.Thread):
             return {"error": f"get_console_log failed: {e}"}
         return {
             "entry_count": len(entries),
-            "buffer_max": LUMINARY_LOG_BUFFER_MAX,
-            "geprint_hooked": _luminary_geprint_patched,
+            "buffer_max": MCP_LOG_BUFFER_MAX,
+            "geprint_hooked": _mcp_geprint_patched,
             "entries": entries,
         }
 
     def handle_clear_console_log(self, command):
-        """Empty the Luminary console log ring buffer."""
+        """Empty the MCP console log ring buffer."""
         try:
-            luminary_log_clear()
+            mcp_log_clear()
         except Exception as e:
             return {"error": f"clear_console_log failed: {e}"}
         return {"status": "ok", "buffer_cleared": True}
@@ -7720,7 +7720,7 @@ class C4DSocketServer(threading.Thread):
                 try:
                     pid = p.GetID()
                     # Track which type FOUND this plugin (some plugins surface via
-                    # multiple types — Luminary appears in TOOL, COMMAND, and NODE).
+                    # multiple types — e.g. one plugin can register as TOOL, COMMAND, and NODE).
                     # Don't dedup by id alone if the user explicitly asked for a
                     # narrower type filter; only dedup when scanning "all".
                     if type_str == "all" and pid in seen_ids:
@@ -7788,12 +7788,20 @@ class C4DSocketServer(threading.Thread):
 
         Optional command params:
           width (int, default 800), height (int, default 450)
-          renderer (str): 'standard' | 'hardware' | 'current' (default 'standard' for speed)
+          renderer (str): 'hardware' | 'standard' | 'current' (default 'hardware')
           frame (int): which frame to render (default current)
 
-        Use 'current' to grab through the user's active renderer (Octane/Redshift/etc).
-        Use 'standard' for a fast software preview that bypasses heavy renderers.
-        Use 'hardware' for the OpenGL preview renderer.
+        Renderer notes:
+          - 'hardware' (default): C4D's OpenGL preview renderer. Always works,
+            doesn't need a scene light, fast. Use this unless you have a reason not to.
+          - 'standard': C4D's software renderer. WARNING: when Octane (or some
+            other 3rd-party render engine) is installed and active, the Standard
+            renderer can be hooked/intercepted and produces all-black output. We
+            auto-detect a fully-black render and fall back to 'hardware' with a
+            warning in the response. Standard ALSO requires at least one scene
+            light to produce a visible image.
+          - 'current': render through the user's currently active engine
+            (Octane/Redshift/etc). Same caveats apply for those renderers.
         """
         doc = c4d.documents.GetActiveDocument()
         if not doc:
@@ -7801,39 +7809,39 @@ class C4DSocketServer(threading.Thread):
 
         width = int(command.get("width", 800))
         height = int(command.get("height", 450))
-        renderer_pref = (command.get("renderer") or "standard").lower()
+        # Default changed from 'standard' to 'hardware' — Standard renderer is
+        # broken in installs with Octane hooks, Hardware always works.
+        renderer_pref = (command.get("renderer") or "hardware").lower()
         frame_override = command.get("frame")
 
-        def _render():
-            # Pick the renderer override id
-            renderer_id = None
-            if renderer_pref == "standard":
-                renderer_id = c4d.RDATA_RENDERENGINE_STANDARD if hasattr(c4d, "RDATA_RENDERENGINE_STANDARD") else 0
-            elif renderer_pref == "hardware":
-                renderer_id = c4d.RDATA_RENDERENGINE_PREVIEWHARDWARE if hasattr(c4d, "RDATA_RENDERENGINE_PREVIEWHARDWARE") else None
-            elif renderer_pref == "current":
-                renderer_id = None  # leave as-is
+        def _resolve_renderer_id(pref):
+            if pref == "standard":
+                return c4d.RDATA_RENDERENGINE_STANDARD if hasattr(c4d, "RDATA_RENDERENGINE_STANDARD") else 0
+            if pref == "hardware":
+                return c4d.RDATA_RENDERENGINE_PREVIEWHARDWARE if hasattr(c4d, "RDATA_RENDERENGINE_PREVIEWHARDWARE") else None
+            return None  # 'current' or unknown — leave as-is
 
-            # Active camera check
-            bd = doc.GetActiveBaseDraw()
-            cam = bd.GetSceneCamera(doc) if bd else None
-
+        def _do_one_render(rid):
+            """Run a single render pass with the given engine id (or None to leave as-is).
+            Returns (bmp, settings) or raises an Exception on hard failure."""
             rd = doc.GetActiveRenderData()
             if not rd:
-                return {"error": "No active RenderData"}
+                raise RuntimeError("No active RenderData")
             clone = rd.GetClone()
             doc.InsertRenderData(clone)
             try:
                 doc.SetActiveRenderData(clone)
-                settings = clone.GetData()
-                settings[c4d.RDATA_XRES] = width
-                settings[c4d.RDATA_YRES] = height
-                settings[c4d.RDATA_FRAMESEQUENCE] = c4d.RDATA_FRAMESEQUENCE_CURRENTFRAME
-                if renderer_id is not None:
+                # Set engine on the clone OBJECT directly (not on a GetData() copy
+                # which doesn't write back to the clone in C4D 2026).
+                if rid is not None:
                     try:
-                        settings[c4d.RDATA_RENDERENGINE] = renderer_id
+                        clone[c4d.RDATA_RENDERENGINE] = rid
                     except Exception as e:
                         self.log(f"[VIEWPORT_SHOT] failed to override renderer: {e}")
+                clone[c4d.RDATA_XRES] = width
+                clone[c4d.RDATA_YRES] = height
+                clone[c4d.RDATA_FRAMESEQUENCE] = c4d.RDATA_FRAMESEQUENCE_CURRENTFRAME
+                settings = clone.GetData()
 
                 bmp = c4d.bitmaps.MultipassBitmap(width, height, c4d.COLORMODE_RGB)
                 bmp.AddChannel(True, True)
@@ -7845,29 +7853,88 @@ class C4DSocketServer(threading.Thread):
                 render_flags = c4d.RENDERFLAGS_EXTERNAL | c4d.RENDERFLAGS_NODOCUMENTCLONE
                 result = c4d.documents.RenderDocument(doc, settings, bmp, render_flags)
                 if result != c4d.RENDERRESULT_OK:
-                    return {"error": f"RenderDocument failed (result={result})"}
-
-                mem_file = c4d.storage.MemoryFileStruct()
-                mem_file.SetMemoryWriteMode()
-                bmp.Save(mem_file, c4d.FILTER_PNG)
-                data, _ = mem_file.GetData()
-                if not data:
-                    return {"error": "PNG encode produced empty data"}
-                b64 = base64.b64encode(data).decode("ascii")
-                return {
-                    "image_data": b64,
-                    "width": width,
-                    "height": height,
-                    "format": "png",
-                    "renderer": self._renderer_name(settings.GetInt32(c4d.RDATA_RENDERENGINE) if hasattr(settings, "GetInt32") else -1),
-                    "camera": cam.GetName() if cam else None,
-                }
+                    raise RuntimeError(f"RenderDocument failed (result={result})")
+                return bmp, settings
             finally:
+                # Correct cleanup: BaseList2D.Remove() (BaseDocument has no
+                # RemoveRenderData method in C4D 2026).
                 try:
-                    doc.RemoveRenderData(clone)
+                    clone.Remove()
                 except Exception:
                     pass
                 c4d.EventAdd()
+
+        def _is_black(bmp, w, h):
+            """Cheap blackness check: sample 9 spread points; all (0,0,0) = blank.
+            Used to detect Standard renderer failures from Octane pipeline hooks."""
+            samples = [
+                (w // 6, h // 6), (w // 2, h // 6), (5 * w // 6, h // 6),
+                (w // 6, h // 2), (w // 2, h // 2), (5 * w // 6, h // 2),
+                (w // 6, 5 * h // 6), (w // 2, 5 * h // 6), (5 * w // 6, 5 * h // 6),
+            ]
+            for x, y in samples:
+                px = bmp.GetPixel(x, y)
+                # px is (r, g, b) tuple/list; treat anything > 0 in any channel as non-black
+                if px and any(c > 0 for c in px[:3]):
+                    return False
+            return True
+
+        def _bmp_to_b64(bmp):
+            mem_file = c4d.storage.MemoryFileStruct()
+            mem_file.SetMemoryWriteMode()
+            bmp.Save(mem_file, c4d.FILTER_PNG)
+            data, _ = mem_file.GetData()
+            if not data:
+                raise RuntimeError("PNG encode produced empty data")
+            return base64.b64encode(data).decode("ascii")
+
+        def _render():
+            bd = doc.GetActiveBaseDraw()
+            cam = bd.GetSceneCamera(doc) if bd else None
+
+            primary_rid = _resolve_renderer_id(renderer_pref)
+            warnings = []
+            try:
+                bmp, settings = _do_one_render(primary_rid)
+            except Exception as e:
+                return {"error": str(e)}
+
+            actual_rid = settings.GetInt32(c4d.RDATA_RENDERENGINE) if hasattr(settings, "GetInt32") else -1
+
+            # Auto-fallback: if user asked for standard (or current resolved to
+            # something non-hardware) and we got an all-black bitmap, retry with
+            # hardware and surface a warning.
+            if renderer_pref != "hardware" and _is_black(bmp, width, height):
+                warnings.append(
+                    f"renderer '{renderer_pref}' (engine_id={actual_rid}) produced "
+                    f"all-black output — falling back to 'hardware'. "
+                    f"This usually means Octane/Redshift hooks intercepted the "
+                    f"Standard pipeline; use renderer='hardware' to skip this check."
+                )
+                hw_rid = _resolve_renderer_id("hardware")
+                if hw_rid is not None and hw_rid != actual_rid:
+                    try:
+                        bmp, settings = _do_one_render(hw_rid)
+                        actual_rid = settings.GetInt32(c4d.RDATA_RENDERENGINE) if hasattr(settings, "GetInt32") else -1
+                    except Exception as e:
+                        warnings.append(f"hardware fallback also failed: {e}")
+
+            try:
+                b64 = _bmp_to_b64(bmp)
+            except Exception as e:
+                return {"error": str(e), "warnings": warnings}
+
+            response = {
+                "image_data": b64,
+                "width": width,
+                "height": height,
+                "format": "png",
+                "renderer": self._renderer_name(actual_rid),
+                "camera": cam.GetName() if cam else None,
+            }
+            if warnings:
+                response["warnings"] = warnings
+            return response
 
         return self.execute_on_main_thread(_render, _timeout=120)
 
@@ -7930,7 +7997,7 @@ class C4DSocketServer(threading.Thread):
         """List all registered render engines (VideoPost plugins of renderer kind, plus c4d.PLUGINTYPE_VIDEOPOST entries).
 
         Also flags which is currently active. Useful for verifying that a custom
-        viewport renderer plugin (e.g. SplatFlow viewport shader) registered correctly.
+        viewport renderer plugin (custom GLSL shader, third-party engine, etc.) registered correctly.
         """
         try:
             engines = []
@@ -8336,9 +8403,9 @@ class C4DSocketServer(threading.Thread):
                 "plugins_path": str(c4d.storage.GeGetPluginPath()) if hasattr(c4d.storage, "GeGetPluginPath") else None,
                 "prefs_path": str(c4d.storage.GeGetC4DPath(c4d.C4D_PATH_PREFS)) if hasattr(c4d.storage, "GeGetC4DPath") else None,
                 "default_capture_path": str(c4d.storage.GeGetC4DPath(c4d.C4D_PATH_STARTUPWRITE)) if hasattr(c4d.storage, "GeGetC4DPath") else None,
-                "luminary_geprint_hooked": _luminary_geprint_patched,
-                "luminary_log_buffer_size": len(_luminary_log_buffer),
-                "luminary_log_buffer_max": LUMINARY_LOG_BUFFER_MAX,
+                "mcp_geprint_hooked": _mcp_geprint_patched,
+                "mcp_log_buffer_size": len(_mcp_log_buffer),
+                "mcp_log_buffer_max": MCP_LOG_BUFFER_MAX,
             }
             doc = c4d.documents.GetActiveDocument()
             if doc:
@@ -8549,7 +8616,7 @@ class SocketServerDialog(gui.GeDialog):
                     pass
                 self.server = None
 
-            luminary_install_geprint_hook()
+            mcp_install_geprint_hook()
             self.server = C4DSocketServer(msg_queue=self.msg_queue)
             self.server.start()
 
@@ -8563,7 +8630,7 @@ class SocketServerDialog(gui.GeDialog):
             self.server = None
             self.Enable(1011, True)
             self.Enable(1012, False)
-            # Luminary: leave the GePrint hook in place so the buffer keeps
+            # leave the GePrint hook in place so the buffer keeps
             # capturing output even when the socket server is briefly down.
 
 
@@ -8591,10 +8658,10 @@ class SocketServerPlugin(c4d.plugins.CommandData):
 
 
 # ============================================================
-# Luminary: module-level plugin instance + auto-start hook.
+# module-level plugin instance + auto-start hook.
 # When C4D finishes loading, automatically open the dialog and click
 # "Start Server" so the socket comes up without manual intervention.
-# Disable by setting env var LUMINARY_NO_AUTOSTART=1 before launching C4D.
+# Disable by setting env var C4D_MCP_NO_AUTOSTART=1 before launching C4D.
 # ============================================================
 _socket_server_plugin = SocketServerPlugin()
 
@@ -8604,8 +8671,8 @@ def PluginMessage(msg_id, data):
     try:
         program_started_const = getattr(c4d, "C4DPL_PROGRAM_STARTED", None)
         if program_started_const is not None and msg_id == program_started_const:
-            if os.environ.get("LUMINARY_NO_AUTOSTART"):
-                luminary_log_append("luminary", "Socket auto-start skipped (LUMINARY_NO_AUTOSTART env set)")
+            if os.environ.get("C4D_MCP_NO_AUTOSTART"):
+                mcp_log_append("mcp", "Socket auto-start skipped (C4D_MCP_NO_AUTOSTART env set)")
                 return True
             try:
                 doc = c4d.documents.GetActiveDocument()
@@ -8613,15 +8680,15 @@ def PluginMessage(msg_id, data):
                 dlg = _socket_server_plugin.dialog
                 if dlg:
                     dlg.StartServer()
-                    luminary_log_append("luminary", "Socket auto-started on C4DPL_PROGRAM_STARTED")
+                    mcp_log_append("mcp", "Socket auto-started on C4DPL_PROGRAM_STARTED")
                 else:
-                    luminary_log_append("luminary", "Auto-start: dialog not allocated after Execute()")
+                    mcp_log_append("mcp", "Auto-start: dialog not allocated after Execute()")
             except Exception as e:
-                luminary_log_append("luminary", f"Auto-start failed: {e}\n{traceback.format_exc()[-400:]}")
+                mcp_log_append("mcp", f"Auto-start failed: {e}\n{traceback.format_exc()[-400:]}")
     except Exception as e:
         # Never let PluginMessage crash C4D
         try:
-            print(f"[Luminary MCP] PluginMessage error: {e}")
+            print(f"[Cinema 4D MCP] PluginMessage error: {e}")
         except Exception:
             pass
     return True
