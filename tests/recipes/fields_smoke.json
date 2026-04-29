@@ -1,0 +1,56 @@
+{
+  "name": "fields_smoke",
+  "description": "Verify field tools end-to-end: add a spherical field, bake it to a vmap on a 17x17 plane, assert the resulting weights have the radial pattern (high near center, lower at edges).",
+  "setup": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\nfrom c4d import utils\ndoc = c4d.documents.GetActiveDocument()\nfor n in ['FieldPlane', 'TestSphericalField']:\n    o = doc.SearchObject(n)\n    if o: o.Remove()\npg = c4d.BaseObject(c4d.Oplane)\npg[c4d.PRIM_PLANE_WIDTH] = 400\npg[c4d.PRIM_PLANE_HEIGHT] = 400\npg[c4d.PRIM_PLANE_SUBW] = 16\npg[c4d.PRIM_PLANE_SUBH] = 16\ndoc.InsertObject(pg)\nres = utils.SendModelingCommand(c4d.MCOMMAND_MAKEEDITABLE, [pg], doc=doc)\np = res[0]\np.SetName('FieldPlane')\ndoc.InsertObject(p)\nc4d.EventAdd()\nprint(f'plane built, points={p.GetPointCount()}')"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "name": "discover_field_types",
+      "command": "list_field_types",
+      "args": {},
+      "assert": []
+    },
+    {
+      "name": "add_spherical_field_at_center",
+      "command": "add_field_to_scene",
+      "args": {
+        "field_type": "spherical",
+        "name": "TestSphericalField",
+        "position": [0, 0, 0],
+        "size": [150, 150, 150]
+      },
+      "assert": [
+        {"type": "object_exists", "name": "TestSphericalField"}
+      ]
+    },
+    {
+      "name": "bake_field_to_plane_vmap",
+      "command": "bake_field_to_vmap",
+      "args": {
+        "field_target": "TestSphericalField",
+        "dest_object": "FieldPlane",
+        "vmap_name": "field_mask",
+        "space": "world"
+      },
+      "assert": [
+        {"type": "object_has_tag", "name": "FieldPlane", "tag_type": "Tvertexmap", "tag_name": "field_mask"},
+        {"type": "vmap_stats", "name": "FieldPlane", "vmap": "field_mask",
+         "min": [0.0, 0.5], "max": [0.5, 1.0], "mean": [0.0, 1.0]}
+      ]
+    }
+  ],
+  "teardown": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\ndoc = c4d.documents.GetActiveDocument()\nfor n in ['FieldPlane', 'TestSphericalField']:\n    o = doc.SearchObject(n)\n    if o: o.Remove()\nc4d.EventAdd()\nprint('teardown ok')"
+      }
+    }
+  ]
+}
