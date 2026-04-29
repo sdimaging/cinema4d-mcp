@@ -1914,6 +1914,59 @@ async def scene_diff(
 
 
 @mcp.tool()
+async def image_inspect(path: str, ctx: Context = None) -> str:
+    """Inspect a saved PNG file: dimensions, file size, MD5, content stats.
+
+    Server-side — does not roundtrip to C4D for the file read but does
+    use C4D's BaseBitmap for pixel sampling. Use after viewport_screenshot
+    to verify the saved file looks plausible (non-blank, expected dims),
+    or to fingerprint a save for later comparison.
+
+    Returns:
+      - md5, file_size_bytes, width, height, bit_depth, color_type
+      - sample_min/max/mean/stddev (10x10 grid of pixel grayscale samples)
+      - is_blank (stddev < 1.0 — uniform color, no rendered content)
+      - has_content (inverse, for positive-asserting code)
+
+    Pair with images_compare(paths=[...]) to detect "I saved 6 things and
+    they're all identical" — the failure mode that produced the
+    validation_shots regression.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        response = send_to_c4d(connection, {"command": "image_inspect", "path": path})
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
+async def images_compare(paths: List[str], ctx: Context = None) -> str:
+    """Compare a list of PNG files for byte-identical duplicates.
+
+    Returns:
+      - all_unique (bool): True iff every file has a distinct MD5
+      - unique_count, total_count
+      - duplicate_groups: {md5: [paths]} for any group with >1 file —
+        the "all my saves are identical" detector
+      - per_file: ordered list with md5, size, or per-file error
+
+    THE TOOL THAT WOULD HAVE CAUGHT the 6-shading-shots-all-identical
+    failure. Run this after any batch of viewport_screenshot saves where
+    you expect the outputs to differ. If `all_unique` is False, your
+    upstream tool isn't actually changing what it claims to change.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        response = send_to_c4d(connection, {"command": "images_compare", "paths": paths})
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
 async def create_volume_builder(
     source_objects: List[str],
     voxel_size: float = 5.0,

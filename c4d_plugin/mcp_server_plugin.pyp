@@ -534,6 +534,10 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_create_volume_mesher(command)
                         elif command_type == "volume_to_polygons":
                             response = self.handle_volume_to_polygons(command)
+                        elif command_type == "image_inspect":
+                            response = self.handle_image_inspect(command)
+                        elif command_type == "images_compare":
+                            response = self.handle_images_compare(command)
                         elif command_type == "scene_snapshot":
                             response = self.handle_scene_snapshot(command)
                         elif command_type == "scene_diff":
@@ -8116,6 +8120,22 @@ class C4DSocketServer(threading.Thread):
                             response["file_size_bytes"] = os.path.getsize(save_path)
                         except Exception:
                             pass
+                        # Self-verification: every save embeds an md5 of the
+                        # disk artifact + content stats so the caller can
+                        # detect "I saved 6 things and they're all identical"
+                        # without a separate inspect-after step. This was
+                        # the validation_shots failure mode the user caught.
+                        try:
+                            stats = self._image_stats(bmp, width, height, save_path)
+                            response.update(stats)
+                            if stats.get("is_blank"):
+                                warnings.append(
+                                    "saved image is blank/near-uniform — "
+                                    "viewport is not rendering geometry; "
+                                    "check shading mode + camera + scene lights"
+                                )
+                        except Exception as e:
+                            warnings.append(f"image_stats failed: {e}")
                 except Exception as e:
                     warnings.append(f"PNG file save failed: {e}")
                     try:
@@ -8421,10 +8441,14 @@ class C4DSocketServer(threading.Thread):
                     }
                     if save_dir:
                         try:
+                            import hashlib as _h
                             path = os.path.join(save_dir, f"multiview_{view_name}.png")
+                            png_bytes = base64.b64decode(sub["image_data"])
                             with open(path, "wb") as f:
-                                f.write(base64.b64decode(sub["image_data"]))
+                                f.write(png_bytes)
                             entry["path"] = path
+                            entry["file_size_bytes"] = len(png_bytes)
+                            entry["md5"] = _h.md5(png_bytes).hexdigest()
                         except Exception as e:
                             entry["error"] = f"save failed: {e}"
                     else:
@@ -8432,6 +8456,27 @@ class C4DSocketServer(threading.Thread):
                     if sub.get("warnings"):
                         entry["warnings"] = sub["warnings"]
                     captures.append(entry)
+
+                # Cross-view duplicate-MD5 check: if any two views produced
+                # the same image, the projection toggle didn't take effect
+                # (or shading mode collapsed them). Surface this loudly so
+                # callers don't claim "4 distinct views" when they aren't.
+                if save_dir:
+                    by_md5 = {}
+                    for c in captures:
+                        if "md5" in c:
+                            by_md5.setdefault(c["md5"], []).append(c["name"])
+                    dupes = {h: ns for h, ns in by_md5.items() if len(ns) > 1}
+                    if dupes:
+                        warn_msg = (
+                            f"DUPLICATE images detected across views: {dupes}. "
+                            f"Either the projection toggle didn't apply, the "
+                            f"shading mode collapsed all views, or the BaseDraw "
+                            f"didn't refresh between captures. The disk artifacts "
+                            f"are byte-identical."
+                        )
+                        # Hoist a top-level warning so the formatter surfaces it
+                        captures.append({"name": "_meta", "warning": warn_msg, "duplicates": dupes})
             finally:
                 # Restore each per-view display mode, then projection
                 for v, prev_s in prev_sdisplay_per_view.items():
@@ -10664,6 +10709,7 @@ class C4DSocketServer(threading.Thread):
         "paint_vertex_map_from_formula", "paint_vertex_map_radial",
         "list_deformer_types", "apply_deformer",
         "create_volume_builder", "create_volume_mesher", "volume_to_polygons",
+        "image_inspect", "images_compare",
     )
     # NOTE: this list reflects what the C4D PLUGIN's run() dispatcher actually
     # routes. Some MCP tool wrappers in server.py (tap_octane_log,
@@ -10693,6 +10739,7 @@ class C4DSocketServer(threading.Thread):
         "scene_snapshot", "scene_diff",
         "scene_nodes_status",  # read-only inspection of Scene Nodes graphs
         "list_deformer_types",  # discovery only, no scene mutation
+        "image_inspect", "images_compare",  # disk-read only, no C4D state
     })
 
     def handle_get_capabilities(self, command):
@@ -10935,6 +10982,168 @@ class C4DSocketServer(threading.Thread):
         "scenenodes": "net.maxon.scenenodes.basescenenodesnodespace",
         "core": "net.maxon.nodespace.core",
     }
+
+    # === Feedback-loop helpers — self-verification of saved images =========
+
+    def _image_stats(self, bmp, width, height, path=None):
+        """Compute MD5 + content stats for a saved bitmap.
+
+        Samples 100 spread-out pixels (cheap) and reports:
+          - md5: hash of the on-disk bytes if path is provided, else hash
+                 of the in-memory pixel sample
+          - sample_min/max/mean/stddev across all sampled (R+G+B)/3 values
+          - is_blank: True iff stddev < 1.0 (image is uniform color)
+          - is_solid_color: alias of is_blank for clarity
+          - has_content: !is_blank, the inverse for positive-asserting code
+
+        Cheap enough to run on every save without measurable overhead.
+        """
+        import hashlib
+        out = {}
+        # MD5 of the on-disk bytes if available (the canonical fingerprint)
+        if path:
+            try:
+                with open(path, "rb") as f:
+                    out["md5"] = hashlib.md5(f.read()).hexdigest()
+            except Exception as e:
+                out["md5_error"] = str(e)
+
+        # Sample 10x10 grid of pixels for content stats
+        try:
+            samples = []
+            steps = 10
+            for sy in range(steps):
+                for sx in range(steps):
+                    x = max(0, min(width - 1, int((sx + 0.5) * width / steps)))
+                    y = max(0, min(height - 1, int((sy + 0.5) * height / steps)))
+                    px = bmp.GetPixel(x, y)
+                    if px and len(px) >= 3:
+                        samples.append((px[0] + px[1] + px[2]) / 3.0)
+            if samples:
+                n = len(samples)
+                mn = min(samples); mx = max(samples)
+                mean = sum(samples) / n
+                var = sum((s - mean) ** 2 for s in samples) / n
+                stddev = var ** 0.5
+                out["sample_min"] = mn
+                out["sample_max"] = mx
+                out["sample_mean"] = round(mean, 2)
+                out["sample_stddev"] = round(stddev, 2)
+                out["is_blank"] = stddev < 1.0
+                out["is_solid_color"] = stddev < 1.0
+                out["has_content"] = stddev >= 1.0
+                out["sample_grid"] = f"{steps}x{steps}"
+        except Exception as e:
+            out["sample_error"] = str(e)
+
+        return out
+
+    def handle_image_inspect(self, command):
+        """Inspect a PNG file on disk: dimensions, file size, MD5, pixel stats.
+
+        Server-side — does not touch C4D. Use after viewport_screenshot to
+        verify the saved file or to compare two saves later.
+
+        Args:
+          path: path to a PNG file (Windows-native; WSL paths are
+                auto-translated by the server.py side).
+          sample_grid: NxN sample grid for content stats (default 10).
+
+        Returns md5, dims, file_size, sample stats, is_blank flag.
+        """
+        try:
+            import os, hashlib, struct
+            path = command.get("path")
+            if not path:
+                return {"error": "Provide a 'path' to a PNG file"}
+            if not os.path.exists(path):
+                return {"error": f"File not found: {path}"}
+
+            out = {"path": path, "file_size_bytes": os.path.getsize(path)}
+            with open(path, "rb") as f:
+                data = f.read()
+            out["md5"] = hashlib.md5(data).hexdigest()
+
+            # Parse PNG IHDR for dimensions (byte 8 onward: 8-byte chunk len+type then 13-byte IHDR data)
+            if data[:8] == b'\x89PNG\r\n\x1a\n' and data[12:16] == b'IHDR':
+                w = struct.unpack(">I", data[16:20])[0]
+                h = struct.unpack(">I", data[20:24])[0]
+                out["width"] = w
+                out["height"] = h
+                bd = data[24]
+                ct = data[25]
+                out["bit_depth"] = bd
+                out["color_type"] = ct
+            else:
+                out["warning"] = "not a PNG (signature mismatch); only md5 + file_size returned"
+
+            # Load via c4d.bitmaps to sample pixels (works on main thread or off,
+            # since BaseBitmap.InitWith is read-only)
+            try:
+                bmp = c4d.bitmaps.BaseBitmap()
+                ok = bmp.InitWith(path)
+                if isinstance(ok, tuple):
+                    ok = ok[0]
+                if ok == c4d.IMAGERESULT_OK and bmp.GetBw() and bmp.GetBh():
+                    stats = self._image_stats(bmp, bmp.GetBw(), bmp.GetBh(), path=None)
+                    # Don't double-emit md5 (we already have it from disk bytes)
+                    stats.pop("md5", None)
+                    out.update(stats)
+            except Exception as e:
+                out["sample_error"] = str(e)
+
+            return out
+        except Exception as e:
+            return {"error": f"image_inspect failed: {e}", "traceback": traceback.format_exc()}
+
+    def handle_images_compare(self, command):
+        """Compare a list of PNG files for duplicates and content-equivalence.
+
+        Args:
+          paths: list of PNG paths
+        Returns:
+          - by_md5: {md5_hex: [paths...]} grouping duplicates
+          - duplicate_groups: groups with >1 path (the "all my saves are
+            identical" detector)
+          - unique_count, total_count
+          - per_file: [{path, md5, size}] in input order
+
+        This is the tool that would have caught the 6-identical-shading-shots
+        bug if I'd been running it after each batch.
+        """
+        try:
+            import hashlib, os
+            paths = command.get("paths") or []
+            if not paths or not isinstance(paths, list):
+                return {"error": "Provide a 'paths' list of PNG file paths"}
+
+            per_file = []
+            by_md5 = {}
+            for p in paths:
+                if not os.path.exists(p):
+                    per_file.append({"path": p, "error": "not found"})
+                    continue
+                try:
+                    with open(p, "rb") as f:
+                        h = hashlib.md5(f.read()).hexdigest()
+                    sz = os.path.getsize(p)
+                    per_file.append({"path": p, "md5": h, "size": sz})
+                    by_md5.setdefault(h, []).append(p)
+                except Exception as e:
+                    per_file.append({"path": p, "error": str(e)})
+
+            duplicate_groups = {h: ps for h, ps in by_md5.items() if len(ps) > 1}
+            return {
+                "ok": True,
+                "total_count": len(paths),
+                "unique_count": len(by_md5),
+                "duplicate_groups": duplicate_groups,
+                "all_unique": len(duplicate_groups) == 0,
+                "by_md5": by_md5,
+                "per_file": per_file,
+            }
+        except Exception as e:
+            return {"error": f"images_compare failed: {e}", "traceback": traceback.format_exc()}
 
     # === Volume builder / mesher — voxel-based modelling ====================
 
