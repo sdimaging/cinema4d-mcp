@@ -346,15 +346,18 @@ class C4DSocketServer(threading.Thread):
                 # Process complete messages (separated by newlines)
                 while "\n" in buffer:
                     message, buffer = buffer.split("\n", 1)
+                    request_start = time.time()
 
                     # Bounded payload check — refuse oversize commands before
                     # we even try to parse them.
                     if len(message) > MCP_MAX_COMMAND_BYTES:
                         err = {
+                            "ok": False,
                             "error": f"payload too large: {len(message)} bytes "
                                      f"(limit {MCP_MAX_COMMAND_BYTES}). Split into "
                                      f"smaller commands or write to a file and "
                                      f"reference the path.",
+                            "duration_ms": int((time.time() - request_start) * 1000),
                         }
                         client.sendall((json.dumps(err) + "\n").encode("utf-8"))
                         self.log(f"[C4D] [transport] rejected oversize msg ({len(message)} bytes)")
@@ -385,8 +388,11 @@ class C4DSocketServer(threading.Thread):
                                 response = {
                                     "ok": False,
                                     "error": "auth: missing or invalid auth_token. "
-                                             "Set MCP_AUTH_TOKEN client-side to match the server."
+                                             "Set MCP_AUTH_TOKEN client-side to match the server.",
+                                    "duration_ms": int((time.time() - request_start) * 1000),
                                 }
+                                if request_id is not None:
+                                    response["request_id"] = request_id
                                 client.sendall((json.dumps(response) + "\n").encode("utf-8"))
                                 self.log(f"[C4D] [auth] rejected command={command_type!r} (bad/missing token)")
                                 continue
@@ -396,12 +402,16 @@ class C4DSocketServer(threading.Thread):
                         # execute_python, file writes, plugin installs, etc.)
                         if self.safe_mode and command_type not in self._SAFE_COMMANDS:
                             response = {
+                                "ok": False,
                                 "error": f"safe-mode: '{command_type}' is not in the SAFE allowlist. "
                                          f"unset MCP_SAFE_MODE on the server to enable mutation. "
                                          f"safe commands: {sorted(self._SAFE_COMMANDS)}",
                                 "rejected_command": command_type,
                                 "safe_mode": True,
+                                "duration_ms": int((time.time() - request_start) * 1000),
                             }
+                            if request_id is not None:
+                                response["request_id"] = request_id
                             client.sendall((json.dumps(response) + "\n").encode("utf-8"))
                             self.log(f"[C4D] [safe-mode] rejected unsafe command={command_type!r}")
                             continue
@@ -541,10 +551,19 @@ class C4DSocketServer(threading.Thread):
                         else:
                             response = {"error": f"Unknown command: {command_type}"}
 
-                        # Echo client-supplied request_id back if present, so
-                        # async clients can correlate responses to requests.
-                        if request_id is not None and isinstance(response, dict):
-                            response.setdefault("request_id", request_id)
+                        # Standardized envelope: every response gets `ok` +
+                        # `duration_ms` injected. Existing per-handler fields
+                        # (status, error, traceback, image_data, ...) are
+                        # PRESERVED so existing clients keep working.
+                        # `ok` is derived: False if response has an "error"
+                        # key, True otherwise. Handlers that already set
+                        # `ok` explicitly are honored.
+                        if isinstance(response, dict):
+                            if "ok" not in response:
+                                response["ok"] = "error" not in response
+                            response["duration_ms"] = int((time.time() - request_start) * 1000)
+                            if request_id is not None:
+                                response.setdefault("request_id", request_id)
 
                         # Send the response as JSON
                         response_json = json.dumps(response) + "\n"
@@ -552,13 +571,19 @@ class C4DSocketServer(threading.Thread):
                         self.log(f"[C4D] Sent response for {command_type}")
 
                     except json.JSONDecodeError:
-                        error_response = {"error": "Invalid JSON format"}
+                        error_response = {
+                            "ok": False,
+                            "error": "Invalid JSON format",
+                            "duration_ms": int((time.time() - request_start) * 1000),
+                        }
                         client.sendall(
                             (json.dumps(error_response) + "\n").encode("utf-8")
                         )
                     except Exception as e:
                         error_response = {
-                            "error": f"Error processing command: {str(e)}"
+                            "ok": False,
+                            "error": f"Error processing command: {str(e)}",
+                            "duration_ms": int((time.time() - request_start) * 1000),
                         }
                         client.sendall(
                             (json.dumps(error_response) + "\n").encode("utf-8")
@@ -10669,8 +10694,16 @@ class C4DSocketServer(threading.Thread):
                 },
                 "transport": {
                     "framing": "newline-delimited-json",
-                    "max_payload_bytes": None,
-                    "request_id_supported": False,
+                    "max_payload_bytes": MCP_MAX_COMMAND_BYTES,
+                    "request_id_supported": True,
+                    "envelope": {
+                        "ok": "bool — True on success, False on error/rejection",
+                        "duration_ms": "int — server-side dispatch time",
+                        "error": "str — present iff ok=False",
+                        "traceback": "str — present on exceptions only",
+                        "request_id": "str — echoed if client supplied",
+                        "warnings": "list[str] — non-fatal advisories (optional)",
+                    },
                 },
                 "commands": {
                     "supported": list(self._SUPPORTED_COMMANDS),
