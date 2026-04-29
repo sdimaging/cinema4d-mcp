@@ -31,7 +31,7 @@ def _extract_mcp_tool_command_types(server_py: Path) -> Set[str]:
     includes a `"command": "..."` key, then calls send_to_c4d. We grep for
     every literal string assigned to that key inside the function body.
     """
-    src = server_py.read_text()
+    src = server_py.read_text(encoding="utf-8")
     tree = ast.parse(src)
 
     command_types: Set[str] = set()
@@ -98,19 +98,19 @@ HANDLER_CALL_RE = re.compile(r'self\.handle_(\w+)\s*\(')
 
 def _extract_dispatcher_branches(pyp: Path) -> Set[str]:
     """Every command_type literal that has an `if/elif command_type == "..."` branch."""
-    src = pyp.read_text()
+    src = pyp.read_text(encoding="utf-8")
     return set(DISPATCH_BRANCH_RE.findall(src))
 
 
 def _extract_handler_methods(pyp: Path) -> Set[str]:
     """Every `handle_<name>` defined as a method on C4DSocketServer."""
-    src = pyp.read_text()
+    src = pyp.read_text(encoding="utf-8")
     return set(HANDLER_DEF_RE.findall(src))
 
 
 def _extract_handler_calls(pyp: Path) -> Set[str]:
     """Every `handle_<name>` invoked as `self.handle_<name>(...)`."""
-    src = pyp.read_text()
+    src = pyp.read_text(encoding="utf-8")
     return set(HANDLER_CALL_RE.findall(src))
 
 
@@ -120,7 +120,7 @@ def _extract_supported_commands_tuple(pyp: Path) -> Set[str]:
     Returns the literal command names listed there; helps catch "shipped a
     handler but forgot to advertise it" mistakes.
     """
-    src = pyp.read_text()
+    src = pyp.read_text(encoding="utf-8")
     tree = ast.parse(src)
     for node in ast.walk(tree):
         if isinstance(node, ast.Assign):

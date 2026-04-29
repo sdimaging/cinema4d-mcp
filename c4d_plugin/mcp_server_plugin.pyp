@@ -11841,7 +11841,13 @@ class C4DSocketServer(threading.Thread):
             # Insert as child of target
             deformer.InsertUnder(target)
 
-            # Optional: bind a vertex-map restriction
+            # Optional: bind a vertex-map restriction.
+            # C4D 2026 Restriction tag (Trestriction = 5683) uses paired slots:
+            #   RESTRICTIONTAG_NAME_01 (1100) — vmap NAME (string), one of 12 slots
+            #   RESTRICTIONTAG_VAL_01  (1200) — enable flag for that slot (bool)
+            # The previous code wrote a vmap name to a non-existent
+            # `RESTRICTION_VMAPS` parameter ID, which on some C4D builds
+            # crashes the host. Fixed 2026-04-29.
             restrict_vmap = command.get("restrict_vmap")
             restrict_tag_name = None
             if restrict_vmap:
@@ -11854,21 +11860,21 @@ class C4DSocketServer(threading.Thread):
                 if vmap_tag is None:
                     warnings.append(f"restrict_vmap '{restrict_vmap}' not found on target — deformer applied without restriction")
                 else:
-                    # Add a Restriction tag on the deformer pointing at the vmap
                     rtag = c4d.BaseTag(c4d.Trestriction)
                     if rtag:
-                        deformer.InsertTag(rtag)
                         try:
-                            # Restriction tag binds via vmap selection
-                            # parameter naming varies; try common ones
-                            for pid_name in ("RESTRICTION_VMAPS", "ID_RESTRICTION_VMAPS"):
-                                pid = getattr(c4d, pid_name, None)
-                                if pid is not None:
-                                    rtag[pid] = restrict_vmap
-                                    break
+                            deformer.InsertTag(rtag)
+                            name_pid = getattr(c4d, "RESTRICTIONTAG_NAME_01", 1100)
+                            val_pid = getattr(c4d, "RESTRICTIONTAG_VAL_01", 1200)
+                            rtag[name_pid] = str(restrict_vmap)
+                            rtag[val_pid] = True
                             restrict_tag_name = rtag.GetName() or "Restriction"
                         except Exception as e:
-                            warnings.append(f"restriction tag setup partial: {e}")
+                            warnings.append(f"restriction tag setup failed: {e}")
+                            try:
+                                rtag.Remove()
+                            except Exception:
+                                pass
 
             c4d.EventAdd()
             return {

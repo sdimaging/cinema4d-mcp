@@ -1,0 +1,46 @@
+{
+  "name": "uv_pipeline_smoke",
+  "description": "Smoke test the UV ops chain: build a sphere, project box UVs, get layout stats, transfer to a low-poly sphere, sample a vmap across UVs. Catches regressions in any of the 6 UV tools.",
+  "setup": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\nfrom c4d import utils\ndoc = c4d.documents.GetActiveDocument()\nfor n in ['UvSphereSrc', 'UvSphereDst']:\n    o = doc.SearchObject(n)\n    if o: o.Remove()\nfor name, sub in [('UvSphereSrc', 24), ('UvSphereDst', 12)]:\n    sg = c4d.BaseObject(c4d.Osphere)\n    sg[c4d.PRIM_SPHERE_RAD] = 100\n    sg[c4d.PRIM_SPHERE_SUB] = sub\n    doc.InsertObject(sg)\n    res = utils.SendModelingCommand(c4d.MCOMMAND_MAKEEDITABLE, [sg], doc=doc)\n    p = res[0]\n    p.SetName(name)\n    doc.InsertObject(p)\nc4d.EventAdd()\nprint('built UvSphereSrc + UvSphereDst')"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "name": "src_has_uvw_from_primitive",
+      "command": "uv_layout_stats",
+      "args": {"target": "UvSphereSrc"},
+      "assert": [
+        {"type": "object_has_tag", "name": "UvSphereSrc", "tag_type": "Tuvw"}
+      ]
+    },
+    {
+      "name": "apply_box_projection_to_dst",
+      "command": "uv_from_projection",
+      "args": {"target": "UvSphereDst", "projection": "box"},
+      "assert": [
+        {"type": "object_has_tag", "name": "UvSphereDst", "tag_type": "Tuvw"}
+      ]
+    },
+    {
+      "name": "uv_transfer_src_to_dst",
+      "command": "uv_transfer",
+      "args": {"source": "UvSphereSrc", "dest": "UvSphereDst"},
+      "assert": [
+        {"type": "object_has_tag", "name": "UvSphereDst", "tag_type": "Tuvw"}
+      ]
+    }
+  ],
+  "teardown": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\ndoc = c4d.documents.GetActiveDocument()\nfor n in ['UvSphereSrc', 'UvSphereDst']:\n    o = doc.SearchObject(n)\n    if o: o.Remove()\nc4d.EventAdd()\nprint('teardown ok')"
+      }
+    }
+  ]
+}

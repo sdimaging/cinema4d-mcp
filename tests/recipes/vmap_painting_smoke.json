@@ -1,0 +1,61 @@
+{
+  "name": "vmap_painting_smoke",
+  "description": "Smoke test: paint a vmap with a known formula on a 17x17 plane, then verify the resulting weights match the analytical expectation. Catches any regression in formula evaluation, vmap creation, or weight write-back.",
+  "setup": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\nfrom c4d import utils\ndoc = c4d.documents.GetActiveDocument()\nfor n in ['VMapSmokePlane']:\n    o = doc.SearchObject(n)\n    if o: o.Remove()\npg = c4d.BaseObject(c4d.Oplane)\npg[c4d.PRIM_PLANE_WIDTH] = 200\npg[c4d.PRIM_PLANE_HEIGHT] = 200\npg[c4d.PRIM_PLANE_SUBW] = 16\npg[c4d.PRIM_PLANE_SUBH] = 16\ndoc.InsertObject(pg)\nres = utils.SendModelingCommand(c4d.MCOMMAND_MAKEEDITABLE, [pg], doc=doc)\np = res[0]\np.SetName('VMapSmokePlane')\ndoc.InsertObject(p)\nc4d.EventAdd()\nprint(f'plane points={p.GetPointCount()}')"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "name": "constant_formula_warns",
+      "command": "paint_vertex_map_from_formula",
+      "args": {
+        "target": "VMapSmokePlane",
+        "vmap_name": "constant_test",
+        "formula": "0.42",
+        "clamp": false
+      },
+      "assert": [
+        {"type": "vmap_stats", "name": "VMapSmokePlane", "vmap": "constant_test", "min": 0.42, "max": 0.42, "mean": 0.42}
+      ]
+    },
+    {
+      "name": "x_gradient_formula",
+      "command": "paint_vertex_map_from_formula",
+      "args": {
+        "target": "VMapSmokePlane",
+        "vmap_name": "xgrad",
+        "formula": "(x + 100) / 200",
+        "clamp": true
+      },
+      "assert": [
+        {"type": "vmap_stats", "name": "VMapSmokePlane", "vmap": "xgrad", "min": 0.0, "max": 1.0, "mean": [0.45, 0.55]}
+      ]
+    },
+    {
+      "name": "radial_full_coverage",
+      "command": "paint_vertex_map_radial",
+      "args": {
+        "target": "VMapSmokePlane",
+        "vmap_name": "radial_full",
+        "radius": 200,
+        "falloff": "smooth"
+      },
+      "assert": [
+        {"type": "vmap_stats", "name": "VMapSmokePlane", "vmap": "radial_full", "min": [0.0, 0.5], "max": [0.5, 1.0]}
+      ]
+    }
+  ],
+  "teardown": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\ndoc = c4d.documents.GetActiveDocument()\no = doc.SearchObject('VMapSmokePlane')\nif o: o.Remove()\nc4d.EventAdd()\nprint('teardown ok')"
+      }
+    }
+  ]
+}

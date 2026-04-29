@@ -1,0 +1,69 @@
+{
+  "name": "undo_grouping_smoke",
+  "description": "Verify that begin_undo_group + N mutations + end_undo_group + undo() rolls back ALL mutations in one step. Catches regressions in undo group plumbing.",
+  "setup": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\ndoc = c4d.documents.GetActiveDocument()\nfor n in ['UndoSeed', 'UndoNew1', 'UndoNew2', 'UndoNew3']:\n    o = doc.SearchObject(n)\n    if o: o.Remove()\nseed = c4d.BaseObject(c4d.Ocube)\nseed.SetName('UndoSeed')\ndoc.InsertObject(seed)\nc4d.EventAdd()\nprint('seed cube placed')"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "name": "open_group",
+      "command": "begin_undo_group",
+      "args": {"name": "smoke_test_group"},
+      "assert": [
+        {"type": "object_count", "expected": [1, 1]}
+      ]
+    },
+    {
+      "name": "add_three_objects_in_group",
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\ndoc = c4d.documents.GetActiveDocument()\nfor name in ['UndoNew1', 'UndoNew2', 'UndoNew3']:\n    sg = c4d.BaseObject(c4d.Osphere)\n    sg.SetName(name)\n    doc.AddUndo(c4d.UNDOTYPE_NEW, sg)\n    doc.InsertObject(sg)\nc4d.EventAdd()\nprint('added 3 spheres inside undo group')"
+      },
+      "assert": [
+        {"type": "object_count", "expected": [4, 4]},
+        {"type": "object_exists", "name": "UndoNew1"},
+        {"type": "object_exists", "name": "UndoNew2"},
+        {"type": "object_exists", "name": "UndoNew3"}
+      ]
+    },
+    {
+      "name": "close_group",
+      "command": "end_undo_group",
+      "args": {},
+      "assert": [
+        {"type": "object_count", "expected": [4, 4]}
+      ]
+    },
+    {
+      "name": "undo_one_step_rolls_back_all_three",
+      "command": "undo",
+      "args": {"steps": 1},
+      "assert": [
+        {"type": "object_count", "expected": [1, 1]},
+        {"type": "object_exists", "name": "UndoSeed"}
+      ]
+    },
+    {
+      "name": "redo_brings_them_back",
+      "command": "redo",
+      "args": {"steps": 1},
+      "assert": [
+        {"type": "object_count", "expected": [4, 4]},
+        {"type": "object_exists", "name": "UndoNew1"}
+      ]
+    }
+  ],
+  "teardown": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\ndoc = c4d.documents.GetActiveDocument()\nfor n in ['UndoSeed', 'UndoNew1', 'UndoNew2', 'UndoNew3']:\n    o = doc.SearchObject(n)\n    if o: o.Remove()\nc4d.EventAdd()\nprint('teardown ok')"
+      }
+    }
+  ]
+}
