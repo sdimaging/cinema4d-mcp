@@ -1,6 +1,6 @@
 {
   "name": "apply_deformer_with_vmap_mask",
-  "description": "Verify the canonical creative loop: paint a radial vmap, then apply a Bend deformer restricted to it. Confirms (a) vmap painting writes plausible weights, (b) deformer is added as child, (c) restriction tag is bound to the vmap, (d) topology unchanged after deformer add.",
+  "description": "Verify the canonical creative loop: paint a radial vmap (radius=200 to actually hit cube surface verts), then apply a Bend deformer restricted to it. Confirms (a) vmap painting writes a non-uniform gradient, (b) deformer is added as child by type_id, (c) restriction tag is bound to the vmap.",
   "setup": [
     {
       "command": "execute_python",
@@ -20,7 +20,8 @@
         ]
       },
       "assert": [
-        {"type": "object_exists", "name": "RecipeCube"}
+        {"type": "object_exists", "name": "RecipeCube"},
+        {"type": "object_polygon_count", "name": "RecipeCube", "expected": [500, 700]}
       ]
     },
     {
@@ -29,12 +30,13 @@
       "args": {
         "target": "RecipeCube",
         "vmap_name": "bend_mask",
-        "radius": 100,
+        "radius": 200,
         "falloff": "smooth"
       },
       "assert": [
         {"type": "object_has_tag", "name": "RecipeCube", "tag_type": "Tvertexmap", "tag_name": "bend_mask"},
-        {"type": "vmap_stats", "name": "RecipeCube", "vmap": "bend_mask", "min": 0.0, "max": [0.0, 1.0], "mean": [0.0, 1.0]}
+        {"type": "vmap_stats", "name": "RecipeCube", "vmap": "bend_mask",
+         "min": [0.0, 0.5], "max": [0.5, 1.0], "mean": [0.1, 0.9]}
       ]
     },
     {

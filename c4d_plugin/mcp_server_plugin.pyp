@@ -11110,7 +11110,12 @@ class C4DSocketServer(threading.Thread):
                     out["error"] = err
                 else:
                     want_type = a.get("type_id")
-                    want_name = a.get("name")
+                    # Use `child_name` (not `name`!) for child-name filter.
+                    # `name` is the parent's identifier, consumed by
+                    # _resolve_assert_object above; conflating them was a
+                    # real bug caught by the apply_deformer_with_vmap_mask
+                    # recipe on its first run.
+                    want_name = a.get("child_name")
                     children = []
                     matched = False
                     c = obj.GetDown()
@@ -11125,7 +11130,12 @@ class C4DSocketServer(threading.Thread):
                             matched = True
                         c = c.GetNext()
                     out["passed"] = matched
-                    out["evidence"] = {"children": children, "matched": matched}
+                    out["evidence"] = {
+                        "children": children,
+                        "matched": matched,
+                        "filter_type_id": want_type,
+                        "filter_child_name": want_name,
+                    }
 
             elif atype == "object_position":
                 obj, err = self._resolve_assert_object(doc, a)
@@ -12026,6 +12036,18 @@ class C4DSocketServer(threading.Thread):
             tag.SetAllHighlevelData(weights)
             obj.Message(c4d.MSG_UPDATE)
             c4d.EventAdd()
+            warnings = []
+            if n > 0 and wmin == wmax:
+                warnings.append(
+                    f"painted vmap is uniform ({wmin}) — formula evaluated "
+                    f"to a constant for every vertex. Check the formula "
+                    f"actually depends on x/y/z/i/n."
+                )
+            if errors > 0:
+                warnings.append(
+                    f"{errors}/{n} vertices errored during formula eval — "
+                    f"those vertices got 0.0. Check the formula handles edge cases."
+                )
             return {
                 "ok": True,
                 "object": obj.GetName(),
@@ -12039,6 +12061,7 @@ class C4DSocketServer(threading.Thread):
                 "formula": formula,
                 "space": space,
                 "clamped": do_clamp,
+                "warnings": warnings or None,
             }
         except Exception as e:
             return {"error": f"paint_vertex_map_from_formula failed: {e}", "traceback": traceback.format_exc()}
@@ -12127,6 +12150,17 @@ class C4DSocketServer(threading.Thread):
             tag.SetAllHighlevelData(weights)
             obj.Message(c4d.MSG_UPDATE)
             c4d.EventAdd()
+            warnings = []
+            # Detect "I painted nothing" case — common when radius is too
+            # small for the mesh's vert distribution. Without this warning,
+            # the caller has no signal that the result is meaningless.
+            if n > 0 and wmin == wmax:
+                warnings.append(
+                    f"painted vmap is uniform ({wmin}) — radius={radius} "
+                    f"may be too small for this mesh (no verts inside the "
+                    f"falloff zone), or center is wrong. Try a larger radius "
+                    f"or check object scale."
+                )
             return {
                 "ok": True,
                 "object": obj.GetName(),
@@ -12142,6 +12176,7 @@ class C4DSocketServer(threading.Thread):
                 "min": wmin if n else 0.0,
                 "max": wmax if n else 0.0,
                 "mean": (wsum / n) if n else 0.0,
+                "warnings": warnings or None,
             }
         except Exception as e:
             return {"error": f"paint_vertex_map_radial failed: {e}", "traceback": traceback.format_exc()}
