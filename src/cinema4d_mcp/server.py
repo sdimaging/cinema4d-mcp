@@ -2655,26 +2655,104 @@ async def ping(echo: Optional[str] = None, ctx: Context = None) -> str:
 
 
 @mcp.tool()
-async def doctor(ctx: Context = None) -> str:
+async def doctor(with_smoke_recipe: bool = False, ctx: Context = None) -> str:
     """Run a series of health checks against the live MCP/plugin/C4D bridge.
 
-    Checks (each independent — failure of one doesn't prevent the others):
+    Plugin-side checks (each independent — failure of one doesn't prevent the others):
       1. Main thread responsive (round-trip a no-op via execute_on_main_thread)
       2. Active document accessible
       3. Active BaseDraw + camera ready
       4. Console log buffer hook installed
       5. Auth state
 
+    Args:
+      with_smoke_recipe: if True, ALSO run scene_snapshot_diff_roundtrip
+        as a smoke test. Verifies end-to-end creative-loop machinery
+        (snapshot + mutate + assert) works, not just plumbing. Adds ~100ms.
+
     Use this when something feels off — wedged main thread, "no active doc",
     or the socket is responding but tools aren't behaving. Returns structured
     pass/fail with timing info per check.
     """
+    import os, time
     async with c4d_connection_context() as connection:
         if not connection.connected:
             return "❌ Not connected to Cinema 4D"
         response = send_to_c4d(connection, {"command": "doctor"})
         if "error" in response:
             return f"❌ Error: {response['error']}"
+
+        # Optional smoke-recipe stage — exercises end-to-end creative loop
+        # (snapshot + mutate + assert). Surfaces issues plumbing-only
+        # checks miss. Catches eg "snapshot returns ok but the model is
+        # truncated" type bugs before they hit a real workflow.
+        if with_smoke_recipe:
+            t0 = time.time()
+            recipe_path = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                "tests", "recipes", "scene_snapshot_diff_roundtrip.json"
+            )
+            smoke_result = {
+                "name": "scene_snapshot_diff_roundtrip",
+                "ok": False,
+                "duration_ms": 0,
+                "error": None,
+            }
+            try:
+                if not os.path.exists(recipe_path):
+                    smoke_result["error"] = f"recipe file not found: {recipe_path}"
+                else:
+                    with open(recipe_path, "r") as f:
+                        recipe = json.load(f)
+                    # Re-use recipe_run logic inline (avoid recursive
+                    # call to the @mcp.tool wrapper)
+                    name = recipe.get("name", "<unnamed>")
+                    setup_steps = recipe.get("setup") or []
+                    main_steps = recipe.get("steps") or []
+                    teardown_steps = recipe.get("teardown") or []
+                    all_ok = True
+                    fail_summary: List[str] = []
+                    # Setup
+                    for s in setup_steps:
+                        cmd = dict(s.get("args") or {})
+                        cmd["command"] = s["command"]
+                        r = send_to_c4d(connection, cmd)
+                        if "error" in r or r.get("ok") is False:
+                            all_ok = False
+                            fail_summary.append(f"setup '{s['command']}': {r.get('error', r)}")
+                    # Steps
+                    for st in main_steps:
+                        if not all_ok:
+                            break
+                        cmd = dict(st.get("args") or {})
+                        cmd["command"] = st["command"]
+                        r = send_to_c4d(connection, cmd)
+                        if "error" in r or r.get("ok") is False:
+                            all_ok = False
+                            fail_summary.append(f"step '{st.get('name')}': {r.get('error', r)}")
+                            continue
+                        # Run assertions
+                        for a in (st.get("assert") or []):
+                            ar = send_to_c4d(connection, {"command": "scene_assert", "assertions": [a]})
+                            if not ar.get("ok"):
+                                all_ok = False
+                                fail_summary.append(f"step '{st.get('name')}' assertion failed: {ar.get('results')}")
+                                break
+                    # Teardown (always runs)
+                    for s in teardown_steps:
+                        cmd = dict(s.get("args") or {})
+                        cmd["command"] = s["command"]
+                        send_to_c4d(connection, cmd)
+                    smoke_result["ok"] = all_ok
+                    if fail_summary:
+                        smoke_result["failures"] = fail_summary
+            except Exception as e:
+                smoke_result["error"] = str(e)
+            smoke_result["duration_ms"] = int((time.time() - t0) * 1000)
+            response["smoke_recipe"] = smoke_result
+            # Hoist into top-level all_ok
+            response["all_ok"] = response.get("all_ok", True) and smoke_result["ok"]
+
         return json.dumps(response, indent=2)
 
 
