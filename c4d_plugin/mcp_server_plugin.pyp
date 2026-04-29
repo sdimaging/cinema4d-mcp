@@ -514,6 +514,12 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_undo(command)
                         elif command_type == "redo":
                             response = self.handle_redo(command)
+                        elif command_type == "scene_nodes_status":
+                            response = self.handle_scene_nodes_status(command)
+                        elif command_type == "scene_nodes_create_graph":
+                            response = self.handle_scene_nodes_create_graph(command)
+                        elif command_type == "scene_nodes_open_editor":
+                            response = self.handle_scene_nodes_open_editor(command)
                         elif command_type == "scene_snapshot":
                             response = self.handle_scene_snapshot(command)
                         elif command_type == "scene_diff":
@@ -10640,6 +10646,7 @@ class C4DSocketServer(threading.Thread):
         "get_capabilities", "doctor", "ping",
         "scene_snapshot", "scene_diff",
         "begin_undo_group", "end_undo_group", "undo", "redo",
+        "scene_nodes_status", "scene_nodes_create_graph", "scene_nodes_open_editor",
     )
     # NOTE: this list reflects what the C4D PLUGIN's run() dispatcher actually
     # routes. Some MCP tool wrappers in server.py (tap_octane_log,
@@ -10667,6 +10674,7 @@ class C4DSocketServer(threading.Thread):
         "get_console_log", "clear_console_log",
         "get_c4d_info", "get_capabilities", "doctor", "ping",
         "scene_snapshot", "scene_diff",
+        "scene_nodes_status",  # read-only inspection of Scene Nodes graphs
     })
 
     def handle_get_capabilities(self, command):
@@ -10899,6 +10907,194 @@ class C4DSocketServer(threading.Thread):
             }
         except Exception as e:
             return {"error": f"redo failed: {e}", "traceback": traceback.format_exc()}
+
+    # === Scene Nodes — read-only introspection (Round 1) ====================
+
+    # Standard space ids for the C4D 2026 Scene Nodes node-graph editor.
+    # Defined here as fallbacks since maxon.NodeSpaceIdentifiers may not
+    # always be importable from a script context.
+    _SCENENODES_SPACE_IDS = {
+        "scenenodes": "net.maxon.scenenodes.basescenenodesnodespace",
+        "core": "net.maxon.nodespace.core",
+    }
+
+    def handle_scene_nodes_status(self, command):
+        """Survey the Scene Nodes graphs present in the active document.
+
+        Returns:
+          - is_node_based: whether the doc is in node-based-scene mode
+            (Scene Nodes is the source of truth, not the classic hierarchy)
+          - nimbus_refs: list of {space_id, has_content} for every
+            NimbusRef on the doc (one per node space; usually 1)
+          - per_object_graphs: list of objects that carry their own
+            embedded Scene Nodes graph (BaseList2D-attached NimbusRefs)
+          - hint_open_editor: whether to suggest the user open the
+            Scene Nodes editor first (no graph exists yet)
+
+        Read-only — never mutates state. Run before any graph-mutation
+        tools to know what context you're operating in.
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+            import maxon
+            info = {
+                "is_node_based": False,
+                "nimbus_refs": [],
+                "per_object_graphs": [],
+            }
+            try:
+                info["is_node_based"] = bool(doc.IsNodeBased())
+            except Exception as e:
+                info["is_node_based_error"] = str(e)
+
+            try:
+                doc_refs = doc.GetAllNimbusRefs() or []
+                for ref in doc_refs:
+                    entry = {"space_id": None, "has_graph": False}
+                    try:
+                        entry["space_id"] = str(ref.GetSpaceId())
+                    except Exception:
+                        pass
+                    try:
+                        g = ref.GetGraph()
+                        entry["has_graph"] = g is not None and not g.IsNullValue()
+                    except Exception as e:
+                        entry["graph_error"] = str(e)
+                    info["nimbus_refs"].append(entry)
+            except Exception as e:
+                info["nimbus_refs_error"] = str(e)
+
+            # Walk the scene for objects that have their own NimbusRef.
+            # Capsule generators in particular host their own internal
+            # Scene Nodes graphs.
+            try:
+                op = doc.GetFirstObject()
+                visited = []
+                def walk(o):
+                    while o is not None:
+                        try:
+                            for sid in self._SCENENODES_SPACE_IDS.values():
+                                try:
+                                    nr = o.GetNimbusRef(maxon.Id(sid))
+                                    if nr is not None and not nr.IsNullValue():
+                                        visited.append({
+                                            "object": o.GetName(),
+                                            "guid": str(o.GetGUID()),
+                                            "space_id": sid,
+                                        })
+                                except Exception:
+                                    pass
+                        except Exception:
+                            pass
+                        if o.GetDown():
+                            walk(o.GetDown())
+                        o = o.GetNext()
+                walk(op)
+                info["per_object_graphs"] = visited
+            except Exception as e:
+                info["per_object_graphs_error"] = str(e)
+
+            info["hint_open_editor"] = (
+                not info["nimbus_refs"]
+                and not info["per_object_graphs"]
+                and not info.get("is_node_based")
+            )
+            if info["hint_open_editor"]:
+                info["hint_message"] = (
+                    "No Scene Nodes graphs exist in this doc yet. Open "
+                    "Window > Scene Nodes (or call scene_nodes_open_editor) "
+                    "to create the doc-level graph, OR call "
+                    "scene_nodes_create_graph to bootstrap one programmatically."
+                )
+            return info
+        except Exception as e:
+            return {"error": f"scene_nodes_status failed: {e}", "traceback": traceback.format_exc()}
+
+    def handle_scene_nodes_create_graph(self, command):
+        """Create a Scene Nodes graph on the doc (or on a specific object) if
+        one doesn't already exist. Idempotent — returns the existing graph
+        space_id if it's already there.
+
+        Args:
+          space (str): 'scenenodes' (default) or 'core' — picks the
+            node-space asset id.
+          target_object (str, optional): object name. If set, creates a
+            per-object embedded graph on that object. If None, operates on
+            the doc-level graph.
+
+        UNSAFE — mutates doc state. The user should call begin_undo_group
+        first if they want this reversible.
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+            import maxon
+            space = command.get("space", "scenenodes")
+            sid = self._SCENENODES_SPACE_IDS.get(space)
+            if sid is None:
+                return {
+                    "error": f"Unknown space '{space}'",
+                    "valid_spaces": list(self._SCENENODES_SPACE_IDS.keys()),
+                }
+            target_name = command.get("target_object")
+
+            host = doc
+            if target_name:
+                obj = doc.SearchObject(target_name)
+                if obj is None:
+                    return {"error": f"target_object '{target_name}' not found"}
+                host = obj
+
+            # GetNimbusRef with create=True is the canonical "fetch or make" op.
+            try:
+                ref = host.GetNimbusRef(maxon.Id(sid), True)
+            except TypeError:
+                # Fallback: 1-arg signature returns existing only
+                ref = host.GetNimbusRef(maxon.Id(sid))
+
+            existed = False
+            try:
+                existed = ref is not None and not ref.IsNullValue()
+            except Exception:
+                existed = ref is not None
+
+            return {
+                "ok": existed,
+                "space_id": sid,
+                "host": (target_name if target_name else "<doc>"),
+                "graph_existed_or_created": existed,
+            }
+        except Exception as e:
+            return {"error": f"scene_nodes_create_graph failed: {e}", "traceback": traceback.format_exc()}
+
+    def handle_scene_nodes_open_editor(self, command):
+        """Open the Scene Nodes editor window for the doc-level graph.
+
+        Useful when the user wants to inspect what Claude has been doing
+        or to switch into manual editing mode.
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+            import maxon
+            sid = self._SCENENODES_SPACE_IDS["scenenodes"]
+            try:
+                ref = doc.GetNimbusRef(maxon.Id(sid), True)
+            except TypeError:
+                ref = doc.GetNimbusRef(maxon.Id(sid))
+            if ref is None:
+                return {"error": "Could not get/create doc Scene Nodes ref"}
+            try:
+                ref.OpenInEditor()
+                return {"ok": True, "space_id": sid}
+            except Exception as e:
+                return {"error": f"OpenInEditor failed: {e}"}
+        except Exception as e:
+            return {"error": f"scene_nodes_open_editor failed: {e}", "traceback": traceback.format_exc()}
 
     def handle_ping(self, command):
         """Cheapest possible liveness probe.

@@ -1914,6 +1914,84 @@ async def scene_diff(
 
 
 @mcp.tool()
+async def scene_nodes_status(ctx: Context = None) -> str:
+    """Survey the Scene Nodes graphs present in the active document.
+
+    Returns:
+      - is_node_based: doc in node-based-scene mode (Scene Nodes is the
+        source of truth, not the classic hierarchy)
+      - nimbus_refs: list of doc-level graphs (one per node space)
+      - per_object_graphs: per-object embedded graphs (Capsule generators)
+      - hint_open_editor + hint_message: when no graph exists yet, how to
+        bootstrap one
+
+    Read-only. Run before any graph-mutation tools to know what context
+    you're working in. Scene Nodes graphs in C4D 2026 live in the
+    `net.maxon.scenenodes.basescenenodesnodespace` space; the doc-level
+    one is created on-demand the first time anything (a UI panel or a
+    `scene_nodes_create_graph` call) references it.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        response = send_to_c4d(connection, {"command": "scene_nodes_status"})
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
+async def scene_nodes_create_graph(
+    space: str = "scenenodes",
+    target_object: Optional[str] = None,
+    ctx: Context = None,
+) -> str:
+    """Bootstrap a Scene Nodes graph on the doc (or on a specific object).
+
+    Idempotent — if a graph already exists at the target/space, returns
+    info about the existing one without modification. UNSAFE (mutates
+    doc state when creating).
+
+    Args:
+      space: 'scenenodes' (default — the standard Scene Nodes editor
+             space) or 'core' (low-level node space).
+      target_object: object name. If set, creates a per-object embedded
+        graph on that object (Capsule pattern). If None, operates on the
+        doc-level graph.
+
+    Use case: when scene_nodes_status reports `hint_open_editor=True`,
+    call this to create the doc-level graph programmatically without
+    needing the user to open the Scene Nodes editor manually.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {"command": "scene_nodes_create_graph", "space": space}
+        if target_object is not None:
+            cmd["target_object"] = target_object
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
+async def scene_nodes_open_editor(ctx: Context = None) -> str:
+    """Open the Scene Nodes editor window for the doc-level graph.
+
+    Useful when the user wants to inspect what's in the graph or switch
+    to manual editing. UNSAFE (UI side effect).
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        response = send_to_c4d(connection, {"command": "scene_nodes_open_editor"})
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
 async def begin_undo_group(name: str = "MCP undo group", ctx: Context = None) -> str:
     """Open a C4D undo group: every mutation until end_undo_group is merged
     into ONE undo step in C4D's history.
