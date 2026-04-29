@@ -435,6 +435,10 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_get_capabilities(command)
                         elif command_type == "doctor":
                             response = self.handle_doctor(command)
+                        elif command_type == "scene_snapshot":
+                            response = self.handle_scene_snapshot(command)
+                        elif command_type == "scene_diff":
+                            response = self.handle_scene_diff(command)
                         # Viewport / render engine
                         elif command_type == "viewport_screenshot":
                             response = self.handle_viewport_screenshot(command)
@@ -8114,6 +8118,19 @@ class C4DSocketServer(threading.Thread):
         "gentleman":  13,
     }
 
+    # When line_overlay='wire' is requested on top of a base shaded mode,
+    # we auto-translate to the equivalent built-in *_wire SDISPLAY mode so
+    # the wireframe is visible in `viewport_screenshot` captures. C4D's
+    # BASEDRAW_DATA_LINES_ON_SHADING_* settings are EDITOR-ONLY decorations —
+    # they don't pass through to RenderDocument output. Other overlays
+    # (isoparms / box / skeleton) have no _wire SDISPLAY equivalent and
+    # remain editor-only; we surface a warning in that case.
+    _MODE_WIRE_BAKED = {
+        "gouraud": "gouraud_wire",
+        "quick":   "quick_wire",
+        "flat":    "flat_wire",
+    }
+
     def handle_set_viewport_shading_mode(self, command):
         """Set the active viewport's shading mode + optional line overlay.
 
@@ -8121,6 +8138,12 @@ class C4DSocketServer(threading.Thread):
           mode (str): one of gouraud, gouraud_wire, quick, quick_wire,
                      flat_wire, hidden_line, noshading, flat
           line_overlay (str, optional): one of none, wire, isoparms, box, skeleton
+
+        Special case: `line_overlay='wire'` combined with mode='gouraud' /
+        'quick' / 'flat' is auto-translated to the built-in `*_wire` shading
+        mode so the wireframe survives a viewport_screenshot. Other overlays
+        (isoparms/box/skeleton) only show in the live editor — a warning is
+        included in the response when those are requested.
 
         Returns previous values so callers can restore state.
         """
@@ -8152,8 +8175,26 @@ class C4DSocketServer(threading.Thread):
             prev_lines_on = bd[c4d.BASEDRAW_DATA_LINES_ON_SHADING_ACTIVE]
             prev_w = bd[c4d.BASEDRAW_DATA_WDISPLAYACTIVE]
 
-            if mode is not None:
-                v = self._SHADING_MODE_MAP[mode]
+            warnings = []
+            translated = False
+
+            # Auto-translate wire overlay → built-in *_wire SDISPLAY mode.
+            effective_mode = mode
+            if line == "wire" and mode in self._MODE_WIRE_BAKED:
+                effective_mode = self._MODE_WIRE_BAKED[mode]
+                translated = True
+                # Don't set the editor-only line overlay; the new mode bakes
+                # wires into the render path.
+                line = "none"
+            elif line in ("isoparms", "box", "skeleton"):
+                warnings.append(
+                    f"line_overlay='{line}' is editor-only — it will show "
+                    f"in C4D's live viewport but NOT in viewport_screenshot "
+                    f"captures (C4D's render pipeline ignores these overlays)."
+                )
+
+            if effective_mode is not None:
+                v = self._SHADING_MODE_MAP[effective_mode]
                 bd[c4d.BASEDRAW_DATA_SDISPLAYACTIVE] = v
                 bd[c4d.BASEDRAW_DATA_SDISPLAYINACTIVE] = v
             if line is not None:
@@ -8166,14 +8207,20 @@ class C4DSocketServer(threading.Thread):
             c4d.EventAdd()
 
             inv_shade = {v: k for k, v in self._SHADING_MODE_MAP.items()}
-            return {
+            response = {
                 "status": "ok",
                 "mode": mode,
+                "effective_mode": effective_mode,
                 "line_overlay": line,
                 "previous_mode": inv_shade.get(prev_mode, prev_mode),
                 "previous_lines_on": bool(prev_lines_on),
                 "previous_w_display": prev_w,
             }
+            if translated:
+                response["wire_overlay_translated_to_baked_mode"] = True
+            if warnings:
+                response["warnings"] = warnings
+            return response
         except Exception as e:
             return {"error": f"set_viewport_shading_mode failed: {e}", "traceback": traceback.format_exc()}
 
@@ -10491,6 +10538,7 @@ class C4DSocketServer(threading.Thread):
         "tap_octane_log", "get_console_log", "clear_console_log",
         "install_plugin", "build_and_install_plugin", "get_c4d_info",
         "get_capabilities", "doctor",
+        "scene_snapshot", "scene_diff",
     )
 
     # Tags for read-only vs scene-mutating tools (Phase 5 prep).
@@ -10510,6 +10558,7 @@ class C4DSocketServer(threading.Thread):
         "vertex_map_stats", "uv_layout_stats",
         "tap_octane_log", "get_console_log", "clear_console_log",
         "get_c4d_info", "get_capabilities", "doctor",
+        "scene_snapshot", "scene_diff",
     })
 
     def handle_get_capabilities(self, command):
@@ -10679,6 +10728,336 @@ class C4DSocketServer(threading.Thread):
             }
         except Exception as e:
             return {"error": f"doctor failed: {e}", "traceback": traceback.format_exc()}
+
+    # === Phase 4: GUID-first scene snapshot + diff ==========================
+
+    # Module-level snapshot cache — keep most-recent N keyed by short id.
+    # Lets a client store a snapshot once, then ask for a diff against it
+    # without resending the full payload.
+    _SNAPSHOT_CACHE = {}
+    _SNAPSHOT_CACHE_MAX = 16
+
+    def _matrix_to_dict(self, m):
+        """Serialise a c4d.Matrix to a JSON-safe dict."""
+        return {
+            "off": [m.off.x, m.off.y, m.off.z],
+            "v1":  [m.v1.x,  m.v1.y,  m.v1.z],
+            "v2":  [m.v2.x,  m.v2.y,  m.v2.z],
+            "v3":  [m.v3.x,  m.v3.y,  m.v3.z],
+        }
+
+    def _snapshot_one_object(self, obj, parent_guid, depth, detail):
+        """Serialise a single BaseObject to a snapshot dict. detail in {'summary','full'}."""
+        try:
+            guid = str(obj.GetGUID())
+        except Exception:
+            guid = None
+
+        try:
+            type_id = obj.GetType()
+            type_name = self.get_object_type_name(obj)
+        except Exception:
+            type_id, type_name = -1, "?"
+
+        entry = {
+            "guid": guid,
+            "name": obj.GetName(),
+            "type_id": type_id,
+            "type_name": type_name,
+            "parent_guid": parent_guid,
+            "depth": depth,
+        }
+
+        if detail == "summary":
+            return entry
+
+        # full detail
+        try:
+            entry["matrix_local"] = self._matrix_to_dict(obj.GetMl())
+        except Exception:
+            pass
+
+        # poly-specific fields
+        if type_id == c4d.Opolygon:
+            try:
+                entry["point_count"] = obj.GetPointCount()
+                entry["polygon_count"] = obj.GetPolygonCount()
+            except Exception:
+                pass
+
+        # tags — capture type + name only (cheap)
+        try:
+            tags = obj.GetTags() or []
+            entry["tags"] = [
+                {
+                    "type_id": t.GetType(),
+                    "type_name": getattr(t, "GetTypeName", lambda: "?")(),
+                    "name": t.GetName(),
+                }
+                for t in tags
+            ]
+        except Exception as e:
+            entry["tags_error"] = str(e)
+
+        try:
+            entry["selected"] = bool(obj.GetBit(c4d.BIT_ACTIVE))
+        except Exception:
+            pass
+
+        return entry
+
+    def _walk_objects_for_snapshot(self, doc, detail):
+        """Depth-first walk; yields (obj, parent_guid, depth) tuples."""
+        results = []
+        def walk(obj, parent_guid, depth):
+            while obj is not None:
+                try:
+                    g = str(obj.GetGUID())
+                except Exception:
+                    g = None
+                results.append((obj, parent_guid, depth))
+                if obj.GetDown():
+                    walk(obj.GetDown(), g, depth + 1)
+                obj = obj.GetNext()
+        walk(doc.GetFirstObject(), None, 0)
+        return results
+
+    def handle_scene_snapshot(self, command):
+        """Capture a typed snapshot of the active document.
+
+        Args:
+          detail (str): 'summary' (default) — counts + per-object guid/name/
+                        type/parent only; cheap. 'full' — adds local matrix,
+                        tag list, point/polygon counts.
+          cache (bool): if True (default), cache the snapshot under a short
+                        snapshot_id and return that id; lets a client run
+                        scene_diff later without resending the full payload.
+
+        Returns: typed scene model with snapshot_id, doc summary, objects[],
+                 materials[], summary counts. NEVER mutates state.
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+
+            detail = command.get("detail", "summary")
+            if detail not in ("summary", "full"):
+                return {"error": f"detail must be 'summary' or 'full', got {detail!r}"}
+            do_cache = bool(command.get("cache", True))
+
+            # Doc-level
+            doc_info = {
+                "name": doc.GetDocumentName() or "Untitled",
+                "path": str(doc.GetDocumentPath()) if doc.GetDocumentPath() else None,
+                "fps": doc.GetFps(),
+                "frame": doc.GetTime().GetFrame(doc.GetFps()),
+            }
+            try:
+                rd = doc.GetActiveRenderData()
+                if rd:
+                    rid = rd[c4d.RDATA_RENDERENGINE]
+                    doc_info["active_renderer_id"] = rid
+                    doc_info["active_renderer_name"] = (
+                        self._renderer_name(rid) if hasattr(self, "_renderer_name") else None
+                    )
+            except Exception:
+                pass
+            try:
+                bd = doc.GetActiveBaseDraw()
+                cam = bd.GetSceneCamera(doc) if bd else None
+                if cam is None and bd:
+                    cam = bd.GetEditorCamera()
+                if cam:
+                    doc_info["active_camera_guid"] = str(cam.GetGUID())
+                    doc_info["active_camera_name"] = cam.GetName()
+            except Exception:
+                pass
+
+            # Objects
+            walked = self._walk_objects_for_snapshot(doc, detail)
+            objects = [
+                self._snapshot_one_object(obj, parent_g, depth, detail)
+                for obj, parent_g, depth in walked
+            ]
+
+            # Materials
+            materials = []
+            try:
+                m = doc.GetFirstMaterial()
+                while m:
+                    try:
+                        materials.append({
+                            "guid": str(m.GetGUID()),
+                            "name": m.GetName(),
+                            "type_id": m.GetType(),
+                            "type_name": getattr(m, "GetTypeName", lambda: "?")(),
+                        })
+                    except Exception as e:
+                        materials.append({"name": "<error>", "error": str(e)})
+                    m = m.GetNext()
+            except Exception:
+                pass
+
+            # Summary
+            summary = {
+                "object_count": len(objects),
+                "polygon_object_count": sum(1 for o in objects if o.get("type_id") == c4d.Opolygon),
+                "material_count": len(materials),
+                "tag_count": sum(len(o.get("tags", [])) for o in objects) if detail == "full" else None,
+            }
+
+            response = {
+                "snapshot_version": 1,
+                "timestamp": time.time(),
+                "detail": detail,
+                "doc": doc_info,
+                "objects": objects,
+                "materials": materials,
+                "summary": summary,
+            }
+
+            if do_cache:
+                # Generate a short hash-based id; LRU-evict to cap memory
+                import hashlib
+                snap_id = hashlib.md5(
+                    f"{response['timestamp']}-{summary['object_count']}-{detail}".encode()
+                ).hexdigest()[:12]
+                C4DSocketServer._SNAPSHOT_CACHE[snap_id] = response
+                # Evict oldest if over cap
+                if len(C4DSocketServer._SNAPSHOT_CACHE) > C4DSocketServer._SNAPSHOT_CACHE_MAX:
+                    # Simple FIFO; insertion order preserved in py3.7+
+                    oldest = next(iter(C4DSocketServer._SNAPSHOT_CACHE))
+                    del C4DSocketServer._SNAPSHOT_CACHE[oldest]
+                response["snapshot_id"] = snap_id
+                response["cache_size"] = len(C4DSocketServer._SNAPSHOT_CACHE)
+
+            return response
+        except Exception as e:
+            return {"error": f"scene_snapshot failed: {e}", "traceback": traceback.format_exc()}
+
+    def handle_scene_diff(self, command):
+        """Compare two scene snapshots and return added/removed/changed sets.
+
+        Args:
+          prev_snapshot_id (str, optional) — id from a prior scene_snapshot
+                                             call (must have cache=True).
+          prev_snapshot (dict, optional) — full prior snapshot inline (use
+                                           if you didn't cache server-side
+                                           or restarted between calls).
+          curr_snapshot_id (str, optional) — same, for the "current" side.
+                                             Defaults to taking a fresh
+                                             snapshot of the live doc.
+
+        Exactly one of prev_snapshot_id / prev_snapshot must be provided.
+
+        Returns:
+          {
+            added_objects: [{guid,name,type_name,...}, ...],
+            removed_objects: [{guid,name,type_name,...}, ...],  # from prev
+            transform_changed: [{guid, name, old, new}, ...],
+            name_changed: [{guid, old_name, new_name}, ...],
+            topology_changed: [{guid, name, old_pts, new_pts, old_polys, new_polys}, ...],
+            tag_changes: [{guid, name, added_tags, removed_tags}, ...],
+            material_diff: {added: [...], removed: [...]}
+          }
+        """
+        try:
+            prev_id = command.get("prev_snapshot_id")
+            prev_inline = command.get("prev_snapshot")
+            curr_id = command.get("curr_snapshot_id")
+
+            # Resolve prev
+            if prev_id:
+                prev = C4DSocketServer._SNAPSHOT_CACHE.get(prev_id)
+                if prev is None:
+                    return {"error": f"prev_snapshot_id '{prev_id}' not in cache (size={len(C4DSocketServer._SNAPSHOT_CACHE)})"}
+            elif prev_inline:
+                prev = prev_inline
+            else:
+                return {"error": "Provide either prev_snapshot_id or prev_snapshot (full inline)"}
+
+            # Resolve curr
+            if curr_id:
+                curr = C4DSocketServer._SNAPSHOT_CACHE.get(curr_id)
+                if curr is None:
+                    return {"error": f"curr_snapshot_id '{curr_id}' not in cache"}
+            else:
+                curr = self.handle_scene_snapshot({"detail": prev.get("detail", "summary"), "cache": False})
+                if "error" in curr:
+                    return curr
+
+            # Build guid → entry maps
+            prev_objs = {o.get("guid"): o for o in prev.get("objects", []) if o.get("guid")}
+            curr_objs = {o.get("guid"): o for o in curr.get("objects", []) if o.get("guid")}
+
+            added = [curr_objs[g] for g in (set(curr_objs) - set(prev_objs))]
+            removed = [prev_objs[g] for g in (set(prev_objs) - set(curr_objs))]
+
+            transform_changed = []
+            name_changed = []
+            topology_changed = []
+            tag_changes = []
+
+            for g in (set(curr_objs) & set(prev_objs)):
+                pe, ce = prev_objs[g], curr_objs[g]
+                # name
+                if pe.get("name") != ce.get("name"):
+                    name_changed.append({"guid": g, "old_name": pe.get("name"), "new_name": ce.get("name")})
+                # transform
+                pm, cm = pe.get("matrix_local"), ce.get("matrix_local")
+                if pm and cm and pm != cm:
+                    transform_changed.append({"guid": g, "name": ce.get("name"), "old": pm, "new": cm})
+                # topology
+                if (pe.get("point_count") != ce.get("point_count")
+                        or pe.get("polygon_count") != ce.get("polygon_count")):
+                    topology_changed.append({
+                        "guid": g, "name": ce.get("name"),
+                        "old_pts": pe.get("point_count"), "new_pts": ce.get("point_count"),
+                        "old_polys": pe.get("polygon_count"), "new_polys": ce.get("polygon_count"),
+                    })
+                # tags (compare type-id sets)
+                p_tags = {(t.get("type_id"), t.get("name")) for t in (pe.get("tags") or [])}
+                c_tags = {(t.get("type_id"), t.get("name")) for t in (ce.get("tags") or [])}
+                if p_tags != c_tags:
+                    tag_changes.append({
+                        "guid": g, "name": ce.get("name"),
+                        "added_tags": [{"type_id": tid, "name": tn} for tid, tn in (c_tags - p_tags)],
+                        "removed_tags": [{"type_id": tid, "name": tn} for tid, tn in (p_tags - c_tags)],
+                    })
+
+            # Materials
+            prev_mats = {m.get("guid"): m for m in prev.get("materials", []) if m.get("guid")}
+            curr_mats = {m.get("guid"): m for m in curr.get("materials", []) if m.get("guid")}
+            material_diff = {
+                "added":   [curr_mats[g] for g in (set(curr_mats) - set(prev_mats))],
+                "removed": [prev_mats[g] for g in (set(prev_mats) - set(curr_mats))],
+            }
+
+            return {
+                "status": "ok",
+                "prev_timestamp": prev.get("timestamp"),
+                "curr_timestamp": curr.get("timestamp"),
+                "added_objects": added,
+                "removed_objects": removed,
+                "transform_changed": transform_changed,
+                "name_changed": name_changed,
+                "topology_changed": topology_changed,
+                "tag_changes": tag_changes,
+                "material_diff": material_diff,
+                "summary": {
+                    "added": len(added),
+                    "removed": len(removed),
+                    "transform_changed": len(transform_changed),
+                    "name_changed": len(name_changed),
+                    "topology_changed": len(topology_changed),
+                    "tag_changes": len(tag_changes),
+                    "materials_added": len(material_diff["added"]),
+                    "materials_removed": len(material_diff["removed"]),
+                },
+            }
+        except Exception as e:
+            return {"error": f"scene_diff failed: {e}", "traceback": traceback.format_exc()}
 
     def handle_dump_object_tree(self, command):
         """Dump the scene hierarchy as a flat list of {depth, name, type_name, type_id, guid}.

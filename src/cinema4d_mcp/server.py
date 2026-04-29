@@ -1828,6 +1828,92 @@ async def get_capabilities(ctx: Context = None) -> str:
 
 
 @mcp.tool()
+async def scene_snapshot(
+    detail: str = "summary",
+    cache: bool = True,
+    ctx: Context = None,
+) -> str:
+    """Capture a typed, GUID-keyed snapshot of the active document.
+
+    The snapshot is the foundation for stable agent operations:
+      - GUIDs survive renames + duplicates (names don't)
+      - subsequent scene_diff() calls report exactly what changed
+        between snapshots — added/removed objects, transform changes,
+        topology changes, tag deltas, material adds/removes
+      - clients can cache by snapshot_id (server-side ring buffer of
+        last 16 snapshots) to avoid round-tripping the full payload
+
+    Args:
+      detail: 'summary' (default — counts + per-object guid/name/type/parent)
+              or 'full' (adds local matrix, tag list, point/poly counts).
+              Use 'summary' for an overview, 'full' for diff source-of-truth.
+      cache:  if True (default), server caches under a short snapshot_id
+              that scene_diff can reference later. Set False for one-shot
+              snapshots when you don't plan to diff.
+
+    Read-only — never mutates state. Returns structured JSON.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        response = send_to_c4d(connection, {
+            "command": "scene_snapshot",
+            "detail": detail,
+            "cache": cache,
+        })
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
+async def scene_diff(
+    prev_snapshot_id: Optional[str] = None,
+    prev_snapshot: Optional[Dict[str, Any]] = None,
+    curr_snapshot_id: Optional[str] = None,
+    ctx: Context = None,
+) -> str:
+    """Diff two scene snapshots (or a snapshot vs the live document).
+
+    Returns added_objects / removed_objects / transform_changed /
+    name_changed / topology_changed / tag_changes / material_diff plus
+    a top-level summary of counts.
+
+    Typical agent flow:
+      1. scene_snapshot(detail='full') → returns snapshot_id 'abc123'
+      2. ... agent does some work that may or may not modify the scene ...
+      3. scene_diff(prev_snapshot_id='abc123') → tells you exactly what
+         changed since step 1 (without re-listing the whole scene)
+
+    Args:
+      prev_snapshot_id: id from a prior scene_snapshot(cache=True) call
+                        (preferred — avoids round-tripping full payload)
+      prev_snapshot: full prior snapshot inline (use if cache was
+                     False or the server restarted between calls)
+      curr_snapshot_id: optional id of a previously-cached "current"
+                        snapshot. Defaults to taking a fresh snapshot
+                        of the live doc.
+
+    Exactly one of prev_snapshot_id / prev_snapshot must be set.
+    Read-only.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {"command": "scene_diff"}
+        if prev_snapshot_id is not None:
+            cmd["prev_snapshot_id"] = prev_snapshot_id
+        if prev_snapshot is not None:
+            cmd["prev_snapshot"] = prev_snapshot
+        if curr_snapshot_id is not None:
+            cmd["curr_snapshot_id"] = curr_snapshot_id
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
 async def doctor(ctx: Context = None) -> str:
     """Run a series of health checks against the live MCP/plugin/C4D bridge.
 
