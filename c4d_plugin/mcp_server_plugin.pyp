@@ -431,6 +431,10 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_list_installed_plugins(command)
                         elif command_type == "get_c4d_info":
                             response = self.handle_get_c4d_info(command)
+                        elif command_type == "get_capabilities":
+                            response = self.handle_get_capabilities(command)
+                        elif command_type == "doctor":
+                            response = self.handle_doctor(command)
                         # Viewport / render engine
                         elif command_type == "viewport_screenshot":
                             response = self.handle_viewport_screenshot(command)
@@ -8808,10 +8812,15 @@ class C4DSocketServer(threading.Thread):
                 if ra != rb:
                     parent[ra] = rb
 
-            # Map quantized UV vertex → first polygon that referenced it
+            # Map (3D-point-idx, quantized UV) → first polygon that referenced it.
+            # Keying on POINT INDEX too is the difference between correct
+            # UV-seam-aware connectivity and naive UV-position dedup. Two
+            # polygons with stacked UVs (e.g. primitive cube where all 6 faces
+            # use [0,1]^2) are NOT in the same UV island unless they also
+            # share a 3D point at that UV coord.
             uv_vert_to_poly = {}
 
-            poly_uv_centroids = []   # (poly_idx, cu, cv, uv_area, p3d_centroid, world_area)
+            poly_uv_corners = []  # (poly_idx, [(ua,ub,uc,ud)], uv_area, p3d_centroid, world_area)
             uv_min_global = [1e9, 1e9]
             uv_max_global = [-1e9, -1e9]
 
@@ -8820,9 +8829,11 @@ class C4DSocketServer(threading.Thread):
                 uv = uv_tag.GetSlow(i)
                 ua, ub, uc, ud = uv["a"], uv["b"], uv["c"], uv["d"]
 
-                # Quantize UV verts and union-find by shared quantized position
-                for u_pt in (ua, ub, uc, ud):
-                    key = (int(u_pt.x * quantize + 0.5), int(u_pt.y * quantize + 0.5))
+                # Per-corner: union polys that share BOTH the 3D point index
+                # AND the UV position at that point (within quantize tolerance).
+                pids = (poly.a, poly.b, poly.c, poly.d)
+                for pidx, u_pt in zip(pids, (ua, ub, uc, ud)):
+                    key = (pidx, int(u_pt.x * quantize + 0.5), int(u_pt.y * quantize + 0.5))
                     if key in uv_vert_to_poly:
                         union(i, uv_vert_to_poly[key])
                     else:
@@ -8848,7 +8859,10 @@ class C4DSocketServer(threading.Thread):
                     return ((b - a).Cross(c - a)).GetLength() * 0.5
                 world_area = tri_area_3d(pa, pb, pc) + tri_area_3d(pa, pc, pd)
 
-                poly_uv_centroids.append((i, cu, cv, uv_area, (cx, cy, cz), world_area))
+                poly_uv_corners.append((
+                    i, cu, cv, uv_area, (cx, cy, cz), world_area,
+                    (ua.x, ua.y), (ub.x, ub.y), (uc.x, uc.y), (ud.x, ud.y),
+                ))
 
                 # Update global UV bbox
                 for u_pt in (ua, ub, uc, ud):
@@ -8857,10 +8871,14 @@ class C4DSocketServer(threading.Thread):
                     if u_pt.x > uv_max_global[0]: uv_max_global[0] = u_pt.x
                     if u_pt.y > uv_max_global[1]: uv_max_global[1] = u_pt.y
 
-            # Group polys by island (UV-connected component)
+            # Group polys by island (UV-connected component). Bbox accumulated
+            # over RAW CORNER UVs, not centroids — the previous version showed
+            # degenerate (0.5, 0.5) bboxes for stacked-UV cubes because every
+            # poly's centroid was the same point.
             islands_data = {}
-            for entry in poly_uv_centroids:
-                pi, cu, cv, uv_area, p3d, world_area = entry
+            for entry in poly_uv_corners:
+                pi, _cu, _cv, uv_area, _p3d, world_area = entry[:6]
+                corners = entry[6:10]  # 4 (u, v) tuples
                 root = find(pi)
                 bucket = islands_data.setdefault(root, {
                     "polygon_count": 0,
@@ -8870,10 +8888,11 @@ class C4DSocketServer(threading.Thread):
                     "world_area": 0.0,
                 })
                 bucket["polygon_count"] += 1
-                if cu < bucket["uv_min"][0]: bucket["uv_min"][0] = cu
-                if cv < bucket["uv_min"][1]: bucket["uv_min"][1] = cv
-                if cu > bucket["uv_max"][0]: bucket["uv_max"][0] = cu
-                if cv > bucket["uv_max"][1]: bucket["uv_max"][1] = cv
+                for cu, cv in corners:
+                    if cu < bucket["uv_min"][0]: bucket["uv_min"][0] = cu
+                    if cv < bucket["uv_min"][1]: bucket["uv_min"][1] = cv
+                    if cu > bucket["uv_max"][0]: bucket["uv_max"][0] = cu
+                    if cv > bucket["uv_max"][1]: bucket["uv_max"][1] = cv
                 bucket["uv_area"] += uv_area
                 bucket["world_area"] += world_area
 
@@ -8899,8 +8918,8 @@ class C4DSocketServer(threading.Thread):
             spread_threshold = bbox_diag * 0.15
 
             cells = [[[] for _ in range(GRID)] for _ in range(GRID)]
-            for entry in poly_uv_centroids:
-                pi, cu, cv, _ua, p3d, _wa = entry
+            for entry in poly_uv_corners:
+                pi, cu, cv, _ua, p3d, _wa = entry[:6]
                 gu = max(0, min(GRID-1, int(cu * GRID)))
                 gv = max(0, min(GRID-1, int(cv * GRID)))
                 cells[gv][gu].append(p3d)
@@ -9143,11 +9162,17 @@ class C4DSocketServer(threading.Thread):
                 if ra != rb:
                     parent[ra] = rb
 
+            # Key on (3D-point-idx, quantized-uv) — see uv_layout_stats for
+            # the rationale. Stacked-UV polygons sharing only a UV position
+            # but no 3D point are NOT in the same island.
             uv_vert_to_poly = {}
             for i in range(n_polys):
+                poly = obj.GetPolygon(i)
                 uv = uv_tag.GetSlow(i)
-                for u_pt in (uv["a"], uv["b"], uv["c"], uv["d"]):
-                    key = (int(u_pt.x * quantize + 0.5), int(u_pt.y * quantize + 0.5))
+                pids = (poly.a, poly.b, poly.c, poly.d)
+                corners = (uv["a"], uv["b"], uv["c"], uv["d"])
+                for pidx, u_pt in zip(pids, corners):
+                    key = (pidx, int(u_pt.x * quantize + 0.5), int(u_pt.y * quantize + 0.5))
                     if key in uv_vert_to_poly:
                         union(i, uv_vert_to_poly[key])
                     else:
@@ -10436,6 +10461,224 @@ class C4DSocketServer(threading.Thread):
             return info
         except Exception as e:
             return {"error": f"get_c4d_info failed: {e}", "traceback": traceback.format_exc()}
+
+    # === Phase 3: capability discovery + doctor ============================
+
+    # Build a static set of supported command types from the dispatcher at
+    # class-load time. Easier than reflection at request-time.
+    _SUPPORTED_COMMANDS = (
+        "get_scene_info", "list_objects", "group_objects", "execute_python",
+        "save_scene", "load_scene", "set_keyframe",
+        "add_primitive", "modify_object", "create_abstract_shape",
+        "create_material", "apply_material", "apply_shader",
+        "inspect_redshift_materials", "validate_redshift_materials",
+        "render_frame", "render_preview", "snapshot_scene",
+        "create_camera", "animate_camera", "create_light",
+        "create_mograph_cloner", "add_effector",
+        "apply_dynamics", "create_soft_body", "apply_mograph_fields",
+        "find_object_by_guid", "find_command_by_name", "create_via_command",
+        "find_objects", "get_object_info", "list_render_engines",
+        "get_active_renderer", "list_installed_plugins",
+        "enumerate_octane_plugins", "enumerate_descids", "enumerate_userdata",
+        "dump_object_tree", "dump_material_graph",
+        "set_viewport_shading_mode", "viewport_screenshot",
+        "viewport_screenshot_multiview", "get_viewport_state",
+        "vertex_map_stats", "vertex_map_threshold_to_polygon_selection",
+        "uv_layout_stats", "uv_islands_to_objects",
+        "uv_from_projection", "uv_transfer", "sample_vmap_via_uv",
+        "sample_bitmap_at_uv",
+        "run_modeling_command",
+        "tap_octane_log", "get_console_log", "clear_console_log",
+        "install_plugin", "build_and_install_plugin", "get_c4d_info",
+        "get_capabilities", "doctor",
+    )
+
+    # Tags for read-only vs scene-mutating tools (Phase 5 prep).
+    # SAFE = read-only inspection, no scene mutation, no file write.
+    # UNSAFE = mutates scene, executes arbitrary code, writes to disk,
+    #          installs plugins, or otherwise has side effects.
+    _SAFE_COMMANDS = frozenset({
+        "get_scene_info", "list_objects",
+        "inspect_redshift_materials",
+        "find_object_by_guid", "find_command_by_name",
+        "find_objects", "get_object_info", "list_render_engines",
+        "get_active_renderer", "list_installed_plugins",
+        "enumerate_octane_plugins", "enumerate_descids", "enumerate_userdata",
+        "dump_object_tree", "dump_material_graph",
+        "viewport_screenshot", "viewport_screenshot_multiview",
+        "get_viewport_state",
+        "vertex_map_stats", "uv_layout_stats",
+        "tap_octane_log", "get_console_log", "clear_console_log",
+        "get_c4d_info", "get_capabilities", "doctor",
+    })
+
+    def handle_get_capabilities(self, command):
+        """Capability/health snapshot for an MCP client.
+
+        Returns plugin version, C4D version, available render engines, the
+        list of commands this build of the plugin supports, the SAFE/UNSAFE
+        partition for each, MCP_AUTH_TOKEN required state, and a snapshot
+        of the active document (no per-object enumeration; cheap).
+
+        Lets a fresh client discover what's actually available without
+        trial-and-error probing — the foundation for client-side caching
+        of the tool surface and for safe-mode gating.
+        """
+        try:
+            info = {
+                "plugin": {
+                    "name": "cinema4d-mcp (sdimaging fork)",
+                    "version": "0.2.0",
+                    "plugin_id": PLUGIN_ID,
+                },
+                "c4d": {
+                    "version_int": c4d.GetC4DVersion(),
+                    "version_major": c4d.GetC4DVersion() // 1000,
+                    "version_minor": (c4d.GetC4DVersion() // 100) % 10,
+                    "python_version": sys.version.split()[0],
+                    "platform": sys.platform,
+                },
+                "auth": {
+                    "auth_token_required": bool(self.auth_token),
+                    "host": self.host,
+                    "port": self.port,
+                },
+                "transport": {
+                    "framing": "newline-delimited-json",
+                    "max_payload_bytes": None,
+                    "request_id_supported": False,
+                },
+                "commands": {
+                    "supported": list(self._SUPPORTED_COMMANDS),
+                    "safe": sorted(self._SAFE_COMMANDS),
+                    "unsafe": sorted(set(self._SUPPORTED_COMMANDS) - self._SAFE_COMMANDS),
+                    "count_total": len(self._SUPPORTED_COMMANDS),
+                    "count_safe": len(self._SAFE_COMMANDS),
+                },
+            }
+
+            # Renderers — short, no fail-on-error
+            try:
+                rd = c4d.documents.GetActiveDocument().GetActiveRenderData()
+                if rd:
+                    rid = rd[c4d.RDATA_RENDERENGINE]
+                    info["renderer"] = {
+                        "active_id": rid,
+                        "active_name": self._renderer_name(rid) if hasattr(self, "_renderer_name") else None,
+                    }
+            except Exception:
+                info["renderer"] = None
+
+            # Active document summary (counts only — cheap)
+            try:
+                doc = c4d.documents.GetActiveDocument()
+                if doc:
+                    obj_count = 0
+                    op = doc.GetFirstObject()
+                    while op:
+                        obj_count += 1
+                        # depth-first walk
+                        if op.GetDown():
+                            op = op.GetDown()
+                            continue
+                        while op and not op.GetNext():
+                            op = op.GetUp()
+                        if op:
+                            op = op.GetNext()
+                    mat_count = 0
+                    m = doc.GetFirstMaterial()
+                    while m:
+                        mat_count += 1
+                        m = m.GetNext()
+                    info["document"] = {
+                        "name": doc.GetDocumentName() or "Untitled",
+                        "path": str(doc.GetDocumentPath()) if doc.GetDocumentPath() else None,
+                        "object_count": obj_count,
+                        "material_count": mat_count,
+                        "fps": doc.GetFps(),
+                        "frame": doc.GetTime().GetFrame(doc.GetFps()),
+                    }
+            except Exception as e:
+                info["document"] = {"error": str(e)}
+
+            return info
+        except Exception as e:
+            return {"error": f"get_capabilities failed: {e}", "traceback": traceback.format_exc()}
+
+    def handle_doctor(self, command):
+        """Health check: ping main thread, exercise the dispatch path, time
+        a tiny no-op render, report the log buffer state. Useful for diagnosing
+        "is the bridge actually alive and responsive?" without modifying state.
+
+        Each check is independent — failure of one doesn't prevent the others.
+        """
+        try:
+            checks = []
+
+            # 1. Main-thread responsiveness — submit a no-op fn to the queue
+            #    and time the round-trip.
+            t0 = time.time()
+            try:
+                _ = self.execute_on_main_thread(lambda: True, _timeout=10)
+                checks.append({
+                    "name": "main_thread_responsive",
+                    "ok": True,
+                    "duration_ms": int((time.time() - t0) * 1000),
+                })
+            except Exception as e:
+                checks.append({"name": "main_thread_responsive", "ok": False, "error": str(e)})
+
+            # 2. Active doc accessible
+            try:
+                doc = c4d.documents.GetActiveDocument()
+                checks.append({
+                    "name": "active_document",
+                    "ok": doc is not None,
+                    "doc_name": doc.GetDocumentName() if doc else None,
+                })
+            except Exception as e:
+                checks.append({"name": "active_document", "ok": False, "error": str(e)})
+
+            # 3. Active basedraw / camera
+            try:
+                bd = doc.GetActiveBaseDraw() if doc else None
+                cam = bd.GetSceneCamera(doc) if bd else None
+                if cam is None and bd:
+                    cam = bd.GetEditorCamera()
+                checks.append({
+                    "name": "viewport_ready",
+                    "ok": bd is not None and cam is not None,
+                    "active_camera": cam.GetName() if cam else None,
+                })
+            except Exception as e:
+                checks.append({"name": "viewport_ready", "ok": False, "error": str(e)})
+
+            # 4. Console log buffer
+            checks.append({
+                "name": "console_log_hook",
+                "ok": _mcp_geprint_patched,
+                "buffer_size": len(_mcp_log_buffer),
+                "buffer_max": MCP_LOG_BUFFER_MAX,
+            })
+
+            # 5. Auth state
+            checks.append({
+                "name": "auth_configured",
+                "ok": True,
+                "auth_token_required": bool(self.auth_token),
+                "host": self.host,
+            })
+
+            all_ok = all(c.get("ok", False) for c in checks)
+            return {
+                "status": "ok" if all_ok else "warn",
+                "all_ok": all_ok,
+                "checks": checks,
+                "plugin_version": "0.2.0",
+                "c4d_version": c4d.GetC4DVersion(),
+            }
+        except Exception as e:
+            return {"error": f"doctor failed: {e}", "traceback": traceback.format_exc()}
 
     def handle_dump_object_tree(self, command):
         """Dump the scene hierarchy as a flat list of {depth, name, type_name, type_id, guid}.

@@ -609,6 +609,31 @@ def format_c4d_response(response: Dict[str, Any], command_type: str) -> str:
             lines.append(f"![viewport](data:image/png;base64,{response['image_data']})")
         return "\n".join(lines)
 
+    elif command_type == "viewport_screenshot_multiview":
+        views = response.get("views", []) or []
+        renderer = response.get("renderer", "?")
+        save_dir = response.get("save_dir")
+        lines = [f"✅ multiview ({len(views)} view{'s' if len(views) != 1 else ''}) — renderer: **{renderer}**"]
+        if save_dir:
+            lines.append(f"  - **Save dir**: `{save_dir}`")
+        # Surface per-view errors (previously hidden — wrapper used to just say
+        # "Views: (4 items)" even when every per-view save failed silently).
+        per_view_errors = []
+        for v in views:
+            name = v.get("name", "?")
+            if "error" in v:
+                per_view_errors.append((name, v["error"]))
+                lines.append(f"  ❌ {name}: {v['error']}")
+            elif "path" in v:
+                lines.append(f"  ✓ {name} → `{v['path']}`")
+            elif "image_data" in v:
+                lines.append(f"  ✓ {name} (inline {len(v['image_data'])} chars base64)")
+            for warn in (v.get("warnings") or []):
+                lines.append(f"     ⚠ {warn}")
+        if per_view_errors:
+            lines.insert(0, f"⚠ {len(per_view_errors)}/{len(views)} views failed — see per-view detail below")
+        return "\n".join(lines)
+
     elif command_type == "get_viewport_state":
         lines = ["✅ **Viewport state**"]
         if "frame" in response and response["frame"]:
@@ -936,6 +961,29 @@ async def inspect_redshift_materials(
         if "error" in response:
             return f"❌ Error: {response['error']}"
 
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
+async def validate_redshift_materials(ctx: Context = None) -> str:
+    """Validate Redshift node materials in the scene and report any issues.
+
+    Walks every Redshift material in the active document, runs a series of
+    diagnostic checks (module presence, expected attributes, NodeSpace ID,
+    common parameter coverage), and reports warnings + auto-applied fixes.
+
+    This is a sibling to `inspect_redshift_materials`: inspect is read-only
+    introspection, validate runs the same diagnostics + opportunistic fixups
+    and is appropriate for "is my Redshift wiring correct?" checks.
+
+    No args — operates on every Redshift material in the active doc.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        response = send_to_c4d(connection, {"command": "validate_redshift_materials"})
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
         return json.dumps(response, indent=2)
 
 
@@ -1758,6 +1806,49 @@ async def get_c4d_info(ctx: Context = None) -> str:
         command: Dict[str, Any] = {"command": "get_c4d_info"}
         response = send_to_c4d(connection, command)
         return format_c4d_response(response, "get_c4d_info")
+
+
+@mcp.tool()
+async def get_capabilities(ctx: Context = None) -> str:
+    """Capability snapshot: plugin version, C4D version, available render
+    engines, supported commands (with safe vs unsafe partition), MCP_AUTH_TOKEN
+    state, and a cheap document summary (object/material counts, fps, frame).
+
+    Call this once at session start to discover what this build of the MCP
+    can do — avoids trial-and-error probing and lets a client cache the tool
+    surface. Returns structured JSON.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        response = send_to_c4d(connection, {"command": "get_capabilities"})
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
+async def doctor(ctx: Context = None) -> str:
+    """Run a series of health checks against the live MCP/plugin/C4D bridge.
+
+    Checks (each independent — failure of one doesn't prevent the others):
+      1. Main thread responsive (round-trip a no-op via execute_on_main_thread)
+      2. Active document accessible
+      3. Active BaseDraw + camera ready
+      4. Console log buffer hook installed
+      5. Auth state
+
+    Use this when something feels off — wedged main thread, "no active doc",
+    or the socket is responding but tools aren't behaving. Returns structured
+    pass/fail with timing info per check.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        response = send_to_c4d(connection, {"command": "doctor"})
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
 
 
 # ---- Tier 4: Viewport / render engine ----
