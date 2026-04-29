@@ -545,8 +545,9 @@ def format_c4d_response(response: Dict[str, Any], command_type: str) -> str:
         return "\n".join(lines)
 
     elif command_type == "viewport_screenshot":
-        if "image_data" not in response:
-            return f"❌ No image data returned ({response.get('error', 'unknown')})"
+        # Two response shapes: inline base64 or saved-to-disk path.
+        if "image_data" not in response and "path" not in response:
+            return f"❌ No image data or path returned ({response.get('error', 'unknown')})"
         w = response.get("width", "?")
         h = response.get("height", "?")
         renderer = response.get("renderer", "?")
@@ -554,7 +555,12 @@ def format_c4d_response(response: Dict[str, Any], command_type: str) -> str:
         lines = [f"✅ Viewport screenshot ({w}×{h}) — renderer: **{renderer}**, camera: **{cam}**"]
         for warn in response.get("warnings", []) or []:
             lines.append(f"⚠️  {warn}")
-        lines.append(f"![viewport](data:image/png;base64,{response['image_data']})")
+        if "path" in response:
+            size_b = response.get("file_size_bytes")
+            size_str = f" ({size_b:,} bytes)" if size_b else ""
+            lines.append(f"  Saved to: `{response['path']}`{size_str}")
+        elif "image_data" in response:
+            lines.append(f"![viewport](data:image/png;base64,{response['image_data']})")
         return "\n".join(lines)
 
     elif command_type == "get_viewport_state":
@@ -1810,28 +1816,32 @@ async def set_viewport_shading_mode(
 ) -> str:
     """Set the active viewport's shading mode and/or line overlay.
 
-    `mode` (BASEDRAW_DATA_SDISPLAYMODE) — one of:
-      - 'gouraud'      : full shading with lights (default C4D mode)
-      - 'quick'        : quick gouraud, faster but less accurate
-      - 'nolights'     : ambient shading, ignores scene lights
-      - 'noshading'    : flat constant-color (silhouette+matte)
-      - 'hidden_line'  : hidden-line wireframe
-      - 'lines'        : wireframe with all edges visible
-      - 'wire'         : edges only, no faces
-      - 'box'          : bounding boxes only
-      - 'skeleton'     : object axis triads only
+    Wraps BASEDRAW_DATA_SDISPLAYACTIVE / SDISPLAYINACTIVE / WDISPLAYACTIVE /
+    WDISPLAYINACTIVE / LINES_ON_SHADING_ACTIVE in C4D 2026.
 
-    `line_overlay` (BASEDRAW_DATA_LDISPLAYMODE) — overlay drawn on top of shading:
-      - 'none'         : no overlay
-      - 'wire'         : show wireframe over shaded surface
-      - 'isoparms'     : show isoparm lines (NURBS / SDS cage)
-      - 'box'          : show bounding box overlay
+    `mode` — surface shading:
+      - 'gouraud'       : full shading with lights (default)
+      - 'gouraud_wire'  : gouraud + wireframe overlay (built-in)
+      - 'quick'         : quick gouraud (faster)
+      - 'quick_wire'    : quick + wireframe overlay
+      - 'flat'          : faceted flat shading (no smooth normals)
+      - 'flat_wire'     : flat + wireframe overlay
+      - 'hidden_line'   : wireframe with hidden lines removed (line drawing)
+      - 'noshading'     : flat constant-color (silhouette/matte)
 
-    At least one of `mode` or `line_overlay` should be provided. Returns the
-    previous values so callers can restore state.
+    `line_overlay` — separate wire/iso overlay (orthogonal to mode):
+      - 'none'          : no overlay
+      - 'wire'          : show wireframe over shading
+      - 'isoparms'      : show isoparm lines (SDS cage / NURBS)
+      - 'box'           : bounding box overlay
+      - 'skeleton'      : object axis triads
 
-    Tip: combine `wire` line_overlay with `gouraud` shading to get the classic
-    "shaded with wireframe" view that's invaluable for topology debugging.
+    Both can be combined: e.g. mode='gouraud' + line_overlay='wire' gives
+    "shaded with wireframe" — invaluable for topology debugging. The combo
+    'gouraud_wire' shading mode builds wireframe in directly without needing
+    the line_overlay setting; use that for slightly better consistency.
+
+    Returns previous values so callers can restore state.
     """
     async with c4d_connection_context() as connection:
         if not connection.connected:

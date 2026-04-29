@@ -8043,48 +8043,59 @@ class C4DSocketServer(threading.Thread):
 
     # === Viewport shading mode + multiview ===================================
 
-    # BaseDraw shading mode (BASEDRAW_DATA_SDISPLAYMODE) values.
-    # These constants exist in c4d.* since R12; using the well-known integer
-    # values directly avoids AttributeError on rare builds where the symbolic
-    # name is missing.
+    # BaseDraw surface shading mode — written to BASEDRAW_DATA_SDISPLAYACTIVE
+    # (1003). Values match c4d.BASEDRAW_SDISPLAY_* constants in C4D 2026.
+    # The "_wire" variants combine surface shading with built-in wireframe
+    # overlay (no need to also set the line overlay).
     _SHADING_MODE_MAP = {
-        "gouraud":     0,   # BASEDRAW_SDISPLAY_GOURAUD
-        "quick":       1,   # BASEDRAW_SDISPLAY_QUICK (quick gouraud)
-        "nolights":    2,   # BASEDRAW_SDISPLAY_NOLIGHTS
-        "noshading":   3,   # BASEDRAW_SDISPLAY_NOSHADING (constant shading)
-        "hidden_line": 4,   # BASEDRAW_SDISPLAY_HIDDENLINE
-        "lines":       5,   # BASEDRAW_SDISPLAY_LINES
-        "wire":        6,   # BASEDRAW_SDISPLAY_WIRE
-        "box":         7,   # BASEDRAW_SDISPLAY_BOX
-        "skeleton":    8,   # BASEDRAW_SDISPLAY_SKELETON
+        "gouraud":      0,   # BASEDRAW_SDISPLAY_GOURAUD       — full shading w/ lights
+        "gouraud_wire": 1,   # BASEDRAW_SDISPLAY_GOURAUD_WIRE  — gouraud + wire overlay
+        "quick":        2,   # BASEDRAW_SDISPLAY_QUICK         — quick gouraud
+        "quick_wire":   3,   # BASEDRAW_SDISPLAY_QUICK_WIRE
+        "flat_wire":    4,   # BASEDRAW_SDISPLAY_FLAT_WIRE     — flat shading + wire
+        "hidden_line":  5,   # BASEDRAW_SDISPLAY_HIDDENLINE    — wireframe with hidden lines removed
+        "noshading":    6,   # BASEDRAW_SDISPLAY_NOSHADING     — flat constant color
+        "flat":         7,   # BASEDRAW_SDISPLAY_FLAT          — faceted flat shading (no smooth normals)
     }
 
-    # BaseDraw line overlay (BASEDRAW_DATA_LDISPLAYMODE) values.
+    # Line overlay: in C4D 2026 this is split into TWO settings:
+    #   BASEDRAW_DATA_LINES_ON_SHADING_ACTIVE (bool — toggles overlay on/off)
+    #   BASEDRAW_DATA_WDISPLAYACTIVE          (int  — picks the overlay TYPE)
+    # Values for WDISPLAYACTIVE come from c4d.BASEDRAW_WDISPLAY_*.
     _LINE_OVERLAY_MAP = {
-        "none":     0,   # BASEDRAW_LDISPLAY_NONE
-        "wire":     1,   # BASEDRAW_LDISPLAY_WIRE
-        "isoparms": 2,   # BASEDRAW_LDISPLAY_ISOPARMS
-        "box":      3,   # BASEDRAW_LDISPLAY_BOX
+        "none":      ("off", 0),   # turn overlay off; type doesn't matter
+        "wire":      ("on",  0),   # BASEDRAW_WDISPLAY_WIREFRAME
+        "isoparms":  ("on",  1),   # BASEDRAW_WDISPLAY_ISOPARMS
+        "box":       ("on",  2),   # BASEDRAW_WDISPLAY_BOX
+        "skeleton":  ("on",  3),   # BASEDRAW_WDISPLAY_SKELETON
     }
 
-    # BaseDraw projection (BASEDRAW_DATA_PROJECTION) values — view direction.
+    # BaseDraw projection (BASEDRAW_DATA_PROJECTION) values from
+    # c4d.BASEDRAW_PROJECTION_* in C4D 2026.
     _PROJECTION_MAP = {
-        "perspective": 0,   # c4d.Pperspective
-        "top":         1,   # c4d.Ptop
-        "bottom":      2,   # c4d.Pbottom
-        "left":        3,   # c4d.Pleft
-        "right":       4,   # c4d.Pright
-        "front":       5,   # c4d.Pfront
-        "back":        6,   # c4d.Pback
+        "perspective": 0,   # BASEDRAW_PROJECTION_PERSPECTIVE
+        "parallel":    1,   # BASEDRAW_PROJECTION_PARALLEL
+        "left":        2,   # BASEDRAW_PROJECTION_LEFT
+        "right":       3,   # BASEDRAW_PROJECTION_RIGHT
+        "front":       4,   # BASEDRAW_PROJECTION_FRONT
+        "back":        5,   # BASEDRAW_PROJECTION_BACK
+        "top":         6,   # BASEDRAW_PROJECTION_TOP
+        "bottom":      7,   # BASEDRAW_PROJECTION_BOTTOM
+        "military":    8,
+        "frog":        9,
+        "bird":       10,
+        "dimetric":   11,
+        "isometric":  12,
+        "gentleman":  13,
     }
 
     def handle_set_viewport_shading_mode(self, command):
         """Set the active viewport's shading mode + optional line overlay.
 
         Args (in command):
-          mode (str): one of gouraud, quick, nolights, noshading, hidden_line,
-                     lines, wire, box, skeleton
-          line_overlay (str, optional): one of none, wire, isoparms, box
+          mode (str): one of gouraud, gouraud_wire, quick, quick_wire,
+                     flat_wire, hidden_line, noshading, flat
+          line_overlay (str, optional): one of none, wire, isoparms, box, skeleton
 
         Returns previous values so callers can restore state.
         """
@@ -8110,26 +8121,33 @@ class C4DSocketServer(threading.Thread):
                     "valid_line_overlays": list(self._LINE_OVERLAY_MAP.keys()),
                 }
 
-            prev_mode = bd[c4d.BASEDRAW_DATA_SDISPLAYMODE]
-            prev_line = bd[c4d.BASEDRAW_DATA_LDISPLAYMODE]
+            # Read previous state — set both ACTIVE and INACTIVE so the
+            # change applies to selected and unselected objects uniformly.
+            prev_mode = bd[c4d.BASEDRAW_DATA_SDISPLAYACTIVE]
+            prev_lines_on = bd[c4d.BASEDRAW_DATA_LINES_ON_SHADING_ACTIVE]
+            prev_w = bd[c4d.BASEDRAW_DATA_WDISPLAYACTIVE]
 
             if mode is not None:
-                bd[c4d.BASEDRAW_DATA_SDISPLAYMODE] = self._SHADING_MODE_MAP[mode]
+                v = self._SHADING_MODE_MAP[mode]
+                bd[c4d.BASEDRAW_DATA_SDISPLAYACTIVE] = v
+                bd[c4d.BASEDRAW_DATA_SDISPLAYINACTIVE] = v
             if line is not None:
-                bd[c4d.BASEDRAW_DATA_LDISPLAYMODE] = self._LINE_OVERLAY_MAP[line]
+                on_off, w_val = self._LINE_OVERLAY_MAP[line]
+                bd[c4d.BASEDRAW_DATA_LINES_ON_SHADING_ACTIVE] = (on_off == "on")
+                bd[c4d.BASEDRAW_DATA_LINES_ON_SHADING_INACTIVE] = (on_off == "on")
+                bd[c4d.BASEDRAW_DATA_WDISPLAYACTIVE] = w_val
+                bd[c4d.BASEDRAW_DATA_WDISPLAYINACTIVE] = w_val
 
             c4d.EventAdd()
 
-            # Reverse-lookup names for previous values for readability
             inv_shade = {v: k for k, v in self._SHADING_MODE_MAP.items()}
-            inv_line = {v: k for k, v in self._LINE_OVERLAY_MAP.items()}
-
             return {
                 "status": "ok",
                 "mode": mode,
                 "line_overlay": line,
                 "previous_mode": inv_shade.get(prev_mode, prev_mode),
-                "previous_line_overlay": inv_line.get(prev_line, prev_line),
+                "previous_lines_on": bool(prev_lines_on),
+                "previous_w_display": prev_w,
             }
         except Exception as e:
             return {"error": f"set_viewport_shading_mode failed: {e}", "traceback": traceback.format_exc()}
