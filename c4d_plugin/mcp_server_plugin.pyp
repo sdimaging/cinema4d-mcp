@@ -10876,9 +10876,10 @@ class C4DSocketServer(threading.Thread):
           end_undo_group()
           # Cmd-Z now undoes all three steps as a single unit.
 
-        Misuse detection: nested begins are tracked but not denied (C4D
-        permits nesting); a warning is included in the response so the
-        client knows about it.
+        IMPORTANT: doc.StartUndo() must run on the C4D main thread. If
+        called from a worker thread it silently no-ops; the undo group
+        never actually opens. We route through execute_on_main_thread
+        to avoid this — caught by undo_grouping_smoke recipe, 2026-04-29.
         """
         try:
             self._ensure_undo_stack()
@@ -10894,7 +10895,11 @@ class C4DSocketServer(threading.Thread):
                     f"C4D permits nesting but you must call end_undo_group "
                     f"the same number of times to fully close."
                 )
-            doc.StartUndo()
+
+            def _do():
+                doc.StartUndo()
+                return True
+            self.execute_on_main_thread(_do, _timeout=10)
             self._undo_group_stack.append(name)
             return {
                 "ok": True,
@@ -10920,7 +10925,10 @@ class C4DSocketServer(threading.Thread):
                              "begin_undo_group / end_undo_group must be paired.",
                 }
             closed = self._undo_group_stack.pop()
-            doc.EndUndo()
+            def _do():
+                doc.EndUndo()
+                return True
+            self.execute_on_main_thread(_do, _timeout=10)
             return {
                 "ok": True,
                 "closed": closed,
@@ -10931,20 +10939,30 @@ class C4DSocketServer(threading.Thread):
             return {"error": f"end_undo_group failed: {e}", "traceback": traceback.format_exc()}
 
     def handle_undo(self, command):
-        """Undo the most recent C4D undo group (equivalent to user pressing Cmd/Ctrl-Z)."""
+        """Undo the most recent C4D undo group (equivalent to user pressing Cmd/Ctrl-Z).
+
+        Runs doc.DoUndo on the main thread — direct call from a worker
+        thread is silently a no-op (returns True without doing the rollback).
+        """
         try:
             doc = c4d.documents.GetActiveDocument()
             if not doc:
                 return {"error": "No active document"}
             steps = int(command.get("steps", 1))
             steps = max(1, min(100, steps))  # sanity-clamp
-            performed = 0
-            for _ in range(steps):
-                if doc.DoUndo(False):
-                    performed += 1
-                else:
-                    break
-            c4d.EventAdd()
+
+            def _do():
+                performed = 0
+                for _ in range(steps):
+                    if doc.DoUndo(False):
+                        performed += 1
+                    else:
+                        break
+                c4d.EventAdd()
+                return performed
+            performed = self.execute_on_main_thread(_do, _timeout=30)
+            if isinstance(performed, dict) and "error" in performed:
+                return performed
             return {
                 "ok": True,
                 "steps_requested": steps,
@@ -10954,20 +10972,29 @@ class C4DSocketServer(threading.Thread):
             return {"error": f"undo failed: {e}", "traceback": traceback.format_exc()}
 
     def handle_redo(self, command):
-        """Redo the most recently undone C4D undo group (Cmd/Ctrl-Shift-Z)."""
+        """Redo the most recently undone C4D undo group (Cmd/Ctrl-Shift-Z).
+
+        Main-thread routed for the same reason as handle_undo.
+        """
         try:
             doc = c4d.documents.GetActiveDocument()
             if not doc:
                 return {"error": "No active document"}
             steps = int(command.get("steps", 1))
             steps = max(1, min(100, steps))
-            performed = 0
-            for _ in range(steps):
-                if doc.DoRedo():
-                    performed += 1
-                else:
-                    break
-            c4d.EventAdd()
+
+            def _do():
+                performed = 0
+                for _ in range(steps):
+                    if doc.DoRedo():
+                        performed += 1
+                    else:
+                        break
+                c4d.EventAdd()
+                return performed
+            performed = self.execute_on_main_thread(_do, _timeout=30)
+            if isinstance(performed, dict) and "error" in performed:
+                return performed
             return {
                 "ok": True,
                 "steps_requested": steps,
@@ -11022,9 +11049,16 @@ class C4DSocketServer(threading.Thread):
             return obj, None
         return None, "spec missing both 'name' and 'guid'"
 
-    def _check_in_range(self, value, spec, key):
-        """Helper: spec[key] is either a scalar (== check) or a [min, max] (range check).
-        Returns (passed, evidence_str)."""
+    def _check_in_range(self, value, spec, key, scalar_tol=1e-5):
+        """Helper: spec[key] is either a scalar (approx-eq within tol) or a
+        [min, max] (range check). Returns (passed, evidence_str).
+
+        Scalar comparisons use approximate equality (default tolerance 1e-5)
+        because most numeric values in C4D round-trip through Float32 storage
+        (vertex maps especially). Strict equality on a Float32-quantized
+        value would fail for legitimate cases like 0.42 → 0.41999998... .
+        For strict comparisons use the range form [exact - eps, exact + eps].
+        """
         if key not in spec:
             return None, None
         target = spec[key]
@@ -11033,8 +11067,12 @@ class C4DSocketServer(threading.Thread):
             ok = lo <= value <= hi
             return ok, f"{value} {'in' if ok else 'NOT in'} [{lo}, {hi}]"
         elif isinstance(target, (int, float)):
-            ok = float(value) == float(target)
-            return ok, f"{value} {'==' if ok else '!='} {target}"
+            target_f = float(target)
+            value_f = float(value)
+            diff = abs(value_f - target_f)
+            ok = diff <= scalar_tol
+            op = "≈" if ok else "!≈"  # ≈ vs !≈
+            return ok, f"{value_f} {op} {target_f} (diff={diff:.2e}, tol={scalar_tol:.0e})"
         else:
             return False, f"unsupported '{key}' value: {target!r}"
 
