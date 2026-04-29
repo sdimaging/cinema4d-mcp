@@ -403,6 +403,8 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_viewport_screenshot_multiview(command)
                         elif command_type == "set_viewport_shading_mode":
                             response = self.handle_set_viewport_shading_mode(command)
+                        elif command_type == "run_modeling_command":
+                            response = self.handle_run_modeling_command(command)
                         elif command_type == "get_viewport_state":
                             response = self.handle_get_viewport_state(command)
                         elif command_type == "list_render_engines":
@@ -8197,6 +8199,180 @@ class C4DSocketServer(threading.Thread):
             }
         except Exception as e:
             return {"error": f"viewport_screenshot_multiview failed: {e}", "traceback": traceback.format_exc()}
+
+    # === Modeling commands (SendModelingCommand wrapper) =====================
+
+    # Maps canonical op names → MCOMMAND_* constants. Stored as integer literals
+    # so missing-symbol AttributeErrors on rare builds don't kill the dispatch
+    # table; resolved at runtime via getattr with these as fallbacks.
+    _MODELING_OP_MAP = {
+        # Axis / origin
+        "axis_center":              "MCOMMAND_AXIS",
+        # Topology hygiene
+        "optimize":                 "MCOMMAND_OPTIMIZE",
+        # Make-editable / generator baking
+        "make_editable":            "MCOMMAND_MAKEEDITABLE",
+        "current_state_to_object":  "MCOMMAND_CURRENTSTATETOOBJECT",
+        # Subdivision / smoothing
+        "subdivide":                "MCOMMAND_SUBDIVIDE",
+        "smooth":                   "MCOMMAND_SMOOTH",
+        # Connect / split / join
+        "connect":                  "MCOMMAND_JOIN",
+        "split":                    "MCOMMAND_SPLIT",
+        "disconnect":               "MCOMMAND_DISCONNECT",
+        # Polygon-level edits
+        "bevel":                    "MCOMMAND_BEVEL",
+        "inset":                    "MCOMMAND_INNER_EXTRUDE",
+        "extrude":                  "MCOMMAND_EXTRUDE",
+        "delete":                   "MCOMMAND_DELETE",
+        # Mesh conversion
+        "polygonize":               "MCOMMAND_POLYGONIZE",
+        "triangulate":              "MCOMMAND_TRIANGULATE",
+        "untriangulate":            "MCOMMAND_UNTRIANGULATE",
+    }
+
+    def _build_modeling_bc(self, op, params):
+        """Build the BaseContainer of MDATA_* params for a given op."""
+        bc = c4d.BaseContainer()
+        params = params or {}
+
+        if op == "axis_center":
+            # Recenter axis to bounding-box midpoint of geometry.
+            # MDATA_AXIS_MODE: 0=keep, 1=center, 2=BoundingBox center
+            mode = params.get("center_mode", "bbox")
+            mode_val = {"keep": 0, "world_center": 1, "bbox": 2}.get(mode, 2)
+            try:
+                bc[c4d.MDATA_AXIS_MODE] = mode_val
+            except Exception:
+                bc[1000] = mode_val  # fallback to known constant id
+        elif op == "optimize":
+            bc[c4d.MDATA_OPTIMIZE_TOLERANCE] = float(params.get("tolerance", 0.01))
+            bc[c4d.MDATA_OPTIMIZE_POINTS] = bool(params.get("merge_points", True))
+            bc[c4d.MDATA_OPTIMIZE_POLYGONS] = bool(params.get("merge_polys", True))
+            bc[c4d.MDATA_OPTIMIZE_UNUSEDPOINTS] = bool(params.get("remove_unused", True))
+        elif op == "subdivide":
+            bc[c4d.MDATA_SUBDIVIDE_HYPER] = bool(params.get("hyper", False))
+            bc[c4d.MDATA_SUBDIVIDE_SUB] = int(params.get("levels", 1))
+        elif op == "smooth":
+            bc[c4d.MDATA_SMOOTH_TYPE] = int(params.get("smooth_type", 0))  # 0=Laplacian
+            try:
+                bc[c4d.MDATA_SMOOTH_STRENGTH] = float(params.get("strength", 0.1))
+            except Exception:
+                pass
+            try:
+                bc[c4d.MDATA_SMOOTH_ITERATIONS] = int(params.get("iterations", 1))
+            except Exception:
+                pass
+        elif op == "bevel":
+            for cname, default in [
+                ("MDATA_BEVEL_OFFSET_OLD_OFFSET", float(params.get("offset", 1.0))),
+                ("MDATA_BEVEL_OFFSET_OLD_SUBDIVISION", int(params.get("subdivision", 1))),
+            ]:
+                cid = getattr(c4d, cname, None)
+                if cid is not None:
+                    bc[cid] = default
+
+        return bc
+
+    def handle_run_modeling_command(self, command):
+        """Wrapper around c4d.utils.SendModelingCommand for the most-used ops.
+
+        Args (in command):
+          op (str)            — canonical op name (see _MODELING_OP_MAP keys)
+          targets (list[str]) — object names or GUIDs; if empty/None, uses
+                                the current document selection
+          params (dict)       — op-specific keyword args (see per-op docs in
+                                _build_modeling_bc); optional
+          mode (str)          — selection mode: 'all' | 'points' | 'edges' | 'polygons'
+                                (default 'all')
+
+        Returns: {status, op, results: [{target, ok, [new_objects], [error]}, ...]}
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+
+            op = (command.get("op") or "").lower()
+            if op not in self._MODELING_OP_MAP:
+                return {
+                    "error": f"Unknown op '{op}'",
+                    "valid_ops": list(self._MODELING_OP_MAP.keys()),
+                }
+
+            mcommand_const_name = self._MODELING_OP_MAP[op]
+            mcommand = getattr(c4d, mcommand_const_name, None)
+            if mcommand is None:
+                return {"error": f"This C4D build is missing constant {mcommand_const_name}"}
+
+            # Resolve targets
+            target_names = command.get("targets") or []
+            params = command.get("params") or {}
+            mode_str = (command.get("mode") or "all").lower()
+            mode_map = {
+                "all": c4d.MODELINGCOMMANDMODE_ALL,
+                "points": c4d.MODELINGCOMMANDMODE_POINTSELECTION,
+                "edges": c4d.MODELINGCOMMANDMODE_EDGESELECTION,
+                "polygons": c4d.MODELINGCOMMANDMODE_POLYGONSELECTION,
+            }
+            mcm_mode = mode_map.get(mode_str, c4d.MODELINGCOMMANDMODE_ALL)
+
+            targets = []
+            if target_names:
+                for name in target_names:
+                    obj = self.find_object_by_name(doc, name)
+                    if obj:
+                        targets.append(obj)
+                    else:
+                        return {"error": f"Target '{name}' not found in scene"}
+            else:
+                sel = doc.GetActiveObjects(c4d.GETACTIVEOBJECTFLAGS_NONE) or []
+                targets = list(sel)
+
+            if not targets:
+                return {"error": "No targets — none specified and no active selection"}
+
+            results = []
+            for obj in targets:
+                try:
+                    bc = self._build_modeling_bc(op, params)
+                    result = c4d.utils.SendModelingCommand(
+                        command=mcommand,
+                        list=[obj],
+                        mode=mcm_mode,
+                        bc=bc,
+                        doc=doc,
+                    )
+                    entry = {
+                        "target": obj.GetName(),
+                        "ok": bool(result),
+                    }
+                    # MAKEEDITABLE / CURRENTSTATETOOBJECT return new BaseObject(s)
+                    if isinstance(result, list):
+                        new_names = []
+                        for o in result:
+                            try:
+                                if hasattr(o, "GetName"):
+                                    new_names.append(o.GetName())
+                                    # Insert new objects into the doc so they're visible
+                                    if not o.GetUp() and not o.GetDocument():
+                                        doc.InsertObject(o)
+                            except Exception:
+                                pass
+                        if new_names:
+                            entry["new_objects"] = new_names
+                    results.append(entry)
+                except Exception as e:
+                    results.append({
+                        "target": obj.GetName(),
+                        "error": str(e),
+                        "traceback": traceback.format_exc(),
+                    })
+
+            c4d.EventAdd()
+            return {"status": "ok", "op": op, "mode": mode_str, "results": results}
+        except Exception as e:
+            return {"error": f"run_modeling_command failed: {e}", "traceback": traceback.format_exc()}
 
     def handle_list_render_engines(self, command):
         """List all registered render engines (VideoPost plugins of renderer kind, plus c4d.PLUGINTYPE_VIDEOPOST entries).

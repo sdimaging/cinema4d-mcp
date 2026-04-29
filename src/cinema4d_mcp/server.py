@@ -1846,6 +1846,87 @@ async def set_viewport_shading_mode(
 
 
 @mcp.tool()
+async def run_modeling_command(
+    op: str,
+    targets: Optional[List[str]] = None,
+    params: Optional[Dict[str, Any]] = None,
+    mode: str = "all",
+    ctx: Context = None,
+) -> str:
+    """Run a Cinema 4D modeling command (`SendModelingCommand`) on one or more objects.
+
+    Wraps the most-needed C4D modeling operations. For ops that operate on
+    selections (bevel, inset, smooth on selected polys), use `mode` to
+    specify the selection level.
+
+    Args:
+      op: canonical op name. Supported:
+        - 'axis_center'             — recenter the object's axis to its bbox
+                                       center (the canonical fix for
+                                       post-Disconnect/Split frozen-coord polys).
+                                       Params: center_mode='bbox' | 'world_center' | 'keep'
+        - 'optimize'                — weld coincident verts, drop unused points,
+                                       merge redundant polys.
+                                       Params: tolerance (float, scene units, default 0.01),
+                                               merge_points (bool, default True),
+                                               merge_polys (bool, default True),
+                                               remove_unused (bool, default True)
+        - 'make_editable'           — convert generators (primitives, sweeps,
+                                       lofts, etc.) to editable polygon meshes.
+                                       Equivalent to pressing 'C' in C4D.
+        - 'current_state_to_object' — bake generator output into a static mesh
+                                       at its current evaluation state.
+                                       Same effect for primitives;
+                                       different for SDS/cloners (bakes
+                                       smooth/clone state, not just makes editable).
+        - 'subdivide'               — subdivide each polygon.
+                                       Params: levels (int, default 1),
+                                               hyper (bool, default False;
+                                               True = HyperNURBS-style smoothing).
+        - 'smooth'                  — laplacian smooth on points / point selection.
+                                       Params: strength, iterations, smooth_type
+        - 'bevel'                   — bevel selected edges.
+                                       Params: offset, subdivision
+        - 'inset'                   — inner-extrude selected polys.
+        - 'extrude'                 — extrude selected polys.
+        - 'connect' / 'split' / 'disconnect' / 'delete'
+        - 'polygonize' / 'triangulate' / 'untriangulate'
+
+      targets: list of object names or GUIDs. If empty/None, uses the
+        current Object Manager selection.
+      params: op-specific keyword args (see per-op notes above). Optional.
+      mode: 'all' | 'points' | 'edges' | 'polygons' — selection level the
+        command operates on. Default 'all'.
+
+    Returns: per-target status including any newly created objects (e.g.
+    make_editable returns a new editable mesh; the original generator is
+    replaced).
+
+    Examples:
+      - Recenter axes on every selected piece (the post-Split fix):
+          run_modeling_command(op='axis_center')
+      - Weld coincident verts on the active mesh:
+          run_modeling_command(op='optimize', params={'tolerance': 0.01})
+      - Bake a Cloner's output into static geometry:
+          run_modeling_command(op='current_state_to_object', targets=['MyCloner'])
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        command: Dict[str, Any] = {
+            "command": "run_modeling_command",
+            "op": op,
+            "mode": mode,
+        }
+        if targets is not None:
+            command["targets"] = targets
+        if params is not None:
+            command["params"] = params
+        response = send_to_c4d(connection, command)
+        return format_c4d_response(response, "run_modeling_command")
+
+
+@mcp.tool()
 async def get_viewport_state(ctx: Context = None) -> str:
     """Return the active viewport's state: dimensions, frame rect, active camera matrix,
     projection mode, and active renderer. Useful for debugging plugin viewport draws."""
