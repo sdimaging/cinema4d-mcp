@@ -1717,6 +1717,7 @@ async def viewport_screenshot(
     height: int = 450,
     renderer: str = "hardware",
     frame: Optional[int] = None,
+    save_path: Optional[str] = None,
     ctx: Context = None,
 ) -> str:
     """Capture a viewport-style screenshot of the active C4D scene.
@@ -1733,7 +1734,13 @@ async def viewport_screenshot(
         Note: Octane viewport_screenshot output may not match the live Octane
         viewer — verify Octane-specific behavior in C4D directly.
 
-    The image is returned inline as a base64 PNG for direct display in chat.
+    `save_path` options:
+      - None (default): the image is returned inline as a base64 PNG.
+        Practical limit ~800x450 due to MCP response token budget (~60K).
+      - file path: the PNG is written to disk and the response returns
+        {path, width, height, renderer} instead of base64. Use this for
+        captures larger than ~1024x768, or when the inline path
+        exceeds the token budget.
     """
     async with c4d_connection_context() as connection:
         if not connection.connected:
@@ -1746,8 +1753,96 @@ async def viewport_screenshot(
         }
         if frame is not None:
             command["frame"] = frame
+        if save_path is not None:
+            command["save_path"] = save_path
         response = send_to_c4d(connection, command)
         return format_c4d_response(response, "viewport_screenshot")
+
+
+@mcp.tool()
+async def viewport_screenshot_multiview(
+    width: int = 400,
+    height: int = 300,
+    renderer: str = "hardware",
+    views: Optional[List[str]] = None,
+    save_dir: Optional[str] = None,
+    ctx: Context = None,
+) -> str:
+    """Capture multiple viewport angles in a single call by toggling the active
+    BaseDraw projection between captures.
+
+    Args:
+      width / height: per-view dimensions (default 400x300 — kept small so 4
+          views fit under the MCP token budget when returned inline).
+      renderer: 'hardware' (default), 'standard', or 'current'. Same semantics
+          as `viewport_screenshot`.
+      views: subset of ['perspective', 'top', 'front', 'right', 'left',
+          'bottom', 'back']. Default: ['perspective', 'top', 'front', 'right'].
+      save_dir: if provided, each PNG is written to this directory as
+          `multiview_<viewname>.png` and the response returns file paths
+          instead of inline base64. Use this when capturing at higher
+          resolutions that would blow the token budget.
+
+    The original viewport projection is restored after capture.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        command: Dict[str, Any] = {
+            "command": "viewport_screenshot_multiview",
+            "width": width,
+            "height": height,
+            "renderer": renderer,
+        }
+        if views is not None:
+            command["views"] = views
+        if save_dir is not None:
+            command["save_dir"] = save_dir
+        response = send_to_c4d(connection, command)
+        return format_c4d_response(response, "viewport_screenshot_multiview")
+
+
+@mcp.tool()
+async def set_viewport_shading_mode(
+    mode: Optional[str] = None,
+    line_overlay: Optional[str] = None,
+    ctx: Context = None,
+) -> str:
+    """Set the active viewport's shading mode and/or line overlay.
+
+    `mode` (BASEDRAW_DATA_SDISPLAYMODE) — one of:
+      - 'gouraud'      : full shading with lights (default C4D mode)
+      - 'quick'        : quick gouraud, faster but less accurate
+      - 'nolights'     : ambient shading, ignores scene lights
+      - 'noshading'    : flat constant-color (silhouette+matte)
+      - 'hidden_line'  : hidden-line wireframe
+      - 'lines'        : wireframe with all edges visible
+      - 'wire'         : edges only, no faces
+      - 'box'          : bounding boxes only
+      - 'skeleton'     : object axis triads only
+
+    `line_overlay` (BASEDRAW_DATA_LDISPLAYMODE) — overlay drawn on top of shading:
+      - 'none'         : no overlay
+      - 'wire'         : show wireframe over shaded surface
+      - 'isoparms'     : show isoparm lines (NURBS / SDS cage)
+      - 'box'          : show bounding box overlay
+
+    At least one of `mode` or `line_overlay` should be provided. Returns the
+    previous values so callers can restore state.
+
+    Tip: combine `wire` line_overlay with `gouraud` shading to get the classic
+    "shaded with wireframe" view that's invaluable for topology debugging.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        command: Dict[str, Any] = {"command": "set_viewport_shading_mode"}
+        if mode is not None:
+            command["mode"] = mode
+        if line_overlay is not None:
+            command["line_overlay"] = line_overlay
+        response = send_to_c4d(connection, command)
+        return format_c4d_response(response, "set_viewport_shading_mode")
 
 
 @mcp.tool()

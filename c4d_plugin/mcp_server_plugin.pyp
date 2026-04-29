@@ -399,6 +399,10 @@ class C4DSocketServer(threading.Thread):
                         # Viewport / render engine
                         elif command_type == "viewport_screenshot":
                             response = self.handle_viewport_screenshot(command)
+                        elif command_type == "viewport_screenshot_multiview":
+                            response = self.handle_viewport_screenshot_multiview(command)
+                        elif command_type == "set_viewport_shading_mode":
+                            response = self.handle_set_viewport_shading_mode(command)
                         elif command_type == "get_viewport_state":
                             response = self.handle_get_viewport_state(command)
                         elif command_type == "list_render_engines":
@@ -7813,6 +7817,7 @@ class C4DSocketServer(threading.Thread):
         # broken in installs with Octane hooks, Hardware always works.
         renderer_pref = (command.get("renderer") or "hardware").lower()
         frame_override = command.get("frame")
+        save_path = command.get("save_path")  # if set, write PNG to disk and return path
 
         def _resolve_renderer_id(pref):
             if pref == "standard":
@@ -7919,19 +7924,44 @@ class C4DSocketServer(threading.Thread):
                     except Exception as e:
                         warnings.append(f"hardware fallback also failed: {e}")
 
-            try:
-                b64 = _bmp_to_b64(bmp)
-            except Exception as e:
-                return {"error": str(e), "warnings": warnings}
-
+            # Two output modes:
+            #   save_path provided → write PNG to disk, return {path, ...}
+            #   else → encode base64 inline, return {image_data, ...}
             response = {
-                "image_data": b64,
                 "width": width,
                 "height": height,
                 "format": "png",
                 "renderer": self._renderer_name(actual_rid),
                 "camera": cam.GetName() if cam else None,
             }
+            if save_path:
+                try:
+                    parent_dir = os.path.dirname(save_path)
+                    if parent_dir and not os.path.isdir(parent_dir):
+                        os.makedirs(parent_dir, exist_ok=True)
+                    save_result = bmp.Save(save_path, c4d.FILTER_PNG)
+                    if save_result != c4d.IMAGERESULT_OK:
+                        # Fall back to b64 if direct save fails
+                        warnings.append(f"direct PNG save returned {save_result}, falling back to base64")
+                        response["image_data"] = _bmp_to_b64(bmp)
+                    else:
+                        response["path"] = save_path
+                        try:
+                            response["file_size_bytes"] = os.path.getsize(save_path)
+                        except Exception:
+                            pass
+                except Exception as e:
+                    warnings.append(f"PNG file save failed: {e}")
+                    try:
+                        response["image_data"] = _bmp_to_b64(bmp)
+                    except Exception as e2:
+                        return {"error": f"file save failed ({e}) AND base64 fallback failed ({e2})", "warnings": warnings}
+            else:
+                try:
+                    response["image_data"] = _bmp_to_b64(bmp)
+                except Exception as e:
+                    return {"error": str(e), "warnings": warnings}
+
             if warnings:
                 response["warnings"] = warnings
             return response
@@ -7992,6 +8022,181 @@ class C4DSocketServer(threading.Thread):
             }
         except Exception as e:
             return {"error": f"get_viewport_state failed: {e}", "traceback": traceback.format_exc()}
+
+    # === Viewport shading mode + multiview ===================================
+
+    # BaseDraw shading mode (BASEDRAW_DATA_SDISPLAYMODE) values.
+    # These constants exist in c4d.* since R12; using the well-known integer
+    # values directly avoids AttributeError on rare builds where the symbolic
+    # name is missing.
+    _SHADING_MODE_MAP = {
+        "gouraud":     0,   # BASEDRAW_SDISPLAY_GOURAUD
+        "quick":       1,   # BASEDRAW_SDISPLAY_QUICK (quick gouraud)
+        "nolights":    2,   # BASEDRAW_SDISPLAY_NOLIGHTS
+        "noshading":   3,   # BASEDRAW_SDISPLAY_NOSHADING (constant shading)
+        "hidden_line": 4,   # BASEDRAW_SDISPLAY_HIDDENLINE
+        "lines":       5,   # BASEDRAW_SDISPLAY_LINES
+        "wire":        6,   # BASEDRAW_SDISPLAY_WIRE
+        "box":         7,   # BASEDRAW_SDISPLAY_BOX
+        "skeleton":    8,   # BASEDRAW_SDISPLAY_SKELETON
+    }
+
+    # BaseDraw line overlay (BASEDRAW_DATA_LDISPLAYMODE) values.
+    _LINE_OVERLAY_MAP = {
+        "none":     0,   # BASEDRAW_LDISPLAY_NONE
+        "wire":     1,   # BASEDRAW_LDISPLAY_WIRE
+        "isoparms": 2,   # BASEDRAW_LDISPLAY_ISOPARMS
+        "box":      3,   # BASEDRAW_LDISPLAY_BOX
+    }
+
+    # BaseDraw projection (BASEDRAW_DATA_PROJECTION) values — view direction.
+    _PROJECTION_MAP = {
+        "perspective": 0,   # c4d.Pperspective
+        "top":         1,   # c4d.Ptop
+        "bottom":      2,   # c4d.Pbottom
+        "left":        3,   # c4d.Pleft
+        "right":       4,   # c4d.Pright
+        "front":       5,   # c4d.Pfront
+        "back":        6,   # c4d.Pback
+    }
+
+    def handle_set_viewport_shading_mode(self, command):
+        """Set the active viewport's shading mode + optional line overlay.
+
+        Args (in command):
+          mode (str): one of gouraud, quick, nolights, noshading, hidden_line,
+                     lines, wire, box, skeleton
+          line_overlay (str, optional): one of none, wire, isoparms, box
+
+        Returns previous values so callers can restore state.
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+            bd = doc.GetActiveBaseDraw()
+            if not bd:
+                return {"error": "No active BaseDraw"}
+
+            mode = command.get("mode")
+            line = command.get("line_overlay")
+
+            if mode is not None and mode not in self._SHADING_MODE_MAP:
+                return {
+                    "error": f"Unknown mode '{mode}'",
+                    "valid_modes": list(self._SHADING_MODE_MAP.keys()),
+                }
+            if line is not None and line not in self._LINE_OVERLAY_MAP:
+                return {
+                    "error": f"Unknown line_overlay '{line}'",
+                    "valid_line_overlays": list(self._LINE_OVERLAY_MAP.keys()),
+                }
+
+            prev_mode = bd[c4d.BASEDRAW_DATA_SDISPLAYMODE]
+            prev_line = bd[c4d.BASEDRAW_DATA_LDISPLAYMODE]
+
+            if mode is not None:
+                bd[c4d.BASEDRAW_DATA_SDISPLAYMODE] = self._SHADING_MODE_MAP[mode]
+            if line is not None:
+                bd[c4d.BASEDRAW_DATA_LDISPLAYMODE] = self._LINE_OVERLAY_MAP[line]
+
+            c4d.EventAdd()
+
+            # Reverse-lookup names for previous values for readability
+            inv_shade = {v: k for k, v in self._SHADING_MODE_MAP.items()}
+            inv_line = {v: k for k, v in self._LINE_OVERLAY_MAP.items()}
+
+            return {
+                "status": "ok",
+                "mode": mode,
+                "line_overlay": line,
+                "previous_mode": inv_shade.get(prev_mode, prev_mode),
+                "previous_line_overlay": inv_line.get(prev_line, prev_line),
+            }
+        except Exception as e:
+            return {"error": f"set_viewport_shading_mode failed: {e}", "traceback": traceback.format_exc()}
+
+    def handle_viewport_screenshot_multiview(self, command):
+        """Capture 4 standard views (perspective, top, front, right) by toggling
+        the BaseDraw projection between captures, then restore original projection.
+
+        Args (in command):
+          width  (int, default 400)
+          height (int, default 300)
+          renderer (str, default 'hardware') — same options as viewport_screenshot
+          views (list of str, optional) — subset of perspective/top/front/right/etc.
+              Default: ["perspective", "top", "front", "right"]
+          save_dir (str, optional) — if provided, write each PNG to this dir
+              as multiview_<viewname>.png and return file paths instead of base64
+
+        Returns:
+          {"status": "ok", "views": [{name, image_data|path, width, height}, ...]}
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+            bd = doc.GetActiveBaseDraw()
+            if not bd:
+                return {"error": "No active BaseDraw"}
+
+            width = int(command.get("width", 400))
+            height = int(command.get("height", 300))
+            renderer_pref = command.get("renderer", "hardware")
+            requested_views = command.get("views") or ["perspective", "top", "front", "right"]
+            save_dir = command.get("save_dir")
+
+            for v in requested_views:
+                if v not in self._PROJECTION_MAP:
+                    return {
+                        "error": f"Unknown view '{v}'",
+                        "valid_views": list(self._PROJECTION_MAP.keys()),
+                    }
+
+            prev_proj = bd[c4d.BASEDRAW_DATA_PROJECTION]
+            captures = []
+            try:
+                for view_name in requested_views:
+                    bd[c4d.BASEDRAW_DATA_PROJECTION] = self._PROJECTION_MAP[view_name]
+                    c4d.EventAdd()
+                    sub = self.handle_viewport_screenshot({
+                        "width": width,
+                        "height": height,
+                        "renderer": renderer_pref,
+                    })
+                    if "error" in sub:
+                        captures.append({"name": view_name, "error": sub["error"]})
+                        continue
+                    entry = {
+                        "name": view_name,
+                        "width": sub.get("width", width),
+                        "height": sub.get("height", height),
+                    }
+                    if save_dir:
+                        try:
+                            path = os.path.join(save_dir, f"multiview_{view_name}.png")
+                            with open(path, "wb") as f:
+                                f.write(base64.b64decode(sub["image_data"]))
+                            entry["path"] = path
+                        except Exception as e:
+                            entry["error"] = f"save failed: {e}"
+                    else:
+                        entry["image_data"] = sub.get("image_data")
+                    if sub.get("warnings"):
+                        entry["warnings"] = sub["warnings"]
+                    captures.append(entry)
+            finally:
+                bd[c4d.BASEDRAW_DATA_PROJECTION] = prev_proj
+                c4d.EventAdd()
+
+            return {
+                "status": "ok",
+                "views": captures,
+                "renderer": renderer_pref,
+                "save_dir": save_dir,
+            }
+        except Exception as e:
+            return {"error": f"viewport_screenshot_multiview failed: {e}", "traceback": traceback.format_exc()}
 
     def handle_list_render_engines(self, command):
         """List all registered render engines (VideoPost plugins of renderer kind, plus c4d.PLUGINTYPE_VIDEOPOST entries).
