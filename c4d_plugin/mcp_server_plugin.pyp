@@ -419,6 +419,8 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_sample_vmap_via_uv(command)
                         elif command_type == "uv_transfer":
                             response = self.handle_uv_transfer(command)
+                        elif command_type == "uv_from_projection":
+                            response = self.handle_uv_from_projection(command)
                         elif command_type == "get_viewport_state":
                             response = self.handle_get_viewport_state(command)
                         elif command_type == "list_render_engines":
@@ -9630,6 +9632,229 @@ class C4DSocketServer(threading.Thread):
             }
         except Exception as e:
             return {"error": f"uv_transfer failed: {e}", "traceback": traceback.format_exc()}
+
+    # === UV from procedural projection =====================================
+
+    def handle_uv_from_projection(self, command):
+        """Generate UVs for a polygon mesh via standard projection types.
+
+        Args (in command):
+          target (str, optional)       — object name; defaults to selection
+          projection (str)             — required:
+            'box'        : cubic projection (each face → nearest world-axis plane)
+            'sphere'     : spherical (longitude/latitude)
+            'cylinder'   : cylindrical
+            'planar_xy'  : drop Z (top/bottom view)
+            'planar_xz'  : drop Y (front/back view)
+            'planar_yz'  : drop X (left/right view)
+          space (str, default 'local')  — 'local' or 'world' (matrix-applied)
+          tile_u, tile_v (float, def 1.0)
+                                       — repeat factor; 1.0 = single span
+          offset_u, offset_v (float, default 0.0)
+                                       — UV offset
+          up_axis (str, default 'y')   — for sphere/cylinder, which axis is up
+
+        Returns: target name, projection type, generated UV bbox, per-poly count.
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+
+            obj, err = self._resolve_target_object(command, doc, key="target")
+            if err:
+                return {"error": err}
+            if obj.GetType() != c4d.Opolygon:
+                return {"error": f"Target '{obj.GetName()}' is not a polygon mesh"}
+
+            projection = (command.get("projection") or "").lower()
+            valid_proj = ["box", "sphere", "cylinder", "planar_xy", "planar_xz", "planar_yz"]
+            if projection not in valid_proj:
+                return {"error": f"Unknown projection '{projection}'", "valid_projections": valid_proj}
+
+            space = (command.get("space") or "local").lower()
+            tile_u = float(command.get("tile_u", 1.0))
+            tile_v = float(command.get("tile_v", 1.0))
+            offset_u = float(command.get("offset_u", 0.0))
+            offset_v = float(command.get("offset_v", 0.0))
+            up_axis = (command.get("up_axis") or "y").lower()
+
+            n_pts = obj.GetPointCount()
+            n_polys = obj.GetPolygonCount()
+            pts = obj.GetAllPoints()
+            mg = obj.GetMg()
+
+            # Get vertices in chosen space
+            def vertex_in_space(vi):
+                p = pts[vi]
+                return mg * p if space == "world" else p
+
+            # Compute bbox for normalization
+            bbmin = [1e18, 1e18, 1e18]
+            bbmax = [-1e18, -1e18, -1e18]
+            for vi in range(n_pts):
+                p = vertex_in_space(vi)
+                if p.x < bbmin[0]: bbmin[0] = p.x
+                if p.y < bbmin[1]: bbmin[1] = p.y
+                if p.z < bbmin[2]: bbmin[2] = p.z
+                if p.x > bbmax[0]: bbmax[0] = p.x
+                if p.y > bbmax[1]: bbmax[1] = p.y
+                if p.z > bbmax[2]: bbmax[2] = p.z
+
+            cx = (bbmin[0] + bbmax[0]) * 0.5
+            cy = (bbmin[1] + bbmax[1]) * 0.5
+            cz = (bbmin[2] + bbmax[2]) * 0.5
+            sx = max(bbmax[0] - bbmin[0], 1e-12)
+            sy = max(bbmax[1] - bbmin[1], 1e-12)
+            sz = max(bbmax[2] - bbmin[2], 1e-12)
+
+            import math
+
+            def planar_uv(p, axes):
+                # axes in ('x','y','z') for u and v; the dropped axis is the projection direction
+                ax_u, ax_v = axes
+                vu = getattr(p, ax_u)
+                vv = getattr(p, ax_v)
+                # Normalize via bbox
+                ranges = {"x": (bbmin[0], sx), "y": (bbmin[1], sy), "z": (bbmin[2], sz)}
+                u_lo, u_sz = ranges[ax_u]
+                v_lo, v_sz = ranges[ax_v]
+                u = (vu - u_lo) / u_sz
+                v = (vv - v_lo) / v_sz
+                return u, v
+
+            def spherical_uv(p):
+                # u from longitude (azimuth around up axis), v from latitude
+                if up_axis == "y":
+                    dx, dy, dz = p.x - cx, p.y - cy, p.z - cz
+                    r = max(math.sqrt(dx*dx + dy*dy + dz*dz), 1e-12)
+                    u = math.atan2(dz, dx) / (2 * math.pi) + 0.5
+                    v = math.asin(max(-1.0, min(1.0, dy / r))) / math.pi + 0.5
+                elif up_axis == "z":
+                    dx, dy, dz = p.x - cx, p.y - cy, p.z - cz
+                    r = max(math.sqrt(dx*dx + dy*dy + dz*dz), 1e-12)
+                    u = math.atan2(dy, dx) / (2 * math.pi) + 0.5
+                    v = math.asin(max(-1.0, min(1.0, dz / r))) / math.pi + 0.5
+                else:  # x up
+                    dx, dy, dz = p.x - cx, p.y - cy, p.z - cz
+                    r = max(math.sqrt(dx*dx + dy*dy + dz*dz), 1e-12)
+                    u = math.atan2(dy, dz) / (2 * math.pi) + 0.5
+                    v = math.asin(max(-1.0, min(1.0, dx / r))) / math.pi + 0.5
+                return u, v
+
+            def cylindrical_uv(p):
+                if up_axis == "y":
+                    dx, dz = p.x - cx, p.z - cz
+                    u = math.atan2(dz, dx) / (2 * math.pi) + 0.5
+                    v = (p.y - bbmin[1]) / sy
+                elif up_axis == "z":
+                    dx, dy = p.x - cx, p.y - cy
+                    u = math.atan2(dy, dx) / (2 * math.pi) + 0.5
+                    v = (p.z - bbmin[2]) / sz
+                else:  # x up
+                    dy, dz = p.y - cy, p.z - cz
+                    u = math.atan2(dy, dz) / (2 * math.pi) + 0.5
+                    v = (p.x - bbmin[0]) / sx
+                return u, v
+
+            def box_uv(p, normal_world):
+                # Pick projection plane by which axis the normal points along strongest
+                ax = max("x", "y", "z", key=lambda a: abs(getattr(normal_world, a)))
+                if ax == "x":
+                    # Project to YZ: use Y as U, Z as V (with sign for handedness)
+                    u = (p.y - bbmin[1]) / sy
+                    v = (p.z - bbmin[2]) / sz
+                elif ax == "y":
+                    u = (p.x - bbmin[0]) / sx
+                    v = (p.z - bbmin[2]) / sz
+                else:  # z
+                    u = (p.x - bbmin[0]) / sx
+                    v = (p.y - bbmin[1]) / sy
+                return u, v
+
+            # Get/create UV tag
+            uv_tag = obj.GetTag(c4d.Tuvw)
+            if uv_tag is None:
+                uv_tag = c4d.UVWTag(n_polys)
+                obj.InsertTag(uv_tag)
+
+            # For box projection, need per-poly normal (world space if space='world')
+            poly_normals = None
+            if projection == "box":
+                poly_normals = []
+                for i in range(n_polys):
+                    poly = obj.GetPolygon(i)
+                    pa = vertex_in_space(poly.a)
+                    pb = vertex_in_space(poly.b)
+                    pc = vertex_in_space(poly.c)
+                    n = (pb - pa).Cross(pc - pa)
+                    if n.GetLength() > 1e-12:
+                        n = n.GetNormalized()
+                    else:
+                        n = c4d.Vector(0, 1, 0)
+                    poly_normals.append(n)
+
+            # Per-poly: compute UVs at its 4 corners
+            u_min, u_max, v_min, v_max = 1e18, -1e18, 1e18, -1e18
+            for i in range(n_polys):
+                poly = obj.GetPolygon(i)
+                idxs = (poly.a, poly.b, poly.c, poly.d)
+
+                if projection == "box":
+                    n = poly_normals[i]
+                    uvs_per_corner = []
+                    for vi in idxs:
+                        p = vertex_in_space(vi)
+                        u, v = box_uv(p, n)
+                        u = u * tile_u + offset_u
+                        v = v * tile_v + offset_v
+                        uvs_per_corner.append(c4d.Vector(u, v, 0))
+                elif projection == "sphere":
+                    uvs_per_corner = []
+                    for vi in idxs:
+                        u, v = spherical_uv(vertex_in_space(vi))
+                        uvs_per_corner.append(c4d.Vector(u * tile_u + offset_u,
+                                                          v * tile_v + offset_v, 0))
+                elif projection == "cylinder":
+                    uvs_per_corner = []
+                    for vi in idxs:
+                        u, v = cylindrical_uv(vertex_in_space(vi))
+                        uvs_per_corner.append(c4d.Vector(u * tile_u + offset_u,
+                                                          v * tile_v + offset_v, 0))
+                else:
+                    # planar_xy / planar_xz / planar_yz
+                    axes_map = {"planar_xy": ("x", "y"), "planar_xz": ("x", "z"), "planar_yz": ("y", "z")}
+                    axes = axes_map[projection]
+                    uvs_per_corner = []
+                    for vi in idxs:
+                        u, v = planar_uv(vertex_in_space(vi), axes)
+                        uvs_per_corner.append(c4d.Vector(u * tile_u + offset_u,
+                                                          v * tile_v + offset_v, 0))
+
+                # Track UV range
+                for u_v in uvs_per_corner:
+                    if u_v.x < u_min: u_min = u_v.x
+                    if u_v.x > u_max: u_max = u_v.x
+                    if u_v.y < v_min: v_min = u_v.y
+                    if u_v.y > v_max: v_max = u_v.y
+
+                uv_tag.SetSlow(i, uvs_per_corner[0], uvs_per_corner[1], uvs_per_corner[2], uvs_per_corner[3])
+
+            c4d.EventAdd()
+
+            return {
+                "status": "ok",
+                "object": obj.GetName(),
+                "projection": projection,
+                "space": space,
+                "polygon_count": n_polys,
+                "uv_bbox": {"u_min": u_min, "u_max": u_max, "v_min": v_min, "v_max": v_max},
+                "tile": {"u": tile_u, "v": tile_v},
+                "offset": {"u": offset_u, "v": offset_v},
+                "up_axis": up_axis,
+            }
+        except Exception as e:
+            return {"error": f"uv_from_projection failed: {e}", "traceback": traceback.format_exc()}
 
     def handle_list_render_engines(self, command):
         """List all registered render engines (VideoPost plugins of renderer kind, plus c4d.PLUGINTYPE_VIDEOPOST entries).

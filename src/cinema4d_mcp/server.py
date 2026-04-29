@@ -2285,6 +2285,70 @@ async def uv_transfer(
 
 
 @mcp.tool()
+async def uv_from_projection(
+    projection: str,
+    target: Optional[str] = None,
+    space: str = "local",
+    tile_u: float = 1.0,
+    tile_v: float = 1.0,
+    offset_u: float = 0.0,
+    offset_v: float = 0.0,
+    up_axis: str = "y",
+    ctx: Context = None,
+) -> str:
+    """Generate UVs procedurally via standard projection types.
+
+    Useful when you have a mesh without UVs (or with bad UVs) and need to
+    quickly establish a baseline UV layout — for texturing, for using as
+    a sample-source for sample_vmap_via_uv / uv_transfer, etc.
+
+    Args:
+      projection: required, one of:
+        - 'box'      : cubic projection — each polygon picks the world
+                       axis its normal aligns with most strongly, projects
+                       onto that plane
+        - 'sphere'   : spherical (longitude/latitude around `up_axis`)
+        - 'cylinder' : cylindrical (azimuth around `up_axis`, height = up axis)
+        - 'planar_xy': drop Z (use X,Y as U,V) — flat top/bottom view
+        - 'planar_xz': drop Y (use X,Z as U,V) — flat front/back
+        - 'planar_yz': drop X (use Y,Z as U,V) — flat left/right
+      target: object name; defaults to active selection.
+      space: 'local' (default — use vertex coords as-is) or 'world'
+        (apply object transform first).
+      tile_u, tile_v: repeat factor; 1.0 = single span across the bbox.
+      offset_u, offset_v: UV offset.
+      up_axis: 'x' / 'y' / 'z' — for sphere/cylinder, defines the polar axis.
+
+    Returns: target name, projection used, generated UV bbox, params echoed.
+
+    UV tag is created if missing on target.
+
+    Use cases:
+      - Establish UVs on a Volume Mesher / Boolean output that lost them
+      - Build tileable UVs for procedural texturing
+      - Quick UV baseline before hand-tweaking
+      - Generate sample-source UVs to feed sample_vmap_via_uv
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        command: Dict[str, Any] = {
+            "command": "uv_from_projection",
+            "projection": projection,
+            "space": space,
+            "tile_u": tile_u,
+            "tile_v": tile_v,
+            "offset_u": offset_u,
+            "offset_v": offset_v,
+            "up_axis": up_axis,
+        }
+        if target is not None:
+            command["target"] = target
+        response = send_to_c4d(connection, command)
+        return format_c4d_response(response, "uv_from_projection")
+
+
+@mcp.tool()
 async def get_viewport_state(ctx: Context = None) -> str:
     """Return the active viewport's state: dimensions, frame rect, active camera matrix,
     projection mode, and active renderer. Useful for debugging plugin viewport draws."""
