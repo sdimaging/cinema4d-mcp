@@ -1,5 +1,6 @@
 """Cinema 4D MCP Server."""
 
+import os
 import socket
 import json
 import math
@@ -44,10 +45,55 @@ async def c4d_connection_context():
             logger.info("🔌 Disconnected from Cinema 4D")
 
 
+_PATH_KEYS_TO_NORMALIZE = {
+    "file_path", "save_path", "save_dir", "bitmap_path", "scene_path",
+    "image_path", "output_path", "input_path", "path",
+}
+
+
+def _wsl_to_windows_path(p: str) -> str:
+    """Convert a WSL `/mnt/<drive>/...` path to Windows `<DRIVE>:\\...`.
+
+    The C4D-side plugin runs in Windows, so paths like `/mnt/c/Users/...`
+    sent from a WSL-side MCP client are not openable by Windows Python.
+    Detect and rewrite them to native Windows form.
+
+    Non-WSL paths and already-Windows paths are returned unchanged.
+    """
+    if not isinstance(p, str) or not p.startswith("/mnt/"):
+        return p
+    parts = p.split("/", 4)  # ['', 'mnt', '<drive>', '<rest...>']
+    if len(parts) < 4:
+        return p
+    drive = parts[2]
+    if len(drive) != 1 or not drive.isalpha():
+        return p
+    rest = parts[3] if len(parts) == 4 else parts[3] + "/" + parts[4]
+    return drive.upper() + ":\\" + rest.replace("/", "\\")
+
+
+def _normalize_paths_in_command(command: Dict[str, Any]) -> Dict[str, Any]:
+    """Walk the command dict and rewrite known-path string fields."""
+    for key in list(command.keys()):
+        if key in _PATH_KEYS_TO_NORMALIZE and isinstance(command[key], str):
+            command[key] = _wsl_to_windows_path(command[key])
+    return command
+
+
 def send_to_c4d(connection: C4DConnection, command: Dict[str, Any]) -> Dict[str, Any]:
     """Send a command to Cinema 4D and get the response with improved timeout handling."""
     if not connection.connected or not connection.sock:
         return {"error": "Not connected to Cinema 4D"}
+
+    # Auto-convert WSL `/mnt/c/...` paths to Windows `C:\...` since C4D
+    # runs in Windows and its Python can't open WSL-mount paths directly.
+    _normalize_paths_in_command(command)
+
+    # If MCP_AUTH_TOKEN is set client-side, attach it to every command so
+    # the C4D plugin's auth gate accepts us.
+    auth_token = os.environ.get("MCP_AUTH_TOKEN")
+    if auth_token and "auth_token" not in command:
+        command["auth_token"] = auth_token
 
     # Set appropriate timeout based on command type
     command_type = command.get("command", "")

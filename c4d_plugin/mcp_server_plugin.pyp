@@ -1,7 +1,8 @@
 """
 Cinema 4D MCP Server Plugin
-Updated for Cinema 4D R2025 compatibility
-Version 0.1.9 - Redshift inspection
+Updated for Cinema 4D R2025/2026 compatibility
+Version 0.2.0 - auth token gate + correctness fixes (load_scene args,
+                _timeout honoring, render_preview args, __main__ shim)
 """
 
 import c4d
@@ -137,6 +138,11 @@ class C4DSocketServer(threading.Thread):
         self.host = host
         self.port = port
         self.socket = None
+        # Auth token: if MCP_AUTH_TOKEN is set in the environment, every command
+        # must include a matching "auth_token" field. If unset, all commands are
+        # accepted (preserves existing single-user-localhost workflow) but a
+        # warning is logged at startup.
+        self.auth_token = os.environ.get("MCP_AUTH_TOKEN") or None
         self.running = False
         self.msg_queue = msg_queue  # Queue to communicate with UI
         self.daemon = True  # Ensures cleanup on shutdown
@@ -183,8 +189,11 @@ class C4DSocketServer(threading.Thread):
         args = args or ()
         kwargs = kwargs or {}
 
-        # Extract the timeout parameter if provided, or use default
-        timeout = kwargs.pop("_timeout", None)
+        # Use the explicit `_timeout` parameter (if caller passed one); fall
+        # back to a stray "_timeout" key inside `kwargs` for callers that
+        # accidentally pack it there. Prior code only consulted kwargs and
+        # silently dropped the explicit param.
+        timeout = _timeout if _timeout is not None else kwargs.pop("_timeout", None)
 
         # Set appropriate timeout based on operation type
         if timeout is None:
@@ -283,6 +292,15 @@ class C4DSocketServer(threading.Thread):
             self.running = True
             self.update_status("Online")
             self.log(f"[C4D] Server started on {self.host}:{self.port}")
+            if self.auth_token:
+                self.log(f"[C4D] [auth] MCP_AUTH_TOKEN is set — commands must include auth_token field")
+            elif self.host == "0.0.0.0":
+                self.log(
+                    "[C4D] [auth] WARNING: server bound to 0.0.0.0 with NO auth token. "
+                    "Anyone with network access to this machine can issue commands "
+                    "(including execute_python). Set MCP_AUTH_TOKEN env var, "
+                    "or bind 127.0.0.1, before running on a multi-user / networked host."
+                )
 
             while self.running:
                 client, addr = self.socket.accept()
@@ -315,6 +333,19 @@ class C4DSocketServer(threading.Thread):
                         # Parse the command
                         command = json.loads(message)
                         command_type = command.get("command", "")
+
+                        # Auth gate: if MCP_AUTH_TOKEN is set, every command must
+                        # carry a matching auth_token field. The 'ping' / capability
+                        # commands are intentionally NOT exempt — there's no reason
+                        # an unauthenticated peer needs to learn anything about the host.
+                        if self.auth_token and command.get("auth_token") != self.auth_token:
+                            response = {
+                                "error": "auth: missing or invalid auth_token. "
+                                         "Set MCP_AUTH_TOKEN client-side to match the server."
+                            }
+                            client.sendall((json.dumps(response) + "\n").encode("utf-8"))
+                            self.log(f"[C4D] [auth] rejected command={command_type!r} (bad/missing token)")
+                            continue
 
                         # Scene info & execution
                         if command_type == "get_scene_info":
@@ -353,7 +384,11 @@ class C4DSocketServer(threading.Thread):
                         elif command_type == "render_frame":
                             response = self.handle_render_frame(command)
                         elif command_type == "render_preview":
-                            response = self.handle_render_preview_base64()
+                            response = self.handle_render_preview_base64(
+                                frame=int(command.get("frame", 0)),
+                                width=int(command.get("width", 640)),
+                                height=int(command.get("height", 360)),
+                            )
                         elif command_type == "snapshot_scene":
                             response = self.handle_snapshot_scene(command)
                         # Camera & light handling
@@ -3037,9 +3072,12 @@ class C4DSocketServer(threading.Thread):
             except Exception as e:
                 return {"error": f"Error loading scene: {str(e)}"}
 
-        # Execute the load function on the main thread with extended timeout
+        # Execute the load function on the main thread with extended timeout.
+        # NOTE: args MUST be a tuple. Passing the bare string `file_path` here
+        # would cause `func(*args)` to unpack character-by-character (each
+        # letter as a separate positional arg) — long-standing upstream bug.
         result = self.execute_on_main_thread(
-            load_scene_on_main_thread, file_path, _timeout=60
+            load_scene_on_main_thread, args=(file_path,), _timeout=60
         )
         return result
 
@@ -3055,31 +3093,14 @@ class C4DSocketServer(threading.Thread):
                 )
                 return {"error": "No Python code provided"}
 
-        # For security, limit available modules
-        allowed_imports = [
-            "c4d",
-            "math",
-            "random",
-            "time",
-            "json",
-            "os.path",
-            "sys",
-        ]
-
-        # Check for potentially harmful imports or functions
-        for banned_keyword in [
-            "os.system",
-            "subprocess",
-            "exec(",
-            "eval(",
-            "import os",
-            "from os import",
-        ]:
-            if banned_keyword in code:
-                return {
-                    "error": f"Security: Banned keyword found in code: {banned_keyword}"
-                }
-
+        # NOTE: execute_python runs arbitrary Python with full builtins access
+        # (Python's exec() injects __builtins__ into any namespace it can't find
+        # them in, which means `__import__("os").system(...)` reaches the host
+        # shell from inside this handler). The earlier keyword blacklist
+        # ('os.system', 'subprocess', 'exec(', 'eval(', 'import os') was trivially
+        # bypassable and gave a false sense of safety, so it's been removed in
+        # favour of the auth-token gate at the dispatcher level.
+        # Treat this as: trusted-local-only, gated by MCP_AUTH_TOKEN.
         self.log(f"[C4D PYTHON] Executing Python code")
 
         # Prepare improved capture function with thread-safe collection
@@ -8190,10 +8211,30 @@ class C4DSocketServer(threading.Thread):
                     }
 
             prev_proj = bd[c4d.BASEDRAW_DATA_PROJECTION]
+            # Snapshot the per-projection display mode so we can restore it.
+            # C4D's BaseDraw stores SDISPLAYACTIVE per current projection — when
+            # the projection toggles to an ortho view that was previously left
+            # in 'box' or 'wire' mode, the renderer falls back to bbox shading
+            # and the shot looks empty. Force gouraud per-view, then restore.
+            prev_sdisplay_per_view = {}
+            for v in requested_views:
+                bd[c4d.BASEDRAW_DATA_PROJECTION] = self._PROJECTION_MAP[v]
+                prev_sdisplay_per_view[v] = bd[c4d.BASEDRAW_DATA_SDISPLAYACTIVE]
+
+            # Auto-create save_dir if needed; previously a missing dir caused
+            # every per-view file write to silently fail and the wrapper
+            # response still came back as "ok".
+            if save_dir:
+                try:
+                    os.makedirs(save_dir, exist_ok=True)
+                except Exception as e:
+                    return {"error": f"save_dir create failed: {e}"}
+
             captures = []
             try:
                 for view_name in requested_views:
                     bd[c4d.BASEDRAW_DATA_PROJECTION] = self._PROJECTION_MAP[view_name]
+                    bd[c4d.BASEDRAW_DATA_SDISPLAYACTIVE] = 0  # gouraud per-iter
                     c4d.EventAdd()
                     sub = self.handle_viewport_screenshot({
                         "width": width,
@@ -8222,6 +8263,10 @@ class C4DSocketServer(threading.Thread):
                         entry["warnings"] = sub["warnings"]
                     captures.append(entry)
             finally:
+                # Restore each per-view display mode, then projection
+                for v, prev_s in prev_sdisplay_per_view.items():
+                    bd[c4d.BASEDRAW_DATA_PROJECTION] = self._PROJECTION_MAP[v]
+                    bd[c4d.BASEDRAW_DATA_SDISPLAYACTIVE] = prev_s
                 bd[c4d.BASEDRAW_DATA_PROJECTION] = prev_proj
                 c4d.EventAdd()
 
@@ -8239,9 +8284,14 @@ class C4DSocketServer(threading.Thread):
     # Maps canonical op names → MCOMMAND_* constants. Stored as integer literals
     # so missing-symbol AttributeErrors on rare builds don't kill the dispatch
     # table; resolved at runtime via getattr with these as fallbacks.
+    # Pure-math ops that bypass SendModelingCommand entirely (C4D doesn't
+    # expose them as MCOMMAND_*; they're CommandData / direct vert manipulation).
+    _PURE_MATH_OPS = {"axis_center"}
+
     _MODELING_OP_MAP = {
-        # Axis / origin
-        "axis_center":              "MCOMMAND_AXIS",
+        # Axis / origin (handled via pure math in _do_axis_center, NOT
+        # SendModelingCommand — C4D 2026 has no MCOMMAND_AXIS constant.)
+        "axis_center":              None,
         # Topology hygiene
         "optimize":                 "MCOMMAND_OPTIMIZE",
         # Make-editable / generator baking
@@ -8264,6 +8314,71 @@ class C4DSocketServer(threading.Thread):
         "triangulate":              "MCOMMAND_TRIANGULATE",
         "untriangulate":            "MCOMMAND_UNTRIANGULATE",
     }
+
+    def _do_axis_center(self, obj, params):
+        """Recenter the object's axis to its bbox center (or world origin).
+
+        Pure-math implementation. C4D's "Axis Center" tool is exposed as a
+        CommandData plugin, not a SendModelingCommand op — there is no
+        MCOMMAND_AXIS constant in C4D 2026. So we reproduce the operation:
+
+          1. Compute the bbox center of the object's local-space verts (or
+             use world_center / keep mode).
+          2. Subtract that center from every vert (so verts are now relative
+             to the new axis).
+          3. Shift the object's matrix by the same offset, transformed into
+             world space, so the visible position is unchanged.
+
+        Args:
+          obj: PolygonObject (or any with GetAllPoints/SetPoint)
+          params:
+            center_mode: 'bbox' (default) — recenter to local bbox midpoint
+                         'world_center' — set axis to world origin (verts
+                                          become world-positioned)
+                         'keep' — no-op (returned for symmetry)
+
+        Returns: dict with old_axis, new_axis, center_offset_local.
+        """
+        center_mode = (params or {}).get("center_mode", "bbox")
+        if center_mode == "keep":
+            return {"center_mode": "keep", "no_op": True}
+        if not hasattr(obj, "GetPointCount") or obj.GetPointCount() == 0:
+            return {"error": "axis_center requires a poly/spline object with points"}
+
+        if center_mode == "world_center":
+            # Move axis to world origin: shift verts by current world position
+            # so they end up at world-space coords; then zero out the matrix.
+            mg = obj.GetMg()
+            for i in range(obj.GetPointCount()):
+                p = obj.GetPoint(i)
+                # Transform p by mg, then subtract origin = transform by mg
+                pw = mg.Mul(p)
+                obj.SetPoint(i, pw)
+            obj.SetMl(c4d.Matrix())
+            obj.Message(c4d.MSG_UPDATE)
+            return {"center_mode": "world_center", "old_axis_world": [mg.off.x, mg.off.y, mg.off.z]}
+
+        # Default: bbox-center
+        pts = obj.GetAllPoints()
+        if not pts:
+            return {"error": "no points"}
+        xs = [p.x for p in pts]; ys = [p.y for p in pts]; zs = [p.z for p in pts]
+        c_local = c4d.Vector((min(xs)+max(xs))*0.5, (min(ys)+max(ys))*0.5, (min(zs)+max(zs))*0.5)
+        for i in range(obj.GetPointCount()):
+            obj.SetPoint(i, obj.GetPoint(i) - c_local)
+        # Shift the local matrix so the visible position is preserved.
+        # The local offset c_local must be transformed by the matrix's basis
+        # (rotation+scale, NOT translation) to become a world-space delta.
+        m = obj.GetMl()
+        world_shift = m.v1 * c_local.x + m.v2 * c_local.y + m.v3 * c_local.z
+        m.off = m.off + world_shift
+        obj.SetMl(m)
+        obj.Message(c4d.MSG_UPDATE)
+        return {
+            "center_mode": "bbox",
+            "center_offset_local": [c_local.x, c_local.y, c_local.z],
+            "new_axis_world": [m.off.x, m.off.y, m.off.z],
+        }
 
     def _build_modeling_bc(self, op, params):
         """Build the BaseContainer of MDATA_* params for a given op."""
@@ -8334,10 +8449,18 @@ class C4DSocketServer(threading.Thread):
                     "valid_ops": list(self._MODELING_OP_MAP.keys()),
                 }
 
-            mcommand_const_name = self._MODELING_OP_MAP[op]
-            mcommand = getattr(c4d, mcommand_const_name, None)
-            if mcommand is None:
-                return {"error": f"This C4D build is missing constant {mcommand_const_name}"}
+            # Pure-math ops (axis_center et al.) bypass SendModelingCommand
+            # entirely. Resolve the C4D MCOMMAND constant only for the ops
+            # that actually use it.
+            is_pure_math = op in self._PURE_MATH_OPS
+            mcommand = None
+            if not is_pure_math:
+                mcommand_const_name = self._MODELING_OP_MAP[op]
+                if mcommand_const_name is None:
+                    return {"error": f"Op '{op}' has no MCOMMAND mapping (mark as pure-math?)"}
+                mcommand = getattr(c4d, mcommand_const_name, None)
+                if mcommand is None:
+                    return {"error": f"This C4D build is missing constant {mcommand_const_name}"}
 
             # Resolve targets
             target_names = command.get("targets") or []
@@ -8369,6 +8492,20 @@ class C4DSocketServer(threading.Thread):
             results = []
             for obj in targets:
                 try:
+                    if is_pure_math:
+                        # Pure-math branch: dispatch by op name.
+                        if op == "axis_center":
+                            pm_res = self._do_axis_center(obj, params)
+                        else:
+                            pm_res = {"error": f"Unhandled pure-math op '{op}'"}
+                        entry = {
+                            "target": obj.GetName(),
+                            "ok": "error" not in pm_res,
+                            **pm_res,
+                        }
+                        results.append(entry)
+                        continue
+
                     bc = self._build_modeling_bc(op, params)
                     result = c4d.utils.SendModelingCommand(
                         command=mcommand,
