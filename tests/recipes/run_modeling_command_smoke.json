@@ -1,0 +1,60 @@
+{
+  "name": "run_modeling_command_smoke",
+  "description": "Verify run_modeling_command's full pipeline: make_editable on a primitive cube → subdivide(1) → optimize. Each op produces a known polygon-count change; assertions verify the math worked.",
+  "setup": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\ndoc = c4d.documents.GetActiveDocument()\nfor n in ['ModelingCmdCube']:\n    o = doc.SearchObject(n)\n    if o: o.Remove()\ncg = c4d.BaseObject(c4d.Ocube)\ncg.SetName('ModelingCmdCube')\ndoc.InsertObject(cg)\nc4d.EventAdd()\nprint('seed primitive cube placed')"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "name": "make_editable",
+      "command": "run_modeling_command",
+      "args": {
+        "op": "make_editable",
+        "targets": ["ModelingCmdCube"]
+      },
+      "assert": [
+        {"type": "object_exists", "name": "ModelingCmdCube"},
+        {"type": "object_polygon_count", "name": "ModelingCmdCube", "expected": 6},
+        {"type": "object_point_count", "name": "ModelingCmdCube", "expected": 8}
+      ]
+    },
+    {
+      "name": "subdivide_one_level",
+      "command": "run_modeling_command",
+      "args": {
+        "op": "subdivide",
+        "targets": ["ModelingCmdCube"],
+        "params": {"levels": 1, "hyper": false}
+      },
+      "assert": [
+        {"type": "object_polygon_count", "name": "ModelingCmdCube", "expected": 24},
+        {"type": "object_point_count", "name": "ModelingCmdCube", "expected": 26}
+      ]
+    },
+    {
+      "name": "optimize_no_change_on_clean_mesh",
+      "command": "run_modeling_command",
+      "args": {
+        "op": "optimize",
+        "targets": ["ModelingCmdCube"]
+      },
+      "assert": [
+        {"type": "object_polygon_count", "name": "ModelingCmdCube", "expected": 24},
+        {"type": "object_point_count", "name": "ModelingCmdCube", "expected": 26}
+      ]
+    }
+  ],
+  "teardown": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\ndoc = c4d.documents.GetActiveDocument()\no = doc.SearchObject('ModelingCmdCube')\nif o: o.Remove()\nc4d.EventAdd()\nprint('teardown ok')"
+      }
+    }
+  ]
+}

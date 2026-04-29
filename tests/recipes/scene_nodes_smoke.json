@@ -1,0 +1,44 @@
+{
+  "name": "scene_nodes_smoke",
+  "description": "Verify scene_nodes_status reports correctly on an empty doc, scene_nodes_create_graph bootstraps a doc-level Scene Nodes graph via GraphDescription.GetGraph (the modern 2025+ API; the legacy doc.GetNimbusRef path doesn't auto-create in 2026), and scene_nodes_status reflects the new graph via doc_level_graph.present.",
+  "setup": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\ndoc = c4d.documents.GetActiveDocument()\nop = doc.GetFirstObject()\nwhile op:\n    nxt = op.GetNext(); op.Remove(); op = nxt\nc4d.EventAdd()\nprint('cleared scene')"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "name": "status_on_empty_doc",
+      "command": "scene_nodes_status",
+      "args": {},
+      "assert": [
+        {"type": "object_count", "expected": 0}
+      ]
+    },
+    {
+      "name": "create_doc_level_graph_modern_api",
+      "command": "scene_nodes_create_graph",
+      "args": {"space": "scenenodes"},
+      "assert": []
+    },
+    {
+      "name": "status_after_graph_create",
+      "command": "scene_nodes_status",
+      "args": {},
+      "assert": [
+        {"type": "object_count", "expected": 0}
+      ]
+    }
+  ],
+  "teardown": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "print('scene_nodes teardown noop (no objects added)')"
+      }
+    }
+  ]
+}

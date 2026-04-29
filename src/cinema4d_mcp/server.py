@@ -2020,10 +2020,19 @@ async def recipe_run(
 
             # Run the command
             cmd_resp = send_to_c4d(connection, step_args)
-            cmd_ok = "error" not in cmd_resp
+            # Command is failed if EITHER an `error` key is present OR the
+            # standardized envelope flag `ok` is explicitly False. The latter
+            # was missing before — a tool returning {"ok": False, ...} (no
+            # error key) silently passed. scene_nodes_smoke caught this.
+            cmd_ok = ("error" not in cmd_resp) and (cmd_resp.get("ok") is not False)
             step_report["command_ok"] = cmd_ok
             if not cmd_ok:
-                step_report["command_error"] = cmd_resp.get("error")
+                step_report["command_error"] = cmd_resp.get(
+                    "error", f"command returned ok={cmd_resp.get('ok')}"
+                )
+                # Surface the full response for debugging when there's no
+                # error message
+                step_report["command_response"] = cmd_resp
             else:
                 step_report["command_response_summary"] = {
                     k: v for k, v in cmd_resp.items()

@@ -12303,10 +12303,26 @@ class C4DSocketServer(threading.Thread):
             except Exception as e:
                 info["per_object_graphs_error"] = str(e)
 
+            # Modern (2025+) doc-level graph via GraphDescription — won't
+            # show up in GetAllNimbusRefs even when present. Probe explicitly.
+            info["doc_level_graph"] = None
+            try:
+                from maxon.frameworks.nodes import GraphDescription
+                g = GraphDescription.GetGraph(doc)
+                if g is not None:
+                    info["doc_level_graph"] = {
+                        "present": True,
+                        "ref_str": str(g),
+                        "via": "maxon.frameworks.nodes.GraphDescription",
+                    }
+            except Exception as e:
+                info["doc_level_graph"] = {"present": False, "error": str(e)}
+
             info["hint_open_editor"] = (
                 not info["nimbus_refs"]
                 and not info["per_object_graphs"]
                 and not info.get("is_node_based")
+                and not (info["doc_level_graph"] and info["doc_level_graph"].get("present"))
             )
             if info["hint_open_editor"]:
                 info["hint_message"] = (
@@ -12322,17 +12338,23 @@ class C4DSocketServer(threading.Thread):
     def handle_scene_nodes_create_graph(self, command):
         """Create a Scene Nodes graph on the doc (or on a specific object) if
         one doesn't already exist. Idempotent — returns the existing graph
-        space_id if it's already there.
+        if it's already there.
 
         Args:
           space (str): 'scenenodes' (default) or 'core' — picks the
-            node-space asset id.
-          target_object (str, optional): object name. If set, creates a
-            per-object embedded graph on that object. If None, operates on
-            the doc-level graph.
+            node-space asset id. NOTE: only the default doc-level
+            scenenodes space is supported; 'core' is reserved for future use.
+          target_object (str, optional): object name. If set, fetches the
+            per-object embedded graph (Capsule pattern). If None, operates
+            on the doc-level graph.
 
-        UNSAFE — mutates doc state. The user should call begin_undo_group
-        first if they want this reversible.
+        Uses C4D 2026's GraphDescription.GetGraph() API — the canonical
+        fetch-or-create. Replaces the deprecated doc.GetNimbusRef path
+        (which in 2026 takes only 1 arg and returns None when the graph
+        doesn't exist; no auto-create option).
+
+        UNSAFE — mutates doc state when creating. Wrap in begin_undo_group
+        if you want reversibility.
         """
         try:
             doc = c4d.documents.GetActiveDocument()
@@ -12355,24 +12377,42 @@ class C4DSocketServer(threading.Thread):
                     return {"error": f"target_object '{target_name}' not found"}
                 host = obj
 
-            # GetNimbusRef with create=True is the canonical "fetch or make" op.
+            # GraphDescription.GetGraph is the modern (2025+) creation API.
+            # The single-arg form (host) gets the default scenenodes graph;
+            # the two-arg form is intended for non-default spaces but in
+            # 2026 it errors with "Could not access valid graph" for the
+            # core space (unsupported). So we use single-arg + ignore the
+            # space arg for now (only scenenodes works).
+            from maxon.frameworks.nodes import GraphDescription
             try:
-                ref = host.GetNimbusRef(maxon.Id(sid), True)
-            except TypeError:
-                # Fallback: 1-arg signature returns existing only
-                ref = host.GetNimbusRef(maxon.Id(sid))
+                graph = GraphDescription.GetGraph(host)
+            except Exception as e:
+                return {
+                    "error": f"GraphDescription.GetGraph failed: {e}",
+                    "host": target_name or "<doc>",
+                    "space_id": sid,
+                }
 
-            existed = False
-            try:
-                existed = ref is not None and not ref.IsNullValue()
-            except Exception:
-                existed = ref is not None
+            graph_present = graph is not None
+            graph_str = None
+            if graph_present:
+                try:
+                    graph_str = str(graph)
+                except Exception:
+                    pass
 
             return {
-                "ok": existed,
+                "ok": graph_present,
                 "space_id": sid,
                 "host": (target_name if target_name else "<doc>"),
-                "graph_existed_or_created": existed,
+                "graph_existed_or_created": graph_present,
+                "graph_ref": graph_str,
+                "note": (
+                    "Modern Scene Nodes graphs (created via GraphDescription) "
+                    "may not appear in doc.GetAllNimbusRefs() — that registry "
+                    "is the classic per-object NimbusRef list. The graph IS "
+                    "present in the model layer."
+                ),
             }
         except Exception as e:
             return {"error": f"scene_nodes_create_graph failed: {e}", "traceback": traceback.format_exc()}
