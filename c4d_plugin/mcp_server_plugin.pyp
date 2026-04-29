@@ -21,6 +21,12 @@ from collections import deque
 
 PLUGIN_ID = 1057843  # Unique plugin ID for SpecialEventAdd
 
+# Transport guardrail — reject command payloads above this size to avoid
+# OOMing the plugin if a client misbehaves (e.g. dumping a multi-GB scene
+# into a single execute_python script). 5MB is generous for any reasonable
+# command including base64 bitmaps.
+MCP_MAX_COMMAND_BYTES = 5 * 1024 * 1024
+
 # ============================================================
 # MCP extensions — module-level console log buffer
 # Captures both plugin self.log() output AND C4D's c4d.GePrint() output
@@ -340,25 +346,50 @@ class C4DSocketServer(threading.Thread):
                 # Process complete messages (separated by newlines)
                 while "\n" in buffer:
                     message, buffer = buffer.split("\n", 1)
+
+                    # Bounded payload check — refuse oversize commands before
+                    # we even try to parse them.
+                    if len(message) > MCP_MAX_COMMAND_BYTES:
+                        err = {
+                            "error": f"payload too large: {len(message)} bytes "
+                                     f"(limit {MCP_MAX_COMMAND_BYTES}). Split into "
+                                     f"smaller commands or write to a file and "
+                                     f"reference the path.",
+                        }
+                        client.sendall((json.dumps(err) + "\n").encode("utf-8"))
+                        self.log(f"[C4D] [transport] rejected oversize msg ({len(message)} bytes)")
+                        continue
+
                     self.log(f"[C4D] Received: {message}")
 
                     try:
                         # Parse the command
                         command = json.loads(message)
                         command_type = command.get("command", "")
+                        # request_id is an optional client-supplied correlator
+                        # (any string). Echoed back on the response so async
+                        # clients can pair responses to requests. Has no
+                        # semantic effect on the dispatcher.
+                        request_id = command.get("request_id")
 
                         # Auth gate: if MCP_AUTH_TOKEN is set, every command must
                         # carry a matching auth_token field. The 'ping' / capability
                         # commands are intentionally NOT exempt — there's no reason
                         # an unauthenticated peer needs to learn anything about the host.
-                        if self.auth_token and command.get("auth_token") != self.auth_token:
-                            response = {
-                                "error": "auth: missing or invalid auth_token. "
-                                         "Set MCP_AUTH_TOKEN client-side to match the server."
-                            }
-                            client.sendall((json.dumps(response) + "\n").encode("utf-8"))
-                            self.log(f"[C4D] [auth] rejected command={command_type!r} (bad/missing token)")
-                            continue
+                        # Constant-time comparison via hmac.compare_digest to defeat
+                        # timing-side-channel attacks on the token.
+                        if self.auth_token:
+                            import hmac
+                            client_token = command.get("auth_token") or ""
+                            if not hmac.compare_digest(str(client_token), self.auth_token):
+                                response = {
+                                    "ok": False,
+                                    "error": "auth: missing or invalid auth_token. "
+                                             "Set MCP_AUTH_TOKEN client-side to match the server."
+                                }
+                                client.sendall((json.dumps(response) + "\n").encode("utf-8"))
+                                self.log(f"[C4D] [auth] rejected command={command_type!r} (bad/missing token)")
+                                continue
 
                         # Safe-mode gate: if MCP_SAFE_MODE is set, refuse any
                         # command not in the SAFE allowlist (mutating ops,
@@ -463,6 +494,8 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_get_capabilities(command)
                         elif command_type == "doctor":
                             response = self.handle_doctor(command)
+                        elif command_type == "ping":
+                            response = self.handle_ping(command)
                         elif command_type == "scene_snapshot":
                             response = self.handle_scene_snapshot(command)
                         elif command_type == "scene_diff":
@@ -507,6 +540,11 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_link_shader_to_parameter(command)
                         else:
                             response = {"error": f"Unknown command: {command_type}"}
+
+                        # Echo client-supplied request_id back if present, so
+                        # async clients can correlate responses to requests.
+                        if request_id is not None and isinstance(response, dict):
+                            response.setdefault("request_id", request_id)
 
                         # Send the response as JSON
                         response_json = json.dumps(response) + "\n"
@@ -10566,7 +10604,7 @@ class C4DSocketServer(threading.Thread):
         "run_modeling_command",
         "get_console_log", "clear_console_log",
         "get_c4d_info",
-        "get_capabilities", "doctor",
+        "get_capabilities", "doctor", "ping",
         "scene_snapshot", "scene_diff",
     )
     # NOTE: this list reflects what the C4D PLUGIN's run() dispatcher actually
@@ -10593,7 +10631,7 @@ class C4DSocketServer(threading.Thread):
         "get_viewport_state",
         "vertex_map_stats", "uv_layout_stats",
         "get_console_log", "clear_console_log",
-        "get_c4d_info", "get_capabilities", "doctor",
+        "get_c4d_info", "get_capabilities", "doctor", "ping",
         "scene_snapshot", "scene_diff",
     })
 
@@ -10690,6 +10728,28 @@ class C4DSocketServer(threading.Thread):
             return info
         except Exception as e:
             return {"error": f"get_capabilities failed: {e}", "traceback": traceback.format_exc()}
+
+    def handle_ping(self, command):
+        """Cheapest possible liveness probe.
+
+        Returns {ok, server_time, plugin_version, c4d_version, echo}.
+        Echoes the optional `echo` field from the command (string, max 1KB)
+        so a client can correlate beyond request_id if desired.
+
+        Use for heartbeat / connection health checks. Doesn't touch C4D
+        state, doesn't acquire main thread, doesn't allocate. Safe to call
+        thousands of times per minute.
+        """
+        echo = command.get("echo")
+        if isinstance(echo, str) and len(echo) > 1024:
+            echo = echo[:1024] + "...<truncated>"
+        return {
+            "ok": True,
+            "server_time": time.time(),
+            "plugin_version": "0.2.0",
+            "c4d_version": c4d.GetC4DVersion(),
+            "echo": echo,
+        }
 
     def handle_doctor(self, command):
         """Health check: ping main thread, exercise the dispatch path, time

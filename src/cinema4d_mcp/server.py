@@ -1914,6 +1914,33 @@ async def scene_diff(
 
 
 @mcp.tool()
+async def ping(echo: Optional[str] = None, ctx: Context = None) -> str:
+    """Cheapest possible liveness probe.
+
+    Returns plugin version, C4D version, server time, and an echoed string
+    (truncated to 1KB) so a client can correlate beyond request_id.
+
+    Use for heartbeat / connection health checks. Does NOT touch C4D state,
+    does NOT acquire the main thread. Safe to call thousands of times per
+    minute. If you need scene-state info too, use `doctor` instead.
+
+    Args:
+      echo: optional string echoed back in the response. Useful for
+            client-side correlation when you have many concurrent pings.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {"command": "ping"}
+        if echo is not None:
+            cmd["echo"] = echo
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
 async def doctor(ctx: Context = None) -> str:
     """Run a series of health checks against the live MCP/plugin/C4D bridge.
 
