@@ -538,6 +538,8 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_image_inspect(command)
                         elif command_type == "images_compare":
                             response = self.handle_images_compare(command)
+                        elif command_type == "scene_assert":
+                            response = self.handle_scene_assert(command)
                         elif command_type == "scene_snapshot":
                             response = self.handle_scene_snapshot(command)
                         elif command_type == "scene_diff":
@@ -10709,7 +10711,7 @@ class C4DSocketServer(threading.Thread):
         "paint_vertex_map_from_formula", "paint_vertex_map_radial",
         "list_deformer_types", "apply_deformer",
         "create_volume_builder", "create_volume_mesher", "volume_to_polygons",
-        "image_inspect", "images_compare",
+        "image_inspect", "images_compare", "scene_assert",
     )
     # NOTE: this list reflects what the C4D PLUGIN's run() dispatcher actually
     # routes. Some MCP tool wrappers in server.py (tap_octane_log,
@@ -10740,6 +10742,7 @@ class C4DSocketServer(threading.Thread):
         "scene_nodes_status",  # read-only inspection of Scene Nodes graphs
         "list_deformer_types",  # discovery only, no scene mutation
         "image_inspect", "images_compare",  # disk-read only, no C4D state
+        "scene_assert",                     # read-only declarative verification
     })
 
     def handle_get_capabilities(self, command):
@@ -10982,6 +10985,306 @@ class C4DSocketServer(threading.Thread):
         "scenenodes": "net.maxon.scenenodes.basescenenodesnodespace",
         "core": "net.maxon.nodespace.core",
     }
+
+    # === scene_assert — declarative scene-state verification ================
+
+    def _resolve_assert_object(self, doc, spec):
+        """Resolve an object reference from an assertion spec (by name or guid).
+
+        Returns (obj, error_str). obj may be None if not found.
+        """
+        guid = spec.get("guid")
+        if guid:
+            op = doc.GetFirstObject()
+            target_guid = str(guid)
+            while op:
+                try:
+                    if str(op.GetGUID()) == target_guid:
+                        return op, None
+                except Exception:
+                    pass
+                if op.GetDown():
+                    op2 = op.GetDown()
+                    while op2:
+                        try:
+                            if str(op2.GetGUID()) == target_guid:
+                                return op2, None
+                        except Exception:
+                            pass
+                        op2 = op2.GetNext()
+                op = op.GetNext()
+            return None, f"no object with guid={guid}"
+        name = spec.get("name") or spec.get("object")
+        if name:
+            obj = doc.SearchObject(name)
+            if obj is None:
+                return None, f"no object named '{name}'"
+            return obj, None
+        return None, "spec missing both 'name' and 'guid'"
+
+    def _check_in_range(self, value, spec, key):
+        """Helper: spec[key] is either a scalar (== check) or a [min, max] (range check).
+        Returns (passed, evidence_str)."""
+        if key not in spec:
+            return None, None
+        target = spec[key]
+        if isinstance(target, list) and len(target) == 2:
+            lo, hi = float(target[0]), float(target[1])
+            ok = lo <= value <= hi
+            return ok, f"{value} {'in' if ok else 'NOT in'} [{lo}, {hi}]"
+        elif isinstance(target, (int, float)):
+            ok = float(value) == float(target)
+            return ok, f"{value} {'==' if ok else '!='} {target}"
+        else:
+            return False, f"unsupported '{key}' value: {target!r}"
+
+    def _run_one_assertion(self, doc, a):
+        """Evaluate a single assertion dict. Returns {type, passed, evidence?, error?}."""
+        out = {"type": a.get("type"), "spec": a}
+        atype = a.get("type")
+
+        try:
+            if atype == "object_exists":
+                obj, err = self._resolve_assert_object(doc, a)
+                out["passed"] = obj is not None
+                out["evidence"] = f"obj={obj.GetName() if obj else None}, err={err}"
+
+            elif atype == "object_polygon_count":
+                obj, err = self._resolve_assert_object(doc, a)
+                if obj is None:
+                    out["passed"] = False
+                    out["error"] = err
+                elif obj.GetType() != c4d.Opolygon:
+                    out["passed"] = False
+                    out["error"] = "object is not a polygon mesh"
+                else:
+                    pc = obj.GetPolygonCount()
+                    ok, ev = self._check_in_range(pc, a, "expected")
+                    if ok is None:
+                        out["passed"] = False
+                        out["error"] = "spec missing 'expected' (scalar or [min,max])"
+                    else:
+                        out["passed"] = ok
+                        out["evidence"] = f"polygon_count={pc}, {ev}"
+
+            elif atype == "object_point_count":
+                obj, err = self._resolve_assert_object(doc, a)
+                if obj is None:
+                    out["passed"] = False
+                    out["error"] = err
+                else:
+                    pc = obj.GetPointCount() if hasattr(obj, "GetPointCount") else 0
+                    ok, ev = self._check_in_range(pc, a, "expected")
+                    out["passed"] = bool(ok)
+                    out["evidence"] = f"point_count={pc}, {ev}"
+
+            elif atype == "object_has_tag":
+                obj, err = self._resolve_assert_object(doc, a)
+                if obj is None:
+                    out["passed"] = False
+                    out["error"] = err
+                else:
+                    want_type = a.get("tag_type")  # c4d const name, e.g. "Tuvw" or int
+                    want_name = a.get("tag_name")
+                    found_match = False
+                    found_tags = []
+                    for t in obj.GetTags():
+                        ttype = t.GetType()
+                        tname = t.GetName()
+                        found_tags.append({"type_id": ttype, "name": tname})
+                        type_ok = True
+                        if want_type is not None:
+                            tid = getattr(c4d, want_type, want_type) if isinstance(want_type, str) else want_type
+                            type_ok = (ttype == tid)
+                        name_ok = (want_name is None) or (tname == want_name)
+                        if type_ok and name_ok:
+                            found_match = True
+                            break
+                    out["passed"] = found_match
+                    out["evidence"] = {"all_tags": found_tags, "matched": found_match}
+
+            elif atype == "object_has_child":
+                obj, err = self._resolve_assert_object(doc, a)
+                if obj is None:
+                    out["passed"] = False
+                    out["error"] = err
+                else:
+                    want_type = a.get("type_id")
+                    want_name = a.get("name")
+                    children = []
+                    matched = False
+                    c = obj.GetDown()
+                    while c is not None:
+                        children.append({"name": c.GetName(), "type_id": c.GetType()})
+                        type_ok = True
+                        if want_type is not None:
+                            tid = getattr(c4d, want_type, want_type) if isinstance(want_type, str) else want_type
+                            type_ok = (c.GetType() == tid)
+                        name_ok = (want_name is None) or (c.GetName() == want_name)
+                        if type_ok and name_ok:
+                            matched = True
+                        c = c.GetNext()
+                    out["passed"] = matched
+                    out["evidence"] = {"children": children, "matched": matched}
+
+            elif atype == "object_position":
+                obj, err = self._resolve_assert_object(doc, a)
+                if obj is None:
+                    out["passed"] = False
+                    out["error"] = err
+                else:
+                    expected = a.get("expected")
+                    near = a.get("near")
+                    tol = float(a.get("tolerance", 1.0))
+                    use_world = a.get("space", "local") == "world"
+                    p = obj.GetMg().off if use_world else obj.GetAbsPos()
+                    pv = [p.x, p.y, p.z]
+                    if expected and len(expected) == 3:
+                        diffs = [abs(pv[i] - float(expected[i])) for i in range(3)]
+                        ok = all(d <= tol for d in diffs)
+                        out["passed"] = ok
+                        out["evidence"] = f"actual={pv}, expected={expected}, diffs={diffs}, tol={tol}"
+                    elif near and len(near) == 3:
+                        d = sum((pv[i] - float(near[i])) ** 2 for i in range(3)) ** 0.5
+                        ok = d <= tol
+                        out["passed"] = ok
+                        out["evidence"] = f"actual={pv}, near={near}, distance={d:.4f}, tol={tol}"
+                    else:
+                        out["passed"] = False
+                        out["error"] = "spec missing 'expected' or 'near' [x,y,z]"
+
+            elif atype == "vmap_stats":
+                obj, err = self._resolve_assert_object(doc, a)
+                if obj is None:
+                    out["passed"] = False
+                    out["error"] = err
+                else:
+                    vmap_name = a.get("vmap_name") or a.get("vmap")
+                    vmap_tag = None
+                    for t in obj.GetTags():
+                        if t.GetType() == c4d.Tvertexmap:
+                            if vmap_name is None or t.GetName() == vmap_name:
+                                vmap_tag = t
+                                break
+                    if vmap_tag is None:
+                        out["passed"] = False
+                        out["error"] = f"no vmap '{vmap_name or '<any>'}' found"
+                    else:
+                        weights = vmap_tag.GetAllHighlevelData() or []
+                        if not weights:
+                            stats = {"min": 0, "max": 0, "mean": 0}
+                        else:
+                            mn = min(weights); mx = max(weights)
+                            mean = sum(weights) / len(weights)
+                            stats = {"min": mn, "max": mx, "mean": mean, "count": len(weights)}
+                        # Each of mean/min/max can be a scalar or [lo,hi]
+                        all_ok = True
+                        evidence = {"stats": stats}
+                        for k in ("mean", "min", "max"):
+                            ok, ev = self._check_in_range(stats[k], a, k)
+                            if ok is False:
+                                all_ok = False
+                            if ev:
+                                evidence[k] = ev
+                        out["passed"] = all_ok
+                        out["evidence"] = evidence
+
+            elif atype == "object_count":
+                count = 0
+                op = doc.GetFirstObject()
+                while op:
+                    count += 1
+                    if op.GetDown():
+                        op2 = op.GetDown()
+                        while op2:
+                            count += 1
+                            op2 = op2.GetNext()
+                    op = op.GetNext()
+                ok, ev = self._check_in_range(count, a, "expected")
+                out["passed"] = bool(ok)
+                out["evidence"] = f"object_count={count}, {ev}"
+
+            elif atype == "material_count":
+                count = 0
+                m = doc.GetFirstMaterial()
+                while m:
+                    count += 1
+                    m = m.GetNext()
+                ok, ev = self._check_in_range(count, a, "expected")
+                out["passed"] = bool(ok)
+                out["evidence"] = f"material_count={count}, {ev}"
+
+            else:
+                out["passed"] = False
+                out["error"] = f"unknown assertion type: {atype!r}"
+                out["valid_types"] = [
+                    "object_exists", "object_polygon_count",
+                    "object_point_count", "object_has_tag",
+                    "object_has_child", "object_position",
+                    "vmap_stats", "object_count", "material_count",
+                ]
+        except Exception as e:
+            out["passed"] = False
+            out["error"] = f"exception: {e}"
+
+        return out
+
+    def handle_scene_assert(self, command):
+        """Run a list of declarative scene-state assertions and report results.
+
+        Args:
+          assertions: list of assertion dicts, each with `type` + type-specific
+            keys. Examples:
+              {type: "object_exists", name: "Cube"}
+              {type: "object_polygon_count", name: "Cube", expected: 6}
+              {type: "object_polygon_count", name: "Plane", expected: [200, 300]}
+              {type: "object_has_tag", name: "Cube", tag_type: "Tuvw"}
+              {type: "object_has_child", name: "Cube", type_id: "Obend"}
+              {type: "object_position", name: "Cube", near: [0,0,0], tolerance: 1.0}
+              {type: "vmap_stats", name: "Plane", vmap: "mask",
+               mean: [0.4, 0.6], min: 0.0, max: 1.0}
+              {type: "object_count", expected: [3, 10]}
+              {type: "material_count", expected: 0}
+
+        Returns:
+          {ok, passed: int, failed: int, total: int, results: [...]}
+          Top-level `ok` = (failed == 0).
+
+        Read-only — never mutates state. Use after any tool that should
+        have changed the scene to verify the change actually happened.
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+            assertions = command.get("assertions") or []
+            if not isinstance(assertions, list):
+                return {"error": "Provide 'assertions' as a list"}
+
+            results = []
+            passed = 0
+            failed = 0
+            for a in assertions:
+                if not isinstance(a, dict):
+                    results.append({"type": None, "passed": False, "error": "assertion must be a dict"})
+                    failed += 1
+                    continue
+                r = self._run_one_assertion(doc, a)
+                if r.get("passed"):
+                    passed += 1
+                else:
+                    failed += 1
+                results.append(r)
+
+            return {
+                "ok": failed == 0,
+                "total": len(assertions),
+                "passed": passed,
+                "failed": failed,
+                "results": results,
+            }
+        except Exception as e:
+            return {"error": f"scene_assert failed: {e}", "traceback": traceback.format_exc()}
 
     # === Feedback-loop helpers — self-verification of saved images =========
 

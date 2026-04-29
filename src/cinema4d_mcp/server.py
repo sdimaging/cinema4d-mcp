@@ -1914,6 +1914,56 @@ async def scene_diff(
 
 
 @mcp.tool()
+async def scene_assert(
+    assertions: List[Dict[str, Any]],
+    ctx: Context = None,
+) -> str:
+    """Declarative scene-state verification — the heart of the feedback loop.
+
+    Pass a list of assertion dicts, each describing what should be true
+    about the scene RIGHT NOW. Returns per-assertion pass/fail with
+    concrete evidence so any agent step can verify what it claims.
+
+    Supported assertion types:
+      - object_exists:       {type, name | guid}
+      - object_polygon_count:{type, name, expected: 6 | [min,max]}
+      - object_point_count:  {type, name, expected: 8 | [min,max]}
+      - object_has_tag:      {type, name, tag_type: "Tuvw"|<int>, tag_name?}
+      - object_has_child:    {type, name, type_id: "Obend"|<int>, name?}
+      - object_position:     {type, name, expected:[x,y,z]|near:[x,y,z],
+                              tolerance: 1.0, space: "local"|"world"}
+      - vmap_stats:          {type, name, vmap, mean: 0.5|[lo,hi],
+                              min: <scalar|range>, max: <scalar|range>}
+      - object_count:        {type, expected: 3 | [min,max]}
+      - material_count:      {type, expected: 0 | [min,max]}
+
+    Returns:
+      {ok: bool, total: int, passed: int, failed: int, results: [...]}
+      Top-level `ok` is True iff all assertions passed.
+
+    Pattern for verifying any operation:
+      1. apply_deformer(target=Cube, deformer_type=bend, ...)
+      2. scene_assert([
+           {type:"object_has_child", name:"Cube", type_id:"Obend"},
+           {type:"object_polygon_count", name:"Cube", expected:6},
+         ])
+    If failed > 0, the operation didn't do what you thought it did.
+
+    Read-only — never mutates state.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        response = send_to_c4d(connection, {
+            "command": "scene_assert",
+            "assertions": assertions,
+        })
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
 async def image_inspect(path: str, ctx: Context = None) -> str:
     """Inspect a saved PNG file: dimensions, file size, MD5, content stats.
 
