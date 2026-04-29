@@ -417,6 +417,8 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_uv_islands_to_objects(command)
                         elif command_type == "sample_vmap_via_uv":
                             response = self.handle_sample_vmap_via_uv(command)
+                        elif command_type == "uv_transfer":
+                            response = self.handle_uv_transfer(command)
                         elif command_type == "get_viewport_state":
                             response = self.handle_get_viewport_state(command)
                         elif command_type == "list_render_engines":
@@ -9340,6 +9342,294 @@ class C4DSocketServer(threading.Thread):
             }
         except Exception as e:
             return {"error": f"sample_vmap_via_uv failed: {e}", "traceback": traceback.format_exc()}
+
+    # === UV transfer via closest-point-on-mesh =============================
+
+    @staticmethod
+    def _closest_point_on_triangle(p, a, b, c):
+        """Eberly's closest-point-on-triangle.
+        Returns (closest_point: c4d.Vector, bary: (w_a, w_b, w_c))."""
+        ab = b - a
+        ac = c - a
+        ap = p - a
+        d1 = ab.Dot(ap)
+        d2 = ac.Dot(ap)
+        if d1 <= 0.0 and d2 <= 0.0:
+            return a, (1.0, 0.0, 0.0)
+
+        bp = p - b
+        d3 = ab.Dot(bp)
+        d4 = ac.Dot(bp)
+        if d3 >= 0.0 and d4 <= d3:
+            return b, (0.0, 1.0, 0.0)
+
+        vc = d1 * d4 - d3 * d2
+        if vc <= 0.0 and d1 >= 0.0 and d3 <= 0.0:
+            denom = (d1 - d3)
+            v = d1 / denom if abs(denom) > 1e-12 else 0.0
+            return a + ab * v, (1.0 - v, v, 0.0)
+
+        cp = p - c
+        d5 = ab.Dot(cp)
+        d6 = ac.Dot(cp)
+        if d6 >= 0.0 and d5 <= d6:
+            return c, (0.0, 0.0, 1.0)
+
+        vb = d5 * d2 - d1 * d6
+        if vb <= 0.0 and d2 >= 0.0 and d6 <= 0.0:
+            denom = (d2 - d6)
+            w = d2 / denom if abs(denom) > 1e-12 else 0.0
+            return a + ac * w, (1.0 - w, 0.0, w)
+
+        va = d3 * d6 - d5 * d4
+        if va <= 0.0 and (d4 - d3) >= 0.0 and (d5 - d6) >= 0.0:
+            denom = (d4 - d3) + (d5 - d6)
+            w = (d4 - d3) / denom if abs(denom) > 1e-12 else 0.0
+            return b + (c - b) * w, (0.0, 1.0 - w, w)
+
+        denom_sum = va + vb + vc
+        if abs(denom_sum) < 1e-12:
+            return a, (1.0, 0.0, 0.0)
+        denom_inv = 1.0 / denom_sum
+        v = vb * denom_inv
+        w = vc * denom_inv
+        return a + ab * v + ac * w, (1.0 - v - w, v, w)
+
+    def _build_3d_tri_grid(self, mesh, grid_res=48):
+        """Build a 3D spatial grid of source-mesh triangles for closest-point
+        queries. Returns (tris, grid, bbox_min, bbox_max, cell_size)."""
+        n_polys = mesh.GetPolygonCount()
+        pts = mesh.GetAllPoints()
+        mg = mesh.GetMg()
+
+        # World-space tri data + UVs (used for downstream UV sampling)
+        uv_tag = mesh.GetTag(c4d.Tuvw)
+        tris = []
+        for i in range(n_polys):
+            poly = mesh.GetPolygon(i)
+            pa = mg * pts[poly.a]
+            pb = mg * pts[poly.b]
+            pc = mg * pts[poly.c]
+            pd = mg * pts[poly.d]
+            uv = uv_tag.GetSlow(i) if uv_tag else None
+            is_quad = (poly.c != poly.d)
+
+            # Triangle 1: a-b-c
+            tri = {
+                "p0": pa, "p1": pb, "p2": pc,
+                "uv0": uv["a"] if uv else None,
+                "uv1": uv["b"] if uv else None,
+                "uv2": uv["c"] if uv else None,
+                "vi0": poly.a, "vi1": poly.b, "vi2": poly.c,
+            }
+            tri["bbox_min"] = c4d.Vector(min(pa.x, pb.x, pc.x), min(pa.y, pb.y, pc.y), min(pa.z, pb.z, pc.z))
+            tri["bbox_max"] = c4d.Vector(max(pa.x, pb.x, pc.x), max(pa.y, pb.y, pc.y), max(pa.z, pb.z, pc.z))
+            tris.append(tri)
+            if is_quad:
+                tri2 = {
+                    "p0": pa, "p1": pc, "p2": pd,
+                    "uv0": uv["a"] if uv else None,
+                    "uv1": uv["c"] if uv else None,
+                    "uv2": uv["d"] if uv else None,
+                    "vi0": poly.a, "vi1": poly.c, "vi2": poly.d,
+                }
+                tri2["bbox_min"] = c4d.Vector(min(pa.x, pc.x, pd.x), min(pa.y, pc.y, pd.y), min(pa.z, pc.z, pd.z))
+                tri2["bbox_max"] = c4d.Vector(max(pa.x, pc.x, pd.x), max(pa.y, pc.y, pd.y), max(pa.z, pc.z, pd.z))
+                tris.append(tri2)
+
+        if not tris:
+            return None, None, None, None, None
+
+        bbmin = c4d.Vector(min(t["bbox_min"].x for t in tris), min(t["bbox_min"].y for t in tris), min(t["bbox_min"].z for t in tris))
+        bbmax = c4d.Vector(max(t["bbox_max"].x for t in tris), max(t["bbox_max"].y for t in tris), max(t["bbox_max"].z for t in tris))
+        # Pad slightly so boundary points fall inside
+        pad = (bbmax - bbmin).GetLength() * 0.001 + 0.001
+        bbmin = bbmin - c4d.Vector(pad, pad, pad)
+        bbmax = bbmax + c4d.Vector(pad, pad, pad)
+        size = bbmax - bbmin
+        cell_x = max(size.x / grid_res, 1e-6)
+        cell_y = max(size.y / grid_res, 1e-6)
+        cell_z = max(size.z / grid_res, 1e-6)
+
+        grid = {}
+        for ti, t in enumerate(tris):
+            x_lo = max(0, int((t["bbox_min"].x - bbmin.x) / cell_x))
+            x_hi = min(grid_res - 1, int((t["bbox_max"].x - bbmin.x) / cell_x))
+            y_lo = max(0, int((t["bbox_min"].y - bbmin.y) / cell_y))
+            y_hi = min(grid_res - 1, int((t["bbox_max"].y - bbmin.y) / cell_y))
+            z_lo = max(0, int((t["bbox_min"].z - bbmin.z) / cell_z))
+            z_hi = min(grid_res - 1, int((t["bbox_max"].z - bbmin.z) / cell_z))
+            for x in range(x_lo, x_hi + 1):
+                for y in range(y_lo, y_hi + 1):
+                    for z in range(z_lo, z_hi + 1):
+                        grid.setdefault((x, y, z), []).append(ti)
+        return tris, grid, bbmin, bbmax, (cell_x, cell_y, cell_z)
+
+    def _closest_tri_to_point(self, world_pt, tris, grid, bbmin, cell_size, grid_res=48, max_search_radius=4):
+        """Find the source triangle closest to world_pt. Returns (tri, bary, dist)."""
+        cx = int((world_pt.x - bbmin.x) / cell_size[0])
+        cy = int((world_pt.y - bbmin.y) / cell_size[1])
+        cz = int((world_pt.z - bbmin.z) / cell_size[2])
+        cx = max(0, min(grid_res - 1, cx))
+        cy = max(0, min(grid_res - 1, cy))
+        cz = max(0, min(grid_res - 1, cz))
+
+        best_dist = 1e18
+        best_tri = None
+        best_bary = None
+        seen = set()
+
+        for r in range(0, max_search_radius + 1):
+            if best_tri is not None and r > 1:
+                break  # already found something close in inner cells
+            for dz in range(-r, r + 1):
+                for dy in range(-r, r + 1):
+                    for dx in range(-r, r + 1):
+                        if r > 0 and abs(dx) != r and abs(dy) != r and abs(dz) != r:
+                            continue
+                        key = (cx + dx, cy + dy, cz + dz)
+                        if key in seen: continue
+                        seen.add(key)
+                        if not (0 <= key[0] < grid_res and 0 <= key[1] < grid_res and 0 <= key[2] < grid_res):
+                            continue
+                        cell = grid.get(key)
+                        if not cell: continue
+                        for ti in cell:
+                            t = tris[ti]
+                            cp, bary = self._closest_point_on_triangle(world_pt, t["p0"], t["p1"], t["p2"])
+                            d = (cp - world_pt).GetLengthSquared()
+                            if d < best_dist:
+                                best_dist = d
+                                best_tri = t
+                                best_bary = bary
+        return best_tri, best_bary, (best_dist ** 0.5 if best_tri else None)
+
+    def handle_uv_transfer(self, command):
+        """Project UVs from a source mesh onto a destination mesh by
+        closest-point-on-source for each dest vertex.
+
+        For each dest vertex (in world space), finds the closest point on the
+        source mesh, computes barycentric coords there, and samples the source
+        UVs at that location. Writes UVs to dest at all polygon corners
+        referencing each vertex.
+
+        Args (in command):
+          source (str)               — source object name (must have UV)
+          dest (str)                  — destination object name
+          create_uv_tag (bool, True)  — if True and dest has no UV tag, create
+                                        one; if False and dest lacks UV, error
+          grid_res (int, default 48)  — spatial grid resolution (3D)
+          max_distance (float, opt)   — flag verts whose closest source point is
+                                        farther than this; UV not written for them
+
+        Returns: vertex counts (sampled, fallback), distance stats.
+
+        Notes:
+          - This is closest-point projection in 3D; it works best when source
+            and dest meshes are roughly aligned spatially. For "transfer UVs
+            from low-poly to sculpt of same character" — works great.
+          - For totally different meshes or wildly misaligned ones — won't help.
+          - Result has the same UVs at every polygon corner referencing a
+            given dest vertex (no UV seams). If dest needs explicit seams,
+            those have to be authored separately.
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+
+            src_name = command.get("source")
+            dst_name = command.get("dest")
+            if not src_name or not dst_name:
+                return {"error": "source and dest required"}
+
+            src = self.find_object_by_name(doc, src_name)
+            dst = self.find_object_by_name(doc, dst_name)
+            if src is None: return {"error": f"Source '{src_name}' not found"}
+            if dst is None: return {"error": f"Destination '{dst_name}' not found"}
+            if src.GetType() != c4d.Opolygon: return {"error": "Source must be polygon mesh"}
+            if dst.GetType() != c4d.Opolygon: return {"error": "Destination must be polygon mesh"}
+
+            if src.GetTag(c4d.Tuvw) is None:
+                return {"error": f"Source '{src_name}' has no UV tag"}
+
+            grid_res = int(command.get("grid_res", 48))
+            create_uv_tag = bool(command.get("create_uv_tag", True))
+            max_distance = command.get("max_distance")  # None = no limit
+
+            # Build 3D grid on source
+            tris, grid, bbmin, bbmax, cell_size = self._build_3d_tri_grid(src, grid_res=grid_res)
+            if tris is None:
+                return {"error": "Failed to build source triangle cache (empty mesh?)"}
+
+            # For each dest vertex (world space), find closest source UV
+            dst_pts = dst.GetAllPoints()
+            dst_mg = dst.GetMg()
+            n_pts = dst.GetPointCount()
+            n_polys = dst.GetPolygonCount()
+
+            dest_vert_uv = [None] * n_pts
+            dest_vert_dist = [None] * n_pts
+            sampled = 0
+            outside = 0
+            max_d = 0.0
+            sum_d = 0.0
+            for vi in range(n_pts):
+                world_p = dst_mg * dst_pts[vi]
+                tri, bary, dist = self._closest_tri_to_point(world_p, tris, grid, bbmin, cell_size, grid_res=grid_res)
+                if tri is None or tri["uv0"] is None:
+                    outside += 1
+                    continue
+                if max_distance is not None and dist > max_distance:
+                    outside += 1
+                    continue
+                w0, w1, w2 = bary
+                # Sample UV via barycentric
+                u = tri["uv0"].x * w0 + tri["uv1"].x * w1 + tri["uv2"].x * w2
+                v = tri["uv0"].y * w0 + tri["uv1"].y * w1 + tri["uv2"].y * w2
+                dest_vert_uv[vi] = c4d.Vector(u, v, 0.0)
+                dest_vert_dist[vi] = dist
+                sampled += 1
+                if dist > max_d: max_d = dist
+                sum_d += dist
+
+            # Build/replace UV tag on dest
+            existing_uv = dst.GetTag(c4d.Tuvw)
+            if existing_uv is None:
+                if not create_uv_tag:
+                    return {"error": "Destination has no UV tag and create_uv_tag=False"}
+                new_uv = c4d.UVWTag(n_polys)
+                dst.InsertTag(new_uv)
+            else:
+                new_uv = existing_uv
+
+            for i in range(n_polys):
+                p = dst.GetPolygon(i)
+                idxs = (p.a, p.b, p.c, p.d)
+                # Build UV per corner — skip if dest_vert_uv is None for any corner
+                vecs = []
+                for vi in idxs:
+                    uv_v = dest_vert_uv[vi]
+                    vecs.append(uv_v if uv_v is not None else c4d.Vector(0, 0, 0))
+                new_uv.SetSlow(i, vecs[0], vecs[1], vecs[2], vecs[3])
+
+            c4d.EventAdd()
+
+            return {
+                "status": "ok",
+                "source": src_name,
+                "dest": dst_name,
+                "dest_vertex_count": n_pts,
+                "vertices_sampled": sampled,
+                "vertices_fallback": outside,
+                "max_distance_seen": max_d,
+                "mean_distance": (sum_d / sampled) if sampled else 0.0,
+                "max_distance_param": max_distance,
+                "grid_res": grid_res,
+                "source_tri_count": len(tris),
+            }
+        except Exception as e:
+            return {"error": f"uv_transfer failed: {e}", "traceback": traceback.format_exc()}
 
     def handle_list_render_engines(self, command):
         """List all registered render engines (VideoPost plugins of renderer kind, plus c4d.PLUGINTYPE_VIDEOPOST entries).

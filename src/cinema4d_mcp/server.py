@@ -2227,6 +2227,64 @@ async def sample_vmap_via_uv(
 
 
 @mcp.tool()
+async def uv_transfer(
+    source: str,
+    dest: str,
+    create_uv_tag: bool = True,
+    grid_res: int = 48,
+    max_distance: Optional[float] = None,
+    ctx: Context = None,
+) -> str:
+    """Project UVs from one mesh onto another via closest-point-on-source.
+
+    For each vertex in the destination mesh, finds the closest point on the
+    source mesh (3D space, world transform applied), computes barycentric
+    coordinates at that point, and samples the source UVs there. Writes UVs
+    to all polygon corners of dest that reference each vertex.
+
+    Args:
+      source: source mesh (must have UV tag) — donor of UV layout.
+      dest:   destination mesh — receives projected UVs.
+      create_uv_tag: if True (default) and dest has no UV tag, create one.
+        If False and dest has no UV tag, error.
+      grid_res: 3D spatial grid resolution for source (default 48).
+        Higher = faster lookups but more memory. 32–64 is the practical range.
+      max_distance: optional. Verts whose closest source point is farther
+        than this are flagged as fallback (no UV written). Default unlimited.
+
+    Returns: per-vertex sampling stats + distance histogram.
+
+    Use cases:
+      - Transfer UV layout from low-poly retopo onto high-poly sculpt
+      - Re-UV a remeshed / decimated version of a textured mesh
+      - Bring UVs across LOD versions of the same model
+      - Inherit UVs after a Boolean / Volume Mesher op produced a new mesh
+        from an originally-UVed source
+
+    Caveats:
+      - Closest-point in 3D — works best when source and dest are roughly
+        aligned spatially.
+      - Result has the same UV at all polygon corners referencing a given
+        dest vertex (no UV seams). For seam-aware transfer, additional
+        authoring or an Optimize/UV-relax pass is needed afterward.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        command: Dict[str, Any] = {
+            "command": "uv_transfer",
+            "source": source,
+            "dest": dest,
+            "create_uv_tag": create_uv_tag,
+            "grid_res": grid_res,
+        }
+        if max_distance is not None:
+            command["max_distance"] = max_distance
+        response = send_to_c4d(connection, command)
+        return format_c4d_response(response, "uv_transfer")
+
+
+@mcp.tool()
 async def get_viewport_state(ctx: Context = None) -> str:
     """Return the active viewport's state: dimensions, frame rect, active camera matrix,
     projection mode, and active renderer. Useful for debugging plugin viewport draws."""
