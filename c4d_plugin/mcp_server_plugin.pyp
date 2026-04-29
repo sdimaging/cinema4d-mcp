@@ -506,6 +506,14 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_doctor(command)
                         elif command_type == "ping":
                             response = self.handle_ping(command)
+                        elif command_type == "begin_undo_group":
+                            response = self.handle_begin_undo_group(command)
+                        elif command_type == "end_undo_group":
+                            response = self.handle_end_undo_group(command)
+                        elif command_type == "undo":
+                            response = self.handle_undo(command)
+                        elif command_type == "redo":
+                            response = self.handle_redo(command)
                         elif command_type == "scene_snapshot":
                             response = self.handle_scene_snapshot(command)
                         elif command_type == "scene_diff":
@@ -10631,6 +10639,7 @@ class C4DSocketServer(threading.Thread):
         "get_c4d_info",
         "get_capabilities", "doctor", "ping",
         "scene_snapshot", "scene_diff",
+        "begin_undo_group", "end_undo_group", "undo", "redo",
     )
     # NOTE: this list reflects what the C4D PLUGIN's run() dispatcher actually
     # routes. Some MCP tool wrappers in server.py (tap_octane_log,
@@ -10761,6 +10770,135 @@ class C4DSocketServer(threading.Thread):
             return info
         except Exception as e:
             return {"error": f"get_capabilities failed: {e}", "traceback": traceback.format_exc()}
+
+    # === Undo grouping — multi-step ops are reversible as a unit =============
+
+    # Stack of active undo group names (for nested-call detection + diagnostics).
+    # C4D's StartUndo/EndUndo are meant to be paired but the doc allows nesting;
+    # we track our perspective on the stack so a misuse is loudly flagged.
+    _undo_group_stack = None  # type: list[str]
+
+    def _ensure_undo_stack(self):
+        if self._undo_group_stack is None:
+            self._undo_group_stack = []
+
+    def handle_begin_undo_group(self, command):
+        """Open an undo group: subsequent mutations until end_undo_group are
+        merged into a single undo step in C4D's undo history.
+
+        Args:
+          name: human-readable label shown in C4D's undo history menu.
+
+        Returns: group_id (int — a stack-depth indicator) and the resulting
+        stack state. The same name can be reused; group_id always increments.
+
+        Pattern:
+          begin_undo_group("Build chair frame")
+          add_primitive(cube)
+          modify_object(cube, ...)
+          create_via_command(...)
+          end_undo_group()
+          # Cmd-Z now undoes all three steps as a single unit.
+
+        Misuse detection: nested begins are tracked but not denied (C4D
+        permits nesting); a warning is included in the response so the
+        client knows about it.
+        """
+        try:
+            self._ensure_undo_stack()
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+            name = command.get("name", "MCP undo group")
+            warnings = []
+            if self._undo_group_stack:
+                warnings.append(
+                    f"begin_undo_group called while {len(self._undo_group_stack)} "
+                    f"group(s) already open: {self._undo_group_stack}. "
+                    f"C4D permits nesting but you must call end_undo_group "
+                    f"the same number of times to fully close."
+                )
+            doc.StartUndo()
+            self._undo_group_stack.append(name)
+            return {
+                "ok": True,
+                "name": name,
+                "group_depth": len(self._undo_group_stack),
+                "stack": list(self._undo_group_stack),
+                "warnings": warnings or None,
+            }
+        except Exception as e:
+            return {"error": f"begin_undo_group failed: {e}", "traceback": traceback.format_exc()}
+
+    def handle_end_undo_group(self, command):
+        """Close the most recently opened undo group. Pairs with begin_undo_group."""
+        try:
+            self._ensure_undo_stack()
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+            if not self._undo_group_stack:
+                return {
+                    "ok": False,
+                    "error": "end_undo_group called with no open group. "
+                             "begin_undo_group / end_undo_group must be paired.",
+                }
+            closed = self._undo_group_stack.pop()
+            doc.EndUndo()
+            return {
+                "ok": True,
+                "closed": closed,
+                "remaining_depth": len(self._undo_group_stack),
+                "stack": list(self._undo_group_stack),
+            }
+        except Exception as e:
+            return {"error": f"end_undo_group failed: {e}", "traceback": traceback.format_exc()}
+
+    def handle_undo(self, command):
+        """Undo the most recent C4D undo group (equivalent to user pressing Cmd/Ctrl-Z)."""
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+            steps = int(command.get("steps", 1))
+            steps = max(1, min(100, steps))  # sanity-clamp
+            performed = 0
+            for _ in range(steps):
+                if doc.DoUndo(False):
+                    performed += 1
+                else:
+                    break
+            c4d.EventAdd()
+            return {
+                "ok": True,
+                "steps_requested": steps,
+                "steps_performed": performed,
+            }
+        except Exception as e:
+            return {"error": f"undo failed: {e}", "traceback": traceback.format_exc()}
+
+    def handle_redo(self, command):
+        """Redo the most recently undone C4D undo group (Cmd/Ctrl-Shift-Z)."""
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+            steps = int(command.get("steps", 1))
+            steps = max(1, min(100, steps))
+            performed = 0
+            for _ in range(steps):
+                if doc.DoRedo():
+                    performed += 1
+                else:
+                    break
+            c4d.EventAdd()
+            return {
+                "ok": True,
+                "steps_requested": steps,
+                "steps_performed": performed,
+            }
+        except Exception as e:
+            return {"error": f"redo failed: {e}", "traceback": traceback.format_exc()}
 
     def handle_ping(self, command):
         """Cheapest possible liveness probe.

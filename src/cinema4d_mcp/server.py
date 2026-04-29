@@ -1914,6 +1914,87 @@ async def scene_diff(
 
 
 @mcp.tool()
+async def begin_undo_group(name: str = "MCP undo group", ctx: Context = None) -> str:
+    """Open a C4D undo group: every mutation until end_undo_group is merged
+    into ONE undo step in C4D's history.
+
+    Pattern for any multi-step Claude operation that should be reversible
+    as a unit:
+      begin_undo_group("Build chair frame")
+      add_primitive(...)
+      modify_object(...)
+      run_modeling_command(...)
+      end_undo_group()
+      # User pressing Cmd-Z now undoes the entire build, not just the last op.
+
+    Args:
+      name: human-readable label shown in C4D's Edit > Undo menu.
+
+    Always pair with end_undo_group. Nesting is permitted (C4D handles it
+    via internal counter); the response includes a stack-depth warning if
+    you nest unintentionally.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        response = send_to_c4d(connection, {"command": "begin_undo_group", "name": name})
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
+async def end_undo_group(ctx: Context = None) -> str:
+    """Close the most recently opened undo group. Pairs with begin_undo_group.
+
+    Idempotency note: calling without an open group returns ok=False with a
+    clear error — never a silent no-op.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        response = send_to_c4d(connection, {"command": "end_undo_group"})
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
+async def undo(steps: int = 1, ctx: Context = None) -> str:
+    """Undo the most recent C4D undo group(s) — equivalent to user Cmd/Ctrl-Z.
+
+    Args:
+      steps: how many undo groups to roll back (default 1, max 100).
+
+    Returns counts of requested vs actually-performed steps so you can
+    detect when the undo stack runs out.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        response = send_to_c4d(connection, {"command": "undo", "steps": steps})
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
+async def redo(steps: int = 1, ctx: Context = None) -> str:
+    """Redo the most recently undone C4D undo group(s) — Cmd/Ctrl-Shift-Z.
+
+    Args:
+      steps: how many redo groups to replay (default 1, max 100).
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        response = send_to_c4d(connection, {"command": "redo", "steps": steps})
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
 async def ping(echo: Optional[str] = None, ctx: Context = None) -> str:
     """Cheapest possible liveness probe.
 
