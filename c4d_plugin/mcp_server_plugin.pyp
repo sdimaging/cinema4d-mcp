@@ -415,6 +415,8 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_sample_bitmap_at_uv(command)
                         elif command_type == "uv_islands_to_objects":
                             response = self.handle_uv_islands_to_objects(command)
+                        elif command_type == "sample_vmap_via_uv":
+                            response = self.handle_sample_vmap_via_uv(command)
                         elif command_type == "get_viewport_state":
                             response = self.handle_get_viewport_state(command)
                         elif command_type == "list_render_engines":
@@ -9110,6 +9112,234 @@ class C4DSocketServer(threading.Thread):
             }
         except Exception as e:
             return {"error": f"uv_islands_to_objects failed: {e}", "traceback": traceback.format_exc()}
+
+    # === Cross-mesh attribute transfer (Houdini/Blender "Sample UV") ========
+
+    def _build_uv_tri_grid(self, mesh, grid_res=64):
+        """Build a UV-space spatial grid of triangles for fast UV → tri lookup.
+
+        Returns (tris, grid) where:
+          tris  = list of dicts with uv0/uv1/uv2 + the source mesh's vertex
+                  indices a/b/c that the tri came from (so callers can sample
+                  any per-vertex attribute, not just UVs)
+          grid  = grid_res × grid_res list-of-lists of triangle indices
+        """
+        uv_tag = mesh.GetTag(c4d.Tuvw)
+        if uv_tag is None:
+            return None, None
+        n_polys = mesh.GetPolygonCount()
+        tris = []
+        for i in range(n_polys):
+            poly = mesh.GetPolygon(i)
+            uv = uv_tag.GetSlow(i)
+            ua, ub, uc, ud = uv["a"], uv["b"], uv["c"], uv["d"]
+            is_quad = (poly.c != poly.d)
+
+            # Triangle 1: a-b-c
+            tris.append({
+                "uv0": ua, "uv1": ub, "uv2": uc,
+                "vi0": poly.a, "vi1": poly.b, "vi2": poly.c,
+                "u_min": min(ua.x, ub.x, uc.x),
+                "u_max": max(ua.x, ub.x, uc.x),
+                "v_min": min(ua.y, ub.y, uc.y),
+                "v_max": max(ua.y, ub.y, uc.y),
+            })
+            if is_quad:
+                tris.append({
+                    "uv0": ua, "uv1": uc, "uv2": ud,
+                    "vi0": poly.a, "vi1": poly.c, "vi2": poly.d,
+                    "u_min": min(ua.x, uc.x, ud.x),
+                    "u_max": max(ua.x, uc.x, ud.x),
+                    "v_min": min(ua.y, uc.y, ud.y),
+                    "v_max": max(ua.y, uc.y, ud.y),
+                })
+        grid = [[[] for _ in range(grid_res)] for _ in range(grid_res)]
+        for ti, t in enumerate(tris):
+            u_lo = max(0, int(t["u_min"] * grid_res))
+            u_hi = min(grid_res - 1, int(t["u_max"] * grid_res))
+            v_lo = max(0, int(t["v_min"] * grid_res))
+            v_hi = min(grid_res - 1, int(t["v_max"] * grid_res))
+            for vy in range(v_lo, v_hi + 1):
+                for ux in range(u_lo, u_hi + 1):
+                    grid[vy][ux].append(ti)
+        return tris, grid
+
+    @staticmethod
+    def _bary_2d(u, v, uv0, uv1, uv2):
+        """Compute barycentric weights of (u,v) within UV triangle.
+        Returns (w0,w1,w2) or None if degenerate."""
+        den = ((uv1.y - uv2.y) * (uv0.x - uv2.x) +
+               (uv2.x - uv1.x) * (uv0.y - uv2.y))
+        if abs(den) < 1e-12:
+            return None
+        w0 = ((uv1.y - uv2.y) * (u - uv2.x) +
+              (uv2.x - uv1.x) * (v - uv2.y)) / den
+        w1 = ((uv2.y - uv0.y) * (u - uv2.x) +
+              (uv0.x - uv2.x) * (v - uv2.y)) / den
+        return (w0, w1, 1.0 - w0 - w1)
+
+    def _find_uv_tri_at(self, u, v, tris, grid, grid_res=64):
+        """Spatial-grid lookup of the source triangle containing UV (u,v).
+        Returns (tri, bary) or (None, None)."""
+        if not (0.0 <= u <= 1.0 and 0.0 <= v <= 1.0):
+            return None, None
+        cu = max(0, min(grid_res - 1, int(u * grid_res)))
+        cv = max(0, min(grid_res - 1, int(v * grid_res)))
+        for radius in (0, 1, 2):
+            for dv in range(-radius, radius + 1):
+                for du in range(-radius, radius + 1):
+                    if radius > 0 and abs(du) != radius and abs(dv) != radius:
+                        continue
+                    ccu, ccv = cu + du, cv + dv
+                    if not (0 <= ccu < grid_res and 0 <= ccv < grid_res):
+                        continue
+                    for ti in grid[ccv][ccu]:
+                        t = tris[ti]
+                        if u < t["u_min"] or u > t["u_max"] or v < t["v_min"] or v > t["v_max"]:
+                            continue
+                        bary = self._bary_2d(u, v, t["uv0"], t["uv1"], t["uv2"])
+                        if bary is None:
+                            continue
+                        w0, w1, w2 = bary
+                        eps = 1e-5
+                        if w0 >= -eps and w1 >= -eps and w2 >= -eps:
+                            return t, bary
+        return None, None
+
+    def handle_sample_vmap_via_uv(self, command):
+        """Transfer a vertex map from a source mesh to a dest mesh via shared
+        UV space — the Blender / Houdini "Sample UV" pattern.
+
+        For each vertex in the destination mesh:
+          1. Compute the vertex's representative UV (averaged over all polys
+             referencing it on dest).
+          2. Find the source triangle containing that UV (UV-space spatial
+             grid lookup, O(1) avg).
+          3. Compute barycentric weights of the UV within that source tri.
+          4. Sample the source vmap weights at that tri's 3 vertices, blend
+             via barycentric → write to dest vmap.
+
+        Args (in command):
+          source (str)              — source object name (must have UV + vmap)
+          dest (str)                — destination object name (must have UV)
+          src_vmap_name (str, opt)  — source vmap; defaults to first
+          dest_vmap_name (str, opt) — dest vmap name; defaults to src name
+          v_flip (bool, default False)
+                                    — flip V before lookup (for hole-map cases
+                                       where source UV uses inverted V axis)
+          fallback_value (float, 0.0)
+                                    — value written for dest verts whose UV
+                                       falls outside any source island
+
+        Returns: vertex counts (sampled, fallback), bbox of weights.
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+
+            src_name = command.get("source")
+            dst_name = command.get("dest")
+            if not src_name or not dst_name:
+                return {"error": "source and dest object names are required"}
+
+            src = self.find_object_by_name(doc, src_name)
+            dst = self.find_object_by_name(doc, dst_name)
+            if src is None: return {"error": f"Source '{src_name}' not found"}
+            if dst is None: return {"error": f"Destination '{dst_name}' not found"}
+            if src.GetType() != c4d.Opolygon:
+                return {"error": f"Source '{src_name}' is not a polygon mesh"}
+            if dst.GetType() != c4d.Opolygon:
+                return {"error": f"Destination '{dst_name}' is not a polygon mesh"}
+
+            src_uv = src.GetTag(c4d.Tuvw)
+            dst_uv = dst.GetTag(c4d.Tuvw)
+            if src_uv is None: return {"error": f"Source '{src_name}' has no UV tag"}
+            if dst_uv is None: return {"error": f"Destination '{dst_name}' has no UV tag"}
+
+            src_vmap_name = command.get("src_vmap_name")
+            src_vmap = self._find_vertex_map_tag(src, src_vmap_name)
+            if src_vmap is None:
+                return {"error": f"No vertex map tag found on source '{src_name}'"}
+
+            src_weights = src_vmap.GetAllHighlevelData()
+            if src_weights is None:
+                return {"error": "Source vertex map has no data"}
+            src_weights = list(src_weights)
+
+            dest_vmap_name = command.get("dest_vmap_name") or src_vmap.GetName()
+            v_flip = bool(command.get("v_flip", False))
+            fallback = float(command.get("fallback_value", 0.0))
+
+            # Build UV-space spatial grid on source
+            tris, grid = self._build_uv_tri_grid(src, grid_res=64)
+            if tris is None:
+                return {"error": "Failed to build source UV triangle cache"}
+
+            # Compute per-vertex UV on dest (avg over all polys using each vert)
+            dst_n_pts = dst.GetPointCount()
+            uv_sum = [(0.0, 0.0)] * dst_n_pts
+            uv_cnt = [0] * dst_n_pts
+            dst_n_polys = dst.GetPolygonCount()
+            for i in range(dst_n_polys):
+                p = dst.GetPolygon(i)
+                uv = dst_uv.GetSlow(i)
+                for vi, uvpt in zip((p.a, p.b, p.c, p.d),
+                                     (uv["a"], uv["b"], uv["c"], uv["d"])):
+                    su, sv = uv_sum[vi]
+                    uv_sum[vi] = (su + uvpt.x, sv + uvpt.y)
+                    uv_cnt[vi] += 1
+
+            # Sample
+            new_w = [fallback] * dst_n_pts
+            sampled = 0
+            outside = 0
+            for vi in range(dst_n_pts):
+                cnt = uv_cnt[vi]
+                if cnt == 0:
+                    outside += 1
+                    continue
+                u = uv_sum[vi][0] / cnt
+                v = uv_sum[vi][1] / cnt
+                if v_flip: v = 1.0 - v
+                tri, bary = self._find_uv_tri_at(u, v, tris, grid, grid_res=64)
+                if tri is None:
+                    outside += 1
+                    continue
+                w0, w1, w2 = bary
+                weight = (src_weights[tri["vi0"]] * w0 +
+                          src_weights[tri["vi1"]] * w1 +
+                          src_weights[tri["vi2"]] * w2)
+                new_w[vi] = weight
+                sampled += 1
+
+            # Write to dest vmap
+            existing = self._find_vertex_map_tag(dst, dest_vmap_name)
+            if existing:
+                vmap = existing
+            else:
+                vmap = c4d.VariableTag(c4d.Tvertexmap, dst_n_pts)
+                vmap.SetName(dest_vmap_name)
+                dst.InsertTag(vmap)
+
+            vmap.SetAllHighlevelData(new_w)
+            c4d.EventAdd()
+
+            return {
+                "status": "ok",
+                "source": src_name,
+                "dest": dst_name,
+                "src_vmap_name": src_vmap.GetName(),
+                "dest_vmap_name": dest_vmap_name,
+                "dest_vertex_count": dst_n_pts,
+                "vertices_sampled": sampled,
+                "vertices_fallback": outside,
+                "weight_min": min(new_w) if new_w else 0.0,
+                "weight_max": max(new_w) if new_w else 0.0,
+                "weight_mean": (sum(new_w) / len(new_w)) if new_w else 0.0,
+            }
+        except Exception as e:
+            return {"error": f"sample_vmap_via_uv failed: {e}", "traceback": traceback.format_exc()}
 
     def handle_list_render_engines(self, command):
         """List all registered render engines (VideoPost plugins of renderer kind, plus c4d.PLUGINTYPE_VIDEOPOST entries).

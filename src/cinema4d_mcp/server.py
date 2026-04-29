@@ -2172,6 +2172,61 @@ async def uv_islands_to_objects(
 
 
 @mcp.tool()
+async def sample_vmap_via_uv(
+    source: str,
+    dest: str,
+    src_vmap_name: Optional[str] = None,
+    dest_vmap_name: Optional[str] = None,
+    v_flip: bool = False,
+    fallback_value: float = 0.0,
+    ctx: Context = None,
+) -> str:
+    """Transfer a vertex map from source mesh to dest mesh via shared UV space.
+
+    The Blender / Houdini "Sample UV" pattern: for each vertex in dest, look
+    up its UV, find the source triangle containing that UV, barycentric-
+    interpolate the source's vmap weights at that triangle's vertices, and
+    write the result to dest's vmap.
+
+    Both meshes must have UV tags. Topology can differ — that's the whole
+    point. The UV correspondence is what carries the data across.
+
+    Args:
+      source: source object name (must have UV + vmap tags)
+      dest:   destination object name (must have UV)
+      src_vmap_name: source vmap name; defaults to first found
+      dest_vmap_name: dest vmap name; defaults to source vmap name
+      v_flip: flip V before lookup (use if source/dest UVs disagree on V direction)
+      fallback_value: value written for dest verts whose UV falls outside
+                      any source UV island. Default 0.0.
+
+    Returns: per-vertex sampling stats + new vmap weight distribution.
+
+    Pipeline use cases:
+      - Bake low-res sculpt mask onto high-res sculpt via shared UVs
+      - Transfer a painted hole map from a flat UV-layout mesh onto the
+        original curved chair (the inverse of unflatten_uv_to_geo)
+      - Move per-region weights between LOD versions of the same model
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        command: Dict[str, Any] = {
+            "command": "sample_vmap_via_uv",
+            "source": source,
+            "dest": dest,
+            "v_flip": v_flip,
+            "fallback_value": fallback_value,
+        }
+        if src_vmap_name is not None:
+            command["src_vmap_name"] = src_vmap_name
+        if dest_vmap_name is not None:
+            command["dest_vmap_name"] = dest_vmap_name
+        response = send_to_c4d(connection, command)
+        return format_c4d_response(response, "sample_vmap_via_uv")
+
+
+@mcp.tool()
 async def get_viewport_state(ctx: Context = None) -> str:
     """Return the active viewport's state: dimensions, frame rect, active camera matrix,
     projection mode, and active renderer. Useful for debugging plugin viewport draws."""
