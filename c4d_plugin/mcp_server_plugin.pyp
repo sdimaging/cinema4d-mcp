@@ -528,6 +528,12 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_list_deformer_types(command)
                         elif command_type == "apply_deformer":
                             response = self.handle_apply_deformer(command)
+                        elif command_type == "create_volume_builder":
+                            response = self.handle_create_volume_builder(command)
+                        elif command_type == "create_volume_mesher":
+                            response = self.handle_create_volume_mesher(command)
+                        elif command_type == "volume_to_polygons":
+                            response = self.handle_volume_to_polygons(command)
                         elif command_type == "scene_snapshot":
                             response = self.handle_scene_snapshot(command)
                         elif command_type == "scene_diff":
@@ -10657,6 +10663,7 @@ class C4DSocketServer(threading.Thread):
         "scene_nodes_status", "scene_nodes_create_graph", "scene_nodes_open_editor",
         "paint_vertex_map_from_formula", "paint_vertex_map_radial",
         "list_deformer_types", "apply_deformer",
+        "create_volume_builder", "create_volume_mesher", "volume_to_polygons",
     )
     # NOTE: this list reflects what the C4D PLUGIN's run() dispatcher actually
     # routes. Some MCP tool wrappers in server.py (tap_octane_log,
@@ -10928,6 +10935,212 @@ class C4DSocketServer(threading.Thread):
         "scenenodes": "net.maxon.scenenodes.basescenenodesnodespace",
         "core": "net.maxon.nodespace.core",
     }
+
+    # === Volume builder / mesher — voxel-based modelling ====================
+
+    # Volume builder boolean modes (per c4d.modules.volume — but symbol names
+    # vary by build, so we resolve at runtime). Default to 0 (union) which
+    # is the most common.
+    _VOLUME_MODES = {
+        "union":     0,
+        "subtract":  1,
+        "intersect": 2,
+    }
+
+    def handle_create_volume_builder(self, command):
+        """Create a Volume Builder generator that combines source objects via
+        voxel union/subtract/intersect.
+
+        Args:
+          source_objects: list of object names to feed into the builder
+          voxel_size: voxel size in scene units (default 5.0). Smaller →
+            higher detail + slower; the right value depends on object scale.
+          mode: 'union' (default) | 'subtract' | 'intersect'
+          name: name for the new generator (default "VolumeBuilder")
+
+        UNSAFE — mutates scene. Returns the new builder's name + GUID.
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+            sources = command.get("source_objects") or []
+            if not sources or not isinstance(sources, list):
+                return {"error": "Provide a non-empty list of source_objects"}
+            voxel_size = float(command.get("voxel_size", 5.0))
+            mode = command.get("mode", "union")
+            if mode not in self._VOLUME_MODES:
+                return {"error": f"Unknown mode '{mode}'", "valid": list(self._VOLUME_MODES.keys())}
+
+            ovb = getattr(c4d, "Ovolumebuilder", None)
+            if ovb is None:
+                return {"error": "This C4D build is missing constant Ovolumebuilder"}
+            builder = c4d.BaseObject(ovb)
+            if not builder:
+                return {"error": "Could not instantiate Volume Builder"}
+            builder.SetName(command.get("name", "VolumeBuilder"))
+
+            # Set voxel size — common ID is c4d.ID_VOLUMEBUILDER_VOXELSIZE
+            for pid_name in ("ID_VOLUMEBUILDER_VOXELSIZE", "VOLUMEBUILDER_VOXELSIZE"):
+                pid = getattr(c4d, pid_name, None)
+                if pid is not None:
+                    try:
+                        builder[pid] = voxel_size
+                        break
+                    except Exception:
+                        pass
+
+            doc.InsertObject(builder)
+
+            # Resolve & parent source objects under the builder
+            resolved = []
+            unresolved = []
+            for nm in sources:
+                obj = doc.SearchObject(nm)
+                if obj is None:
+                    unresolved.append(nm)
+                    continue
+                # Builder takes children — clone or move source under builder?
+                # Standard pattern: insert source UNDER the builder (move).
+                # That's destructive for the original layout; we instead clone
+                # so the original geometry is preserved.
+                clone = obj.GetClone()
+                if clone is None:
+                    unresolved.append(f"{nm} (clone failed)")
+                    continue
+                clone.InsertUnder(builder)
+                resolved.append(nm)
+
+            c4d.EventAdd()
+            return {
+                "ok": len(resolved) > 0,
+                "builder_name": builder.GetName(),
+                "builder_guid": str(builder.GetGUID()),
+                "voxel_size": voxel_size,
+                "mode": mode,
+                "sources_added": resolved,
+                "sources_unresolved": unresolved,
+            }
+        except Exception as e:
+            return {"error": f"create_volume_builder failed: {e}", "traceback": traceback.format_exc()}
+
+    def handle_create_volume_mesher(self, command):
+        """Create a Volume Mesher that converts a Volume Builder's voxel
+        output into a polygon mesh.
+
+        Args:
+          volume_target: name of the Volume Builder (or any volume-emitting
+            object) to feed in. Will be parented under the mesher.
+          threshold: SDF threshold for surface extraction (default 0.5)
+          voxel_size: mesh resolution voxel size (default = same as builder)
+          name: name for the new mesher (default "VolumeMesher")
+
+        UNSAFE — mutates scene.
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+            target_name = command.get("volume_target")
+            if not target_name:
+                return {"error": "Provide volume_target"}
+            target = doc.SearchObject(target_name)
+            if target is None:
+                return {"error": f"volume_target '{target_name}' not found"}
+
+            ovm = getattr(c4d, "Ovolumemesher", None)
+            if ovm is None:
+                return {"error": "This C4D build is missing constant Ovolumemesher"}
+            mesher = c4d.BaseObject(ovm)
+            if not mesher:
+                return {"error": "Could not instantiate Volume Mesher"}
+            mesher.SetName(command.get("name", "VolumeMesher"))
+
+            threshold = float(command.get("threshold", 0.5))
+            for pid_name in ("ID_VOLUMEMESHER_THRESHOLD", "VOLUMEMESHER_THRESHOLD"):
+                pid = getattr(c4d, pid_name, None)
+                if pid is not None:
+                    try:
+                        mesher[pid] = threshold
+                        break
+                    except Exception:
+                        pass
+
+            if "voxel_size" in command:
+                for pid_name in ("ID_VOLUMEMESHER_VOXELSIZE", "VOLUMEMESHER_VOXELSIZE"):
+                    pid = getattr(c4d, pid_name, None)
+                    if pid is not None:
+                        try:
+                            mesher[pid] = float(command["voxel_size"])
+                            break
+                        except Exception:
+                            pass
+
+            doc.InsertObject(mesher)
+            target.InsertUnder(mesher)
+
+            c4d.EventAdd()
+            return {
+                "ok": True,
+                "mesher_name": mesher.GetName(),
+                "mesher_guid": str(mesher.GetGUID()),
+                "volume_target": target_name,
+                "threshold": threshold,
+            }
+        except Exception as e:
+            return {"error": f"create_volume_mesher failed: {e}", "traceback": traceback.format_exc()}
+
+    def handle_volume_to_polygons(self, command):
+        """Bake a Volume Builder/Mesher chain into an editable polygon mesh.
+
+        Wraps `current_state_to_object` on the volume host. Result is a
+        static polygon object that no longer depends on the source generators.
+
+        Args:
+          target: name of the Volume Builder, Volume Mesher, or any
+            generator object whose output you want to bake.
+          delete_source: True (default False) — remove the original
+            generator after baking.
+
+        Returns the new polygon object's name + GUID.
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+            target_name = command.get("target")
+            if not target_name:
+                return {"error": "Provide target"}
+            target = doc.SearchObject(target_name)
+            if target is None:
+                return {"error": f"target '{target_name}' not found"}
+
+            from c4d import utils as _utils
+            result = _utils.SendModelingCommand(
+                command=c4d.MCOMMAND_CURRENTSTATETOOBJECT,
+                list=[target],
+                doc=doc,
+            )
+            if not result:
+                return {"error": "current_state_to_object returned empty"}
+            new_obj = result[0]
+            new_obj.SetName(target.GetName() + "_baked")
+            doc.InsertObject(new_obj)
+
+            if command.get("delete_source"):
+                target.Remove()
+
+            c4d.EventAdd()
+            return {
+                "ok": True,
+                "baked_name": new_obj.GetName(),
+                "baked_guid": str(new_obj.GetGUID()),
+                "point_count": new_obj.GetPointCount() if new_obj.GetType() == c4d.Opolygon else None,
+                "polygon_count": new_obj.GetPolygonCount() if new_obj.GetType() == c4d.Opolygon else None,
+                "source_deleted": bool(command.get("delete_source")),
+            }
+        except Exception as e:
+            return {"error": f"volume_to_polygons failed: {e}", "traceback": traceback.format_exc()}
 
     # === Deformer application — pair with vmap painting for masked deformation ===
 

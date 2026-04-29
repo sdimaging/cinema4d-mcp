@@ -1914,6 +1914,109 @@ async def scene_diff(
 
 
 @mcp.tool()
+async def create_volume_builder(
+    source_objects: List[str],
+    voxel_size: float = 5.0,
+    mode: str = "union",
+    name: Optional[str] = None,
+    ctx: Context = None,
+) -> str:
+    """Create a Volume Builder generator that combines source objects via voxels.
+
+    Args:
+      source_objects: list of object names to feed into the builder. Each
+        is cloned (originals preserved) and parented under the new builder.
+      voxel_size: voxel size in scene units (default 5.0). Smaller = more
+        detail, slower.
+      mode: 'union' (default) | 'subtract' | 'intersect'
+      name: name for the new generator (default 'VolumeBuilder')
+
+    Voxel-based modeling unlocks organic blobs, smooth booleans, fluid-like
+    geometry from sparse inputs. Pair with create_volume_mesher to get a
+    polygon output, then volume_to_polygons to bake.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {
+            "command": "create_volume_builder",
+            "source_objects": source_objects,
+            "voxel_size": voxel_size,
+            "mode": mode,
+        }
+        if name is not None:
+            cmd["name"] = name
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
+async def create_volume_mesher(
+    volume_target: str,
+    threshold: float = 0.5,
+    voxel_size: Optional[float] = None,
+    name: Optional[str] = None,
+    ctx: Context = None,
+) -> str:
+    """Convert a Volume Builder's voxel output to a polygon mesh.
+
+    Args:
+      volume_target: name of the Volume Builder (or any volume-emitting
+        object). It's parented under the new mesher.
+      threshold: SDF threshold for surface extraction (default 0.5).
+      voxel_size: optional output mesh resolution (defaults to source).
+      name: name for the new mesher (default 'VolumeMesher').
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {
+            "command": "create_volume_mesher",
+            "volume_target": volume_target,
+            "threshold": threshold,
+        }
+        if voxel_size is not None:
+            cmd["voxel_size"] = voxel_size
+        if name is not None:
+            cmd["name"] = name
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
+async def volume_to_polygons(
+    target: str,
+    delete_source: bool = False,
+    ctx: Context = None,
+) -> str:
+    """Bake a Volume Builder/Mesher chain into an editable polygon mesh.
+
+    Wraps current_state_to_object on the volume host so the result no
+    longer depends on the source generators.
+
+    Args:
+      target: name of the volume object to bake.
+      delete_source: True to remove the original generator after baking.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {
+            "command": "volume_to_polygons",
+            "target": target,
+            "delete_source": delete_source,
+        }
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
 async def list_deformer_types(ctx: Context = None) -> str:
     """Discover what deformer types this C4D build supports + their default
     parameter shape.
