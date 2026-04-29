@@ -409,6 +409,10 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_vertex_map_stats(command)
                         elif command_type == "vertex_map_threshold_to_polygon_selection":
                             response = self.handle_vertex_map_threshold_to_polygon_selection(command)
+                        elif command_type == "uv_layout_stats":
+                            response = self.handle_uv_layout_stats(command)
+                        elif command_type == "sample_bitmap_at_uv":
+                            response = self.handle_sample_bitmap_at_uv(command)
                         elif command_type == "get_viewport_state":
                             response = self.handle_get_viewport_state(command)
                         elif command_type == "list_render_engines":
@@ -8585,6 +8589,346 @@ class C4DSocketServer(threading.Thread):
                 "error": f"vertex_map_threshold_to_polygon_selection failed: {e}",
                 "traceback": traceback.format_exc(),
             }
+
+    # === UV ops ==============================================================
+
+    def handle_uv_layout_stats(self, command):
+        """Compute layout statistics for the UV tag of a polygon mesh.
+
+        Walks all polygons, bins their UV centroids by connected components
+        (UV-island detection via union-find on UV-position), measures bbox
+        per island, area per island in both UV space and 3D space (giving
+        a distortion / texel-density ratio), and detects overlap between
+        islands by per-cell bin density.
+
+        Args (in command):
+          target (str, optional) — object name; defaults to active selection
+          quantize (int, default 1000000) — UV-position quantization for
+            connectivity detection (6 decimal places by default)
+
+        Returns:
+          object, polygon_count, uv_bbox_global,
+          islands: [{id, polygon_count, uv_bbox, uv_area, world_area,
+                     distortion (sqrt(world/uv) — texel density factor)}],
+          overlap_grid: {grid_res, occupied_cells, overlap_cells (cells with
+            polygons whose 3D centroids span > 15% of mesh bbox)}
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+
+            obj, err = self._resolve_target_object(command, doc, key="target")
+            if err:
+                return {"error": err}
+            if obj.GetType() != c4d.Opolygon:
+                return {"error": f"Target '{obj.GetName()}' is not a polygon mesh"}
+
+            uv_tag = obj.GetTag(c4d.Tuvw)
+            if uv_tag is None:
+                return {"error": f"'{obj.GetName()}' has no UVW tag"}
+
+            n_polys = obj.GetPolygonCount()
+            quantize = int(command.get("quantize", 1000000))
+            src_pts = obj.GetAllPoints()
+
+            # Union-find for UV-island detection (poly-level connectivity by
+            # shared quantized UV vertex position)
+            parent = list(range(n_polys))
+            def find(x):
+                while parent[x] != x:
+                    parent[x] = parent[parent[x]]
+                    x = parent[x]
+                return x
+            def union(a, b):
+                ra, rb = find(a), find(b)
+                if ra != rb:
+                    parent[ra] = rb
+
+            # Map quantized UV vertex → first polygon that referenced it
+            uv_vert_to_poly = {}
+
+            poly_uv_centroids = []   # (poly_idx, cu, cv, uv_area, p3d_centroid, world_area)
+            uv_min_global = [1e9, 1e9]
+            uv_max_global = [-1e9, -1e9]
+
+            for i in range(n_polys):
+                poly = obj.GetPolygon(i)
+                uv = uv_tag.GetSlow(i)
+                ua, ub, uc, ud = uv["a"], uv["b"], uv["c"], uv["d"]
+
+                # Quantize UV verts and union-find by shared quantized position
+                for u_pt in (ua, ub, uc, ud):
+                    key = (int(u_pt.x * quantize + 0.5), int(u_pt.y * quantize + 0.5))
+                    if key in uv_vert_to_poly:
+                        union(i, uv_vert_to_poly[key])
+                    else:
+                        uv_vert_to_poly[key] = i
+
+                # UV centroid
+                cu = (ua.x + ub.x + uc.x + ud.x) * 0.25
+                cv = (ua.y + ub.y + uc.y + ud.y) * 0.25
+
+                # UV area (signed shoelace, take abs)
+                # Treat as quad: split into two tris
+                def tri_area_2d(a, b, c):
+                    return abs((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)) * 0.5
+                uv_area = tri_area_2d(ua, ub, uc) + tri_area_2d(ua, uc, ud)
+
+                pa, pb, pc, pd = src_pts[poly.a], src_pts[poly.b], src_pts[poly.c], src_pts[poly.d]
+                # 3D centroid
+                cx = (pa.x + pb.x + pc.x + pd.x) * 0.25
+                cy = (pa.y + pb.y + pc.y + pd.y) * 0.25
+                cz = (pa.z + pb.z + pc.z + pd.z) * 0.25
+                # 3D area
+                def tri_area_3d(a, b, c):
+                    return ((b - a).Cross(c - a)).GetLength() * 0.5
+                world_area = tri_area_3d(pa, pb, pc) + tri_area_3d(pa, pc, pd)
+
+                poly_uv_centroids.append((i, cu, cv, uv_area, (cx, cy, cz), world_area))
+
+                # Update global UV bbox
+                for u_pt in (ua, ub, uc, ud):
+                    if u_pt.x < uv_min_global[0]: uv_min_global[0] = u_pt.x
+                    if u_pt.y < uv_min_global[1]: uv_min_global[1] = u_pt.y
+                    if u_pt.x > uv_max_global[0]: uv_max_global[0] = u_pt.x
+                    if u_pt.y > uv_max_global[1]: uv_max_global[1] = u_pt.y
+
+            # Group polys by island (UV-connected component)
+            islands_data = {}
+            for entry in poly_uv_centroids:
+                pi, cu, cv, uv_area, p3d, world_area = entry
+                root = find(pi)
+                bucket = islands_data.setdefault(root, {
+                    "polygon_count": 0,
+                    "uv_min": [1e9, 1e9],
+                    "uv_max": [-1e9, -1e9],
+                    "uv_area": 0.0,
+                    "world_area": 0.0,
+                })
+                bucket["polygon_count"] += 1
+                if cu < bucket["uv_min"][0]: bucket["uv_min"][0] = cu
+                if cv < bucket["uv_min"][1]: bucket["uv_min"][1] = cv
+                if cu > bucket["uv_max"][0]: bucket["uv_max"][0] = cu
+                if cv > bucket["uv_max"][1]: bucket["uv_max"][1] = cv
+                bucket["uv_area"] += uv_area
+                bucket["world_area"] += world_area
+
+            islands = []
+            for k, v in islands_data.items():
+                distortion = (v["world_area"] / v["uv_area"]) ** 0.5 if v["uv_area"] > 1e-12 else 0.0
+                islands.append({
+                    "id": k,
+                    "polygon_count": v["polygon_count"],
+                    "uv_bbox": {
+                        "u_min": v["uv_min"][0], "u_max": v["uv_max"][0],
+                        "v_min": v["uv_min"][1], "v_max": v["uv_max"][1],
+                    },
+                    "uv_area": v["uv_area"],
+                    "world_area": v["world_area"],
+                    "distortion": distortion,
+                })
+            islands.sort(key=lambda x: -x["polygon_count"])
+
+            # Overlap detection: bin polys into 32x32 UV grid, compare 3D-spread per cell
+            GRID = 32
+            bbox_diag = obj.GetRad().GetLength() * 2.0
+            spread_threshold = bbox_diag * 0.15
+
+            cells = [[[] for _ in range(GRID)] for _ in range(GRID)]
+            for entry in poly_uv_centroids:
+                pi, cu, cv, _ua, p3d, _wa = entry
+                gu = max(0, min(GRID-1, int(cu * GRID)))
+                gv = max(0, min(GRID-1, int(cv * GRID)))
+                cells[gv][gu].append(p3d)
+
+            occupied = 0
+            overlap = 0
+            for row in cells:
+                for cell in row:
+                    if len(cell) < 2: continue
+                    occupied += 1
+                    xs = [p[0] for p in cell]
+                    ys = [p[1] for p in cell]
+                    zs = [p[2] for p in cell]
+                    spread = max(max(xs)-min(xs), max(ys)-min(ys), max(zs)-min(zs))
+                    if spread > spread_threshold:
+                        overlap += 1
+
+            return {
+                "status": "ok",
+                "object": obj.GetName(),
+                "polygon_count": n_polys,
+                "uv_bbox_global": {
+                    "u_min": uv_min_global[0], "u_max": uv_max_global[0],
+                    "v_min": uv_min_global[1], "v_max": uv_max_global[1],
+                },
+                "island_count": len(islands),
+                "islands": islands,
+                "overlap_grid": {
+                    "grid_res": GRID,
+                    "occupied_cells": occupied,
+                    "overlap_cells": overlap,
+                    "overlap_fraction": overlap / occupied if occupied else 0.0,
+                    "spread_threshold_3d": spread_threshold,
+                    "warning": (
+                        "UV islands overlap (mirrored or stacked shells)"
+                        if overlap > 0 else None
+                    ),
+                },
+            }
+        except Exception as e:
+            return {"error": f"uv_layout_stats failed: {e}", "traceback": traceback.format_exc()}
+
+    def handle_sample_bitmap_at_uv(self, command):
+        """Sample a bitmap at every vertex's UV coordinate, write to a vertex map.
+
+        For each vertex, computes a representative UV (averaged from all
+        polygons referencing that vertex), samples the bitmap at that UV,
+        and writes a single grayscale weight (luminance) into a vertex map.
+
+        Args (in command):
+          target (str, optional)         — object name; defaults to selection
+          bitmap_path (str)              — file path of the source bitmap
+          vmap_name (str, default 'baked')
+                                          — name of the output vertex map
+          channel (str, default 'luminance')
+                                          — 'red', 'green', 'blue', 'alpha',
+                                            'luminance' (0.299R+0.587G+0.114B),
+                                            or 'average' (R+G+B)/3
+          invert (bool, default False)   — output 1.0 - sampled_value
+          gamma (float, default 1.0)     — apply pow(value, gamma) before writing
+          v_flip (bool, default True)    — flip V (image Y top-down vs UV bottom-up)
+
+        Returns: vertex_count, vmap_name, sampled stats.
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+
+            obj, err = self._resolve_target_object(command, doc, key="target")
+            if err:
+                return {"error": err}
+            if obj.GetType() != c4d.Opolygon:
+                return {"error": f"Target '{obj.GetName()}' is not a polygon mesh"}
+
+            uv_tag = obj.GetTag(c4d.Tuvw)
+            if uv_tag is None:
+                return {"error": f"'{obj.GetName()}' has no UVW tag"}
+
+            bitmap_path = command.get("bitmap_path")
+            if not bitmap_path:
+                return {"error": "bitmap_path is required"}
+            if not os.path.isfile(bitmap_path):
+                return {"error": f"Bitmap file not found: {bitmap_path}"}
+
+            vmap_name = command.get("vmap_name", "baked")
+            channel = (command.get("channel") or "luminance").lower()
+            invert = bool(command.get("invert", False))
+            gamma = float(command.get("gamma", 1.0))
+            v_flip = bool(command.get("v_flip", True))
+
+            # Load bitmap
+            bmp = c4d.bitmaps.BaseBitmap()
+            init_result = bmp.InitWith(bitmap_path)
+            ok = init_result == c4d.IMAGERESULT_OK if not isinstance(init_result, tuple) else \
+                 init_result[0] == c4d.IMAGERESULT_OK
+            if not ok:
+                return {"error": f"Failed to load bitmap: {bitmap_path}"}
+
+            bw, bh = bmp.GetBw(), bmp.GetBh()
+
+            def channel_value(rgb_tuple):
+                r, g, b = rgb_tuple[0], rgb_tuple[1], rgb_tuple[2]
+                if channel == "red":       v = r / 255.0
+                elif channel == "green":   v = g / 255.0
+                elif channel == "blue":    v = b / 255.0
+                elif channel == "alpha":
+                    a = rgb_tuple[3] if len(rgb_tuple) >= 4 else 255
+                    v = a / 255.0
+                elif channel == "average": v = (r + g + b) / (3.0 * 255.0)
+                else:                       v = (0.299*r + 0.587*g + 0.114*b) / 255.0
+                if invert: v = 1.0 - v
+                if gamma != 1.0: v = pow(max(0.0, v), gamma)
+                return v
+
+            # Collect per-vertex UV by averaging across all polygons referencing it
+            n_pts = obj.GetPointCount()
+            vert_uv_sum = [(0.0, 0.0)] * n_pts
+            vert_uv_count = [0] * n_pts
+            n_polys = obj.GetPolygonCount()
+            for i in range(n_polys):
+                poly = obj.GetPolygon(i)
+                uv = uv_tag.GetSlow(i)
+                idxs = (poly.a, poly.b, poly.c, poly.d)
+                pts = (uv["a"], uv["b"], uv["c"], uv["d"])
+                for vi, uvpt in zip(idxs, pts):
+                    su, sv = vert_uv_sum[vi]
+                    vert_uv_sum[vi] = (su + uvpt.x, sv + uvpt.y)
+                    vert_uv_count[vi] += 1
+
+            # Sample bitmap at each vertex UV
+            new_data = [0.0] * n_pts
+            sampled = 0
+            mn, mx, total = 1e9, -1e9, 0.0
+            for vi in range(n_pts):
+                cnt = vert_uv_count[vi]
+                if cnt == 0:
+                    continue
+                u = vert_uv_sum[vi][0] / cnt
+                v = vert_uv_sum[vi][1] / cnt
+                if v_flip:
+                    v = 1.0 - v
+                # Clamp to [0,1] then convert to pixel coords
+                u = max(0.0, min(1.0, u))
+                v = max(0.0, min(1.0, v))
+                px = min(bw - 1, int(u * bw))
+                py = min(bh - 1, int(v * bh))
+                rgb = bmp.GetPixel(px, py)
+                if rgb is None:
+                    continue
+                w = channel_value(rgb)
+                new_data[vi] = w
+                sampled += 1
+                if w < mn: mn = w
+                if w > mx: mx = w
+                total += w
+
+            # Find or create vertex map tag with this name
+            existing = self._find_vertex_map_tag(obj, vmap_name)
+            if existing:
+                vmap = existing
+            else:
+                vmap = c4d.modules.character.CAWeightTag if False else c4d.VariableTag(c4d.Tvertexmap, n_pts)
+                vmap.SetName(vmap_name)
+                obj.InsertTag(vmap)
+
+            vmap.SetAllHighlevelData(new_data)
+            c4d.EventAdd()
+
+            return {
+                "status": "ok",
+                "object": obj.GetName(),
+                "vmap_name": vmap_name,
+                "vertex_count": n_pts,
+                "vertices_sampled": sampled,
+                "vertices_skipped_no_uv": n_pts - sampled,
+                "min": mn if sampled else 0.0,
+                "max": mx if sampled else 0.0,
+                "mean": (total / sampled) if sampled else 0.0,
+                "bitmap": {
+                    "path": bitmap_path,
+                    "width": bw,
+                    "height": bh,
+                    "channel": channel,
+                    "v_flip_applied": v_flip,
+                    "invert_applied": invert,
+                    "gamma_applied": gamma,
+                },
+            }
+        except Exception as e:
+            return {"error": f"sample_bitmap_at_uv failed: {e}", "traceback": traceback.format_exc()}
 
     def handle_list_render_engines(self, command):
         """List all registered render engines (VideoPost plugins of renderer kind, plus c4d.PLUGINTYPE_VIDEOPOST entries).

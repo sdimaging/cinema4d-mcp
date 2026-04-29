@@ -2012,6 +2012,113 @@ async def vertex_map_threshold_to_polygon_selection(
 
 
 @mcp.tool()
+async def uv_layout_stats(
+    target: Optional[str] = None,
+    quantize: int = 1000000,
+    ctx: Context = None,
+) -> str:
+    """Compute layout stats for a polygon mesh's UV tag.
+
+    Walks the UV layout, detects islands via union-find on shared UV
+    vertex positions, measures per-island bbox + area in both UV space
+    and 3D space (giving a distortion ratio = sqrt(world_area/uv_area)
+    which is the local texel-density factor), and detects shell overlap
+    via 32x32 UV grid binning + 3D-spread heuristic.
+
+    Returns:
+      - global UV bbox
+      - island_count
+      - per-island stats: polygon_count, uv_bbox, uv_area, world_area,
+        distortion (local texel density factor)
+      - overlap_grid: cells with high 3D-spread (sign of mirrored or
+        stacked UV shells, which break naive UV→3D pipelines)
+
+    Use cases:
+      - sanity check before running UV-flatten / hole-cut workflows
+      - identify oversized or undersized UV islands (texel density
+        comparison)
+      - detect mirrored/overlapping shells before they cause issues
+      - estimate proper texture resolution per island
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        command: Dict[str, Any] = {
+            "command": "uv_layout_stats",
+            "quantize": quantize,
+        }
+        if target is not None:
+            command["target"] = target
+        response = send_to_c4d(connection, command)
+        return format_c4d_response(response, "uv_layout_stats")
+
+
+@mcp.tool()
+async def sample_bitmap_at_uv(
+    bitmap_path: str,
+    target: Optional[str] = None,
+    vmap_name: str = "baked",
+    channel: str = "luminance",
+    invert: bool = False,
+    gamma: float = 1.0,
+    v_flip: bool = True,
+    ctx: Context = None,
+) -> str:
+    """Sample a bitmap at every vertex's UV coord, write to a vertex map.
+
+    The "Photoshop mask → procedural mesh attribute" bridge. Lets you paint
+    a black/white mask (or any image) externally, save as PNG, and bake
+    the per-pixel values into a vertex map on the mesh — at which point
+    every other procedural tool that takes a vertex map (Field source,
+    threshold-to-polygon-selection, MoGraph effector, etc.) can drive off it.
+
+    For each vertex, the per-vertex UV is computed by averaging the UVs
+    from all polygons referencing it (handles UV seams gracefully — verts
+    on a seam end up with one of their UV positions, doesn't matter which
+    since both correspond to the same 3D point).
+
+    Args:
+      bitmap_path: file path of source bitmap (any format C4D supports).
+      target: object name; defaults to active selection.
+      vmap_name: name of the output vertex map (created if not present,
+                 overwritten if it is). Default 'baked'.
+      channel: which bitmap channel to read.
+        - 'luminance' (default): perceptual gray (0.299R + 0.587G + 0.114B)
+        - 'red' / 'green' / 'blue' / 'alpha'
+        - 'average': simple (R+G+B)/3
+      invert: if True, output 1.0 - value.
+      gamma: apply pow(value, gamma) to each sample. Default 1.0 (off).
+      v_flip: if True (default), flip V axis to account for image-Y vs UV-Y
+              direction mismatch. Set False if your bitmap was authored
+              UV-up.
+
+    Returns: counts (sampled, skipped), min/max/mean of resulting weights,
+    plus echo of the bitmap params used.
+
+    Pipeline example: paint hole regions in Photoshop / Painter as a B/W
+    mask → save as hole_mask.png → sample_bitmap_at_uv(hole_mask.png) →
+    vertex_map_threshold_to_polygon_selection(threshold=0.5) →
+    run_modeling_command(op='delete', mode='polygons').
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        command: Dict[str, Any] = {
+            "command": "sample_bitmap_at_uv",
+            "bitmap_path": bitmap_path,
+            "vmap_name": vmap_name,
+            "channel": channel,
+            "invert": invert,
+            "gamma": gamma,
+            "v_flip": v_flip,
+        }
+        if target is not None:
+            command["target"] = target
+        response = send_to_c4d(connection, command)
+        return format_c4d_response(response, "sample_bitmap_at_uv")
+
+
+@mcp.tool()
 async def get_viewport_state(ctx: Context = None) -> str:
     """Return the active viewport's state: dimensions, frame rect, active camera matrix,
     projection mode, and active renderer. Useful for debugging plugin viewport draws."""
