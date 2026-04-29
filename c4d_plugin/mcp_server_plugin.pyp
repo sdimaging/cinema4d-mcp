@@ -143,6 +143,13 @@ class C4DSocketServer(threading.Thread):
         # accepted (preserves existing single-user-localhost workflow) but a
         # warning is logged at startup.
         self.auth_token = os.environ.get("MCP_AUTH_TOKEN") or None
+        # Safe mode: if MCP_SAFE_MODE is set (any truthy value), commands not
+        # in _SAFE_COMMANDS are rejected. Lets a user expose the bridge to
+        # less-trusted contexts (review tools, screenshot bots, CI inspection)
+        # without enabling Python execution / scene mutation. Default is OFF
+        # to preserve existing single-user workflow.
+        _safe = os.environ.get("MCP_SAFE_MODE", "").strip().lower()
+        self.safe_mode = _safe in ("1", "true", "yes", "on")
         self.running = False
         self.msg_queue = msg_queue  # Queue to communicate with UI
         self.daemon = True  # Ensures cleanup on shutdown
@@ -301,6 +308,12 @@ class C4DSocketServer(threading.Thread):
                     "(including execute_python). Set MCP_AUTH_TOKEN env var, "
                     "or bind 127.0.0.1, before running on a multi-user / networked host."
                 )
+            if self.safe_mode:
+                self.log(
+                    f"[C4D] [safe-mode] MCP_SAFE_MODE active — only read-only commands "
+                    f"({len(self._SAFE_COMMANDS)} of {len(self._SUPPORTED_COMMANDS)}) accepted. "
+                    f"unset MCP_SAFE_MODE to re-enable scene mutation / Python execution."
+                )
 
             while self.running:
                 client, addr = self.socket.accept()
@@ -345,6 +358,21 @@ class C4DSocketServer(threading.Thread):
                             }
                             client.sendall((json.dumps(response) + "\n").encode("utf-8"))
                             self.log(f"[C4D] [auth] rejected command={command_type!r} (bad/missing token)")
+                            continue
+
+                        # Safe-mode gate: if MCP_SAFE_MODE is set, refuse any
+                        # command not in the SAFE allowlist (mutating ops,
+                        # execute_python, file writes, plugin installs, etc.)
+                        if self.safe_mode and command_type not in self._SAFE_COMMANDS:
+                            response = {
+                                "error": f"safe-mode: '{command_type}' is not in the SAFE allowlist. "
+                                         f"unset MCP_SAFE_MODE on the server to enable mutation. "
+                                         f"safe commands: {sorted(self._SAFE_COMMANDS)}",
+                                "rejected_command": command_type,
+                                "safe_mode": True,
+                            }
+                            client.sendall((json.dumps(response) + "\n").encode("utf-8"))
+                            self.log(f"[C4D] [safe-mode] rejected unsafe command={command_type!r}")
                             continue
 
                         # Scene info & execution
@@ -10591,6 +10619,7 @@ class C4DSocketServer(threading.Thread):
                     "auth_token_required": bool(self.auth_token),
                     "host": self.host,
                     "port": self.port,
+                    "safe_mode": self.safe_mode,
                 },
                 "transport": {
                     "framing": "newline-delimited-json",
@@ -10716,6 +10745,7 @@ class C4DSocketServer(threading.Thread):
                 "ok": True,
                 "auth_token_required": bool(self.auth_token),
                 "host": self.host,
+                "safe_mode": self.safe_mode,
             })
 
             all_ok = all(c.get("ok", False) for c in checks)
