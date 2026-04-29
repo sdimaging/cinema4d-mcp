@@ -520,6 +520,10 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_scene_nodes_create_graph(command)
                         elif command_type == "scene_nodes_open_editor":
                             response = self.handle_scene_nodes_open_editor(command)
+                        elif command_type == "paint_vertex_map_from_formula":
+                            response = self.handle_paint_vertex_map_from_formula(command)
+                        elif command_type == "paint_vertex_map_radial":
+                            response = self.handle_paint_vertex_map_radial(command)
                         elif command_type == "scene_snapshot":
                             response = self.handle_scene_snapshot(command)
                         elif command_type == "scene_diff":
@@ -10647,6 +10651,7 @@ class C4DSocketServer(threading.Thread):
         "scene_snapshot", "scene_diff",
         "begin_undo_group", "end_undo_group", "undo", "redo",
         "scene_nodes_status", "scene_nodes_create_graph", "scene_nodes_open_editor",
+        "paint_vertex_map_from_formula", "paint_vertex_map_radial",
     )
     # NOTE: this list reflects what the C4D PLUGIN's run() dispatcher actually
     # routes. Some MCP tool wrappers in server.py (tap_octane_log,
@@ -10917,6 +10922,277 @@ class C4DSocketServer(threading.Thread):
         "scenenodes": "net.maxon.scenenodes.basescenenodesnodespace",
         "core": "net.maxon.nodespace.core",
     }
+
+    # === Vertex-map painting (creative leverage — fields/effectors/deformers
+    #     all consume vmaps; this lets you paint them procedurally) =========
+
+    # Whitelist of names exposed in the formula-evaluation namespace.
+    # Limits what `paint_vertex_map_from_formula` can reach. The user's
+    # formula can use math functions and the per-vertex variables (x, y, z,
+    # i, n, u, v) but cannot import or touch system state.
+    _VMAP_FORMULA_SAFE_NAMES = {
+        "abs": abs, "min": min, "max": max, "round": round, "pow": pow,
+        "len": len,
+    }
+
+    def _vmap_formula_globals(self):
+        """Build the formula-eval globals dict — math functions only."""
+        import math as _m
+        g = {"__builtins__": {}}
+        g.update(self._VMAP_FORMULA_SAFE_NAMES)
+        # Expose all math.* helpers
+        for k in ("sin", "cos", "tan", "asin", "acos", "atan", "atan2",
+                 "sinh", "cosh", "tanh", "exp", "log", "log10", "log2",
+                 "sqrt", "floor", "ceil", "trunc", "fmod", "pi", "e",
+                 "tau", "inf", "nan", "hypot", "copysign", "isfinite",
+                 "isnan", "isinf"):
+            if hasattr(_m, k):
+                g[k] = getattr(_m, k)
+        # Common helpers
+        g["clamp"] = lambda v, a, b: a if v < a else (b if v > b else v)
+        g["lerp"] = lambda a, b, t: a + (b - a) * t
+        g["smoothstep"] = lambda a, b, x: (
+            0.0 if x <= a else (1.0 if x >= b else
+                ((lambda t: t*t*(3.0 - 2.0*t))((x - a) / (b - a)))
+            )
+        )
+        return g
+
+    def _ensure_vertex_map(self, obj, vmap_name):
+        """Find or create a vertex map tag on `obj`. Returns (tag, created_bool)."""
+        for t in obj.GetTags():
+            if t.GetType() == c4d.Tvertexmap and t.GetName() == vmap_name:
+                return t, False
+        tag = c4d.VariableTag(c4d.Tvertexmap, obj.GetPointCount())
+        tag.SetName(vmap_name)
+        obj.InsertTag(tag)
+        return tag, True
+
+    def handle_paint_vertex_map_from_formula(self, command):
+        """Paint a vertex map by evaluating a math formula per vertex.
+
+        The formula has access to per-vertex variables:
+          - x, y, z   : local-space vertex coords
+          - wx, wy, wz: world-space vertex coords
+          - i         : 0-based vertex index
+          - n         : total vertex count
+          - bx, by, bz: object-local bbox center
+          - rx, ry, rz: object-local bbox radius
+        And math functions: sin, cos, tan, asin, acos, atan, atan2, sqrt,
+        exp, log, log2, log10, floor, ceil, abs, min, max, pow, pi, e, tau,
+        plus helpers: clamp(v, a, b), lerp(a, b, t), smoothstep(a, b, x).
+
+        The formula MUST evaluate to a numeric value per vertex. The result
+        is clamped to [0, 1] before being written to the vmap (override
+        with clamp=False to write raw values).
+
+        Args:
+          target: object name (poly mesh)
+          vmap_name: name of the vmap (created if missing)
+          formula: string, e.g. "sin(x * 0.05) * 0.5 + 0.5" or
+                   "smoothstep(50, 150, sqrt(x*x + z*z))"
+          space: "local" (default) or "world" (use wx/wy/wz as x/y/z)
+          clamp: True (default) → clip to [0, 1]; False → write raw.
+
+        Returns: vert count, weight stats (min/max/mean), the formula echoed.
+
+        Use cases:
+          - radial gradient: "smoothstep(0, 100, sqrt(x*x + z*z))"
+          - sine bands: "abs(sin(x * 0.05))"
+          - axis-aligned ramp: "clamp((x + 100) / 200, 0, 1)"
+          - thresholded noise via formula: "1.0 if x*y*z > 0 else 0.0"
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+            obj, err = self._resolve_target_object(command, doc, key="target")
+            if err:
+                return {"error": err}
+            if obj.GetType() != c4d.Opolygon:
+                return {"error": f"Target '{obj.GetName()}' is not a polygon mesh"}
+
+            formula = command.get("formula")
+            if not formula or not isinstance(formula, str):
+                return {"error": "Provide a non-empty `formula` string"}
+            if len(formula) > 2000:
+                return {"error": "formula too long (>2000 chars)"}
+            vmap_name = command.get("vmap_name", "painted")
+            space = command.get("space", "local")
+            do_clamp = bool(command.get("clamp", True))
+
+            tag, created = self._ensure_vertex_map(obj, vmap_name)
+            n = obj.GetPointCount()
+            if tag.GetDataCount() != n:
+                tag.Resize(n)
+
+            pts = obj.GetAllPoints()
+            mg = obj.GetMg()
+            # bbox in local space
+            xs = [p.x for p in pts]; ys = [p.y for p in pts]; zs = [p.z for p in pts]
+            bx = (min(xs) + max(xs)) * 0.5
+            by = (min(ys) + max(ys)) * 0.5
+            bz = (min(zs) + max(zs)) * 0.5
+            rx = (max(xs) - min(xs)) * 0.5
+            ry = (max(ys) - min(ys)) * 0.5
+            rz = (max(zs) - min(zs)) * 0.5
+
+            globals_dict = self._vmap_formula_globals()
+
+            try:
+                code = compile(formula, "<vmap-formula>", "eval")
+            except SyntaxError as e:
+                return {"error": f"formula syntax error: {e}"}
+
+            weights = [0.0] * n
+            errors = 0
+            wmin, wmax, wsum = 1e9, -1e9, 0.0
+            for i, p in enumerate(pts):
+                pw = mg.Mul(p)
+                env = {
+                    "x": p.x if space != "world" else pw.x,
+                    "y": p.y if space != "world" else pw.y,
+                    "z": p.z if space != "world" else pw.z,
+                    "wx": pw.x, "wy": pw.y, "wz": pw.z,
+                    "i": i, "n": n,
+                    "bx": bx, "by": by, "bz": bz,
+                    "rx": rx, "ry": ry, "rz": rz,
+                }
+                try:
+                    val = eval(code, globals_dict, env)
+                    val = float(val)
+                except Exception:
+                    errors += 1
+                    val = 0.0
+                if do_clamp:
+                    val = 0.0 if val < 0.0 else (1.0 if val > 1.0 else val)
+                weights[i] = val
+                if val < wmin: wmin = val
+                if val > wmax: wmax = val
+                wsum += val
+
+            tag.SetAllHighlevelData(weights)
+            obj.Message(c4d.MSG_UPDATE)
+            c4d.EventAdd()
+            return {
+                "ok": True,
+                "object": obj.GetName(),
+                "vmap_name": vmap_name,
+                "vmap_created": created,
+                "vertex_count": n,
+                "errors": errors,
+                "min": wmin if n else 0.0,
+                "max": wmax if n else 0.0,
+                "mean": (wsum / n) if n else 0.0,
+                "formula": formula,
+                "space": space,
+                "clamped": do_clamp,
+            }
+        except Exception as e:
+            return {"error": f"paint_vertex_map_from_formula failed: {e}", "traceback": traceback.format_exc()}
+
+    def handle_paint_vertex_map_radial(self, command):
+        """Paint a vertex map with a radial gradient from a center point.
+
+        Args:
+          target: object name (poly mesh)
+          vmap_name: name of the vmap (created if missing)
+          center: [x, y, z] in object-local space (default: object bbox center)
+          radius: distance at which the gradient hits 0 (default: object bbox max-radius)
+          inner_value: value at center (default 1.0)
+          outer_value: value at radius (default 0.0)
+          falloff: "linear" (default) | "smooth" (smoothstep) | "quadratic"
+          space: "local" (default) or "world"
+
+        Returns: weight stats + echo of args used.
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+            obj, err = self._resolve_target_object(command, doc, key="target")
+            if err:
+                return {"error": err}
+            if obj.GetType() != c4d.Opolygon:
+                return {"error": f"Target '{obj.GetName()}' is not a polygon mesh"}
+
+            vmap_name = command.get("vmap_name", "radial")
+            falloff = command.get("falloff", "linear")
+            inner = float(command.get("inner_value", 1.0))
+            outer = float(command.get("outer_value", 0.0))
+            space = command.get("space", "local")
+
+            tag, created = self._ensure_vertex_map(obj, vmap_name)
+            n = obj.GetPointCount()
+            if tag.GetDataCount() != n:
+                tag.Resize(n)
+
+            pts = obj.GetAllPoints()
+            mg = obj.GetMg()
+
+            # Default center / radius from bbox
+            xs = [p.x for p in pts]; ys = [p.y for p in pts]; zs = [p.z for p in pts]
+            default_center = c4d.Vector(
+                (min(xs) + max(xs)) * 0.5,
+                (min(ys) + max(ys)) * 0.5,
+                (min(zs) + max(zs)) * 0.5,
+            )
+            default_radius = max(
+                max(xs) - min(xs), max(ys) - min(ys), max(zs) - min(zs)
+            ) * 0.5
+
+            center_arg = command.get("center")
+            if center_arg and len(center_arg) == 3:
+                center = c4d.Vector(*[float(v) for v in center_arg])
+            else:
+                center = default_center
+            radius = float(command.get("radius", default_radius))
+            if radius <= 0:
+                return {"error": "radius must be > 0"}
+
+            def _falloff(t):
+                t = 0.0 if t < 0.0 else (1.0 if t > 1.0 else t)
+                if falloff == "smooth":
+                    return t * t * (3.0 - 2.0 * t)
+                if falloff == "quadratic":
+                    return t * t
+                return t  # linear
+
+            weights = [0.0] * n
+            wmin, wmax, wsum = 1e9, -1e9, 0.0
+            for i, p in enumerate(pts):
+                pp = p if space != "world" else mg.Mul(p)
+                d = (pp - center).GetLength()
+                t = d / radius  # 0 at center, 1 at radius
+                # outside radius → outer_value
+                fall_t = _falloff(min(1.0, t))
+                val = inner + (outer - inner) * fall_t
+                weights[i] = val
+                if val < wmin: wmin = val
+                if val > wmax: wmax = val
+                wsum += val
+
+            tag.SetAllHighlevelData(weights)
+            obj.Message(c4d.MSG_UPDATE)
+            c4d.EventAdd()
+            return {
+                "ok": True,
+                "object": obj.GetName(),
+                "vmap_name": vmap_name,
+                "vmap_created": created,
+                "vertex_count": n,
+                "center": [center.x, center.y, center.z],
+                "radius": radius,
+                "inner_value": inner,
+                "outer_value": outer,
+                "falloff": falloff,
+                "space": space,
+                "min": wmin if n else 0.0,
+                "max": wmax if n else 0.0,
+                "mean": (wsum / n) if n else 0.0,
+            }
+        except Exception as e:
+            return {"error": f"paint_vertex_map_radial failed: {e}", "traceback": traceback.format_exc()}
 
     def handle_scene_nodes_status(self, command):
         """Survey the Scene Nodes graphs present in the active document.

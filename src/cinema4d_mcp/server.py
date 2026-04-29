@@ -1914,6 +1914,107 @@ async def scene_diff(
 
 
 @mcp.tool()
+async def paint_vertex_map_from_formula(
+    target: str,
+    formula: str,
+    vmap_name: str = "painted",
+    space: str = "local",
+    clamp: bool = True,
+    ctx: Context = None,
+) -> str:
+    """Paint a vertex map by evaluating a math formula per vertex.
+
+    Available variables in the formula:
+      - x, y, z   : object-local vertex coords
+      - wx, wy, wz: world-space vertex coords
+      - i         : 0-based vertex index
+      - n         : total vertex count
+      - bx, by, bz: object-local bbox center
+      - rx, ry, rz: object-local bbox half-extent
+
+    Available functions:
+      sin, cos, tan, asin, acos, atan, atan2,
+      sqrt, exp, log, log2, log10, floor, ceil,
+      abs, min, max, pow, pi, e, tau,
+      clamp(v, a, b), lerp(a, b, t), smoothstep(a, b, x).
+
+    No imports / builtins reachable — sandboxed AST eval. Result is
+    clamped to [0, 1] by default (set clamp=False to write raw values).
+
+    Example formulas:
+      "sin(x * 0.05) * 0.5 + 0.5"            # horizontal wave
+      "smoothstep(0, 100, sqrt(x*x + z*z))"  # radial gradient
+      "abs(sin(x*0.05) * cos(z*0.05))"       # checker-like
+      "1.0 if y > 0 else 0.0"                # half-mask
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {
+            "command": "paint_vertex_map_from_formula",
+            "target": target,
+            "formula": formula,
+            "vmap_name": vmap_name,
+            "space": space,
+            "clamp": clamp,
+        }
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
+async def paint_vertex_map_radial(
+    target: str,
+    vmap_name: str = "radial",
+    center: Optional[List[float]] = None,
+    radius: Optional[float] = None,
+    inner_value: float = 1.0,
+    outer_value: float = 0.0,
+    falloff: str = "linear",
+    space: str = "local",
+    ctx: Context = None,
+) -> str:
+    """Paint a vertex map with a radial gradient from a center point.
+
+    Args:
+      target: poly mesh name
+      vmap_name: name of the vmap (created if missing, overwritten if exists)
+      center: [x, y, z] center point (default: object bbox center)
+      radius: distance at which gradient hits outer_value (default: bbox max-radius)
+      inner_value: weight at the center (default 1.0)
+      outer_value: weight at radius and beyond (default 0.0)
+      falloff: 'linear' (default) | 'smooth' (smoothstep) | 'quadratic'
+      space: 'local' (default — use vert local coords) or 'world'
+
+    Example: paint a soft circular mask at world origin with radius 200,
+    inner=1.0 outer=0.0, smooth falloff — perfect for driving a Bevel
+    deformer's strength via a vertex map.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {
+            "command": "paint_vertex_map_radial",
+            "target": target,
+            "vmap_name": vmap_name,
+            "inner_value": inner_value,
+            "outer_value": outer_value,
+            "falloff": falloff,
+            "space": space,
+        }
+        if center is not None:
+            cmd["center"] = center
+        if radius is not None:
+            cmd["radius"] = radius
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
 async def scene_nodes_status(ctx: Context = None) -> str:
     """Survey the Scene Nodes graphs present in the active document.
 
