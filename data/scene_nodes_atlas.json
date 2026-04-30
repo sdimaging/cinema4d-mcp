@@ -494,7 +494,17 @@
 
   "$type_label_dictionary": {
     "_description": "Verified mapping between dissection bare names, canonical asset IDs, and ApplyDescription $type labels. KEY RULE confirmed via user-supplied canonical IDs (2026-04-29): the bare-name extracted from a dissection (e.g. 'memory' from 'memory@HASH') is ALWAYS the last segment of the canonical asset ID (e.g. 'net.maxon.node.memory'). So `dissection_basename = canonical_id.rsplit('.', 1)[-1]`.",
-    "label_resolution_strategy": "1. Look up bare_name in _verified_working below. 2. If miss: take the canonical asset_id from node_template_index.json (matched by last segment) and use the heuristic-derived label_guess. 3. ApplyDescription may need the LABEL form, not the canonical id — when that fails, use scene_nodes_atlas_lookup to fuzzy-find candidates.",
+    "label_resolution_strategy": "1. Look up bare_name in _verified_working below. 2. If miss: take the canonical asset_id from node_template_index.json (matched by last segment) and prepend '#' — that ALWAYS works as $type. 3. The lazy form '#~.suffix' resolves contextually. 4. UI labels (case-sensitive English) work for templates with non-ambiguous human-friendly names. Discovery credit: GPT 5.5 (2026-04-30) cracked the # prefix from Maxon's GraphDescription docs.",
+    "_critical_HASH_prefix_rule": {
+      "rule": "Canonical asset IDs work as $type ONLY when prefixed with '#'.",
+      "examples": {
+        "wrong (raw canonical)": {"$type": "net.maxon.node.array.append", "result": "FAILS — 'not associated with any IDs'"},
+        "right (with #)": {"$type": "#net.maxon.node.array.append", "result": "WORKS — adds an Append node"},
+        "lazy form": {"$type": "#~.array.append", "result": "WORKS — context-resolves the prefix"}
+      },
+      "when_to_use": "Use # prefix form when: (a) the UI label is unknown, (b) the UI label is ambiguous (Concatenate, Modulo), (c) you want guaranteed disambiguation.",
+      "discovery_2026_04_30": "Cracked via GPT 5.5 review of Maxon's GraphDescription manual. Verified live against C4D 2026.2 — 22/22 previously-unresolved bare-names became addressable in one pass."
+    },
     "_verified_working": {
       "Sphere": {"canonical_id": "net.maxon.neutron.node.primitive.sphere", "bare_name": "sphere", "verified_via": "ApplyDescription returned cube@HASH"},
       "Cube": {"canonical_id": "net.maxon.neutron.node.primitive.cube", "bare_name": "cube", "verified_via": "ApplyDescription"},

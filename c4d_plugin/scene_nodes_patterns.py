@@ -68,26 +68,52 @@ VERIFIED_LABELS: dict[str, str] = {
     "Resample Spline": "resample",
 }
 
-# UNVERIFIED — these labels are referenced by patterns but haven't been
-# confirmed to work via ApplyDescription. Likely need different label
-# forms. The pattern builders that use them currently ship best-guess
-# labels and may fail at apply time.
+# Canonical-ID-with-# prefix forms (verified 2026-04-30 via live probing
+# after GPT 5.5 cracked the syntax from Maxon's GraphDescription docs).
+# Map: $type-string → dissection-bare-name. Use these when the English UI
+# label form is ambiguous or unknown.
+VERIFIED_CANONICAL_TYPES: dict[str, str] = {
+    "#net.maxon.node.array.append": "append",
+    "#net.maxon.node.array.append2": "append2",
+    "#net.maxon.node.array.concat": "concat",  # array variant
+    "#net.maxon.node.string.concat": "concat",  # string variant
+    "#net.maxon.node.array.readvalueatindex": "readvalueatindex",
+    "#net.maxon.node.array.writevalueatindex": "writevalueatindex",
+    "#net.maxon.node.containeriteration": "containeriteration",
+    "#net.maxon.neutron.node.distribution.parametric.pushapart": "pushapart",
+    "#net.maxon.neutron.geometry.lineget": "lineget",
+    "#net.maxon.neutron.geometry.lineset": "lineset",
+    "#net.maxon.neutron.geometry.spline.assembler": "assembler",
+    "#net.maxon.neutron.geometry.set_property": "set_property",
+    "#net.maxon.neutron.geometry.get_property": "get_property",
+    "#net.maxon.nbo.node.collision.closestpointonsurface": "closestpointonsurface",
+    "#net.maxon.nbo.node.matrixfromaxis": "matrixfromaxis",
+    "#net.maxon.node.transformvector": "transformvector",
+    "#net.maxon.neutron.geometry.polygoninfo": "polygoninfo",
+    "#net.maxon.neutron.geometry.pointinfo": "pointinfo",
+    "#net.maxon.neutron.asset.geo.modulo": "modulo (operator capsule)",
+    "#net.maxon.node.modulo": "modulo (math)",
+}
+
+
+def all_verified_types() -> set[str]:
+    """Combined set of every $type string we've confirmed works."""
+    return set(VERIFIED_LABELS.keys()) | set(VERIFIED_CANONICAL_TYPES.keys())
+
+
+# UNVERIFIED — labels referenced by patterns but never live-confirmed.
+# These are mostly UI-label guesses that may need probing OR may be
+# auto-emitted framework sub-nodes that aren't user-addable.
 UNVERIFIED_LABELS_USED_BY_PATTERNS: set[str] = {
-    "Container Iteration",  # used by loop_over_*
-    "Read Value At Index", "Write Value At Index",
-    "Append", "Concat",  # ambiguous — multiple templates collide
     "Get Polygon Selection Data", "Get Vertex Selection Data",
     "Selection String Parser", "Selection String To Selection",
     "Pt Pos From Poly Ids", "Poly Normals From Poly Ids",
     "Poly Center From Poly Ids", "Color Alpha From Pt Ids",
     "Weights From Pt Ids", "Edges From Poly Ids",
-    "Closest Point On Surface", "Ray",
-    "Compose Vector 3", "Matrix From Axis",
-    "Push Apart", "Line Get", "Assembler",
+    "Ray", "Compose Vector 3",
     "Add Control Point Along Spline", "Split Spline", "Sort Container",
-    "Length",  # disambig: Vector Length works, plain Length doesn't
+    "Length",  # disambig: 'Vector Length' works, plain 'Length' doesn't
     "Object Import", "Cloner",
-    "Set Property", "Get Property",
 }
 
 

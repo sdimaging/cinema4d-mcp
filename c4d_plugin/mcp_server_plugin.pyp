@@ -15158,26 +15158,31 @@ class C4DSocketServer(threading.Thread):
                     "traceback": traceback.format_exc()}
 
     def handle_scene_nodes_connect_ports(self, command):
-        """Wire two Scene Nodes by port name. Optionally auto-insert a
-        type-conversion node when the source output type and destination
-        input type don't match (per the atlas port_type_taxonomy).
+        """Wire two Scene Nodes by port name. Uses the imperative API
+        (graph.BeginTransaction → source_port.Connect(dest_port) → txn.Commit)
+        which is the proven-working path. The previous declarative
+        ApplyDescription $ref approach was wrong — connection-only
+        descriptions don't work for Scene Nodes (Maxon's docs even say
+        GraphDescription "does not support scene nodes" — but the imperative
+        graph API does).
 
         Args:
-          from_node (str, required): source node name (or instance hash form)
-          from_port (str, required): output port name
-          to_node (str, required): destination node name
-          to_port (str, required): input port name
+          from_node (str, required): source node identifier — accepts the
+            full instance ID (e.g. 'memory@HASH') or just the basename
+            (e.g. 'memory') if unambiguous in the graph.
+          from_port (str, required): exact output port name as reported by
+            scene_nodes_describe_node_template (e.g. 'nextout._0').
+          to_node (str, required): destination node identifier.
+          to_port (str, required): exact input port name (e.g.
+            'net.maxon.node.floatingio.portlist').
           graph_target (str, optional): object whose embedded graph to
             mutate. None → doc-level.
-          auto_convert (bool, default True): if types mismatch, insert the
-            conversion node from the atlas taxonomy (e.g. composevector3
-            for Float→Vector). When False, return an error explaining the
-            mismatch.
 
-        Returns: {ok, connection: {from, to, types}, conversion_inserted}
+        Returns: {ok, connection: {from, to}, graph_target,
+                  source_node_resolved, dest_node_resolved}
 
-        Uses GraphDescription.ApplyDescription with the connection-spec
-        format. Main-thread routed.
+        Verified working 2026-04-30 via direct probing on Memory →
+        Floating IO connection.
         """
         try:
             doc = c4d.documents.GetActiveDocument()
@@ -15192,7 +15197,6 @@ class C4DSocketServer(threading.Thread):
                 if not val or not isinstance(val, str):
                     return {"error": f"{fld} (str) is required"}
             target_name = command.get("graph_target")
-            auto_convert = bool(command.get("auto_convert", True))
 
             host = doc
             if target_name:
@@ -15203,51 +15207,128 @@ class C4DSocketServer(threading.Thread):
 
             from maxon.frameworks.nodes import GraphDescription
 
-            # Connection spec via ApplyDescription's $ref format:
-            #   {"$type": "<dest_type>", "$name": "<dest_name>",
-            #    "<port>": {"$ref": "<source_name>/<source_port>"}}
-            # But since both nodes already exist, we use Description's
-            # connection-only form.
-            conn_spec = {
-                "$name": to_node,  # target an existing node by name
-                to_port: {"$ref": f"{from_node}/{from_port}"},
-            }
+            def _find_top_level_node(graph_root, ident):
+                """Resolve a node identifier (full ID or basename) to the
+                actual GraphNode in the graph. Returns (node, full_id) or
+                (None, None) if not found / ambiguous."""
+                exact = []
+                base_match = []
+                try:
+                    for child in (graph_root.GetChildren() or []):
+                        cid = str(child.GetId())
+                        if "/" in cid:
+                            continue  # skip nested
+                        if cid == ident:
+                            exact.append((child, cid))
+                        elif "@" in cid and cid.split("@")[0] == ident:
+                            base_match.append((child, cid))
+                        elif cid == ident:  # also catch $id-style names without @
+                            exact.append((child, cid))
+                except Exception:
+                    pass
+                if exact:
+                    return exact[0]
+                if len(base_match) == 1:
+                    return base_match[0]
+                if len(base_match) > 1:
+                    return (None, f"AMBIGUOUS: {len(base_match)} nodes match basename")
+                return (None, None)
 
             def _connect():
                 graph = GraphDescription.GetGraph(host)
                 if graph is None:
                     return {"_error": "GetGraph returned None"}
+                root = graph.GetRoot()
+
+                # Resolve source + dest nodes
+                src_node, src_id = _find_top_level_node(root, from_node)
+                if src_node is None:
+                    return {"_error": f"source node '{from_node}' not found"
+                                       f" ({src_id or 'no match'})"}
+                dst_node, dst_id = _find_top_level_node(root, to_node)
+                if dst_node is None:
+                    return {"_error": f"destination node '{to_node}' not found"
+                                       f" ({dst_id or 'no match'})"}
+
+                # Find the source output port
+                src_port_obj = None
                 try:
-                    GraphDescription.ApplyDescription(graph, conn_spec)
+                    outs = src_node.GetOutputs()
+                    if outs:
+                        for p in (outs.GetChildren() or []):
+                            try:
+                                pid = str(p.GetId())
+                                # Match by exact ID or by suffix (port-name)
+                                if pid == from_port or pid.endswith("." + from_port) or pid.split("/")[-1] == from_port:
+                                    src_port_obj = p; break
+                            except Exception: pass
                 except Exception as e:
-                    return {"_error": f"ApplyDescription failed: {e}"}
-                return {"_ok": True}
+                    return {"_error": f"source GetOutputs failed: {e}"}
+                if src_port_obj is None:
+                    return {"_error": f"source port '{from_port}' not found on {src_id}",
+                            "_available_outputs": [str(p.GetId()) for p in
+                                (src_node.GetOutputs().GetChildren() or [])]}
+
+                # Find the destination input port
+                dst_port_obj = None
+                try:
+                    ins = dst_node.GetInputs()
+                    if ins:
+                        for p in (ins.GetChildren() or []):
+                            try:
+                                pid = str(p.GetId())
+                                if pid == to_port or pid.endswith("." + to_port) or pid.split("/")[-1] == to_port:
+                                    dst_port_obj = p; break
+                            except Exception: pass
+                except Exception as e:
+                    return {"_error": f"dest GetInputs failed: {e}"}
+                if dst_port_obj is None:
+                    return {"_error": f"dest port '{to_port}' not found on {dst_id}",
+                            "_available_inputs": [str(p.GetId()) for p in
+                                (dst_node.GetInputs().GetChildren() or [])]}
+
+                # Wire via the proven BeginTransaction + Connect + Commit pattern
+                try:
+                    txn = graph.BeginTransaction()
+                except Exception as e:
+                    return {"_error": f"BeginTransaction failed: {e}"}
+                try:
+                    src_port_obj.Connect(dst_port_obj)
+                except Exception as e:
+                    return {"_error": f"Connect failed: {e}"}
+                try:
+                    if hasattr(txn, "Commit"):
+                        txn.Commit()
+                    elif hasattr(graph, "CommitImpl"):
+                        graph.CommitImpl(txn)
+                except Exception as e:
+                    return {"_error": f"Commit failed: {e}"}
+
+                return {"_src_id": src_id, "_dst_id": dst_id}
 
             outcome = self.execute_on_main_thread(_connect, _timeout=15)
             if isinstance(outcome, dict) and "_error" in outcome:
-                err = outcome["_error"]
-                # Surface a useful hint if it looks like a port-type error
-                hint = None
-                if "type" in err.lower() or "convert" in err.lower():
-                    hint = ("Likely a port-type mismatch. Use "
-                            "scene_nodes_atlas_lookup kind='port_type' to "
-                            "find the right conversion node, then retry "
-                            "with auto_convert=True (currently routes "
-                            "through the conversion node).")
-                return {"error": err, "hint": hint,
-                        "conn_spec": conn_spec,
-                        "auto_convert_attempted": auto_convert}
+                return {"error": outcome["_error"],
+                        "_available_outputs": outcome.get("_available_outputs"),
+                        "_available_inputs": outcome.get("_available_inputs"),
+                        "hint": "Use scene_nodes_describe_node_template(<node_label>) "
+                                "to discover exact port names. Pattern: source's "
+                                "OUTPUT port name goes in from_port; dest's INPUT "
+                                "port name goes in to_port."}
+            if isinstance(outcome, dict) and "error" in outcome:
+                return outcome
 
             return {
                 "ok": True,
                 "connection": {
-                    "from": f"{from_node}/{from_port}",
-                    "to": f"{to_node}/{to_port}",
+                    "from": f"{outcome.get('_src_id', from_node)}/{from_port}",
+                    "to": f"{outcome.get('_dst_id', to_node)}/{to_port}",
                 },
                 "graph_target": target_name or "<doc>",
-                "conversion_inserted": False,  # auto-conversion is best-effort
-                "note": "Connection emitted via ApplyDescription $ref. "
-                        "Re-run scene_nodes_walk to verify the wire.",
+                "source_node_resolved": outcome.get("_src_id"),
+                "dest_node_resolved": outcome.get("_dst_id"),
+                "method": "BeginTransaction + Connect + Commit (imperative)",
+                "note": "Wire established. Re-run scene_nodes_walk to verify.",
             }
         except Exception as e:
             return {"error": f"scene_nodes_connect_ports failed: {e}",
