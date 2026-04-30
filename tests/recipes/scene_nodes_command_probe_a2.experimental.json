@@ -1,0 +1,66 @@
+{
+  "name": "scene_nodes_command_probe_a2.experimental",
+  "description": "EXPERIMENTAL — Phase A.2 diagnostic for the right-click context-menu commands (Add Input / Add Output / Toggle Node Type). Drives the C++ shim's promiscuous CoreMessage logger. Per GPT review: cheap first net, NOT the definitive probe. Empty log only proves the legacy CoreMessage path is empty, NOT that no command exists. If this recipe captures nothing useful during the manual gesture, Phase A.2.1 (subscribe to maxon::CommandObserverInterface::ObservableCommandInvokedInfo) is the actual definitive probe. Requires C4D running with the cinema4d_mcp_helper.xdl64 (post-2583fdd) installed.",
+  "setup": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\nfrom maxon.frameworks.nodes import GraphDescription\ndoc = c4d.documents.GetActiveDocument()\nfor n in ['CmdProbe']:\n    o = doc.SearchObject(n)\n    if o: o.Remove()\nc4d.EventAdd()\ngen = c4d.BaseObject(180420700)\ngen.SetName('CmdProbe')\ndoc.InsertObject(gen)\ng = GraphDescription.GetGraph(gen)\nGraphDescription.ApplyDescription(g, [{'$type': 'Floating IO', '$name': 'fio_top'}])\ndoc.SetActiveObject(gen, c4d.SELECTION_NEW)\nc4d.EventAdd()\nprint('CmdProbe ready')"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "name": "step1_verify_helper_loaded",
+      "command": "scene_nodes_helper_ping",
+      "args": {},
+      "assert": []
+    },
+    {
+      "name": "step2_clear_any_prior_log",
+      "command": "scene_nodes_helper_logger",
+      "args": {"action": "clear"},
+      "assert": []
+    },
+    {
+      "name": "step3_start_logger",
+      "command": "scene_nodes_helper_logger",
+      "args": {"action": "start"},
+      "assert": []
+    },
+    {
+      "name": "step4_USER_GESTURE_PROMPT",
+      "command": "execute_python",
+      "args": {
+        "script": "print('***********************************************')\nprint('USER GESTURE STEP — perform manually now:')\nprint('  1. Open Node Editor (Window > Node Editor or Nodes layout)')\nprint('  2. Select the CmdProbe object in Object Manager')\nprint('  3. In Node Editor, right-click on a node (e.g. the Floating IO)')\nprint('  4. Choose Add Input from the context menu')\nprint('  5. (optional) right-click on a port and try other actions')\nprint('  6. Then proceed to step5 to stop logger')\nprint('***********************************************')"
+      }
+    },
+    {
+      "name": "step5_stop_logger",
+      "command": "scene_nodes_helper_logger",
+      "args": {"action": "stop"},
+      "assert": []
+    },
+    {
+      "name": "step6_read_logger_dump",
+      "command": "scene_nodes_helper_logger",
+      "args": {"action": "read"},
+      "assert": []
+    },
+    {
+      "name": "step7_summarize_findings",
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\n# Print analysis of the dump (caller to interpret)\nwc = c4d.GetWorldContainerInstance()\nBC_KEY_LOG_DUMP = 1057845041\ndump = wc.GetString(BC_KEY_LOG_DUMP)\nlines = dump.splitlines() if dump else []\nprint(f'\\n=== ANALYSIS ===')\nprint(f'Total CoreMessage events captured: {len(lines)}')\nif not lines:\n    print('NO MESSAGES CAPTURED. This is consistent with the editor gesture')\n    print('NOT going through the legacy CoreMessage path. Proceed to Phase A.2.1')\n    print('(subscribe to maxon::CommandObserverInterface::ObservableCommandInvokedInfo).')\nelse:\n    # Bucket by type_id\n    from collections import Counter\n    type_ids = []\n    core_ids = []\n    for ln in lines:\n        # parse '[N] type_id=X core_id=Y par1=Z par2=W'\n        try:\n            parts = ln.split()\n            for p in parts:\n                if p.startswith('type_id='): type_ids.append(int(p[8:]))\n                elif p.startswith('core_id='): core_ids.append(int(p[8:]))\n        except: pass\n    print(f'Distinct type_ids ({len(set(type_ids))}): {Counter(type_ids).most_common(10)}')\n    print(f'Distinct core_ids ({len(set(core_ids))}): {Counter(core_ids).most_common(10)}')\n    # Filter out our own helper (1057845)\n    interesting = [c for c in core_ids if c != 1057845]\n    print(f'Non-helper core_ids (potential Add Input candidates): {Counter(interesting).most_common(10)}')\n    print()\n    print('=== RAW LAST 30 LINES ===')\n    for ln in lines[-30:]: print(ln)"
+      }
+    }
+  ],
+  "teardown": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\ndoc = c4d.documents.GetActiveDocument()\nfor n in ['CmdProbe']:\n    o = doc.SearchObject(n)\n    if o: o.Remove()\nc4d.EventAdd()\nprint('teardown ok')"
+      }
+    }
+  ]
+}
