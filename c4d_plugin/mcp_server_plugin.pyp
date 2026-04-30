@@ -888,6 +888,8 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_scene_nodes_open_editor(command)
                         elif command_type == "scene_nodes_walk":
                             response = self.handle_scene_nodes_walk(command)
+                        elif command_type == "scene_nodes_record_gesture":
+                            response = self.handle_scene_nodes_record_gesture(command)
                         elif command_type == "scene_nodes_dissect_capsule":
                             response = self.handle_scene_nodes_dissect_capsule(command)
                         elif command_type == "scene_nodes_list_assets":
@@ -11426,7 +11428,7 @@ class C4DSocketServer(threading.Thread):
         "scene_snapshot", "scene_diff",
         "begin_undo_group", "end_undo_group", "undo", "redo",
         "scene_nodes_status", "scene_nodes_create_graph", "scene_nodes_open_editor",
-        "scene_nodes_walk",
+        "scene_nodes_walk", "scene_nodes_record_gesture",
         "scene_nodes_dissect_capsule", "scene_nodes_list_assets", "scene_nodes_add_node",
         "scene_nodes_atlas_lookup", "scene_nodes_classify_graph",
         "scene_nodes_apply_pattern", "scene_nodes_connect_ports",
@@ -11472,6 +11474,7 @@ class C4DSocketServer(threading.Thread):
         "scene_snapshot", "scene_diff",
         "scene_nodes_status",  # read-only inspection of Scene Nodes graphs
         "scene_nodes_walk",    # read-only graph traversal
+        "scene_nodes_record_gesture",   # read-only — snapshots before/after
         "scene_nodes_dissect_capsule",  # read-only — walks embedded graphs
         "scene_nodes_list_assets",      # read-only — enumerates registered/discovered assets
         "scene_nodes_atlas_lookup",     # read-only — atlas search
@@ -11772,6 +11775,18 @@ class C4DSocketServer(threading.Thread):
     # Populated incrementally as the user dissects capsules in their scenes.
     # Used downstream by scene_nodes_add_node to validate / suggest asset IDs.
     _DISCOVERED_ASSET_IDS = set()
+
+    # In-memory state for scene_nodes_record_gesture. One active recording at a
+    # time per process (multi-session ledger is YAGNI for the first experiment).
+    # Reset on each `start`. See docs/gesture_differ_design.md.
+    _GESTURE_RECORDER = {
+        "before": None,         # full snapshot dict
+        "after": None,
+        "label": None,
+        "diff": None,
+        "graph_target": None,   # "<doc>" or object name
+        "started_at": None,
+    }
 
     # === scene_assert — declarative scene-state verification ================
 
@@ -14266,6 +14281,504 @@ class C4DSocketServer(threading.Thread):
             }
         except Exception as e:
             return {"error": f"scene_nodes_walk failed: {e}", "traceback": traceback.format_exc()}
+
+    # === scene_nodes_record_gesture — gesture differ ========================
+    # See docs/gesture_differ_design.md. Snapshots the graph state, lets the
+    # user perform a manual editor gesture, snapshots again, returns the diff.
+    # The diff is the precise public-API recipe (or the precise unreproducible
+    # delta — either way, the answer to "what does this gesture do".)
+
+    def _gesture_snapshot_graph(self, host, include_params=True):
+        """Capture a full structural snapshot of the host's Scene Nodes graph.
+
+        Walks every node and every port. For each port, records its kind and
+        outgoing connections. Stable identity uses a raw asset-id chain from
+        root (e.g. "root/builder/cube"). Sibling-index disambiguation is
+        deliberately skipped in V1 — it would require Python-wrapper object
+        identity across maxon framework calls, which is not guaranteed by the
+        binding. Same-asset siblings under the same parent will collide; the
+        first experiment (FIO Add Input) doesn't trigger this case. Document
+        as `path_collisions` in the snapshot and revisit if a real diff trips it.
+
+        Connection-endpoint resolution: walk up via `GetParent()` from the
+        other port until we hit a kind=1 node, then rebuild that node's path
+        the same way. No reliance on id()-based maps.
+
+        Returns the snapshot dict. Runs on main thread.
+        """
+        from maxon.frameworks.nodes import GraphDescription
+
+        snap = {
+            "graph_target": None,
+            "captured_at": int(time.time() * 1000),
+            "nodes": {},
+            "connections": [],
+            "selection": {"selected_node_paths": []},
+            "path_collisions": [],   # paths that resolved to multiple nodes
+        }
+
+        graph = GraphDescription.GetGraph(host)
+        if graph is None:
+            snap["error"] = "GraphDescription.GetGraph returned None"
+            return snap
+        root = graph.GetRoot()
+
+        def _compute_path(node):
+            """Walk up to root collecting asset_ids of kind=1 ancestors only.
+
+            Returns "id1/id2/.../leafid" or None if anything blows up.
+            """
+            chain = []
+            cur = node
+            depth_guard = 0
+            while cur is not None and depth_guard < 64:
+                depth_guard += 1
+                try:
+                    k = cur.GetKind()
+                except Exception:
+                    break
+                if k == 1:
+                    try:
+                        chain.append(str(cur.GetId()))
+                    except Exception:
+                        chain.append("<unknown>")
+                try:
+                    if cur.IsRoot():
+                        break
+                except Exception:
+                    pass
+                try:
+                    cur = cur.GetParent()
+                except Exception:
+                    cur = None
+            chain.reverse()
+            return "/".join(chain) if chain else None
+
+        def _resolve_port_owner_path(port_node):
+            """Walk up from a port to its owning kind=1 node, then path."""
+            cur = port_node
+            depth_guard = 0
+            while cur is not None and depth_guard < 16:
+                depth_guard += 1
+                try:
+                    if cur.GetKind() == 1:
+                        return _compute_path(cur)
+                except Exception:
+                    return None
+                try:
+                    cur = cur.GetParent()
+                except Exception:
+                    return None
+            return None
+
+        def _port_summary(port_node):
+            """Capture a port's id, kind, and outgoing wire endpoints."""
+            entry = {"port_id": None, "kind": None, "outgoing": []}
+            try:
+                entry["port_id"] = str(port_node.GetId())
+            except Exception as e:
+                entry["port_id_error"] = str(e)
+            try:
+                entry["kind"] = port_node.GetKind()
+            except Exception:
+                pass
+            try:
+                for (other_port, _wires) in port_node.GetConnections(1):
+                    try:
+                        opid = str(other_port.GetId())
+                    except Exception:
+                        opid = "<unknown>"
+                    owner = _resolve_port_owner_path(other_port)
+                    entry["outgoing"].append({"port_id": opid, "owner_path": owner})
+            except Exception as e:
+                entry["outgoing_error"] = str(e)
+            if include_params:
+                try:
+                    if hasattr(port_node, "GetEffectivePortValue"):
+                        val = port_node.GetEffectivePortValue()
+                        if val is not None:
+                            # repr(val) is e.g.
+                            #   "maxon.Float64 object at 0x25549fa4be0 with the data: 100"
+                            # The address shifts between snapshots even for
+                            # identical values, so strip it. Keep only the
+                            # data portion for stable comparisons.
+                            r = repr(val)
+                            marker = "with the data:"
+                            idx = r.find(marker)
+                            if idx >= 0:
+                                entry["value"] = r[idx + len(marker):].strip()[:200]
+                            else:
+                                entry["value"] = r[:200]
+                except Exception:
+                    pass
+            return entry
+
+        def _walk_node(node, parent_path):
+            try:
+                kind = node.GetKind()
+            except Exception:
+                kind = 1
+            if kind != 1:
+                return None
+            try:
+                asset_id = str(node.GetId())
+            except Exception:
+                asset_id = "<unknown>"
+            path = f"{parent_path}/{asset_id}" if parent_path else asset_id
+
+            if path in snap["nodes"]:
+                # Same-asset sibling collision (V1 limitation — no .idx suffix).
+                snap["path_collisions"].append(path)
+
+            entry = {
+                "asset_id": asset_id,
+                "kind": 1,
+                "parent_path": parent_path,
+                "child_paths": [],
+                "input_ports": [],
+                "output_ports": [],
+                "is_root": False,
+            }
+            try:
+                entry["is_root"] = bool(node.IsRoot())
+            except Exception:
+                pass
+            try:
+                inputs = node.GetInputs()
+                if inputs:
+                    for p in (inputs.GetChildren() or []):
+                        entry["input_ports"].append(_port_summary(p))
+            except Exception as e:
+                entry["input_ports_error"] = str(e)
+            try:
+                outputs = node.GetOutputs()
+                if outputs:
+                    for p in (outputs.GetChildren() or []):
+                        entry["output_ports"].append(_port_summary(p))
+            except Exception as e:
+                entry["output_ports_error"] = str(e)
+            snap["nodes"][path] = entry
+
+            try:
+                kids = node.GetChildren() or []
+            except Exception:
+                kids = []
+            for k in kids:
+                try:
+                    if k.GetKind() != 1:
+                        continue
+                except Exception:
+                    continue
+                kp = _walk_node(k, path)
+                if kp:
+                    entry["child_paths"].append(kp)
+            return path
+
+        try:
+            _walk_node(root, "")
+        except Exception as e:
+            snap["walk_error"] = str(e)
+            snap["walk_traceback"] = traceback.format_exc()
+
+        # Denormalize: every output port's outgoing entries become connections.
+        # Skip duplicates (same edge can show up as input.outgoing AND
+        # output.outgoing depending on which side is treated as source).
+        seen = set()
+        for path, entry in snap["nodes"].items():
+            for p in entry.get("output_ports", []):
+                src = f"{path}/{p.get('port_id')}"
+                for r in p.get("outgoing", []):
+                    op = r.get("owner_path") or "<unresolved>"
+                    dst = f"{op}/{r.get('port_id')}"
+                    key = (src, dst)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    snap["connections"].append({"from": src, "to": dst})
+            # Also include input-side outgoing in case the port was an input
+            # whose GetConnections(1) returned an upstream source — that pair
+            # is (other.path/other.port -> this.path/this.port) i.e. reversed.
+            for p in entry.get("input_ports", []):
+                dst = f"{path}/{p.get('port_id')}"
+                for r in p.get("outgoing", []):
+                    op = r.get("owner_path") or "<unresolved>"
+                    src = f"{op}/{r.get('port_id')}"
+                    key = (src, dst)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    snap["connections"].append({"from": src, "to": dst})
+
+        return snap
+
+    def _gesture_compute_diff(self, before, after):
+        """Compute a structural diff between two snapshots.
+
+        Pure data — no C4D calls — so this can run anywhere. See design doc
+        §"Diff format" for shape.
+        """
+        diff = {
+            "added_nodes": [],
+            "removed_nodes": [],
+            "added_ports": [],
+            "removed_ports": [],
+            "added_connections": [],
+            "removed_connections": [],
+            "param_changes": [],
+        }
+        before_nodes = (before or {}).get("nodes", {})
+        after_nodes = (after or {}).get("nodes", {})
+
+        for path, entry in after_nodes.items():
+            if path not in before_nodes:
+                diff["added_nodes"].append({
+                    "path": path,
+                    "asset_id": entry.get("asset_id"),
+                    "parent_path": entry.get("parent_path"),
+                })
+        for path, entry in before_nodes.items():
+            if path not in after_nodes:
+                diff["removed_nodes"].append({
+                    "path": path,
+                    "asset_id": entry.get("asset_id"),
+                })
+
+        def _ports_set(node_entry, direction):
+            key = "input_ports" if direction == "in" else "output_ports"
+            return {p.get("port_id"): p for p in node_entry.get(key, []) if p.get("port_id")}
+
+        # Per-node port additions/removals (only for nodes present in BOTH
+        # snapshots — added/removed nodes' ports are implicit).
+        for path, after_entry in after_nodes.items():
+            before_entry = before_nodes.get(path)
+            if before_entry is None:
+                continue
+            for direction in ("in", "out"):
+                before_ports = _ports_set(before_entry, direction)
+                after_ports = _ports_set(after_entry, direction)
+                for pid in after_ports:
+                    if pid not in before_ports:
+                        diff["added_ports"].append({
+                            "node_path": path, "port_id": pid, "direction": direction,
+                        })
+                for pid in before_ports:
+                    if pid not in after_ports:
+                        diff["removed_ports"].append({
+                            "node_path": path, "port_id": pid, "direction": direction,
+                        })
+
+        before_edges = {(c["from"], c["to"]) for c in (before or {}).get("connections", [])}
+        after_edges = {(c["from"], c["to"]) for c in (after or {}).get("connections", [])}
+        for e in after_edges - before_edges:
+            diff["added_connections"].append({"from": e[0], "to": e[1]})
+        for e in before_edges - after_edges:
+            diff["removed_connections"].append({"from": e[0], "to": e[1]})
+
+        # Per-port value changes. Only meaningful when include_params=True at
+        # snapshot time — otherwise no entries have a 'value' field and this
+        # loop produces nothing. For each (path, direction, port_id) that
+        # appears in BOTH snapshots, compare repr'd values; a mismatch is a
+        # parameter change. New ports (in added_ports) and removed ports are
+        # already covered above; no overlap.
+        for path, after_entry in after_nodes.items():
+            before_entry = before_nodes.get(path)
+            if before_entry is None:
+                continue
+            for direction in ("in", "out"):
+                key = "input_ports" if direction == "in" else "output_ports"
+                before_by_id = {p.get("port_id"): p for p in before_entry.get(key, []) if p.get("port_id")}
+                for ap in after_entry.get(key, []):
+                    pid = ap.get("port_id")
+                    if not pid or pid not in before_by_id:
+                        continue
+                    bp = before_by_id[pid]
+                    if "value" not in ap and "value" not in bp:
+                        continue
+                    bv = bp.get("value")
+                    av = ap.get("value")
+                    if bv != av:
+                        diff["param_changes"].append({
+                            "node_path": path,
+                            "port_id": pid,
+                            "direction": direction,
+                            "before": bv,
+                            "after": av,
+                        })
+
+        return diff
+
+    def _gesture_classify_diff(self, diff):
+        """Heuristic classification of what kind of gesture produced this diff.
+
+        Advisory only — the raw diff is the source of truth.
+        """
+        n_add = len(diff["added_nodes"])
+        n_rem = len(diff["removed_nodes"])
+        p_add = len(diff["added_ports"])
+        p_rem = len(diff["removed_ports"])
+        c_add = len(diff["added_connections"])
+        c_rem = len(diff["removed_connections"])
+
+        # FIO Add Input heuristic: the canonical FIO pattern is a paired
+        # hiddenin1.<canonical> + in1.<canonical> port set, routed through
+        # net.maxon.neutron.scene.floatingio. Any addition matching that
+        # signature is "Add Input".
+        floatingio_added = any("floatingio" in (n.get("asset_id") or "")
+                               for n in diff["added_nodes"])
+        paired_canonicals = False
+        for added in diff["added_ports"]:
+            pid = added.get("port_id") or ""
+            if "in1" in pid or "hiddenin1" in pid or "out1" in pid:
+                paired_canonicals = True
+                break
+
+        if floatingio_added and c_add >= 1:
+            return {"kind": "fio_node_add", "confidence": 0.85,
+                    "evidence": ["floatingio node added", f"{c_add} connection(s) added"]}
+        if paired_canonicals and n_add == 0 and p_add >= 1:
+            return {"kind": "fio_add_port", "confidence": 0.7,
+                    "evidence": ["FIO canonical port name added without new node",
+                                 f"{p_add} port(s) added, {c_add} connection(s) added"]}
+        if n_add >= 1 and p_add == 0 and c_add == 0:
+            return {"kind": "node_add", "confidence": 0.7,
+                    "evidence": [f"{n_add} node(s) added, no port/conn additions"]}
+        if n_add == 0 and p_add == 0 and c_add >= 1:
+            return {"kind": "connect", "confidence": 0.8,
+                    "evidence": [f"{c_add} connection(s) added, no nodes/ports"]}
+        if n_add == 0 and p_add == 0 and c_rem >= 1 and c_add == 0:
+            return {"kind": "disconnect", "confidence": 0.8,
+                    "evidence": [f"{c_rem} connection(s) removed"]}
+        if n_add + n_rem + p_add + p_rem + c_add + c_rem == 0:
+            return {"kind": "no_op", "confidence": 1.0,
+                    "evidence": ["snapshots identical"]}
+        return {"kind": "unknown", "confidence": 0.0,
+                "evidence": [f"n+{n_add}/-{n_rem} p+{p_add}/-{p_rem} c+{c_add}/-{c_rem}"]}
+
+    def handle_scene_nodes_record_gesture(self, command):
+        """Snapshot graph state before/after a manual editor gesture.
+
+        The unlock for "learn what this Node Editor operation does without
+        relying on hidden symbols" — see docs/gesture_differ_design.md.
+
+        Args:
+          action: 'start' | 'stop' | 'diff'
+            - start: snapshot now into recorder.before
+            - stop:  snapshot now into recorder.after, return diff
+            - diff:  re-emit last computed diff (idempotent reads)
+          target_object: optional. If set, records the per-object embedded
+            graph (Capsule pattern). If None, records the doc-level graph.
+            Must match between start and stop (start anchors the target).
+          label: tag this recording (helps when bundling multiple captures)
+          include_params: include port parameter values (default True)
+
+        Returns on stop:
+          {ok, label, graph_target, summary: {...}, diff: {...},
+           classification: {kind, confidence, evidence}}
+
+        Read-only — never mutates the graph. Main-thread routed.
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+
+            action = (command.get("action") or "").lower().strip()
+            if action not in ("start", "stop", "diff"):
+                return {"error": "action must be one of: start, stop, diff"}
+
+            label = command.get("label") or "unlabeled"
+            include_params = bool(command.get("include_params", True))
+
+            if action == "diff":
+                d = self._GESTURE_RECORDER.get("diff")
+                if d is None:
+                    return {"error": "no diff available — run start/stop first"}
+                return {
+                    "ok": True,
+                    "label": self._GESTURE_RECORDER.get("label"),
+                    "graph_target": self._GESTURE_RECORDER.get("graph_target"),
+                    "diff": d,
+                    "classification": self._gesture_classify_diff(d),
+                }
+
+            target_name = command.get("target_object")
+            host = doc
+            if target_name:
+                obj = doc.SearchObject(target_name)
+                if obj is None:
+                    return {"error": f"target_object '{target_name}' not found"}
+                host = obj
+
+            if action == "start":
+                def _do_start():
+                    snap = self._gesture_snapshot_graph(host, include_params)
+                    snap["graph_target"] = target_name or "<doc>"
+                    return snap
+                snap = self.execute_on_main_thread(_do_start, _timeout=20)
+                if isinstance(snap, dict) and snap.get("error") and "nodes" not in snap:
+                    return snap
+                self._GESTURE_RECORDER = {
+                    "before": snap,
+                    "after": None,
+                    "label": label,
+                    "diff": None,
+                    "graph_target": target_name or "<doc>",
+                    "started_at": snap.get("captured_at"),
+                }
+                return {
+                    "ok": True,
+                    "action": "start",
+                    "label": label,
+                    "graph_target": target_name or "<doc>",
+                    "summary": {
+                        "node_count": len(snap.get("nodes", {})),
+                        "connection_count": len(snap.get("connections", [])),
+                    },
+                    "next": "Perform the editor gesture, then call action='stop'.",
+                }
+
+            # action == 'stop'
+            before = self._GESTURE_RECORDER.get("before")
+            if before is None:
+                return {"error": "no recording in progress — call action='start' first"}
+            anchored_target = self._GESTURE_RECORDER.get("graph_target")
+            current_target = target_name or "<doc>"
+            if anchored_target and anchored_target != current_target:
+                return {"error": f"target mismatch: started on '{anchored_target}', "
+                                  f"stop called with '{current_target}'"}
+
+            def _do_stop():
+                snap = self._gesture_snapshot_graph(host, include_params)
+                snap["graph_target"] = anchored_target
+                return snap
+
+            after = self.execute_on_main_thread(_do_stop, _timeout=20)
+            if isinstance(after, dict) and after.get("error") and "nodes" not in after:
+                return after
+
+            diff = self._gesture_compute_diff(before, after)
+            classification = self._gesture_classify_diff(diff)
+
+            self._GESTURE_RECORDER["after"] = after
+            self._GESTURE_RECORDER["diff"] = diff
+
+            return {
+                "ok": True,
+                "action": "stop",
+                "label": self._GESTURE_RECORDER.get("label"),
+                "graph_target": anchored_target,
+                "summary": {
+                    "before_node_count": len(before.get("nodes", {})),
+                    "after_node_count": len(after.get("nodes", {})),
+                    "before_connection_count": len(before.get("connections", [])),
+                    "after_connection_count": len(after.get("connections", [])),
+                },
+                "diff": diff,
+                "classification": classification,
+            }
+        except Exception as e:
+            return {"error": f"scene_nodes_record_gesture failed: {e}",
+                    "traceback": traceback.format_exc()}
 
     def handle_scene_nodes_open_editor(self, command):
         """Open the Scene Nodes editor window for the doc-level graph.

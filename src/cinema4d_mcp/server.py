@@ -3062,6 +3062,68 @@ async def scene_nodes_walk(
 
 
 @mcp.tool()
+async def scene_nodes_record_gesture(
+    action: str,
+    target_object: Optional[str] = None,
+    label: Optional[str] = None,
+    include_params: bool = True,
+    ctx: Context = None,
+) -> str:
+    """Record a manual editor gesture as a structural before/after diff.
+
+    The gesture-differ. Snapshots the Scene Nodes graph state on `start`,
+    waits for the user to perform a manual editor action (right-click "Add
+    Input", drag-wire, "Convert to Asset", etc.), then snapshots again on
+    `stop` and returns the precise structural diff: nodes/ports/connections
+    added or removed, classified into known patterns when recognizable.
+
+    Why: many Node Editor gestures (notably FIO Add Input) are not exposed
+    via any documented Maxon API. We can't *call* them — but we can observe
+    what they do and reproduce the outcome via public Scene Nodes API. The
+    diff IS the recipe.
+
+    Args:
+      action: 'start' | 'stop' | 'diff'
+        - start: take the "before" snapshot
+        - stop:  take the "after" snapshot, compute and return the diff
+        - diff:  re-emit the last computed diff (idempotent)
+      target_object: optional. If set, records the per-object embedded graph
+        (Capsule pattern). If None, records the doc-level graph. Must match
+        between start and stop.
+      label: tag this recording (e.g. "right-click-add-input-1")
+      include_params: include port parameter values in the snapshot
+        (default True — costs a few ms but adds richer diff context)
+
+    Returns on stop:
+      {ok, label, graph_target, summary: {before/after counts}, diff: {
+        added_nodes, removed_nodes, added_ports, removed_ports,
+        added_connections, removed_connections, param_changes
+      }, classification: {kind, confidence, evidence}}
+
+    Read-only — never mutates the graph. The mutation comes from the user's
+    manual gesture between start and stop. Pairs with the planned
+    scene_nodes_synthesize_recipe to turn diffs into reproducible
+    GraphDescription / transaction recipes. See docs/gesture_differ_design.md.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {
+            "command": "scene_nodes_record_gesture",
+            "action": action,
+            "include_params": include_params,
+        }
+        if target_object is not None:
+            cmd["target_object"] = target_object
+        if label is not None:
+            cmd["label"] = label
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
 async def scene_nodes_open_editor(ctx: Context = None) -> str:
     """Open the Scene Nodes editor window for the doc-level graph.
 

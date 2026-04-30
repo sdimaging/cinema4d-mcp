@@ -1,0 +1,38 @@
+{
+  "label": "v4-param-value-change",
+  "graph_target": "Nodes Mesh (OPEN ME)",
+  "gesture_description": "user clarification: changed sphere node type to reveal 'radius' pin (UI-only, the pin already existed in the schema), then set radius value in Attribute Manager. The structural change is value-only.",
+  "diff": {
+    "added_nodes": [],
+    "removed_nodes": [],
+    "added_ports": [],
+    "removed_ports": [],
+    "added_connections": [],
+    "removed_connections": [],
+    "param_changes": [
+      {
+        "node_path": "sphere@H2KEG4xIMpAoIfY90eklNQ/primitive",
+        "port_id": "net.maxon.command.modeling.primitive.sphere.radius",
+        "direction": "in",
+        "before": "4",
+        "after": "6"
+      },
+      {
+        "node_path": "sphere@H2KEG4xIMpAoIfY90eklNQ/primitive/generategeometry",
+        "port_id": "parameters",
+        "direction": "in",
+        "before": "DataDictionary{net.maxon.command.modeling.primitive.sphere.radius:4,net.maxon.command.modeling.primitive.sphere.segment:12,net.maxon.command",
+        "after": "DataDictionary{net.maxon.command.modeling.primitive.sphere.radius:6,net.maxon.command.modeling.primitive.sphere.segment:12,net.maxon.command"
+      },
+      {
+        "node_path": "sphere@H2KEG4xIMpAoIfY90eklNQ/primitive/parambuilder",
+        "port_id": "dictout",
+        "direction": "out",
+        "before": "DataDictionary{net.maxon.command.modeling.primitive.sphere.radius:4,net.maxon.command.modeling.primitive.sphere.segment:12,net.maxon.command",
+        "after": "DataDictionary{net.maxon.command.modeling.primitive.sphere.radius:6,net.maxon.command.modeling.primitive.sphere.segment:12,net.maxon.command"
+      }
+    ]
+  },
+  "before_node_count": 37,
+  "after_node_count": 37
+}

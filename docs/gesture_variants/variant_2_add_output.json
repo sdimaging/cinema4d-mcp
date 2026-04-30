@@ -1,0 +1,27 @@
+{
+  "label": "v2-add-output",
+  "graph_target": "Nodes Mesh (OPEN ME)",
+  "gesture_description": "right-click Add Output on root, THEN manually wired the new port to connect_geometries.geometryout (two distinct gestures captured in one diff window)",
+  "diff": {
+    "added_nodes": [],
+    "removed_nodes": [],
+    "added_ports": [
+      {
+        "node_path": "",
+        "port_id": "object",
+        "direction": "out"
+      }
+    ],
+    "removed_ports": [],
+    "added_connections": [
+      {
+        "from": "connect_geometries@G3yRYs4oC94ie0ky$YHtpQ/geometryout",
+        "to": "<unresolved>/geometry"
+      }
+    ],
+    "removed_connections": [],
+    "param_changes": []
+  },
+  "before_node_count": 30,
+  "after_node_count": 30
+}

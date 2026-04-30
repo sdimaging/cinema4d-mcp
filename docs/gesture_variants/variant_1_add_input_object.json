@@ -1,0 +1,22 @@
+{
+  "label": "rclick-add-port-2",
+  "graph_target": "Nodes Mesh (OPEN ME)",
+  "gesture_description": "right-click Add Input on root, default type GeometryObject, named 'object'",
+  "diff": {
+    "added_nodes": [],
+    "removed_nodes": [],
+    "added_ports": [
+      {
+        "node_path": "",
+        "port_id": "object",
+        "direction": "in"
+      }
+    ],
+    "removed_ports": [],
+    "added_connections": [],
+    "removed_connections": [],
+    "param_changes": []
+  },
+  "before_node_count": 30,
+  "after_node_count": 30
+}
