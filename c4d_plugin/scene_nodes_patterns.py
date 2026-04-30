@@ -89,8 +89,7 @@ def _build_loop_over_indices(count: int = 10, carried: Optional[list] = None,
     carried = carried or []
     out: list[dict[str, Any]] = []
     # Range provides the index sequence
-    out.append({"$type": "Range", "$name": f"{prefix}_range",
-                "from": 0, "to": int(count), "step": 1})
+    out.append({"$type": "Range", "$name": f"{prefix}_range"})
     # Iteration container
     out.append({"$type": "Container Iteration", "$name": f"{prefix}_iter"})
     # Add a Loop Carried Value per state var. Initial value comes from
@@ -118,8 +117,7 @@ def _build_loop_over_polygons(mesh_input_ref: str = "$input",
     out = [
         {"$type": "Get Polygon Selection Data", "$name": f"{prefix}_polysel"},
         {"$type": "Get Count", "$name": f"{prefix}_count"},
-        {"$type": "Range", "$name": f"{prefix}_range",
-         "from": 0, "step": 1},
+        {"$type": "Range", "$name": f"{prefix}_range"},
         {"$type": "Container Iteration", "$name": f"{prefix}_iter"},
         {"$type": "Read Value At Index", "$name": f"{prefix}_read_idx"},
     ]
@@ -219,7 +217,7 @@ def _build_surface_clinging_growth(host_mesh_ref: str = "$host",
         {"$type": "Loop Carried Value", "$name": f"{prefix}_carry_age"},
         {"$type": "Loop Carried Value", "$name": f"{prefix}_carry_depth"},
         # Iteration driver
-        {"$type": "Range", "$name": f"{prefix}_range", "from": 0, "to": int(max_depth)},
+        {"$type": "Range", "$name": f"{prefix}_range"},
         # Surface snap + collision
         {"$type": "Closest Point On Surface", "$name": f"{prefix}_snap"},
         {"$type": "Ray", "$name": f"{prefix}_ray"},
@@ -385,7 +383,7 @@ def _build_per_vertex_property(property_name: str = "value",
 def _build_object_instancing(count: int = 50, prefix: str = "inst") -> list[dict[str, Any]]:
     return [
         {"$type": "Object Import", "$name": f"{prefix}_obj"},
-        {"$type": "Range", "$name": f"{prefix}_range", "from": 0, "to": int(count)},
+        {"$type": "Range", "$name": f"{prefix}_range"},
         {"$type": "Read Value At Index", "$name": f"{prefix}_idx"},
         {"$type": "Hash", "$name": f"{prefix}_hash"},
         {"$type": "Noise", "$name": f"{prefix}_noise"},

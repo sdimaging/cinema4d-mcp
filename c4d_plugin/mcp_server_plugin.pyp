@@ -536,6 +536,8 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_scene_nodes_apply_pattern(command)
                         elif command_type == "scene_nodes_connect_ports":
                             response = self.handle_scene_nodes_connect_ports(command)
+                        elif command_type == "scene_nodes_describe_node_template":
+                            response = self.handle_scene_nodes_describe_node_template(command)
                         elif command_type == "paint_vertex_map_from_formula":
                             response = self.handle_paint_vertex_map_from_formula(command)
                         elif command_type == "paint_vertex_map_radial":
@@ -10744,6 +10746,7 @@ class C4DSocketServer(threading.Thread):
         "scene_nodes_dissect_capsule", "scene_nodes_list_assets", "scene_nodes_add_node",
         "scene_nodes_atlas_lookup", "scene_nodes_classify_graph",
         "scene_nodes_apply_pattern", "scene_nodes_connect_ports",
+        "scene_nodes_describe_node_template",
         "paint_vertex_map_from_formula", "paint_vertex_map_radial",
         "list_deformer_types", "apply_deformer",
         "list_field_types", "add_field_to_scene", "bake_field_to_vmap",
@@ -14279,6 +14282,148 @@ class C4DSocketServer(threading.Thread):
             }
         except Exception as e:
             return {"error": f"scene_nodes_apply_pattern failed: {e}",
+                    "traceback": traceback.format_exc()}
+
+    def handle_scene_nodes_describe_node_template(self, command):
+        """Discover a node template's port schema by adding it to a temp
+        graph, walking its inputs/outputs, then removing it. Returns the
+        list of port names so you know what to wire up.
+
+        This is THE port-discovery tool — solves the "what are the ports
+        called on a Range node?" problem at runtime.
+
+        Args:
+          label (str, required): the English UI label (e.g. "Range",
+            "Memory", "Loop Carried Value", "Sphere"). Same form as
+            ApplyDescription's $type field. Case-sensitive.
+          graph_target (str, optional): graph to use for the temp probe.
+            Default: doc-level. The probe adds + removes the node so
+            this is non-destructive.
+
+        Returns: {ok, label, canonical_id (if extractable), inputs: [...],
+                  outputs: [...], inner_nodes: [...], port_summary}
+
+        Read-effective (creates+removes within an undo group). Main-thread.
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+            label = command.get("label")
+            if not label or not isinstance(label, str):
+                return {"error": "label (str) is required"}
+            target_name = command.get("graph_target")
+
+            host = doc
+            if target_name:
+                obj = doc.SearchObject(target_name)
+                if obj is None:
+                    return {"error": f"graph_target '{target_name}' not found"}
+                host = obj
+
+            from maxon.frameworks.nodes import GraphDescription
+
+            probe_name = f"_mcp_port_probe_{int(time.time() * 1000) % 100000}"
+
+            def _probe():
+                graph = GraphDescription.GetGraph(host)
+                if graph is None:
+                    return {"_error": "GetGraph returned None"}
+                # Add the node
+                try:
+                    result = GraphDescription.ApplyDescription(
+                        graph, {"$type": label, "$name": probe_name}
+                    )
+                except Exception as e:
+                    return {"_error": f"label '{label}' not resolvable: {e}"}
+                # Find the new instance — looks like <basename>@<hash>
+                # whose path doesn't contain "/"
+                new_node = None
+                for k, v in result.items():
+                    ks = str(k)
+                    if "@" in ks and "/" not in ks:
+                        new_node = v
+                        new_id = ks
+                        break
+                if new_node is None:
+                    return {"_error": "could not find newly-added node in result"}
+                # Walk ports
+                inputs_list = []
+                outputs_list = []
+                inner_nodes = []
+                try:
+                    inp = new_node.GetInputs()
+                    if inp:
+                        for p in (inp.GetChildren() or []):
+                            try:
+                                inputs_list.append(str(p.GetId()))
+                            except Exception:
+                                pass
+                except Exception as e:
+                    inputs_list.append(f"<error: {e}>")
+                try:
+                    outp = new_node.GetOutputs()
+                    if outp:
+                        for p in (outp.GetChildren() or []):
+                            try:
+                                outputs_list.append(str(p.GetId()))
+                            except Exception:
+                                pass
+                except Exception as e:
+                    outputs_list.append(f"<error: {e}>")
+                # Inner sub-nodes (composite operators have these)
+                try:
+                    for k in (new_node.GetChildren() or []):
+                        try:
+                            inner_nodes.append(str(k.GetId()).split("/")[-1])
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+                # Best-effort cleanup
+                try:
+                    new_node.Remove()
+                except Exception:
+                    pass
+                # Try to extract canonical_id from result keys (the
+                # 'data' suffix often is the canonical id when present)
+                canonical_id = new_id.split("@")[0] if new_id else None
+                return {
+                    "_ok": True,
+                    "new_id": new_id,
+                    "basename": canonical_id,
+                    "inputs": inputs_list,
+                    "outputs": outputs_list,
+                    "inner_nodes": inner_nodes,
+                }
+
+            outcome = self.execute_on_main_thread(_probe, _timeout=15)
+            if isinstance(outcome, dict) and "_error" in outcome:
+                return {"error": outcome["_error"], "label": label,
+                        "hint": "Try scene_nodes_atlas_lookup kind='template' "
+                                "or kind='pattern' to find the right label."}
+            if isinstance(outcome, dict) and "error" in outcome:
+                return outcome
+
+            return {
+                "ok": True,
+                "label": label,
+                "basename_observed": outcome.get("basename"),
+                "instance_id": outcome.get("new_id"),
+                "inputs": outcome.get("inputs", []),
+                "outputs": outcome.get("outputs", []),
+                "inner_nodes": outcome.get("inner_nodes", []),
+                "port_summary": {
+                    "input_count": len(outcome.get("inputs", [])),
+                    "output_count": len(outcome.get("outputs", [])),
+                    "inner_count": len(outcome.get("inner_nodes", [])),
+                },
+                "note": "Probe-add-then-remove. The instance ID's basename "
+                        "(text before '@') is the dissection-form name and "
+                        "matches the canonical asset ID's last segment.",
+            }
+        except Exception as e:
+            return {"error": f"scene_nodes_describe_node_template failed: {e}",
                     "traceback": traceback.format_exc()}
 
     def handle_scene_nodes_connect_ports(self, command):

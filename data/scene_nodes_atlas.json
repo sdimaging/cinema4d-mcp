@@ -335,6 +335,29 @@
     "exposed_params": "Each user-facing parameter = one floatingio node attached to a port on the modelingoperator."
   },
 
+  "_design_principle_capsule_first": {
+    "rule": "Scene Nodes graphs exist to be CONSUMED by the object tree as Generators/Deformers (capsules), with user-data parameters exposed in the Attribute Manager. Bare graphs are intermediate artifacts; capsules with exposed UD are the artist deliverable.",
+    "why": "Artists work in the object tree. They drag generators/deformers, parameterize them via the Attribute Manager, never re-open the underlying graph. Scene Nodes' value comes from being the ENGINE behind a capsule — not from being the artist-facing UI itself.",
+    "implications_for_pattern_library": [
+      "Every functional pattern should default to materializing inside an SN Generator (180420500/600/700) or SN Deformer (180420400) wrapper.",
+      "Patterns must auto-emit `floatingio` ports for each tunable parameter (count, threshold, seed, etc.) so they appear in the host capsule's user-data section of the Attribute Manager.",
+      "When wrapping: the pattern's bound parameters connect from `floatingio` source ports to the relevant inner-node input ports.",
+      "Recommended workflow: scene_nodes_apply_pattern(pattern, graph_target=<existing_capsule_name>) — adds the pattern INSIDE that capsule's embedded graph."
+    ],
+    "create_a_new_capsule_pattern": {
+      "description": "Creates a fresh SN Deformer or SN Generator and a graph populated by the named pattern, with UD already exposed.",
+      "skeleton": [
+        "1. doc.InsertObject(c4d.BaseObject(180420400 or 180420700))  # SN Deformer or Generator",
+        "2. GraphDescription.GetGraph(new_capsule)  # access embedded graph",
+        "3. Apply pattern's nodes inside it",
+        "4. Add `floatingio` node per exposed param, $name'd to the AttributeManager-visible field name",
+        "5. Connect `floatingio` outputs to the pattern's inner port inputs",
+        "6. The capsule auto-renders its UD in the Attribute Manager via the parambuilder framework node"
+      ],
+      "advantages": "Single-step from intent to artist-ready capsule. Artist drags it in, sets parameters via Attribute Manager, never touches the graph."
+    }
+  },
+
   "$type_label_dictionary": {
     "_description": "Verified mapping between dissection bare names, canonical asset IDs, and ApplyDescription $type labels. KEY RULE confirmed via user-supplied canonical IDs (2026-04-29): the bare-name extracted from a dissection (e.g. 'memory' from 'memory@HASH') is ALWAYS the last segment of the canonical asset ID (e.g. 'net.maxon.node.memory'). So `dissection_basename = canonical_id.rsplit('.', 1)[-1]`.",
     "label_resolution_strategy": "1. Look up bare_name in _verified_working below. 2. If miss: take the canonical asset_id from node_template_index.json (matched by last segment) and use the heuristic-derived label_guess. 3. ApplyDescription may need the LABEL form, not the canonical id — when that fails, use scene_nodes_atlas_lookup to fuzzy-find candidates.",

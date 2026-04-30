@@ -3235,6 +3235,44 @@ async def scene_nodes_connect_ports(
 
 
 @mcp.tool()
+async def scene_nodes_describe_node_template(
+    label: str,
+    graph_target: Optional[str] = None,
+    ctx: Context = None,
+) -> str:
+    """Discover a node template's port schema by adding it to a temp graph,
+    walking inputs/outputs, removing it. The "what are this node's ports
+    called?" tool.
+
+    Solves the runtime port-discovery problem: my pattern synthesizer
+    initially used port names like 'from'/'to'/'step' for Range, but
+    Range's actual ports are 'start'/'end'/'domain'. This tool exposes
+    the truth.
+
+    Args:
+      label: English UI label (same as ApplyDescription's $type)
+      graph_target: graph for the temp probe (default: doc-level)
+
+    Returns: {label, basename_observed, inputs, outputs, inner_nodes, port_summary}
+
+    Adds + removes the node — non-destructive.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {
+            "command": "scene_nodes_describe_node_template",
+            "label": label,
+        }
+        if graph_target is not None:
+            cmd["graph_target"] = graph_target
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
 async def begin_undo_group(name: str = "MCP undo group", ctx: Context = None) -> str:
     """Open a C4D undo group: every mutation until end_undo_group is merged
     into ONE undo step in C4D's history.
