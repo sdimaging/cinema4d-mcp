@@ -35,8 +35,11 @@ VERIFIED_LABELS: dict[str, str] = {
     # Distribution / scatter (THE killer scatter primitives)
     "Surface Blue-Noise": "surfacebluenoise",
     "Surface Scaled Blue-Noise": "surfacescaledbluenoise",
-    # Capsule UD exposure
-    "Floating IO": "floatingio",  # exposes graph ports to parent capsule's Attribute Manager
+    # Capsule UD exposure routing primitive (only fully active when the inner
+    # graph is published as a NodeTemplate-typed asset; in a generic SN
+    # Generator wrapper the FIO is structurally present but does not surface
+    # AM params. See docs/scene_nodes_guide.md §8.)
+    "Floating IO": "floatingio",
     # Loop scaffold
     "Range": "range",
     "Loop Carried Value": "loopcarriedvalue",
@@ -509,7 +512,10 @@ def _build_procedural_surface_scatter(variant: str = "scaled",
 def _build_memory_capsule_state_carrier(value_type: str = "Geometry",
                                          prefix: str = "memcap") -> list[dict[str, Any]]:
     """All verified labels. The Memory node has current/next ports;
-    Floating IO exposes them to the parent capsule's Attribute Manager."""
+    Floating IO is included as the routing primitive. NOTE: in a generic
+    SN Generator wrapper the FIOs do NOT auto-surface as AM params — that
+    requires NodeTemplate-typed asset publishing (see scene_nodes_guide
+    .md §8 for the gap and the C++ shim path)."""
     return [
         {"$type": "Memory", "$name": f"{prefix}_memory"},
         {"$type": "Floating IO", "$name": f"{prefix}_io_current"},

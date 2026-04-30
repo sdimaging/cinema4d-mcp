@@ -3425,6 +3425,92 @@ async def scene_nodes_create_capsule_with_pattern(
 
 
 @mcp.tool()
+async def scene_nodes_save_as_asset(
+    object_name: str,
+    asset_name: Optional[str] = None,
+    asset_version: Optional[str] = None,
+    asset_id: Optional[str] = None,
+    parent_category: Optional[str] = None,
+    ctx: Context = None,
+) -> str:
+    """Save an SN Generator (or any BaseObject) + its embedded graph as a
+    reusable user asset in the C4D asset browser. Wraps
+    maxon.AssetCreationInterface.CreateObjectAsset.
+
+    Produces a `net.maxon.assettype.file`-typed asset (`.c4d` format).
+    Bit-identical round-trip via scene_nodes_load_asset, but does NOT
+    register as `net.maxon.node.assettype.nodetemplate` (the type
+    Maxon's shipped capsules like Edge to Spline use). Inner Floating
+    IO routing is preserved structurally; AM-param surfacing requires
+    NodeTemplate publishing which isn't exposed in Python.
+
+    Useful regardless: pattern libraries, programmatic graph templates,
+    capturing curated workflows for later reuse via the asset browser.
+
+    Args:
+      object_name: name of the BaseObject in the active doc to save.
+      asset_name: human-readable asset name. Defaults to object_name.
+      asset_version: version string. Defaults to '1.0'.
+      asset_id: explicit asset Id. Empty -> system generates one.
+      parent_category: asset category Id. Defaults to
+        'net.maxon.assetcategory.uncategorized'.
+
+    Returns: {ok, asset_id, asset_url, asset_type_id, asset_version, note}
+
+    UNSAFE — writes to the user prefs asset repository on disk.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {
+            "command": "scene_nodes_save_as_asset",
+            "object_name": object_name,
+        }
+        if asset_name is not None:
+            cmd["asset_name"] = asset_name
+        if asset_version is not None:
+            cmd["asset_version"] = asset_version
+        if asset_id is not None:
+            cmd["asset_id"] = asset_id
+        if parent_category is not None:
+            cmd["parent_category"] = parent_category
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
+async def scene_nodes_load_asset(
+    asset_id: str,
+    ctx: Context = None,
+) -> str:
+    """Load a previously-saved asset into the active doc by its asset ID.
+    Programmatic equivalent of dragging from the asset browser. Wraps
+    maxon.AssetManagerInterface.LoadAssets.
+
+    Args:
+      asset_id: the asset ID returned by scene_nodes_save_as_asset
+        (e.g. 'file_CXHeLCR9PJjqXvZlkjg5RB').
+
+    Returns: {ok, asset_id, loaded, top_level_objects_after}
+
+    UNSAFE — inserts content into the active doc.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {
+            "command": "scene_nodes_load_asset",
+            "asset_id": asset_id,
+        }
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
 async def scene_nodes_describe_node_template(
     label: str,
     graph_target: Optional[str] = None,

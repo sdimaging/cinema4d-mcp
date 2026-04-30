@@ -1,8 +1,8 @@
 {
   "_description": "Verified ApplyDescription $type strings. Two valid forms: (1) English UI labels (case-sensitive), (2) Canonical-id-with-#-prefix (e.g. '#net.maxon.node.array.append'). The lazy form '#~.suffix' also works for shorthand. Discovery credit: GPT 5.5 (2026-04-30) cracked the # prefix convention by reading Maxon's GraphDescription docs.",
   "_count_ui_labels": 40,
-  "_count_canonical_with_hash": 22,
-  "_total": 62,
+  "_count_canonical_with_hash": 20,
+  "_total": 60,
   "_pattern_notes": [
     "UI labels are human-friendly English from C4D's Asset Browser. Some are surprising (Store Selection != Set Selection — the latter is a keyword asset, not a template).",
     "Canonical-IDs work universally as $type when prefixed with '#'. The bare canonical ID without '#' fails. Discovery: GPT 5.5 review 2026-04-30.",

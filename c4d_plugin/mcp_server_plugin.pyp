@@ -906,6 +906,10 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_scene_nodes_describe_node_template(command)
                         elif command_type == "scene_nodes_create_capsule_with_pattern":
                             response = self.handle_scene_nodes_create_capsule_with_pattern(command)
+                        elif command_type == "scene_nodes_save_as_asset":
+                            response = self.handle_scene_nodes_save_as_asset(command)
+                        elif command_type == "scene_nodes_load_asset":
+                            response = self.handle_scene_nodes_load_asset(command)
                         elif command_type == "paint_vertex_map_from_formula":
                             response = self.handle_paint_vertex_map_from_formula(command)
                         elif command_type == "paint_vertex_map_radial":
@@ -11422,6 +11426,7 @@ class C4DSocketServer(threading.Thread):
         "scene_nodes_apply_pattern", "scene_nodes_connect_ports",
         "scene_nodes_describe_node_template",
         "scene_nodes_create_capsule_with_pattern",
+        "scene_nodes_save_as_asset", "scene_nodes_load_asset",
         "paint_vertex_map_from_formula", "paint_vertex_map_radial",
         "list_deformer_types", "apply_deformer",
         "list_field_types", "add_field_to_scene", "bake_field_to_vmap",
@@ -14554,6 +14559,163 @@ class C4DSocketServer(threading.Thread):
         except Exception as e:
             return {"error": f"scene_nodes_list_assets failed: {e}", "traceback": traceback.format_exc()}
 
+    def handle_scene_nodes_save_as_asset(self, command):
+        """Save an SN Generator (or any BaseObject) + its embedded graph as
+        a reusable user asset in the C4D asset browser. Wraps
+        maxon.AssetCreationInterface.CreateObjectAsset.
+
+        IMPORTANT (2026-04-30): produces a `net.maxon.assettype.file`-typed
+        asset (`.c4d` format). Bit-identical round-trip with `LoadAssets`,
+        but does NOT register as `net.maxon.node.assettype.nodetemplate`
+        (the type Maxon's shipped capsules like Edge to Spline use). That
+        means inner Floating IOs do NOT auto-surface as Attribute Manager
+        parameters on a fresh load — the FIO routing is preserved
+        structurally but AM-param exposure requires the planned C++ shim
+        path. See scene_nodes_guide.md §8 for the full surface map.
+
+        Useful regardless: pattern libraries, programmatic graph templates,
+        capturing curated workflows for later reuse.
+
+        Args:
+          object_name (str, required): name of the BaseObject in the active
+            doc to save.
+          asset_name (str, optional): human-readable asset name. Defaults
+            to object_name.
+          asset_version (str, optional): version string. Defaults to '1.0'.
+          asset_id (str, optional): explicit asset Id. Empty -> system
+            generates one.
+          parent_category (str, optional): asset category Id. Defaults to
+            'net.maxon.assetcategory.uncategorized'.
+
+        Returns:
+          {ok, asset_id, asset_url, asset_type_id, asset_version,
+           note: 'file-type asset; see §8 for AM-param-surfacing caveat'}
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+            object_name = command.get("object_name")
+            if not object_name or not isinstance(object_name, str):
+                return {"error": "object_name (str) is required"}
+            asset_name = command.get("asset_name") or object_name
+            asset_version = command.get("asset_version") or "1.0"
+            asset_id_str = command.get("asset_id") or ""
+            parent_category = command.get("parent_category") or "net.maxon.assetcategory.uncategorized"
+
+            obj = doc.SearchObject(object_name)
+            if obj is None:
+                return {"error": f"object '{object_name}' not found in active doc"}
+
+            def _save():
+                import maxon
+                try:
+                    repo = maxon.AssetInterface.GetUserPrefsRepository()
+                    if repo is None:
+                        return {"_error": "GetUserPrefsRepository returned None"}
+                    cat_id = maxon.Id(parent_category)
+                    sas = maxon.StoreAssetStruct(cat_id, repo, repo)
+                    new_id = maxon.Id(asset_id_str) if asset_id_str else maxon.Id()
+                    empty_meta = maxon.AssetMetaData()
+                    desc = maxon.AssetCreationInterface.CreateObjectAsset(
+                        obj, doc, sas, new_id, asset_name, asset_version,
+                        empty_meta, True
+                    )
+                    if desc is None:
+                        return {"_error": "CreateObjectAsset returned None"}
+                    out = {}
+                    for m in ("GetId", "GetUrl", "GetTypeId", "GetVersion"):
+                        try:
+                            v = getattr(desc, m)()
+                            out[m] = str(v)
+                        except Exception as e:
+                            out[m + "_err"] = str(e)
+                    return out
+                except Exception as e:
+                    return {"_error": f"CreateObjectAsset failed: {e}"}
+
+            outcome = self.execute_on_main_thread(_save, _timeout=30)
+            if isinstance(outcome, dict) and "_error" in outcome:
+                return {"error": outcome["_error"]}
+            return {
+                "ok": True,
+                "asset_id": outcome.get("GetId"),
+                "asset_url": outcome.get("GetUrl"),
+                "asset_type_id": outcome.get("GetTypeId"),
+                "asset_version": outcome.get("GetVersion"),
+                "note": ("File-type asset (.c4d). Bit-identical roundtrip via "
+                         "scene_nodes_load_asset, but does NOT surface FIO "
+                         "params as AM params (NodeTemplate publishing requires "
+                         "C++ shim — see scene_nodes_guide.md §8)."),
+            }
+        except Exception as e:
+            return {"error": f"scene_nodes_save_as_asset failed: {e}",
+                    "traceback": traceback.format_exc()}
+
+    def handle_scene_nodes_load_asset(self, command):
+        """Load a previously-saved asset into the active doc by its asset ID.
+        Programmatic equivalent of dragging from the asset browser. Wraps
+        maxon.AssetManagerInterface.LoadAssets.
+
+        Args:
+          asset_id (str, required): the asset ID returned by
+            scene_nodes_save_as_asset (e.g. 'file_CXHeLCR9PJjqXvZlkjg5RB').
+
+        Returns:
+          {ok, asset_id, loaded: bool, top_level_objects_after: [...]}
+
+        The `loaded` flag mirrors `LoadAssets` return; `True` indicates
+        success at the operation level. The caller should compare
+        `top_level_objects_after` to a snapshot taken before to identify
+        the new instance(s).
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+            asset_id_str = command.get("asset_id")
+            if not asset_id_str or not isinstance(asset_id_str, str):
+                return {"error": "asset_id (str) is required"}
+
+            def _load():
+                import maxon
+                try:
+                    repo = maxon.AssetInterface.GetUserPrefsRepository()
+                    if repo is None:
+                        return {"_error": "GetUserPrefsRepository returned None"}
+                    selection = [(maxon.Id(asset_id_str), "")]
+                    result = maxon.AssetManagerInterface.LoadAssets(
+                        repo, selection, None, None
+                    )
+                    return {"loaded": bool(result)}
+                except Exception as e:
+                    return {"_error": f"LoadAssets failed: {e}"}
+
+            outcome = self.execute_on_main_thread(_load, _timeout=30)
+            if isinstance(outcome, dict) and "_error" in outcome:
+                return {"error": outcome["_error"]}
+            try:
+                c4d.EventAdd()
+            except Exception:
+                pass
+            top_level = []
+            try:
+                op = doc.GetFirstObject()
+                while op:
+                    top_level.append(op.GetName())
+                    op = op.GetNext()
+            except Exception:
+                pass
+            return {
+                "ok": True,
+                "asset_id": asset_id_str,
+                "loaded": outcome.get("loaded", False),
+                "top_level_objects_after": top_level,
+            }
+        except Exception as e:
+            return {"error": f"scene_nodes_load_asset failed: {e}",
+                    "traceback": traceback.format_exc()}
+
     def handle_scene_nodes_add_node(self, command):
         """Add a node to a Scene Nodes graph by asset ID.
 
@@ -15491,10 +15653,11 @@ class C4DSocketServer(threading.Thread):
                     txn = graph.BeginTransaction()
                 except Exception as e:
                     return {"_error": f"BeginTransaction failed: {e}"}
+                connect_err = None
                 try:
                     src_port_obj.Connect(dst_port_obj)
                 except Exception as e:
-                    return {"_error": f"Connect failed: {e}"}
+                    connect_err = str(e)
                 try:
                     if hasattr(txn, "Commit"):
                         txn.Commit()
@@ -15502,8 +15665,39 @@ class C4DSocketServer(threading.Thread):
                         graph.CommitImpl(txn)
                 except Exception as e:
                     return {"_error": f"Commit failed: {e}"}
+                # Connect() can return error AND silently no-op (notably on
+                # void-template ports like floatingio.portlist). Even when it
+                # appears to succeed, the wire may not actually land. Always
+                # verify by inspecting outgoing connections of the source port
+                # AFTER commit. This is the GPT-5.5 audit fix (2026-04-30).
+                wire_landed = False
+                outgoing_after = []
+                try:
+                    dst_pid_str = str(dst_port_obj.GetId())
+                    for (other_port, _wires) in src_port_obj.GetConnections(1):
+                        try:
+                            other_pid_str = str(other_port.GetId())
+                            outgoing_after.append(other_pid_str)
+                            if other_pid_str == dst_pid_str:
+                                wire_landed = True
+                        except Exception:
+                            pass
+                except Exception as e:
+                    return {"_error": f"post-commit verification GetConnections failed: {e}",
+                            "_connect_err": connect_err}
+                if not wire_landed:
+                    return {"_error": "wire did not land after commit (Connect silently no-oped)",
+                            "_connect_err": connect_err,
+                            "_outgoing_after_commit": outgoing_after,
+                            "_src_id": src_id, "_dst_id": dst_id,
+                            "_hint": "PORTLIST/void-template ports often reject "
+                                     "Connect() without raising. The C4D editor "
+                                     "uses a higher-level operation (auto-port-"
+                                     "specialization) that the imperative API "
+                                     "does not expose. See scene_nodes_guide.md §8."}
 
-                return {"_src_id": src_id, "_dst_id": dst_id}
+                return {"_src_id": src_id, "_dst_id": dst_id,
+                        "_outgoing_after_commit": outgoing_after}
 
             outcome = self.execute_on_main_thread(_connect, _timeout=15)
             if isinstance(outcome, dict) and "_error" in outcome:
@@ -15527,7 +15721,8 @@ class C4DSocketServer(threading.Thread):
                 "source_node_resolved": outcome.get("_src_id"),
                 "dest_node_resolved": outcome.get("_dst_id"),
                 "method": "BeginTransaction + Connect + Commit (imperative)",
-                "note": "Wire established. Re-run scene_nodes_walk to verify.",
+                "verified": "wire confirmed via post-commit GetConnections(1)",
+                "outgoing_after_commit": outcome.get("_outgoing_after_commit", []),
             }
         except Exception as e:
             return {"error": f"scene_nodes_connect_ports failed: {e}",

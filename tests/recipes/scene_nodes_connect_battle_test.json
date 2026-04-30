@@ -1,6 +1,6 @@
 {
   "name": "scene_nodes_connect_battle_test",
-  "description": "Battle-test the imperative-API connect_ports handler against real synthesized capsules. Demonstrates: (a) create_capsule_with_pattern produces working capsules, (b) connect_ports establishes real wires verifiable via GraphNode.GetConnections(direction=1), (c) basename-disambiguation handling when multiple nodes of same type exist (Memory pattern emits 2 Floating IOs).",
+  "description": "Battle-test the imperative-API connect_ports handler against real synthesized capsules. Demonstrates: (a) create_capsule_with_pattern produces working capsules, (b) connect_ports establishes real TYPED wires verifiable via GraphNode.GetConnections(direction=1). NOTE 2026-04-30 (post-GPT-audit): PORTLIST / void-template wires (Memory.nextout -> floatingio.portlist) silently no-op via the Python imperative API — UI auto-port-specialization isn't exposed. PORTLIST connect coverage moved to scene_nodes_floatingio_probe.experimental.json. This green suite covers ONLY typed port-to-port wires (e.g. hash.resultfloat -> compare.in1).",
   "setup": [
     {
       "command": "execute_python",
@@ -22,18 +22,10 @@
       "assert": [{"type": "object_exists", "name": "BT_Memory"}]
     },
     {
-      "name": "discover_memory_capsule_nodes_then_connect_first_floatingio",
+      "name": "verify_memory_capsule_synthesis_only",
       "command": "execute_python",
       "args": {
-        "script": "import c4d\nimport maxon\nfrom maxon.frameworks.nodes import GraphDescription\ndoc = c4d.documents.GetActiveDocument()\ncap = doc.SearchObject('BT_Memory')\ng = GraphDescription.GetGraph(cap)\n# Walk to find specific instance IDs (since 2 Floating IOs exist)\nmem_id = None; io_ids = []\nfor c in (g.GetRoot().GetChildren() or []):\n    cid = str(c.GetId())\n    if '@' in cid and '/' not in cid:\n        b = cid.split('@')[0]\n        if b == 'memory': mem_id = cid\n        elif b == 'floatingio': io_ids.append(cid)\nif not mem_id: raise RuntimeError('memory not found')\nif len(io_ids) < 1: raise RuntimeError(f'no floatingio nodes (got {io_ids})')\nprint(f'Found mem={mem_id}, ios={io_ids}')\n# Connect imperatively (since the recipe step needs to test the path)\nmem_node = next(c for c in g.GetRoot().GetChildren() if str(c.GetId()) == mem_id)\nfirst_io = next(c for c in g.GetRoot().GetChildren() if str(c.GetId()) == io_ids[0])\nnextout = next((p for p in (mem_node.GetOutputs().GetChildren() or []) if str(p.GetId()).endswith('nextout._0')), None)\nportlist = next((p for p in (first_io.GetInputs().GetChildren() or []) if 'portlist' in str(p.GetId())), None)\nif not nextout or not portlist: raise RuntimeError('ports not found')\ntxn = g.BeginTransaction()\nnextout.Connect(portlist)\ntxn.Commit()\nprint(f'Connected mem.nextout._0 -> {io_ids[0]}/portlist')"
-      },
-      "assert": []
-    },
-    {
-      "name": "verify_memory_wire_landed",
-      "command": "execute_python",
-      "args": {
-        "script": "import c4d\nimport maxon\nfrom maxon.frameworks.nodes import GraphDescription\ndoc = c4d.documents.GetActiveDocument()\ncap = doc.SearchObject('BT_Memory')\ng = GraphDescription.GetGraph(cap)\nmem_node = None\nfor c in (g.GetRoot().GetChildren() or []):\n    cid = str(c.GetId())\n    if '@' in cid and '/' not in cid and cid.split('@')[0] == 'memory':\n        mem_node = c; break\nif not mem_node: raise RuntimeError('memory node not found')\nnextout = next((p for p in (mem_node.GetOutputs().GetChildren() or []) if str(p.GetId()).endswith('nextout._0')), None)\nif not nextout: raise RuntimeError('memory.nextout._0 port not found')\nconns = list(nextout.GetConnections(1))\nif not conns: raise AssertionError(f'memory.nextout._0 has 0 outgoing connections')\n# Just verify ANY outgoing connection lands (port-id format varies)\nport_targets = [str(p[0].GetId()) for p in conns]\nprint(f'WIRE VERIFIED: memory.nextout._0 has {len(conns)} outgoing connection(s), targets: {port_targets}')"
+        "script": "import c4d\nimport maxon\nfrom maxon.frameworks.nodes import GraphDescription\ndoc = c4d.documents.GetActiveDocument()\ncap = doc.SearchObject('BT_Memory')\ng = GraphDescription.GetGraph(cap)\n# Verify pattern emit produces expected node bases (memory + at least one floatingio).\n# Do NOT attempt a Memory.nextout._0 -> floatingio.PORTLIST connect here:\n# PORTLIST is a void-template port that silently no-ops on Python imperative\n# Connect(). The C4D editor's drag-wire fires a higher-level auto-port-\n# specialization that isn't exposed. See scene_nodes_guide.md §8. PORTLIST\n# coverage lives in scene_nodes_floatingio_probe.experimental.json.\nbases = set()\nfor c in (g.GetRoot().GetChildren() or []):\n    cid = str(c.GetId())\n    if '@' in cid and '/' not in cid:\n        bases.add(cid.split('@')[0])\nif 'memory' not in bases: raise AssertionError(f'BT_Memory missing memory node (bases: {sorted(bases)})')\nif 'floatingio' not in bases: raise AssertionError(f'BT_Memory missing floatingio node (bases: {sorted(bases)})')\nprint(f'MEMORY CAPSULE SYNTHESIS VERIFIED: bases={sorted(bases)}')"
       },
       "assert": []
     },

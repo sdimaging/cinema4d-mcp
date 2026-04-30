@@ -314,11 +314,13 @@ These are the rules that should drive ALL programmatic synthesis going forward.
 
 ### 6.1 Capsule-first
 
-**Rule:** Scene Nodes graphs exist to be CONSUMED by the object tree as Generators / Deformers (capsules), with user-data parameters exposed in the Attribute Manager.
+**Rule:** Scene Nodes graphs exist to be CONSUMED by the object tree as Generators / Deformers (capsules). The artist deliverable is a registered Capsule asset (NodeTemplate type) where Floating IOs surface as Attribute Manager parameters.
 
 **Why:** Artists work in the object tree. The graph editor is a low-level engineering surface, not a creative one. Once a graph is built, the artist's relationship to it is "drag-and-tune via parameters."
 
-**Implication:** Every functional pattern should default to materializing INSIDE an SN Generator/Deformer wrapper, with each tunable parameter exposed as a `floatingio` node. Bare doc-level graphs are intermediate; capsules with floatingio-exposed UD are the artist deliverable.
+**Implication:** Every functional pattern should default to materializing INSIDE an SN Generator/Deformer wrapper. Floating IO nodes are the routing primitive that, once the wrapper is published as a registered NodeTemplate asset, surface as AM parameters.
+
+**Status (2026-04-30):** The Python imperative API can build the graph + connect typed wires + save as a File-type asset (round-trippable). It CANNOT yet (a) add named ports to a Floating IO programmatically, or (b) publish the graph as a NodeTemplate-typed asset that surfaces FIO routing as AM params. Both gaps are mapped to a planned C++ shim plugin — see §8.
 
 ### 6.2 Selection-capsule bidirectionality
 
@@ -400,9 +402,13 @@ The cinema4d-mcp plugin ships **9 scene-nodes-specific tools**. Use them in this
 5. Connect ports as needed.
    → scene_nodes_connect_ports from=<x> to=<y>
 
-6. Materialize as artist-ready capsule.
-   → For each tunable param: add a floatingio node connected to the relevant inner port
-   → User sees the param in Attribute Manager
+6. Materialize as artist-ready capsule (CURRENTLY UI-GATED).
+   → Adding a floatingio node alone does NOT surface its connected param in
+     the Attribute Manager. AM-param surfacing requires the inner graph to
+     be saved as a NodeTemplate-typed asset (.c4dnodes format), which is
+     not exposed in the Python imperative API. CreateObjectAsset saves a
+     File-type asset (.c4d) — the graph round-trips bit-identically but
+     no new AM params appear. See §8 for full details + the C++ shim path.
 ```
 
 ---
@@ -454,11 +460,28 @@ But cannot (with the API surface we've mapped):
 - Register the inner graph as a typed asset class
 - Surface inner FIOs as AM parameters on a generic SN Generator wrapper
 
-### Path forward (when this becomes blocking)
+### Path forward — what we've added 2026-04-30 (post-CreateObjectAsset session)
 
-1. Drive the C4D UI to "Save as Capsule Asset" via `c4d.CallCommand` (need to discover the command ID — `find_command_by_name` candidates: "Save Asset", "Create Capsule").
-2. After save, the asset registers with its own object ID and FIOs auto-surface.
-3. Programmatic instantiation then uses the new asset ID directly (not generic SN Generator).
+**Confirmed Python entry points that DO work:**
+- `maxon.AssetCreationInterface.CreateObjectAsset(op, doc, sas, id, name, version, meta, bool)` — saves an SN Generator + its embedded graph as `net.maxon.assettype.file` asset. Returns an `AssetDescription` with the new asset's ID + URL.
+- `maxon.AssetManagerInterface.LoadAssets(repo, [(id, '')], None, None)` — programmatic equivalent of asset-browser-drag. Inserts the asset's content into the active doc.
+- `maxon.StoreAssetStruct(parentCategory_id, lookup_repo, save_repo)` — settings for where to save.
+- Asset-type registry exposed: `AssetTypes.{File, NodeTemplate, NodeContext, NodeSpace, NodeDescription, NodeDefaultsPreset, DocumentPreset, UserDataPreset, SubType}`.
+- 32 methods total on `AssetCreationInterface`: `CreateObjectAsset`, `CreateSceneAsset`, `CreateMaterialAsset`, `SaveDocumentAsset`, `SaveBaseDocumentAsAsset`, `OpenSaveAssetDialog`, `SaveDefaultPresetFromObject`, `SaveBrowserPreset`, `UpdateMetaData`, etc.
+
+**The unresolved gap:** None of the exposed Python entry points produce a `net.maxon.node.assettype.nodetemplate`-typed asset (the `.c4dnodes` format used by Maxon's shipped capsules like Edge to Spline). NodeTemplate registration is plugin-init-only in the Python surface. `CreateObjectAsset` saves File-type (round-trippable but no AM-param surfacing); no Python-callable `CreateNodeTemplateAsset` exists.
+
+**Concrete path forward (planned C++ shim):**
+1. Build a small C4D `.cdl64` plugin (alongside `mcp_server_plugin.pyp`) that wraps:
+   - `GraphModelInterface::AddPort(parent, Id name)` (singular, named — graph.h:891) — for adding `hiddenin1.<canonical>` / `in1.<canonical>` ports on a Floating IO.
+   - The native NodeTemplate publishing path — likely `AssetTypes::NodeTemplate()` + `CreateAsset` in C++ — for registering the saved graph as a `.c4dnodes` asset.
+2. Expose those as new MCP commands routed through the existing plugin's socket: `scene_nodes_add_floating_io_port`, `scene_nodes_publish_capsule_asset`.
+3. Python-side build flow: synthesize graph → connect typed wires → add named FIO ports via shim → publish as NodeTemplate via shim → asset auto-surfaces in Asset Browser with FIO routing → AM params appear when artist drags the new asset.
+
+**Already shipped 2026-04-30 (File-type roundtrip — useful even without NodeTemplate):**
+- `scene_nodes_save_as_asset` MCP handler — wraps `CreateObjectAsset`. User-built graphs become reusable file assets. Round-tripping preserves bit-identical FIO state.
+- `scene_nodes_load_asset` MCP handler — wraps `LoadAssets`. Reload by ID.
+- Use cases this unlocks even pre-shim: pattern libraries, curated graph templates, programmatic workflow capture.
 
 ### How `enumerate_descids` surfaces 777 entries
 

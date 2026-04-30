@@ -33,7 +33,7 @@
       "name": "synthesize_memory_carrier_capsule",
       "command": "scene_nodes_create_capsule_with_pattern",
       "args": {
-        "pattern_name": "loop_over_indices",
+        "pattern_name": "memory_capsule_state_carrier",
         "capsule_type": "deformer",
         "capsule_name": "Memory Capsule State Carrier",
         "params": {}
