@@ -237,6 +237,51 @@
       "observed_in": ["city_generator (multiple chains)", "geo_feedback_loop"]
     },
 
+    "memory_capsule_state_carrier": {
+      "description": "The simplest useful Scene Nodes capsule — ONE Memory node wrapped as a Scene Nodes Generator with 'current' (read last frame's value) and 'next' (write this frame's value) exposed via floatingio. The 'Store For Next Frame' primitive in C4D's Memory_Nodes example scene.",
+      "min_nodes": 1,
+      "required_nodes": ["memory"],
+      "skeleton_text": "1× Memory node wrapped in SN Generator (180420600) with 2 floatingio exposing current+next ports",
+      "params_needed": ["initial_value (typed)", "value_type"],
+      "observed_in": ["Memory_Nodes.c4d (4× instances driving 4 different simulations)"],
+      "purpose": "The atomic primitive for ANY frame-to-frame simulation. Combined with classic C4D tools (Volume Builder, Cloner, Deformers, Fields) as the per-frame mutator, becomes a simulation engine. Reusable across volume-growth, soft-body, spline-push-apart, cellular-automata, reaction-diffusion patterns."
+    },
+
+    "iterative_simulation_via_memory_and_classic_tools": {
+      "description": "The general framework for time-varying simulations in C4D 2026: Memory node holds the state, classic-tool stack provides the per-frame transformation. previous_state → [classic mutator] → next_state, wrapped in a Memory loop.",
+      "min_nodes": 1,
+      "required_nodes": ["memory_capsule_state_carrier (Store For Next Frame)"],
+      "framework_text": "previous_state (from memory.current) → classic-tools-as-per-frame-mutator → next_state (to memory.next) → loop closes by Memory automatically advancing one frame.",
+      "classic_mutator_options": [
+        "Volume Builder + Volume Mesher (volume accretion / VDB growth)",
+        "Cloner + Collision deformer + Jiggle (soft-body)",
+        "Push Apart field + Random Field (force-driven point evolution)",
+        "Plain effector + Volume Builder (directional growth)",
+        "Reaction-diffusion math (with 2 Memory nodes for U/V)",
+        "Cellular-automata neighbor-rule applications"
+      ],
+      "observed_in": ["Memory_Nodes.c4d (VDB Growth, Collision Over Time, Spline Push Apart, VDB Growth.Shape)"],
+      "key_insight": "This is THE bridge between Scene Nodes (state-carrier) and classic C4D (per-frame mutator) for ALL temporal/iterative effects. Bidirectional: Memory provides state to classic tools; classic tools provide mutation to Memory. The two worlds collaborate."
+    },
+
+    "doc_level_procedural_scene_builder": {
+      "description": "Build an ENTIRE scene's geometry from the doc-level Scene Nodes graph (no classic objects). The 6 numbered example scenes (045437-045802) demonstrate this pattern.",
+      "min_nodes": 13,
+      "required_nodes": ["primitive", "transform_composition_stack"],
+      "transform_composition_stack": ["sqrpart", "combine", "multransform_5", "mat", "sqrtrans", "vectrans"],
+      "skeleton_text": "primitive(s) × N → 6-node transform stack (sqrpart + combine + multransform_5 + mat + sqrtrans + vectrans) → algorithm-specific operator (mandelbulb / mandelbrot / polyvoxel+triangulatenode / distnode+fillgeometry / arithmetic+noise composition) → output to scene root",
+      "algorithm_variants_observed": {
+        "math_noise_composition": "045798.c4d (15× arithmetic + 3× noise + blend) — generative form via math",
+        "voxelization_to_polys": "045794.c4d (polyvoxel + triangulatenode + selectionstringtoselection)",
+        "color_per_instance": "045439.c4d (infonode × 2 + containeriteration + color)",
+        "mandelbulb_3d_fractal": "045438.c4d (mandelbulb + distnode + containeriteration)",
+        "mandelbrot_2d_fractal": "045437.c4d (mandelbrot + distnode + containeriteration)",
+        "distance_field_fill": "045802.c4d (fillgeometry + distnode + color)"
+      },
+      "observed_in": ["6 numbered example scenes 045437-045802"],
+      "implication": "Not all Scene Nodes work has to wrap into a deformer/generator capsule. The doc-level graph CAN be the entire scene — 0 classic objects, just graph output. Useful for procedural-only scenes (fractals, math art, voxel sculptures)."
+    },
+
     "procedural_surface_scatter": {
       "description": "Distribute points on a mesh surface using blue-noise (Poisson-disk) sampling — naturally-random, no clumping, optionally with per-point size variation. THE killer scatter primitive for trees-on-terrain, leaves-on-mesh, rocks-on-ground, and similar workflows. Output is a Distribution Data container that drives Cloners or downstream per-element loops.",
       "min_nodes": 1,
