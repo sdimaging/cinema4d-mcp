@@ -552,6 +552,52 @@ implementation forwarded to the graph internally.
 
 ---
 
+## 35. `SpecialEventAdd` is ASYNC — handler fires after caller returns
+
+Continuation of gotcha #34. `SpecialEventAdd` queues a CoreMessage to be
+broadcast on the main thread, but **doesn't dispatch synchronously**. The
+caller's stack frame must finish before the message thread (which IS the
+main thread) can pick up the queue and fire the C++ `CoreMessage`
+handlers.
+
+Practical implication for Python ↔ C++ request/response patterns:
+
+```python
+# WRONG: write+fire+read on main thread — handler never sees the request
+def _do_all_on_main():
+    wc.SetInt32(KEY_OP, 1)        # write
+    wc.SetInt32(KEY_STATUS, -1)
+    c4d.SpecialEventAdd(PID, 1, 0)  # fire (queued)
+    return wc.GetInt32(KEY_STATUS)  # reads -1, queue hasn't drained
+self.execute_on_main_thread(_do_all_on_main)  # main thread blocked all the while
+```
+
+```python
+# RIGHT: split — fire on main thread, worker yields, then read on main thread
+def _write_and_fire():
+    wc.SetInt32(KEY_OP, 1)
+    wc.SetInt32(KEY_STATUS, -1)
+    c4d.SpecialEventAdd(PID, 1, 0)
+self.execute_on_main_thread(_write_and_fire)  # quick — main thread freed
+
+# Worker thread sleeps, main thread processes queue
+import time
+deadline = time.time() + 5.0
+while time.time() < deadline:
+    s = self.execute_on_main_thread(lambda: wc.GetInt32(KEY_STATUS))
+    if s != -1:
+        return s
+    time.sleep(0.05)
+```
+
+The mcp-socket worker thread is naturally separate from the C4D main
+thread, so this poll-pattern works cleanly. **Calling from the main
+thread directly will time out forever.** Even `time.sleep` on the main
+thread doesn't yield to the message queue (sleep blocks the thread; the
+message thread can't pick up the queue without the same thread releasing).
+
+---
+
 ## 34. Python -> C++ messaging: `SpecialEventAdd` works, `SendCoreMessage` (custom IDs) and `BasePlugin.Message` do NOT
 
 Real-world bridge for Python ↔ C++ messaging in C4D 2026 (verified live

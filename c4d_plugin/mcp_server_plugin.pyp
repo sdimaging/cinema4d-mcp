@@ -14586,16 +14586,24 @@ class C4DSocketServer(threading.Thread):
     _OP_PING                  = 0
     _OP_ADD_FLOATING_IO_PORT  = 1
 
-    def _mcp_helper_dispatch(self, op_code, args):
+    def _mcp_helper_dispatch(self, op_code, args, timeout_s=5.0):
         """Send a request to the cinema4d_mcp_helper C++ plugin via
         SpecialEventAdd + shared world container. Returns a dict with
         status, status_msg, new_port_id, protocol_version. Raises
-        RuntimeError if the helper plugin isn't loaded.
+        RuntimeError if the helper plugin isn't loaded or the response
+        doesn't arrive within `timeout_s`.
 
-        Must run on the main thread (CoreMessage dispatch is main-thread
-        only). Caller wraps in execute_on_main_thread.
+        IMPORTANT: SpecialEventAdd is asynchronous. The C++ CoreMessage
+        handler fires when the main thread next processes its message
+        queue, which it can't do while a Python main-thread block is
+        running. So this function MUST be called from the WORKER thread
+        — sleep yields to the main thread, allowing the queue to drain.
+        Calling from the main thread will time out (status stays at
+        sentinel -1 forever).
+
+        See gotcha #35.
         """
-        # Confirm helper is present
+        # Confirm helper is present (read-only — safe from any thread)
         plug = c4d.plugins.FindPlugin(self._MCP_HELPER_PLUGIN_ID,
                                        c4d.PLUGINTYPE_COREMESSAGE)
         if plug is None:
@@ -14604,35 +14612,65 @@ class C4DSocketServer(threading.Thread):
                 "(id 1057845). Run scripts/build_cpp_shim.sh and "
                 "restart C4D — see cpp_shim/README.md.")
 
-        wc = c4d.GetWorldContainerInstance()
-        # Write request args (the parts that don't fit in SpecialEventAdd's
-        # two UInt slots — strings + bools — go through the world container)
-        wc.SetInt32(self._BC_KEY_OP, int(op_code))
-        wc.SetString(self._BC_KEY_TARGET, args.get("target", "") or "")
-        wc.SetString(self._BC_KEY_NODE_ID, args.get("node_id", "") or "")
-        wc.SetString(self._BC_KEY_PORT_NAME, args.get("port_name", "") or "")
-        wc.SetBool(self._BC_KEY_IS_OUTPUT, bool(args.get("is_output", False)))
-        # Reset response slots
-        wc.SetInt32(self._BC_KEY_STATUS, -1)
-        wc.SetString(self._BC_KEY_STATUS_MSG, "")
-        wc.SetString(self._BC_KEY_NEW_PORT_ID, "")
-        wc.SetInt32(self._BC_KEY_PROTOCOL_VER, -1)
+        # Step 1 — main thread: write args + fire SpecialEventAdd, return
+        op_code_int = int(op_code)
+        target = args.get("target", "") or ""
+        node_id = args.get("node_id", "") or ""
+        port_name = args.get("port_name", "") or ""
+        is_output = bool(args.get("is_output", False))
 
-        # Fire the request via SpecialEventAdd — this packs the plugin_id at
-        # BFM_CORE_ID and the op_code at BFM_CORE_PAR1, then broadcasts
-        # CoreMessage to all MessageData plugins. Our C++ side filters by
-        # BFM_CORE_ID == MCP_HELPER_PLUGIN_ID.
-        # SpecialEventAdd is synchronous on the main thread — results are
-        # ready immediately after it returns.
-        c4d.SpecialEventAdd(self._MCP_HELPER_PLUGIN_ID, int(op_code), 0)
+        def _write_and_fire():
+            wc = c4d.GetWorldContainerInstance()
+            wc.SetInt32(self._BC_KEY_OP, op_code_int)
+            wc.SetString(self._BC_KEY_TARGET, target)
+            wc.SetString(self._BC_KEY_NODE_ID, node_id)
+            wc.SetString(self._BC_KEY_PORT_NAME, port_name)
+            wc.SetBool(self._BC_KEY_IS_OUTPUT, is_output)
+            # Reset response slots
+            wc.SetInt32(self._BC_KEY_STATUS, -1)
+            wc.SetString(self._BC_KEY_STATUS_MSG, "")
+            wc.SetString(self._BC_KEY_NEW_PORT_ID, "")
+            wc.SetInt32(self._BC_KEY_PROTOCOL_VER, -1)
+            c4d.SpecialEventAdd(self._MCP_HELPER_PLUGIN_ID, op_code_int, 0)
+            return True
 
-        # Read response
-        return {
-            "status": wc.GetInt32(self._BC_KEY_STATUS),
-            "status_msg": wc.GetString(self._BC_KEY_STATUS_MSG),
-            "new_port_id": wc.GetString(self._BC_KEY_NEW_PORT_ID),
-            "protocol_version": wc.GetInt32(self._BC_KEY_PROTOCOL_VER),
-        }
+        # Run write+fire as a quick main-thread block — returns immediately,
+        # the C++ handler hasn't run yet.
+        self.execute_on_main_thread(_write_and_fire, _timeout=5)
+
+        # Step 2 — worker thread sleeps in short increments, polling for the
+        # response. Each `execute_on_main_thread(_read)` is itself short, so
+        # the main thread has gaps to process the SpecialEventAdd queue.
+        import time
+        def _read():
+            wc = c4d.GetWorldContainerInstance()
+            return {
+                "status": wc.GetInt32(self._BC_KEY_STATUS),
+                "status_msg": wc.GetString(self._BC_KEY_STATUS_MSG),
+                "new_port_id": wc.GetString(self._BC_KEY_NEW_PORT_ID),
+                "protocol_version": wc.GetInt32(self._BC_KEY_PROTOCOL_VER),
+            }
+
+        deadline = time.time() + timeout_s
+        last = None
+        while time.time() < deadline:
+            last = self.execute_on_main_thread(_read, _timeout=2)
+            if isinstance(last, dict) and last.get("status", -1) != -1:
+                return last
+            time.sleep(0.05)
+
+        # Timeout — return whatever last was, with a hint
+        if not isinstance(last, dict):
+            last = {"status": -1, "status_msg": "", "new_port_id": "",
+                    "protocol_version": -1}
+        last["_timeout"] = True
+        last["_timeout_hint"] = (
+            f"Helper did not respond within {timeout_s}s. The C++ plugin "
+            "is loaded but the CoreMessage handler did not fire. Possible "
+            "causes: (a) caller is on the main thread (must be on worker — "
+            "see gotcha #35), (b) helper rebuilt without restart, "
+            "(c) unknown op-code.")
+        return last
 
     def handle_scene_nodes_add_floating_io_port(self, command):
         """Add a named port to a Floating IO node via the C++ shim's
