@@ -113,10 +113,9 @@ If False → C4D needs a full restart. "Reload Python Plugins" doesn't re-import
 
 C4D's MCP socket runs each client connection on a worker thread. Most doc operations work fine from worker threads, BUT:
 
-**MUST be main-thread:**
-- `doc.StartUndo()`, `doc.EndUndo()`, `doc.DoUndo()`, `doc.DoRedo()` — undo manager state.
-
-**Worker-thread call silently fails** (DoUndo returns True without doing anything; StartUndo never opens a group).
+**MUST be main-thread (verified by failures in recipe suite):**
+- `doc.StartUndo()`, `doc.EndUndo()`, `doc.DoUndo()`, `doc.DoRedo()` — undo manager state. **Worker-thread call silently fails** (DoUndo returns True without doing anything; StartUndo never opens a group).
+- `maxon.frameworks.nodes.GraphDescription.GetGraph(host)` — returns explicit error: `"GetGraph() must be run from the main thread"`. Both fetch + auto-create paths are main-thread-only.
 
 **Fix:** Wrap in `execute_on_main_thread`:
 ```python
@@ -131,6 +130,8 @@ self.execute_on_main_thread(_do, _timeout=10)
 - `tag.SetAllHighlevelData`
 - `obj.InsertObject`, `obj.InsertUnder`, `obj.InsertTag`
 - `c4d.utils.SendModelingCommand` (most ops)
+
+**Heuristic:** anything in the `maxon.frameworks.*` family (modern node-graph APIs) seems to require main thread. The classic `c4d.*` API is more permissive but still has hot spots like the undo manager.
 
 If a tool starts misbehaving inexplicably, check whether wrapping in `execute_on_main_thread` fixes it.
 
@@ -195,6 +196,27 @@ doc.InsertObject(poly)  # REQUIRED — result is orphan otherwise
 **Actual:** C4D's Python interpreter runs on Windows. `/mnt/c/...` is a WSL-mount path that Windows Python's `open()` can't resolve.
 
 **Fix (server.py side):** Auto-translate `/mnt/<drive>/...` to `<DRIVE>:\\...` before sending the command. Already implemented in `_normalize_paths_in_command` — applied to known path-arg keys (`file_path`, `save_path`, `save_dir`, `bitmap_path`, `path`, etc.).
+
+## 16. `FieldList` is at top-level `c4d`, NOT in `c4d.modules.mograph`
+
+**Wrong:** `from c4d.modules import mograph; flist = mograph.FieldList()`
+
+**Actual (2026):** `c4d.FieldList()` — top-level. The OTHER field helpers
+ARE in `c4d.modules.mograph`:
+- `c4d.modules.mograph.FieldLayer`
+- `c4d.modules.mograph.FieldInput`
+- `c4d.modules.mograph.FieldOutput`
+- `c4d.modules.mograph.FieldInfo`
+
+Confusing split — be explicit about each import.
+
+```python
+flist = c4d.FieldList()  # top-level
+from c4d.modules.mograph import FieldLayer, FieldInput, FieldOutput, FieldInfo
+```
+
+Field-layer subtype constants (also top-level): `c4d.FLfield`,
+`c4d.FLnoise`, `c4d.FLformula`, `c4d.FLcurve`, `c4d.FLremap`, etc.
 
 ## 15. `bmp.GetPixel()` length varies
 

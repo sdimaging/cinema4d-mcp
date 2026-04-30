@@ -12567,11 +12567,16 @@ class C4DSocketServer(threading.Thread):
 
             # Modern (2025+) doc-level graph via GraphDescription — won't
             # show up in GetAllNimbusRefs even when present. Probe explicitly.
+            # Must be main-thread per the 2026 API requirement.
             info["doc_level_graph"] = None
             try:
                 from maxon.frameworks.nodes import GraphDescription
-                g = GraphDescription.GetGraph(doc)
-                if g is not None:
+                def _probe():
+                    return GraphDescription.GetGraph(doc)
+                g = self.execute_on_main_thread(_probe, _timeout=10)
+                if isinstance(g, dict) and "error" in g:
+                    info["doc_level_graph"] = {"present": False, "error": g["error"]}
+                elif g is not None:
                     info["doc_level_graph"] = {
                         "present": True,
                         "ref_str": str(g),
@@ -12640,14 +12645,23 @@ class C4DSocketServer(threading.Thread):
                 host = obj
 
             # GraphDescription.GetGraph is the modern (2025+) creation API.
-            # The single-arg form (host) gets the default scenenodes graph;
-            # the two-arg form is intended for non-default spaces but in
-            # 2026 it errors with "Could not access valid graph" for the
-            # core space (unsupported). So we use single-arg + ignore the
-            # space arg for now (only scenenodes works).
+            # The single-arg form (host) gets the default scenenodes graph.
+            # MUST run on main thread — direct worker-thread call errors with
+            # "GetGraph() must be run from the main thread" (caught by
+            # scene_nodes_smoke recipe 2026-04-29). Same pattern as undo
+            # handlers.
             from maxon.frameworks.nodes import GraphDescription
+            def _get_graph():
+                return GraphDescription.GetGraph(host)
             try:
-                graph = GraphDescription.GetGraph(host)
+                graph = self.execute_on_main_thread(_get_graph, _timeout=10)
+                # execute_on_main_thread returns dict with error key if it failed
+                if isinstance(graph, dict) and "error" in graph:
+                    return {
+                        "error": f"GraphDescription.GetGraph (main-thread) failed: {graph['error']}",
+                        "host": target_name or "<doc>",
+                        "space_id": sid,
+                    }
             except Exception as e:
                 return {
                     "error": f"GraphDescription.GetGraph failed: {e}",
