@@ -429,6 +429,123 @@ Use these as the type filter for `repo.FindAssets(type_id, asset_id, version, mo
 
 ---
 
+## 28. `cinema::String` and `maxon::String` are different types — convert via `MaxonConvert`
+
+C++ plugins routinely mix two string types: `cinema::String` (the older C4D
+string used by `BaseContainer`, `BaseObject`, etc.) and `maxon::String`
+(modern, used by the maxon framework — graphs, assets, ids). They CANNOT
+be concatenated with `+` directly. The compiler error looks like:
+```
+error C2666: 'cinema::operator +': overloaded functions have similar conversions
+while trying to match the argument list '(cinema::String, const maxon::String)'
+```
+
+This commonly bites when building error messages — a `BaseContainer::GetString`
+returns `cinema::String`, but the literal `"text"_s` resolves to
+`maxon::String` (because `maxon::operator""_s` is in scope from any maxon
+header include).
+
+**Conversion functions** (in `c4d_string.h`):
+```cpp
+inline const String& MaxonConvert(const maxon::String& val);  // maxon -> cinema
+inline String MaxonConvert(maxon::String&& val);
+inline const maxon::String& MaxonConvert(const String& val);  // cinema -> maxon
+inline maxon::String MaxonConvert(String&& val);
+```
+
+**Idiom:** build error/diagnostic messages in `maxon::String` (since `_s`
+literals produce that), then convert ONCE at the BaseContainer boundary:
+```cpp
+maxon::String msg = "graph_target '"_s + MaxonConvert(targetName) + "' not found"_s;
+wc->SetString(BC_KEY_STATUS_MSG, MaxonConvert(msg));
+```
+
+---
+
+## 29. `iferr_scope` (no `_handler`) + impl-returns-Result is the clean Maxon idiom
+
+The Maxon error system uses `iferr_return` to bail out of a function with a
+`Result<>` return type. To use it in a function that returns a non-Result
+type (like `Int32` or `void`), you have two options:
+
+**Option A (preferred): wrap the impl as `Result<void>`, return early via
+`iferr_return`, catch at the caller via `iferr (call) { ... }`.** This is
+what every Maxon SDK example does:
+
+```cpp
+static maxon::Result<void> DoWork_Impl(BaseContainer* wc) {
+    iferr_scope;  // Scope marker — required for iferr_return to work.
+    SomeMaxonCall() iferr_return;
+    return maxon::OK;
+}
+
+static Int32 DoWork(BaseContainer* wc) {
+    iferr (DoWork_Impl(wc)) {
+        wc->SetString(KEY_ERR, MaxonConvert(err.GetMessage()));
+        return 1;
+    }
+    return 0;
+}
+```
+
+**Option B (don't): `iferr_scope_handler` does NOT exist.** Despite what
+auto-complete/AI may suggest, the macro is `iferr_scope` (no suffix). The
+"_handler" form will compile-fail with cryptic messages.
+
+---
+
+## 30. `NodesGraphModelRef` lacks `GetRoot` — use `GetViewRoot()`
+
+For walking an existing Scene Nodes graph in C++:
+```cpp
+maxon::NimbusBaseRef nimbus = host->GetNimbusRef(maxon::neutron::NODESPACE);
+const maxon::nodes::NodesGraphModelRef& graph = nimbus.GetGraph();
+maxon::GraphNode root = graph.GetViewRoot();  // NOT GetRoot()
+```
+
+`graph.GetViewRoot()` returns the root GraphNode at `GetViewRootPath()`. If
+you need recursive traversal, use `GetInnerNodes`:
+```cpp
+graph.GetInnerNodes(root, maxon::NODE_KIND::NODE, false,
+    [&](const maxon::GraphNode& candidate) -> maxon::Result<maxon::Bool>
+    {
+        // process candidate; return true to continue iteration
+        return maxon::Bool(true);
+    }) iferr_return;
+```
+
+`maxon::neutron::NODESPACE` lives in `maxon/neutron_ids.h` — must include
+that header AND list `neutron.framework` in the project's APIS.
+
+---
+
+## 31. `GraphNode.AddPort(name)` lives on the PORT (not the graph)
+
+The C++ surface for adding a named port to an existing port-container has
+two callable forms:
+
+```cpp
+// On the graph:
+maxon::Result<GraphNode> AddPort(const GraphNode& parent, const Id& name);
+
+// On a GraphNode (template wrapper that delegates to the graph):
+Result<GraphNode> AddPort(const Id& name) const;
+```
+
+Both are equivalent. To add a named port to a Floating IO node's input
+container, use the second form on the container (NOT on the FIO node):
+```cpp
+maxon::GraphNode container = fio.GetInputs();   // or .GetOutputs()
+maxon::Id portId;
+portId.Init(MaxonConvert(portName)) iferr_return;
+maxon::GraphNode newPort = container.AddPort(portId) iferr_return;
+```
+
+Calling `fio.AddPort(...)` directly fails — the FIO is a NODE, not a port
+container. Always go through `GetInputs()` / `GetOutputs()`.
+
+---
+
 ## 27. C4D 2026 Windows SDK produces `.xdl64`, not `.cdl64`
 
 The Maxon SDK convention has historically used `.cdl64` for Windows

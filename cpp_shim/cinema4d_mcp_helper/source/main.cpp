@@ -6,18 +6,15 @@ This is what the C4D editor calls on drag-wire when an artist exposes a
 parameter — Python's maxon.frameworks.{nodes,graph} module doesn't wrap
 the singular AddPort form, so we do it here.
 
-Phase A.0 (2026-04-30 earlier): minimal MessageData skeleton — verified
-plugin loads + is discoverable via FindPlugin. Bridge proven live.
+Phase A.0 (earlier): minimal MessageData skeleton — verified plugin loads
++ is discoverable via FindPlugin.
 
 Protocol (Python <-> C++ via shared GetWorldContainerInstance):
-  Python writes args under key MCP_HELPER_BC namespace, then fires
-  c4d.SendCoreMessage(MSG_MCP_HELPER_REQ, c4d.BaseContainer()). C++
-  CoreMessage reads world container, dispatches by op-code, writes
+  Python writes args under our BC keys, fires
+  c4d.SendCoreMessage(MSG_MCP_HELPER_REQ, c4d.BaseContainer()).
+  C++ CoreMessage reads world container, dispatches by op-code, writes
   result back. Python reads result. Single in-flight only — MCP socket
   serializes calls at the orchestration layer.
-
-Style follows Spikr2: namespace cinema { ... } block, separate main.h
-with `using namespace cinema;`, tabs for indentation, stylecheck level 0.
 */
 
 #include "main.h"
@@ -28,200 +25,163 @@ with `using namespace cinema;`, tabs for indentation, stylecheck level 0.
 #include "maxon/node_spaces.h"
 #include "maxon/nodes_all.h"
 #include "maxon/nimbusbase.h"
+#include "maxon/neutron_ids.h"
 
 namespace cinema
 {
 
-// Plugin ID — sibling to the existing Python plugin family
-//   1057843  PLUGIN_ID         (Python MCP server SpecialEventAdd)
-//   1057844  UI_OBSERVER_PID   (UiActionObserver MessageData)
-//   1057845  MCP_HELPER_PID    (this — C++ companion)         <-- HERE
 const Int32 MCP_HELPER_PLUGIN_ID = 1057845;
 
-// Phase protocol version. Increment when wire shape changes.
-const Int32 MCP_HELPER_PROTOCOL_VERSION = 2; // 1=A.0 (ping only), 2=A.1 (AddPort)
+const Int32 MCP_HELPER_PROTOCOL_VERSION = 2; // 1=A.0, 2=A.1
 
-// Custom CoreMessage IDs we listen for. Use values >= our plugin ID *1000
-// to avoid collision with the C4D builtin range.
 const Int32 MSG_MCP_HELPER_REQ = 1057845001;
 
-// World-container BC keys for the shared request/response protocol. All
-// under our plugin's reserved range to avoid collisions with C4D core
-// settings under the same singleton.
-const Int32 BC_KEY_OP             = 1057845010;  // Int32 — operation code
-const Int32 BC_KEY_TARGET         = 1057845011;  // String — graph_target object name
-const Int32 BC_KEY_NODE_ID        = 1057845012;  // String — node instance ID (e.g. "floatingio@HASH")
-const Int32 BC_KEY_PORT_NAME      = 1057845013;  // String — port name to add
-const Int32 BC_KEY_IS_OUTPUT      = 1057845014;  // Bool — true = add to outputs, false = inputs
-const Int32 BC_KEY_STATUS         = 1057845020;  // Int32 — 0=success, !=0=error
-const Int32 BC_KEY_STATUS_MSG     = 1057845021;  // String — human-readable status / error
-const Int32 BC_KEY_NEW_PORT_ID    = 1057845022;  // String — resulting port ID on success
-const Int32 BC_KEY_PROTOCOL_VER   = 1057845023;  // Int32 — protocol version for handshake
+const Int32 BC_KEY_OP             = 1057845010;
+const Int32 BC_KEY_TARGET         = 1057845011;
+const Int32 BC_KEY_NODE_ID        = 1057845012;
+const Int32 BC_KEY_PORT_NAME      = 1057845013;
+const Int32 BC_KEY_IS_OUTPUT      = 1057845014;
+const Int32 BC_KEY_STATUS         = 1057845020;
+const Int32 BC_KEY_STATUS_MSG     = 1057845021;
+const Int32 BC_KEY_NEW_PORT_ID    = 1057845022;
+const Int32 BC_KEY_PROTOCOL_VER   = 1057845023;
 
-// Op codes
-const Int32 OP_PING               = 0; // returns protocol version, status=0
-const Int32 OP_ADD_FLOATING_IO_PORT = 1;
+const Int32 OP_PING                  = 0;
+const Int32 OP_ADD_FLOATING_IO_PORT  = 1;
 
 // ============================================================================
-// AddPort implementation — Phase A.1 core
+// Helpers
 // ============================================================================
 
-// Walk a graph recursively to find a node whose ID's last path segment
-// matches target_id. Returns invalid GraphNode if not found.
-static maxon::GraphNode FindNodeByIdSegment(const maxon::GraphNode& root,
-											const String& targetIdSegment,
-											Int32 maxDepth = 14)
+// Compare a graph node's id (last path segment) against a target string.
+// Accepts either a full ID like "host@HASH/floatingio@HASH2" or a basename
+// "floatingio". Returns true on match.
+static Bool MatchesNodeIdSegment(const maxon::GraphNode& node, const maxon::String& target)
 {
-	if (maxDepth < 0)
-		return maxon::GraphNode();
-
-	// Check direct children first
-	maxon::BaseArray<maxon::GraphNode> children;
-	iferr (root.GetChildren(children, maxon::NODE_KIND::NODE))
+	const maxon::String idStr = node.GetId().ToString();
+	// last path segment after final '/'
+	const maxon::String separator = "/"_s;
+	maxon::Int slashPos;
+	maxon::String lastSeg = idStr;
+	if (idStr.FindLast(separator, &slashPos))
 	{
-		// fall through; recursion may still find it via different path
+		lastSeg = idStr.GetPart(slashPos + 1, idStr.GetLength() - slashPos - 1);
 	}
-
-	for (Int32 i = 0; i < children.GetCount(); ++i)
+	if (lastSeg == target)
+		return true;
+	// also match basename (before '@') against the target
+	maxon::Int atPos;
+	if (lastSeg.FindFirst("@"_s, &atPos))
 	{
-		const maxon::GraphNode& child = children[i];
-		String childId = child.GetId().ToString();
-		// match against last segment after final '/'
-		Int slashPos = childId.FindLast('/');
-		String lastSeg = (slashPos >= 0) ? childId.Right(childId.GetLength() - slashPos - 1)
-		                                  : childId;
-		if (lastSeg == targetIdSegment)
-			return child;
-		// recurse
-		maxon::GraphNode found = FindNodeByIdSegment(child, targetIdSegment, maxDepth - 1);
-		if (found.IsValid())
-			return found;
+		const maxon::String base = lastSeg.GetPart(0, atPos);
+		if (base == target)
+			return true;
 	}
-	return maxon::GraphNode();
+	return false;
 }
 
-// Returns 0 on success; sets status_msg on failure. Writes new_port_id to
-// world container on success.
-static Int32 DoAddFloatingIOPort(BaseContainer* wc)
+// ============================================================================
+// AddPort implementation — returns Result<void> so iferr_return works clean
+// ============================================================================
+
+static maxon::Result<void> DoAddFloatingIOPort_Impl(BaseContainer* wc,
+                                                    maxon::String& outNewPortId)
 {
+	iferr_scope;
+
 	const String targetName = wc->GetString(BC_KEY_TARGET);
 	const String fioNodeId  = wc->GetString(BC_KEY_NODE_ID);
 	const String portName   = wc->GetString(BC_KEY_PORT_NAME);
-	const Bool isOutput     = wc->GetBool(BC_KEY_IS_OUTPUT);
+	const Bool   isOutput   = wc->GetBool(BC_KEY_IS_OUTPUT);
 
 	if (!targetName.GetLength())
-	{
-		wc->SetString(BC_KEY_STATUS_MSG, "graph_target (target object name) is required for Phase A.1"_s);
-		return 1;
-	}
+		return maxon::IllegalArgumentError(MAXON_SOURCE_LOCATION, "graph_target is required"_s);
 	if (!fioNodeId.GetLength())
-	{
-		wc->SetString(BC_KEY_STATUS_MSG, "fio_node_id is required"_s);
-		return 2;
-	}
+		return maxon::IllegalArgumentError(MAXON_SOURCE_LOCATION, "fio_node_id is required"_s);
 	if (!portName.GetLength())
-	{
-		wc->SetString(BC_KEY_STATUS_MSG, "port_name is required"_s);
-		return 3;
-	}
+		return maxon::IllegalArgumentError(MAXON_SOURCE_LOCATION, "port_name is required"_s);
 
 	BaseDocument* doc = GetActiveDocument();
 	if (!doc)
-	{
-		wc->SetString(BC_KEY_STATUS_MSG, "no active document"_s);
-		return 10;
-	}
+		return maxon::UnexpectedError(MAXON_SOURCE_LOCATION, "no active document"_s);
 
 	BaseObject* host = doc->SearchObject(targetName);
 	if (!host)
-	{
-		wc->SetString(BC_KEY_STATUS_MSG, "graph_target '" + targetName + "' not found in active document"_s);
-		return 11;
-	}
+		return maxon::UnexpectedError(MAXON_SOURCE_LOCATION,
+			"graph_target not found in active document"_s);
 
-	// Get the Scene Nodes graph from the host BaseObject
 	maxon::NimbusBaseRef nimbus = host->GetNimbusRef(maxon::neutron::NODESPACE);
 	if (nimbus == nullptr)
-	{
-		wc->SetString(BC_KEY_STATUS_MSG, "host '" + targetName + "' has no Scene Nodes graph (NimbusRef null)"_s);
-		return 12;
-	}
+		return maxon::UnexpectedError(MAXON_SOURCE_LOCATION,
+			"host has no Scene Nodes graph (NimbusRef null)"_s);
 
 	const maxon::nodes::NodesGraphModelRef& graph = nimbus.GetGraph();
 	if (!graph)
-	{
-		wc->SetString(BC_KEY_STATUS_MSG, "graph model is null on host '" + targetName + "'"_s);
-		return 13;
-	}
+		return maxon::UnexpectedError(MAXON_SOURCE_LOCATION, "graph model is null"_s);
 	if (graph.IsReadOnly())
-	{
-		wc->SetString(BC_KEY_STATUS_MSG, "graph is read-only on host '" + targetName + "'"_s);
-		return 14;
-	}
+		return maxon::UnexpectedError(MAXON_SOURCE_LOCATION, "graph is read-only"_s);
 
-	// Find the FIO node by walking
-	maxon::GraphNode root = graph.GetRoot();
-	maxon::GraphNode fio = FindNodeByIdSegment(root, fioNodeId);
-	if (!fio.IsValid())
-	{
-		wc->SetString(BC_KEY_STATUS_MSG, "fio_node_id '" + fioNodeId + "' not found in graph"_s);
-		return 20;
-	}
+	// Walk graph from view root to find the FIO node. GetInnerNodes recurses
+	// through node-kind children; we filter by id segment match. The found
+	// node is captured by reference for use after the walk completes.
+	const maxon::String fioTargetMaxon = MaxonConvert(fioNodeId);
+	maxon::GraphNode foundFio;
+	maxon::GraphNode root = graph.GetViewRoot();
+	if (!root.IsValid())
+		return maxon::UnexpectedError(MAXON_SOURCE_LOCATION, "graph view root is invalid"_s);
 
-	// AddPort under transaction
-	String newPortIdStr;
-	String resultMsg;
-	Int32 status = 0;
-	{
-		iferr_scope_handler
+	graph.GetInnerNodes(root, maxon::NODE_KIND::NODE, false,
+		[&foundFio, &fioTargetMaxon](const maxon::GraphNode& candidate) -> maxon::Result<maxon::Bool>
 		{
-			resultMsg = err.GetMessage();
-			status = 30;
-			return;
-		};
+			if (foundFio.IsValid())
+				return maxon::Bool(true); // already found, keep iterating (cheap)
+			if (MatchesNodeIdSegment(candidate, fioTargetMaxon))
+				foundFio = candidate;
+			return maxon::Bool(true);
+		}) iferr_return;
 
-		maxon::GraphTransaction txn = graph.BeginTransaction() iferr_return;
+	if (!foundFio.IsValid())
+		return maxon::UnexpectedError(MAXON_SOURCE_LOCATION,
+			"fio_node_id not found in graph"_s);
 
-		// Convert port_name (cinema::String) to maxon::Id
-		// Cinema String has GetCString() but for maxon::Id we use Init(const cinema::String&)
-		maxon::Id portId;
-		portId.Init(portName) iferr_return;
+	// AddPort on the inputs / outputs container of the FIO. The container
+	// itself is a GraphNode (a port node) and supports AddPort directly.
+	maxon::GraphTransaction txn = graph.BeginTransaction() iferr_return;
 
-		// Decide which side to add to: inputs or outputs
-		maxon::GraphNode parent;
-		if (isOutput)
-			parent = fio.GetOutputs();
-		else
-			parent = fio.GetInputs();
+	maxon::GraphNode container = isOutput ? foundFio.GetOutputs() : foundFio.GetInputs();
+	if (!container.IsValid())
+		return maxon::UnexpectedError(MAXON_SOURCE_LOCATION,
+			"FIO has no inputs/outputs container"_s);
 
-		if (!parent.IsValid())
-		{
-			resultMsg = "FIO has no inputs/outputs container port"_s;
-			status = 31;
-			return;
-		}
+	const maxon::String portNameMaxon = MaxonConvert(portName);
+	maxon::Id portId;
+	portId.Init(portNameMaxon) iferr_return;
 
-		// AddPort returns Result<GraphNode> for the newly-created port
-		maxon::GraphNode newPort = parent.AddPort(portId) iferr_return;
-		if (!newPort.IsValid())
-		{
-			resultMsg = "AddPort returned invalid GraphNode"_s;
-			status = 32;
-			return;
-		}
+	maxon::GraphNode newPort = container.AddPort(portId) iferr_return;
+	if (!newPort.IsValid())
+		return maxon::UnexpectedError(MAXON_SOURCE_LOCATION,
+			"AddPort returned invalid GraphNode"_s);
 
-		newPortIdStr = newPort.GetId().ToString();
+	outNewPortId = newPort.GetId().ToString();
 
-		txn.Commit() iferr_return;
-	}
+	txn.Commit() iferr_return;
+	return maxon::OK;
+}
 
-	if (status != 0)
+// Top-level wrapper called from CoreMessage. Translates Result<void> into
+// status code + status message written to the world container. Returns 0 on
+// success, non-zero on failure (the integer is informational only — Python
+// reads the status message for diagnostics).
+static Int32 DoAddFloatingIOPort(BaseContainer* wc)
+{
+	maxon::String newPortId;
+	iferr (DoAddFloatingIOPort_Impl(wc, newPortId))
 	{
-		wc->SetString(BC_KEY_STATUS_MSG, resultMsg);
-		return status;
+		const String msg = MaxonConvert(err.GetMessage());
+		wc->SetString(BC_KEY_STATUS_MSG, msg);
+		return 1;
 	}
-
-	wc->SetString(BC_KEY_NEW_PORT_ID, newPortIdStr);
+	wc->SetString(BC_KEY_NEW_PORT_ID, MaxonConvert(newPortId));
 	wc->SetString(BC_KEY_STATUS_MSG, "AddPort succeeded"_s);
 	return 0;
 }
@@ -234,18 +194,18 @@ class CinemaMcpHelper : public MessageData
 public:
 	virtual Bool CoreMessage(Int32 id, const BaseContainer& bc) override
 	{
-		(void)bc; // request payload comes via shared world container, not bc
+		(void)bc;
 
 		if (id != MSG_MCP_HELPER_REQ)
 			return true;
 
 		BaseContainer* wc = GetWorldContainerInstance();
 		if (!wc)
-			return true; // shared state unavailable; nothing we can do
+			return true;
 
 		const Int32 op = wc->GetInt32(BC_KEY_OP);
 
-		// Initialize response slots
+		// Reset response slots
 		wc->SetInt32(BC_KEY_PROTOCOL_VER, MCP_HELPER_PROTOCOL_VERSION);
 		wc->SetString(BC_KEY_NEW_PORT_ID, ""_s);
 		wc->SetString(BC_KEY_STATUS_MSG, ""_s);
