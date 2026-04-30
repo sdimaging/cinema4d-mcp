@@ -4,12 +4,13 @@ Production-grade Cinema 4D ↔ Claude bridge over [Model Context Protocol](https
 
 This is a **substantially extended fork** of [`ttiimmaacc/cinema4d-mcp`](https://github.com/ttiimmaacc/cinema4d-mcp) hardened for daily-driver and public-deployment use:
 
-- **+37 new tools** beyond upstream (62 total) — capability discovery, scene snapshot/diff, UV ops, viewport perception, undo grouping, doctor, ping
+- **+68 new tools** beyond upstream (93 total) — capability discovery, scene snapshot/diff, UV ops, viewport perception, undo grouping, doctor, ping, **Scene Nodes authoring + dissection + classification**, Octane OSL, fields, deformers, volume builders
+- **Scene Nodes knowledge layer** — a comprehensive [practical guide](docs/scene_nodes_guide.md) + 22 codified patterns + 802 categorized template asset IDs + 40 verified `$type` labels + port-type taxonomy. The MCP can now dissect any capsule, classify any graph, and synthesize artist-ready capsules with one call (`create_capsule_with_pattern`).
 - **Auth-token gate** + **safe-mode env gate** + **constant-time token compare** — exposes the bridge to less-trusted contexts safely
 - **Standardized response envelope** — every response carries `ok`, `duration_ms`, `request_id`, `warnings`
 - **Bounded payload check** + **request correlation** — production-grade transport
 - **AST-based contract tests** — every tool guaranteed to have a real handler before commit
-- **C4D 2026 compatibility** — verified against the current Python API, with explicit fixes for renderer integration, modeling commands, and BaseDraw shading
+- **C4D 2026 compatibility** — verified against the current Python API, with explicit fixes for renderer integration, modeling commands, BaseDraw shading, and the C4D 2026 Scene Nodes maxon-frameworks API surface
 
 ---
 
@@ -122,11 +123,38 @@ AST walks `server.py` + `mcp_server_plugin.pyp` and asserts:
 4. No "phantom" advertised commands without real branches
 5. Every MCP tool is in the advertised set
 
-Run before every commit. Currently: **62 tools / 62 branches / 62 advertised**, all 5 tests pass.
+Run before every commit. Currently: **93 tools / 93 branches / 93 advertised**, all 5 tests pass.
 
 ---
 
-## Tool inventory (62 total)
+## Tool inventory (93 total)
+
+### Scene Nodes (the C4D 2026 node-graph authoring surface)
+
+**See [`docs/scene_nodes_guide.md`](docs/scene_nodes_guide.md) for the comprehensive guide** — 6-layer architecture, 22 codified patterns, 40 verified `$type` labels, port-type taxonomy, 5 anti-patterns, 3 architectural design principles, recommended workflows.
+
+Authoring tools:
+- `scene_nodes_create_capsule_with_pattern` — **the "I GOT YOU EASY" tool**. One call: creates a fresh SN Generator/Deformer object AND populates its embedded graph with a named pattern. Capsule appears in the object tree, ready for parameterization
+- `scene_nodes_apply_pattern` — synthesize a known pattern into an existing graph (dry_run mode for inspection)
+- `scene_nodes_add_node` — add a single node by `$type` label
+- `scene_nodes_connect_ports` — wire two nodes by port name
+- `scene_nodes_create_graph` — bootstrap a graph on the doc or an object
+- `scene_nodes_open_editor` — open the Scene Nodes editor
+
+Inspection tools:
+- `scene_nodes_status` — survey doc + per-object embedded graphs
+- `scene_nodes_walk` — typed graph tree (id/kind/port-counts/children) with depth control
+- `scene_nodes_dissect_capsule` — auto-scans for capsule-class objects (5171, 180420400, 180420500/600/700, 440000274, 1057221), walks each one's embedded graph, returns asset_ids list. Cumulative session registry
+- `scene_nodes_describe_node_template` — add a node, walk its ports, remove it. The "what are this node's port names?" tool
+- `scene_nodes_classify_graph` — walks any graph, builds vocabulary histogram, matches against pattern signatures, returns probable_purpose
+- `scene_nodes_atlas_lookup` — search 802 templates / 22 patterns / port_types / antipatterns / vocabulary classes by substring
+- `scene_nodes_list_assets` — enumerate discovered + repository asset IDs
+
+Bundled data ([`data/`](data/)):
+- `scene_nodes_atlas.json` — patterns, port-type taxonomy, antipatterns, design principles
+- `node_template_index.json` — all 802 NodeTemplate canonical asset IDs categorized into 16 buckets
+- `verified_labels.json` — ApplyDescription `$type` labels confirmed working
+- `node_port_schema.json` — full input/output port names per template
 
 ### Capability discovery + health
 - `get_capabilities` — plugin/c4d versions, supported commands (safe vs unsafe), auth state, doc summary
@@ -169,8 +197,44 @@ Run before every commit. Currently: **62 tools / 62 branches / 62 advertised**, 
 ### Modeling
 - `run_modeling_command` — wraps `SendModelingCommand` for axis_center (pure-math impl), optimize, make_editable, current_state_to_object, subdivide, smooth, connect, split, disconnect, bevel, inset, extrude, delete, polygonize, triangulate, untriangulate
 
+### Deformers
+- `list_deformer_types` — discover available deformer plugins on this install
+- `apply_deformer` — apply any deformer to a target object with optional vertex-map restriction binding (Restriction tag schema RESTRICTIONTAG_NAME_01 + RESTRICTIONTAG_VAL_01)
+
+### Fields
+- `list_field_types` — discover available field plugins
+- `add_field_to_scene` — add a Spherical/Linear/Box/Random/Noise/etc. field to the active doc
+- `bake_field_to_vmap` — sample a field across an object's points and write the result to a Vertex Map tag. Uses `c4d.modules.mograph.FieldList.SampleListSimple(host, FieldInput, FIELDSAMPLE_FLAG_VALUE)` (top-level `c4d.FieldList`, not in `c4d.modules.mograph`)
+
+### Volume builders + meshers
+- `create_volume_builder` — VDB volume builder with object inputs
+- `create_volume_mesher` — VDB volume mesher (post-processes builder output to polygons)
+- `volume_to_polygons` — bake the volume mesher's output to a static polygon object
+
+### Octane OSL (deep Octane integration)
+- `list_osl_snippets` — bundled OSL kernels (10 snippets: constant_red, uv_gradient, checker, polar_warp, projection_xz_planar, projection_triplanar, camera_pinhole, camera_fisheye_180, camera_anamorphic_squeeze, camera_vortex)
+- `octane_create_osl_texture` — create an Octane OSL Texture shader (plugin id 1039813) and inject a snippet, optionally drop into a host material's diffuse channel
+- `octane_set_camera_to_osl` — attach an Octane Camera tag (id 1029524) to a CameraObject, switch mode to `OCT_CAMERA_OSL` (3), inject an OSL kernel via `OCTANECAM_OSL_CODE_EDITOR`
+- `tap_octane_log` — read Octane's `c4doctanelog.txt` from `%APPDATA%/Maxon/.../c4doctanelog.txt`
+
+### Scene Nodes asset discovery (legacy — superseded by Scene Nodes section above)
+- `scene_nodes_dissect_capsule`, `scene_nodes_list_assets`, `scene_nodes_add_node` (still functional, but `scene_nodes_create_capsule_with_pattern` is the recommended high-level entrypoint)
+
 ### Vertex maps
 - `vertex_map_stats`, `vertex_map_threshold_to_polygon_selection`
+- `paint_vertex_map_from_formula` — write per-vertex values from a Python expression (access to vert pos/index/normal)
+- `paint_vertex_map_radial` — paint a radial gradient from a center point with falloff
+
+### Generic parameter access
+- `get_parameter` / `set_parameter` — universal access to any object/tag/material parameter by ID or name. Auto-resolves DescID at runtime
+
+### Image inspection + comparison
+- `image_inspect` — md5, pixel variance, is_blank detection, dimensions, format
+- `images_compare` — pairwise comparison of two images on disk
+
+### Scene assertion + recipe runner (the feedback loop)
+- `scene_assert` — declarative scene-state checks: object_exists, object_has_tag, object_polygon_count, object_point_count, vmap_stats, object_count, material_count, with approximate-equality tolerance for Float32 quantization
+- `recipe_run` — execute a JSON recipe (setup + steps with assertions + teardown) atomically. Returns per-step pass/fail. The unit of regression testing
 
 ### UV ops
 - `uv_layout_stats` — polygon-graph-correct island detection (keys on `(point_idx, uv)`)
