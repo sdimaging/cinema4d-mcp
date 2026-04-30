@@ -3124,6 +3124,74 @@ async def scene_nodes_record_gesture(
 
 
 @mcp.tool()
+async def scene_nodes_synthesize_port(
+    target_object: str,
+    name: str,
+    direction: str = "in",
+    data_type: str = "float",
+    default_value: Optional[Any] = None,
+    display_label: Optional[str] = None,
+    ctx: Context = None,
+) -> str:
+    """Synthesize a typed AM-exposed port on a Scene Nodes Generator's root.
+
+    The output of the gesture-differ research: this single call reproduces
+    what right-click "Add Input/Output" + Resource Editor type-pick does.
+    The result is a port that:
+      - shows in the Scene Nodes Generator's Attribute Manager
+      - renders the correct widget (slider for Float, checkbox for Bool, etc.)
+      - has a valid Attribute Manager DescID
+      - is recognized by the Resource Editor
+
+    Implements the 9-attribute editor-equivalent schema:
+      AddPort + SetPortValue + portDescriptionData + portDescriptionUi
+      + fixedtype + portDescriptionStringLazy.
+
+    Args:
+      target_object: name of the Scene Nodes Generator object
+      name: port identifier (the GraphNode Id)
+      direction: 'in' (default) or 'out'
+      data_type: 'float' (default) | 'int' | 'string' | 'bool' | 'vector'
+      default_value: Python primitive matching data_type. Number for
+        float/int, string for string, bool for bool, 3-tuple/list for
+        vector. If None, type-appropriate zero.
+      display_label: optional user-facing label. Implementation note: the
+        Python LazyLanguageDictionary needs an Alloc path we haven't found,
+        so labels are currently propagated by COPYING the lazy dict from an
+        existing same-typed port in the same container. If no template port
+        exists, the AM falls back to the classification ("Input"/"Output").
+
+    Returns JSON:
+      {ok, target_object, name, direction, data_type, port_id, port_path,
+       descid, attribute_count, label_source, method}
+
+    UNSAFE — mutates the graph. Pair with scene_nodes_record_gesture if you
+    want to verify the structural delta matches a manual gesture.
+
+    See docs/gesture_differ_findings.md for the full reverse-engineering
+    history and known limitations.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {
+            "command": "scene_nodes_synthesize_port",
+            "target_object": target_object,
+            "name": name,
+            "direction": direction,
+            "data_type": data_type,
+        }
+        if default_value is not None:
+            cmd["default_value"] = default_value
+        if display_label is not None:
+            cmd["display_label"] = display_label
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
 async def scene_nodes_open_editor(ctx: Context = None) -> str:
     """Open the Scene Nodes editor window for the doc-level graph.
 
