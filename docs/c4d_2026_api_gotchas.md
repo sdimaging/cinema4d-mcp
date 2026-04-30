@@ -552,6 +552,78 @@ implementation forwarded to the graph internally.
 
 ---
 
+## 37. NodeTemplate-typed asset creation is not exposed in Python — C++ only
+
+After exhaustive probing of the C4D 2026 Python surface (verified live
+2026-04-30 evening, cinema4d-mcp), creating a `net.maxon.node.assettype.
+nodetemplate`-typed asset (`.c4dnodes` format — what Edge to Spline /
+Random Selection ship as) is unreachable from Python:
+
+**Asset commands open modal dialogs:**
+- `c4d.CallCommand(465002339)` "Convert To Asset..." → opens modal,
+  blocks main thread until user input. Script timeout at 30s.
+- `c4d.CallCommand(200001023)` "Save as New Asset..." → same pattern.
+  The "..." in command names indicates dialog-style commands.
+
+**`OPENSAVEASSETDIALOGFLAGS` has no `NO_UI` / `BATCH` flag:**
+```
+ALLOW_EDIT_ID, ALLOW_EDIT_NAME, ALLOW_EMPTY_CATEGORY, HIDE_AI_BUTTON,
+NONE, SHOW_MAKE_DEFAULT, SHOW_VERSION
+```
+Only UI-control toggles. Dialog can't be suppressed.
+
+**`AssetCreationInterface` exposes 32 methods, NONE produce NodeTemplate:**
+```
+AddPreviewRenderAsset, BrowseDescriptionForDefaults, CheckObjectsOnDrop,
+CreateMaterialAsset, CreateMaterialsOnDrag, CreateObjectAsset,
+CreateObjectsOnDrag, CreateSceneAsset, GenerateImagePreview,
+GenerateScenePreviewImage, GetAddDependencyDelegate, GetClass,
+GetDefaultObject, GetDefaultSettings, GetHashCodeImpl,
+GetNewAssetIdFromIdAndVersion, OpenSaveAssetDialog, RenderDocumentAsset,
+SaveActiveDocumentAsNewVersion, SaveBaseDocumentAsAsset,
+SaveBrowserPreset, SaveDefaultPresetFromObject, SaveDocumentAsset,
+SaveMemFileAsAsset, SaveMemFileAsAssetAlone,
+SaveMemFileAsAssetWithCopyAsset, SaveMetaDataForAsset,
+SaveTextureAsset, SetDefaultObject, SupportDefaultPresets,
+UpdateMetaData, UpdateSubtypeAndMetaData
+```
+All `Save*` / `Create*` hardcode the produced asset to `File`-type
+(`net.maxon.assettype.file`, `.c4d` format). The `subType` parameter
+on some of them refers to ASSET SUBTYPE (Object/Material/Scene), not
+ASSET TYPE.
+
+**No `RegisterNodeTemplate` / `CreateNodeTemplate` / `PublishNode`** in
+the `maxon.*` namespace.
+
+**`maxon.nodes.BuiltinNodes`** (the registry the C++ side uses for
+NodeTemplate registration) evaluates to `None` from Python — not
+accessible at runtime.
+
+**`NodeTemplate*` Python symbols:** only `NodeTemplateBaseClass` and
+`NodeTemplateDecoratorBaseClass` exist — these are C++ inheritance
+markers (`MAXON_COMPONENT(NORMAL, NodeTemplateBaseClass)`), not runtime
+factories.
+
+**Right-click context-menu commands (Add Input, Add Output, Toggle
+Node Type, Add User Data, Add Children) do NOT have global command
+IDs** — `find_command_by_name` returns 0 for all of them. They're
+context-menu-only operations not exposed via `CallCommand`.
+
+**Conclusion:** the only way to publish a NodeTemplate-typed asset
+programmatically in C4D 2026 is C++:
+1. Inherit a class from `maxon::Component<MyClass, NodeTemplateInterface>`
+2. Implement `InstantiateImpl` building the structure via
+   `maxon::nodes::MutableRoot.GetInputs().AddPort(id).SetType<T>()`
+3. Register at static-init time via
+   `MAXON_DECLARATION_REGISTER(maxon::nodes::BuiltinNodes, ...)`
+
+Reference: `plugins/example.nodes/source/space/dynamic_node_impl.cpp`.
+
+The cinema4d-mcp helper plugin (proven Phase A.0/A.1 bridge) can host
+this — see `docs/cpp_shim_design.md` Phase B.
+
+---
+
 ## 36. Runtime `AddPort` on a FloatingIO is NOT supported — must define at NodeTemplate-build-time
 
 After 4 attempts (2026-04-30 cinema4d-mcp Phase A.1), all runtime
