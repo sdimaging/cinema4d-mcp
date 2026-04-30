@@ -32,6 +32,9 @@ from typing import Any, Optional
 # pattern synthesizer output before sending to ApplyDescription.
 
 VERIFIED_LABELS: dict[str, str] = {
+    # Distribution / scatter (THE killer scatter primitives)
+    "Surface Blue-Noise": "surfacebluenoise",
+    "Surface Scaled Blue-Noise": "surfacescaledbluenoise",
     # Loop scaffold
     "Range": "range",
     "Loop Carried Value": "loopcarriedvalue",

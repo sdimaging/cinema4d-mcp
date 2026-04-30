@@ -237,6 +237,28 @@
       "observed_in": ["city_generator (multiple chains)", "geo_feedback_loop"]
     },
 
+    "procedural_surface_scatter": {
+      "description": "Distribute points on a mesh surface using blue-noise (Poisson-disk) sampling — naturally-random, no clumping, optionally with per-point size variation. THE killer scatter primitive for trees-on-terrain, leaves-on-mesh, rocks-on-ground, and similar workflows. Output is a Distribution Data container that drives Cloners or downstream per-element loops.",
+      "min_nodes": 1,
+      "primary_node_options": ["Surface Blue-Noise (uniform density)", "Surface Scaled Blue-Noise (per-point size variation)"],
+      "required_nodes": ["surfacebluenoise OR surfacescaledbluenoise"],
+      "skeleton_text": "host mesh → Surface Blue-Noise (or Surface Scaled Blue-Noise) → distdataout → Cloner OR downstream consumer",
+      "inputs_to_wire": {
+        "geometryin": "the host mesh",
+        "countin": "target point count",
+        "seedin": "random seed (deterministic)",
+        "selectionin + selectionenablein": "optional — restrict to named selection",
+        "alignin + upvectorin + normaloffsetin": "per-point orientation",
+        "samplingcountmultin": "oversampling factor (default ~5x typical)",
+        "_scaled_only": "minsizein, maxsizein, sizebiasin, mindistancein, enablescalein"
+      },
+      "algorithm_internal": "1. initsamples generates oversampled candidate set. 2. eliminatesamples runs weighted-sample-elimination (Cline et al. Poisson-disk algorithm) — iteratively removes candidate with smallest min-distance-to-neighbors until target count reached.",
+      "params_needed": ["host", "count", "seed", "min_distance (scaled only)"],
+      "observed_in": ["user's working graph 2026-04-30 (both Surface Blue-Noise and Surface Scaled Blue-Noise unconnected, ready to use)"],
+      "user_workflow": "Drag onto a host mesh → Cloner uses distdataout in 'Distribution' mode → instant blue-noise scatter. Adds a Polygon-Selection-aware scatter system that respects named selections from the input mesh.",
+      "why_this_replaces_50_nodes_of_manual_work": "Without these nodes, you'd need to: hash per-vertex → compute pairwise distances → reject candidates within radius → maintain count → handle surface curvature. That's a 50+ node hand-rolled mess. The two surfacebluenoise variants implement it as one node each."
+    },
+
     "hash_threshold_selection": {
       "description": "Select N% of elements (polys/edges/points) randomly via per-element hash(seed,index) compared against threshold. Deterministic-random — same seed = same selection every time. The Random Selection capsule pattern.",
       "min_nodes": 70,
