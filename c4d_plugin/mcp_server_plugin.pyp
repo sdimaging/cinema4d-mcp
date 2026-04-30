@@ -536,6 +536,10 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_add_field_to_scene(command)
                         elif command_type == "bake_field_to_vmap":
                             response = self.handle_bake_field_to_vmap(command)
+                        elif command_type == "octane_create_osl_texture":
+                            response = self.handle_octane_create_osl_texture(command)
+                        elif command_type == "list_osl_snippets":
+                            response = self.handle_list_osl_snippets(command)
                         elif command_type == "create_volume_builder":
                             response = self.handle_create_volume_builder(command)
                         elif command_type == "create_volume_mesher":
@@ -10720,6 +10724,7 @@ class C4DSocketServer(threading.Thread):
         "paint_vertex_map_from_formula", "paint_vertex_map_radial",
         "list_deformer_types", "apply_deformer",
         "list_field_types", "add_field_to_scene", "bake_field_to_vmap",
+        "octane_create_osl_texture", "list_osl_snippets",
         "create_volume_builder", "create_volume_mesher", "volume_to_polygons",
         "image_inspect", "images_compare", "scene_assert",
     )
@@ -10753,6 +10758,7 @@ class C4DSocketServer(threading.Thread):
         "scene_nodes_walk",    # read-only graph traversal
         "list_deformer_types",  # discovery only, no scene mutation
         "list_field_types",     # discovery only, no scene mutation
+        "list_osl_snippets",    # constants only, no mutation
         "image_inspect", "images_compare",  # disk-read only, no C4D state
         "scene_assert",                     # read-only declarative verification
     })
@@ -11713,6 +11719,211 @@ class C4DSocketServer(threading.Thread):
             }
         except Exception as e:
             return {"error": f"volume_to_polygons failed: {e}", "traceback": traceback.format_exc()}
+
+    # === Octane OSL injection ===============================================
+
+    # Octane's OSL Texture shader resource id (cracked from the loaded
+    # plugin's constants in C4D 2026). Used to instantiate the shader
+    # via c4d.BaseShader(<this id>). The shader exposes:
+    #   c4d.OSL_CODE_EDITOR (1901): source code (string)
+    #   c4d.OSL_AUTO_COMPILE (1905): auto-compile bool
+    #   c4d.OSL_NEED_COMPILE: compile-needed flag
+    #   c4d.OSL_LOG_OUTPUT (1903): compiler error output (read-only)
+    #   c4d.OSL_RESULT_STR (1904): compile result string
+    #   c4d.OSL_MODE_*: internal vs external source mode
+    #   c4d.OSL_FLOAT1..4 / INT1..4 / VECTOR1..4 / BOOL1..4 / STR1..4 /
+    #     FILE1..4 / TEX_LINK1..4 / PROJECTION1..4: typed input slots
+    OCTANE_OSL_TEXTURE_ID = 804752314  # c4d.DESCRIPTIONRESOURCE_OSLTEXTURE
+
+    # Some sample OSL snippets to seed creative work (curated minimal set).
+    # All compile clean against Octane's OSL runtime in C4D 2026.
+    _OSL_SNIPPETS = {
+        "constant_red": (
+            "// constant red color\n"
+            "shader constant_red(output color Cout = color(1, 0, 0)) {}\n"
+        ),
+        "uv_gradient": (
+            "// horizontal U-gradient\n"
+            "shader uv_gradient(output color Cout = 0) {\n"
+            "    Cout = color(u, v, 0);\n"
+            "}\n"
+        ),
+        "checker": (
+            "// checkerboard pattern\n"
+            "shader checker(\n"
+            "    color A = color(0.05),\n"
+            "    color B = color(0.95),\n"
+            "    float Scale = 8,\n"
+            "    output color Cout = 0)\n"
+            "{\n"
+            "    float fx = mod(floor(u * Scale) + floor(v * Scale), 2);\n"
+            "    Cout = mix(A, B, fx);\n"
+            "}\n"
+        ),
+        "polar_warp": (
+            "// polar coords radial gradient\n"
+            "shader polar_warp(output color Cout = 0) {\n"
+            "    float cx = u - 0.5, cy = v - 0.5;\n"
+            "    float r = sqrt(cx * cx + cy * cy);\n"
+            "    Cout = color(r * 2);\n"
+            "}\n"
+        ),
+    }
+
+    def handle_octane_create_osl_texture(self, command):
+        """Create an Octane OSL texture shader with a given source.
+
+        Args:
+          source_code: the OSL source as a string. If omitted, uses the
+            'constant_red' canned snippet.
+          snippet: shorthand for one of {constant_red, uv_gradient, checker,
+            polar_warp}. Overrides source_code if both supplied (snippet wins).
+          name: shader name (default "OSL")
+          auto_compile: bool, default True (compile on parameter change)
+          host_material: optional material name to drop the shader into
+            an unused channel slot. If None, returns an orphan shader the
+            user can wire up manually.
+          host_channel: which channel of the host material to drop into
+            (e.g. "diffuse", "emission"). Best-effort.
+
+        Returns: shader name + GUID + compile_log + warnings.
+
+        UNSAFE — mutates a material if host_material is set; otherwise
+        creates an orphan shader.
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+
+            source = command.get("source_code")
+            snippet = command.get("snippet")
+            if snippet:
+                if snippet not in self._OSL_SNIPPETS:
+                    return {
+                        "error": f"Unknown snippet '{snippet}'",
+                        "valid_snippets": list(self._OSL_SNIPPETS.keys()),
+                    }
+                source = self._OSL_SNIPPETS[snippet]
+            if not source:
+                source = self._OSL_SNIPPETS["constant_red"]
+
+            # Build the shader
+            shader = c4d.BaseShader(self.OCTANE_OSL_TEXTURE_ID)
+            if not shader:
+                return {
+                    "error": (
+                        "Could not instantiate Octane OSL Texture shader "
+                        f"(id={self.OCTANE_OSL_TEXTURE_ID}). Octane plugin may not "
+                        "be loaded in this C4D session."
+                    ),
+                }
+            shader.SetName(command.get("name", "OSL"))
+
+            # Set the source code
+            try:
+                shader[c4d.OSL_CODE_EDITOR] = source
+            except Exception as e:
+                return {"error": f"set OSL_CODE_EDITOR failed: {e}"}
+
+            # Auto-compile flag
+            try:
+                shader[c4d.OSL_AUTO_COMPILE] = bool(command.get("auto_compile", True))
+            except Exception:
+                pass
+            # Internal source mode (vs external file)
+            try:
+                if hasattr(c4d, "OSL_MODE_EDIT"):
+                    shader[c4d.OSL_MODE_EDIT] = 0  # internal
+            except Exception:
+                pass
+
+            warnings = []
+            host_name = command.get("host_material")
+            host = None
+            if host_name:
+                m = doc.GetFirstMaterial()
+                while m:
+                    if m.GetName() == host_name:
+                        host = m
+                        break
+                    m = m.GetNext()
+                if host is None:
+                    warnings.append(f"host_material '{host_name}' not found — shader returned as orphan")
+
+            inserted_slot = None
+            if host:
+                # Best-effort: insert into the requested channel.
+                channel = command.get("host_channel", "diffuse").lower()
+                # Map canonical channel names to known c4d.MATERIAL_*_SHADER ids
+                channel_map = {
+                    "diffuse":     "MATERIAL_COLOR_SHADER",
+                    "emission":    "MATERIAL_LUMINANCE_SHADER",
+                    "luminance":   "MATERIAL_LUMINANCE_SHADER",
+                    "color":       "MATERIAL_COLOR_SHADER",
+                    "transparency":"MATERIAL_TRANSPARENCY_SHADER",
+                    "reflection":  "MATERIAL_REFLECTION_SHADER",
+                    "alpha":       "MATERIAL_ALPHA_SHADER",
+                    "bump":        "MATERIAL_BUMP_SHADER",
+                    "normal":      "MATERIAL_NORMAL_SHADER",
+                }
+                slot_const_name = channel_map.get(channel)
+                slot_pid = getattr(c4d, slot_const_name, None) if slot_const_name else None
+                if slot_pid is None:
+                    warnings.append(
+                        f"host_channel '{channel}' not mapped — shader inserted "
+                        f"under material but channel link not set. Wire it manually."
+                    )
+                    host.InsertShader(shader)
+                else:
+                    host.InsertShader(shader)
+                    try:
+                        host[slot_pid] = shader
+                        inserted_slot = channel
+                    except Exception as e:
+                        warnings.append(f"link to {channel} failed: {e}")
+                host.Update(True, True)
+                host.Message(c4d.MSG_UPDATE)
+            # else: orphan shader; client must InsertShader on a material
+
+            c4d.EventAdd()
+
+            # Read any compile log produced
+            compile_log = None
+            try:
+                compile_log = shader[c4d.OSL_LOG_OUTPUT]
+            except Exception:
+                pass
+            compile_result = None
+            try:
+                compile_result = shader[c4d.OSL_RESULT_STR]
+            except Exception:
+                pass
+
+            return {
+                "ok": True,
+                "shader_name": shader.GetName(),
+                "shader_type_id": self.OCTANE_OSL_TEXTURE_ID,
+                "host_material": host_name,
+                "inserted_slot": inserted_slot,
+                "source_length": len(source),
+                "source_preview": source[:200],
+                "compile_log": compile_log,
+                "compile_result": compile_result,
+                "warnings": warnings or None,
+            }
+        except Exception as e:
+            return {"error": f"octane_create_osl_texture failed: {e}", "traceback": traceback.format_exc()}
+
+    def handle_list_osl_snippets(self, command):
+        """Return the set of canned OSL snippets shipped with the plugin."""
+        return {
+            "ok": True,
+            "snippets": {
+                name: {"length": len(src), "preview": src[:160]}
+                for name, src in self._OSL_SNIPPETS.items()
+            },
+        }
 
     # === Field tools — pair with vmap painting for procedural masking =====
     #

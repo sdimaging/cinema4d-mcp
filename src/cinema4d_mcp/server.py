@@ -2293,6 +2293,83 @@ async def volume_to_polygons(
 
 
 @mcp.tool()
+async def list_osl_snippets(ctx: Context = None) -> str:
+    """Return the curated set of OSL snippets shipped with the plugin.
+
+    Snippets are seed code for octane_create_osl_texture — drop in,
+    iterate from there. Currently shipped:
+      - constant_red: minimum viable shader
+      - uv_gradient: u/v as r/g color
+      - checker: classic checkerboard
+      - polar_warp: radial gradient from UV center
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        response = send_to_c4d(connection, {"command": "list_osl_snippets"})
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
+async def octane_create_osl_texture(
+    source_code: Optional[str] = None,
+    snippet: Optional[str] = None,
+    name: Optional[str] = None,
+    auto_compile: bool = True,
+    host_material: Optional[str] = None,
+    host_channel: str = "diffuse",
+    ctx: Context = None,
+) -> str:
+    """Create an Octane OSL texture shader with the given source.
+
+    OSL (Open Shading Language) is the standard programmable shader
+    language Octane / Arnold / Cycles / V-Ray all support. This tool
+    creates an Octane OSL Texture shader, sets the source code, and
+    optionally inserts it into a material channel.
+
+    Args:
+      source_code: OSL source as a string. Mutually exclusive with snippet.
+      snippet: shorthand for one of the canned snippets (see list_osl_snippets).
+        If both source_code and snippet are set, snippet wins.
+      name: shader name (default "OSL")
+      auto_compile: compile on parameter change (default True)
+      host_material: name of an existing material to drop the shader into.
+        If None, returns an orphan shader the user wires up manually.
+      host_channel: which channel to link in the host material — diffuse,
+        emission/luminance, transparency, reflection, alpha, bump, normal.
+        Default: diffuse.
+
+    Returns: shader name + GUID + compile_log (any compile errors) +
+    source preview + warnings.
+
+    Pattern (programmatic shading):
+      mat = create_material(name="MyShaded", color=[0.2, 0.2, 0.2])
+      octane_create_osl_texture(snippet="checker", host_material="MyShaded",
+                                host_channel="diffuse")
+      apply_material("MyShaded", "MyObject")
+      → object now has a procedural OSL checkerboard.
+
+    Octane plugin must be loaded; if not, returns a clear error.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {"command": "octane_create_osl_texture"}
+        if source_code is not None: cmd["source_code"] = source_code
+        if snippet is not None: cmd["snippet"] = snippet
+        if name is not None: cmd["name"] = name
+        cmd["auto_compile"] = auto_compile
+        if host_material is not None: cmd["host_material"] = host_material
+        cmd["host_channel"] = host_channel
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
 async def list_field_types(ctx: Context = None) -> str:
     """Discover what field object types this C4D build supports + default
     parameter shape.
