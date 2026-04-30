@@ -552,6 +552,54 @@ implementation forwarded to the graph internally.
 
 ---
 
+## 34. Python -> C++ messaging: `SpecialEventAdd` works, `SendCoreMessage` (custom IDs) and `BasePlugin.Message` do NOT
+
+Real-world bridge for Python ↔ C++ messaging in C4D 2026 (verified live
+2026-04-30):
+
+| Python call | Reaches MessageData::CoreMessage? |
+|---|---|
+| `c4d.SendCoreMessage(BUILTIN_ID, bc)` (e.g. `EVMSG_CHANGE`) | ✅ yes |
+| `c4d.SendCoreMessage(custom_id, bc)` | ❌ silently dropped |
+| `BasePlugin.Message(msg_id, data)` | ❌ returns True but doesn't route |
+| **`c4d.SpecialEventAdd(plugin_id, p1, p2)`** | ✅ **YES — use this** |
+
+**`SpecialEventAdd(plugin_id, p1, p2)` is the only Python -> C++ bridge
+that actually fires `MessageData::CoreMessage` for custom message routing.**
+It packs:
+- `plugin_id` at `BFM_CORE_ID` ('MciI') in the BC
+- `p1` at `BFM_CORE_PAR1` ('Mci1')
+- `p2` at `BFM_CORE_PAR2` ('Mci2')
+
+C++ filters by checking the BC, NOT by the `id` parameter:
+```cpp
+virtual Bool CoreMessage(Int32 id, const BaseContainer& bc) override
+{
+    if (bc.GetInt32(BFM_CORE_ID) != MY_PLUGIN_ID)
+        return true;  // not addressed to us
+    Int32 op = bc.GetInt32(BFM_CORE_PAR1);
+    // ... process op ...
+}
+```
+
+For complex args/results that don't fit in two UInts, pair `SpecialEventAdd`
+with `c4d.GetWorldContainerInstance()` shared state (Python writes args
+into BC keys, calls `SpecialEventAdd`, reads results from same BC keys
+after — the call is synchronous on the main thread).
+
+**Why `SendCoreMessage` doesn't broadcast custom IDs:** the docstring
+calls them "core messages" but only the predefined `EVMSG_*` and
+`COREMSG_*` constants are actually broadcast. Custom IDs are filtered by
+C4D's internal dispatcher.
+
+**Why `BasePlugin.Message` returns True without routing:** the Python
+`Message()` wrapper exists for `BaseList2D.Message()` (the base class
+method), which is for sending messages to scene objects (NodeData
+overrides). `MessageData` doesn't override `Message()` — only
+`CoreMessage()` — so the call no-ops at the plugin instance level.
+
+---
+
 ## 33. Use `iferr (decl = expr) { return err; }` block pattern, not `IsError()`
 
 `Result<T>` has NO `IsError()` method. Despite intuition, the API uses

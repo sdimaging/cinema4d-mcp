@@ -14570,7 +14570,10 @@ class C4DSocketServer(threading.Thread):
     # source/main.cpp. Keep in sync when modifying either side.
     # ----------------------------------------------------------------
     _MCP_HELPER_PLUGIN_ID = 1057845
-    _MSG_MCP_HELPER_REQ   = 1057845001
+    # NOTE: dispatch is via c4d.SpecialEventAdd, NOT SendCoreMessage with
+    # custom IDs. SendCoreMessage drops non-builtin message IDs silently
+    # (gotcha #34). SpecialEventAdd packs plugin_id at BFM_CORE_ID and
+    # op-code at BFM_CORE_PAR1; the C++ helper filters by BFM_CORE_ID.
     _BC_KEY_OP            = 1057845010
     _BC_KEY_TARGET        = 1057845011
     _BC_KEY_NODE_ID       = 1057845012
@@ -14584,8 +14587,8 @@ class C4DSocketServer(threading.Thread):
     _OP_ADD_FLOATING_IO_PORT  = 1
 
     def _mcp_helper_dispatch(self, op_code, args):
-        """Send a request to the cinema4d_mcp_helper C++ plugin via the
-        shared world container + custom CoreMessage. Returns a dict with
+        """Send a request to the cinema4d_mcp_helper C++ plugin via
+        SpecialEventAdd + shared world container. Returns a dict with
         status, status_msg, new_port_id, protocol_version. Raises
         RuntimeError if the helper plugin isn't loaded.
 
@@ -14601,8 +14604,9 @@ class C4DSocketServer(threading.Thread):
                 "(id 1057845). Run scripts/build_cpp_shim.sh and "
                 "restart C4D — see cpp_shim/README.md.")
 
-        wc = c4d.plugins.GetWorldContainerInstance()
-        # Write request
+        wc = c4d.GetWorldContainerInstance()
+        # Write request args (the parts that don't fit in SpecialEventAdd's
+        # two UInt slots — strings + bools — go through the world container)
         wc.SetInt32(self._BC_KEY_OP, int(op_code))
         wc.SetString(self._BC_KEY_TARGET, args.get("target", "") or "")
         wc.SetString(self._BC_KEY_NODE_ID, args.get("node_id", "") or "")
@@ -14614,11 +14618,13 @@ class C4DSocketServer(threading.Thread):
         wc.SetString(self._BC_KEY_NEW_PORT_ID, "")
         wc.SetInt32(self._BC_KEY_PROTOCOL_VER, -1)
 
-        # Fire the request — broadcast CoreMessage with our custom ID.
-        # CoreMessage dispatch is synchronous: when SendCoreMessage
-        # returns, all listeners have been called. So results are ready
-        # to read immediately after.
-        c4d.SendCoreMessage(self._MSG_MCP_HELPER_REQ, c4d.BaseContainer())
+        # Fire the request via SpecialEventAdd — this packs the plugin_id at
+        # BFM_CORE_ID and the op_code at BFM_CORE_PAR1, then broadcasts
+        # CoreMessage to all MessageData plugins. Our C++ side filters by
+        # BFM_CORE_ID == MCP_HELPER_PLUGIN_ID.
+        # SpecialEventAdd is synchronous on the main thread — results are
+        # ready immediately after it returns.
+        c4d.SpecialEventAdd(self._MCP_HELPER_PLUGIN_ID, int(op_code), 0)
 
         # Read response
         return {

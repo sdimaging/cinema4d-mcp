@@ -32,9 +32,18 @@ namespace cinema
 
 const Int32 MCP_HELPER_PLUGIN_ID = 1057845;
 
-const Int32 MCP_HELPER_PROTOCOL_VERSION = 2; // 1=A.0, 2=A.1
+const Int32 MCP_HELPER_PROTOCOL_VERSION = 3; // 1=A.0, 2=A.1, 3=A.1+SpecialEventAdd
 
-const Int32 MSG_MCP_HELPER_REQ = 1057845001;
+// Phase A.1 dispatch mechanism: Python calls c4d.SpecialEventAdd(
+//   MCP_HELPER_PLUGIN_ID, op_code, 0) which broadcasts a CoreMessage to
+// every MessageData plugin. The BC carries the plugin_id at BFM_CORE_ID
+// and the op-code at BFM_CORE_PAR1. We filter by BFM_CORE_ID match — only
+// our own SpecialEventAdd calls are processed.
+//
+// Direct c4d.SendCoreMessage(custom_id, bc) does NOT broadcast custom IDs
+// (verified empirically 2026-04-30 — see gotcha #34). Direct
+// BasePlugin.Message() also doesn't route to MessageData::CoreMessage.
+// SpecialEventAdd is the only Python -> C++ bridge that fires CoreMessage.
 
 const Int32 BC_KEY_OP             = 1057845010;
 const Int32 BC_KEY_TARGET         = 1057845011;
@@ -228,18 +237,27 @@ class CinemaMcpHelper : public MessageData
 public:
 	virtual Bool CoreMessage(Int32 id, const BaseContainer& bc) override
 	{
-		(void)bc;
+		(void)id; // we filter by BFM_CORE_ID in the BC, not by the type id
 
-		if (id != MSG_MCP_HELPER_REQ)
+		// Only handle messages from our own SpecialEventAdd calls.
+		// SpecialEventAdd(MCP_HELPER_PLUGIN_ID, op, 0) encodes the
+		// plugin_id at BFM_CORE_ID and the op at BFM_CORE_PAR1.
+		if (bc.GetInt32(BFM_CORE_ID) != MCP_HELPER_PLUGIN_ID)
 			return true;
 
 		BaseContainer* wc = GetWorldContainerInstance();
 		if (!wc)
 			return true;
 
-		const Int32 op = wc->GetInt32(BC_KEY_OP);
+		// Read op-code preferably from BFM_CORE_PAR1 (the SpecialEventAdd
+		// payload), falling back to the world container's BC_KEY_OP.
+		// SpecialEventAdd's p1 is reliable; world container is just for
+		// args/results that don't fit in two UInts.
+		Int32 op = bc.GetInt32(BFM_CORE_PAR1);
+		if (op == 0 && wc->GetInt32(BC_KEY_OP) != 0)
+			op = wc->GetInt32(BC_KEY_OP);
 
-		// Reset response slots
+		// Reset response slots before dispatch
 		wc->SetInt32(BC_KEY_PROTOCOL_VER, MCP_HELPER_PROTOCOL_VERSION);
 		wc->SetString(BC_KEY_NEW_PORT_ID, ""_s);
 		wc->SetString(BC_KEY_STATUS_MSG, ""_s);
