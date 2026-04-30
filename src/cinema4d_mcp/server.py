@@ -2941,6 +2941,300 @@ async def scene_nodes_open_editor(ctx: Context = None) -> str:
 
 
 @mcp.tool()
+async def scene_nodes_dissect_capsule(
+    target_object: Optional[str] = None,
+    max_depth: int = 8,
+    include_ports: bool = False,
+    ctx: Context = None,
+) -> str:
+    """Dissect a Capsule (or any object with an embedded Scene Nodes graph)
+    and return the asset IDs of every node found inside it.
+
+    Capsules wrap a Scene Nodes graph behind a classic-object facade. The
+    asset browser is full of them — Primitive ▶ Cube, Modifier ▶ Bevel,
+    Effects ▶ Procedural Hair, etc. Each one is the richest source of
+    asset IDs we have for building our own graphs programmatically.
+
+    Args:
+      target_object: name of the object to dissect. If None, auto-scans
+        the doc for ALL capsule-class objects (Capsule, Scene Nodes
+        Generator/Deformer, Capsule Field, Simulation Scene) and dissects
+        each one.
+      max_depth: recursion cap on the inner graph walk (default 8).
+      include_ports: include port-node IDs alongside true node IDs
+        (default False — usually noise).
+
+    Returns:
+      JSON with `scanned` (per-object dissection stats), `unique_asset_ids`
+      (union across all scanned), and `registry_size` (cumulative across
+      session — the plugin caches discovered IDs for downstream
+      scene_nodes_add_node calls).
+
+    Read-only.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {
+            "command": "scene_nodes_dissect_capsule",
+            "max_depth": max_depth,
+            "include_ports": include_ports,
+        }
+        if target_object is not None:
+            cmd["target_object"] = target_object
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
+async def scene_nodes_list_assets(
+    source: str = "discovered",
+    filter_substring: Optional[str] = None,
+    ctx: Context = None,
+) -> str:
+    """List Scene Nodes asset IDs known to this plugin instance.
+
+    Two sources:
+      - 'discovered' (default): the cumulative registry built from prior
+        scene_nodes_dissect_capsule calls in this session. Most reliable —
+        these are IDs we've actually proven exist in this C4D install.
+      - 'repository': probes maxon.AssetInterface.GetUserPrefsRepository()
+        via FindAssets to enumerate registered scene-nodes assets. Slower,
+        SDK-version-dependent.
+      - 'both': returns both side-by-side.
+
+    Args:
+      source: 'discovered' / 'repository' / 'both'
+      filter_substring: case-insensitive substring filter on asset IDs.
+
+    Read-only.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {
+            "command": "scene_nodes_list_assets",
+            "source": source,
+        }
+        if filter_substring is not None:
+            cmd["filter_substring"] = filter_substring
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
+async def scene_nodes_add_node(
+    asset_id: str,
+    graph_target: Optional[str] = None,
+    node_name: Optional[str] = None,
+    extra_spec: Optional[Dict[str, Any]] = None,
+    ctx: Context = None,
+) -> str:
+    """Add a node to a Scene Nodes graph by asset ID.
+
+    Uses GraphDescription.ApplyDescription with `{"$type": <asset_id>, ...}`
+    to materialize the node. The asset_id must be one previously discovered
+    (via scene_nodes_dissect_capsule or scene_nodes_list_assets), or a
+    canonical ID like `net.maxon.neutron.corenode.<name>`.
+
+    Args:
+      asset_id: the asset/node-template ID
+      graph_target: object name whose embedded graph to add into. Default:
+        doc-level scenenodes graph.
+      node_name: friendly name (used as `$name` in the description)
+      extra_spec: extra fields merged into the description dict — e.g.
+        parameter values keyed by port name.
+
+    UNSAFE — mutates the graph. Wrap in begin_undo_group for reversibility.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {
+            "command": "scene_nodes_add_node",
+            "asset_id": asset_id,
+        }
+        if graph_target is not None:
+            cmd["graph_target"] = graph_target
+        if node_name is not None:
+            cmd["node_name"] = node_name
+        if extra_spec is not None:
+            cmd["extra_spec"] = extra_spec
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
+async def scene_nodes_atlas_lookup(
+    query: str,
+    kind: str = "any",
+    limit: int = 30,
+    ctx: Context = None,
+) -> str:
+    """Search the Scene Nodes atlas — templates, patterns, port types,
+    anti-patterns, vocabulary classifications.
+
+    The atlas bundles 802 known node-template canonical IDs (categorized
+    into 16 buckets), 13 codified patterns, port-type taxonomy with
+    conversion paths, and anti-pattern guides — extracted from analysis
+    of 9 real-world scenes (Squiggle Spline, Time Offset, Explode
+    Segments, Scaffolds, Whirlpool, City Generator, Fractal Trees,
+    Balloon Inflate, Edge to Spline + Ivy Generator).
+
+    Args:
+      query: search term (substring or exact)
+      kind: 'template' | 'pattern' | 'port_type' | 'antipattern' | 'class' | 'any'
+      limit: max results (default 30)
+
+    Read-only.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {
+            "command": "scene_nodes_atlas_lookup",
+            "query": query,
+            "kind": kind,
+            "limit": limit,
+        }
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
+async def scene_nodes_classify_graph(
+    target_object: Optional[str] = None,
+    max_depth: int = 12,
+    ctx: Context = None,
+) -> str:
+    """Classify a Scene Nodes graph — function-class distribution, detected
+    patterns, probable purpose, loop-carried-state count.
+
+    Walks the graph, builds a node-vocabulary histogram, compares against
+    13 known pattern signatures (reaction_diffusion, surface_clinging_growth,
+    spline_break_by_threshold, etc.), and returns a structured semantic
+    summary.
+
+    Args:
+      target_object: object whose embedded graph to classify (default: doc-level)
+      max_depth: walk depth (default 12)
+
+    Read-only.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {
+            "command": "scene_nodes_classify_graph",
+            "max_depth": max_depth,
+        }
+        if target_object is not None:
+            cmd["target_object"] = target_object
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
+async def scene_nodes_apply_pattern(
+    pattern_name: str,
+    params: Optional[Dict[str, Any]] = None,
+    graph_target: Optional[str] = None,
+    dry_run: bool = False,
+    ctx: Context = None,
+) -> str:
+    """Materialize a known Scene Nodes pattern into a graph by name. The
+    "I GOT YOU EASY" tool — synthesizes the canonical node skeleton.
+
+    13 patterns available:
+      - loop_over_indices, loop_over_polygons, loop_over_points,
+        loop_over_spline_segments
+      - reaction_diffusion_on_geometry
+      - surface_clinging_growth, stochastic_branching_decision
+      - spline_break_by_threshold, spline_resample_with_displacement
+      - mesh_element_query_by_selection, selection_evolution_chain
+      - per_vertex_property_storage, object_instancing_with_variation
+
+    Use scene_nodes_atlas_lookup kind='pattern' to see params per pattern.
+
+    Args:
+      pattern_name: registered pattern name
+      params: pattern-specific kwargs (see atlas)
+      graph_target: object whose embedded graph to mutate (default: doc-level)
+      dry_run: if True, return spec WITHOUT applying
+
+    UNSAFE — mutates the graph. Wrap in begin_undo_group for reversibility.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {
+            "command": "scene_nodes_apply_pattern",
+            "pattern_name": pattern_name,
+            "dry_run": dry_run,
+        }
+        if params is not None:
+            cmd["params"] = params
+        if graph_target is not None:
+            cmd["graph_target"] = graph_target
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
+async def scene_nodes_connect_ports(
+    from_node: str,
+    from_port: str,
+    to_node: str,
+    to_port: str,
+    graph_target: Optional[str] = None,
+    auto_convert: bool = True,
+    ctx: Context = None,
+) -> str:
+    """Wire two Scene Nodes by port name. Auto-handles type mismatches
+    via the atlas port_type_taxonomy.
+
+    Args:
+      from_node: source node name (or instance hash form)
+      from_port: output port name
+      to_node: destination node name
+      to_port: input port name
+      graph_target: object whose embedded graph to mutate (default: doc-level)
+      auto_convert: insert conversion node on type mismatch (default True)
+
+    UNSAFE — mutates the graph.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {
+            "command": "scene_nodes_connect_ports",
+            "from_node": from_node,
+            "from_port": from_port,
+            "to_node": to_node,
+            "to_port": to_port,
+            "auto_convert": auto_convert,
+        }
+        if graph_target is not None:
+            cmd["graph_target"] = graph_target
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
 async def begin_undo_group(name: str = "MCP undo group", ctx: Context = None) -> str:
     """Open a C4D undo group: every mutation until end_undo_group is merged
     into ONE undo step in C4D's history.

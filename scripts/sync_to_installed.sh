@@ -37,5 +37,23 @@ fi
 cp "$SRC" "$DST"
 
 echo "  new installed size:     $(stat -c %s "$DST") bytes / $(date -r "$DST" '+%Y-%m-%d %H:%M:%S')"
+
+# --- Phase C atlas: also sync scene_nodes_patterns.py + data/*.json -------
+PLUGINS_DIR="$DST_DIR/plugins"
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PATTERNS_SRC="$REPO_ROOT/c4d_plugin/scene_nodes_patterns.py"
+DATA_SRC_DIR="$REPO_ROOT/data"
+
+if [ -f "$PATTERNS_SRC" ]; then
+    cp "$PATTERNS_SRC" "$PLUGINS_DIR/scene_nodes_patterns.py"
+    echo "  also synced: scene_nodes_patterns.py"
+fi
+
+if [ -d "$DATA_SRC_DIR" ]; then
+    mkdir -p "$PLUGINS_DIR/data"
+    cp "$DATA_SRC_DIR"/*.json "$PLUGINS_DIR/data/" 2>/dev/null || true
+    echo "  also synced: data/*.json -> plugins/data/"
+fi
+
 echo ""
 echo "✅ Synced. Now: Extensions → Reload Python Plugins in C4D."

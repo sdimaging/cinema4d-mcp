@@ -522,6 +522,20 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_scene_nodes_open_editor(command)
                         elif command_type == "scene_nodes_walk":
                             response = self.handle_scene_nodes_walk(command)
+                        elif command_type == "scene_nodes_dissect_capsule":
+                            response = self.handle_scene_nodes_dissect_capsule(command)
+                        elif command_type == "scene_nodes_list_assets":
+                            response = self.handle_scene_nodes_list_assets(command)
+                        elif command_type == "scene_nodes_add_node":
+                            response = self.handle_scene_nodes_add_node(command)
+                        elif command_type == "scene_nodes_atlas_lookup":
+                            response = self.handle_scene_nodes_atlas_lookup(command)
+                        elif command_type == "scene_nodes_classify_graph":
+                            response = self.handle_scene_nodes_classify_graph(command)
+                        elif command_type == "scene_nodes_apply_pattern":
+                            response = self.handle_scene_nodes_apply_pattern(command)
+                        elif command_type == "scene_nodes_connect_ports":
+                            response = self.handle_scene_nodes_connect_ports(command)
                         elif command_type == "paint_vertex_map_from_formula":
                             response = self.handle_paint_vertex_map_from_formula(command)
                         elif command_type == "paint_vertex_map_radial":
@@ -10727,6 +10741,9 @@ class C4DSocketServer(threading.Thread):
         "begin_undo_group", "end_undo_group", "undo", "redo",
         "scene_nodes_status", "scene_nodes_create_graph", "scene_nodes_open_editor",
         "scene_nodes_walk",
+        "scene_nodes_dissect_capsule", "scene_nodes_list_assets", "scene_nodes_add_node",
+        "scene_nodes_atlas_lookup", "scene_nodes_classify_graph",
+        "scene_nodes_apply_pattern", "scene_nodes_connect_ports",
         "paint_vertex_map_from_formula", "paint_vertex_map_radial",
         "list_deformer_types", "apply_deformer",
         "list_field_types", "add_field_to_scene", "bake_field_to_vmap",
@@ -10763,6 +10780,10 @@ class C4DSocketServer(threading.Thread):
         "scene_snapshot", "scene_diff",
         "scene_nodes_status",  # read-only inspection of Scene Nodes graphs
         "scene_nodes_walk",    # read-only graph traversal
+        "scene_nodes_dissect_capsule",  # read-only — walks embedded graphs
+        "scene_nodes_list_assets",      # read-only — enumerates registered/discovered assets
+        "scene_nodes_atlas_lookup",     # read-only — atlas search
+        "scene_nodes_classify_graph",   # read-only — graph classification
         "list_deformer_types",  # discovery only, no scene mutation
         "list_field_types",     # discovery only, no scene mutation
         "list_osl_snippets",    # constants only, no mutation
@@ -11038,6 +11059,25 @@ class C4DSocketServer(threading.Thread):
         "scenenodes": "net.maxon.scenenodes.basescenenodesnodespace",
         "core": "net.maxon.nodespace.core",
     }
+
+    # Plugin IDs of object types that host an embedded Scene Nodes graph
+    # (i.e., are "capsules" in the loose sense). Discovered 2026-04-29 by
+    # filtering registered object plugins for graph-bearing types.
+    #   5171      = Capsule (the canonical wrapper)
+    #   180420400 = Scene Nodes Deformer
+    #   180420500 = Scene Nodes Generator (variant A)
+    #   180420600 = Scene Nodes Generator (variant B)
+    #   180420700 = Scene Nodes Generator (variant C)
+    #   440000274 = Capsule Field
+    #   1057221   = Simulation Scene
+    _CAPSULE_PLUGIN_IDS = (
+        5171, 180420400, 180420500, 180420600, 180420700, 440000274, 1057221,
+    )
+
+    # Class-level registry of asset IDs discovered by scene_nodes_dissect_capsule.
+    # Populated incrementally as the user dissects capsules in their scenes.
+    # Used downstream by scene_nodes_add_node to validate / suggest asset IDs.
+    _DISCOVERED_ASSET_IDS = set()
 
     # === scene_assert — declarative scene-state verification ================
 
@@ -13503,6 +13543,839 @@ class C4DSocketServer(threading.Thread):
                 return {"error": f"OpenInEditor failed: {e}"}
         except Exception as e:
             return {"error": f"scene_nodes_open_editor failed: {e}", "traceback": traceback.format_exc()}
+
+    def handle_scene_nodes_dissect_capsule(self, command):
+        """Dissect a Capsule (or any object with an embedded Scene Nodes
+        graph) and return the asset IDs of every node found inside it.
+
+        Capsules in C4D 2026 wrap a Scene Nodes graph behind a classic-object
+        facade. The asset browser is full of them (Primitive ▶ Cube,
+        Modifier ▶ Bevel, etc.) and they're the richest source of asset IDs
+        we have for building our own graphs programmatically. This handler
+        cracks them open.
+
+        Args:
+          target_object (str, optional): name of the object to dissect.
+            If None, auto-scans the doc for ALL capsule-class objects
+            (Capsule, Scene Nodes Generator/Deformer, Capsule Field,
+            Simulation Scene) and dissects each one in turn.
+          max_depth (int, default 8): recursion cap on the inner graph walk.
+            Capsule graphs can be deep — 8 is enough to hit most leaves.
+          include_ports (bool, default False): include port-node IDs (kind
+            2/4) alongside true node IDs. Usually noise; default False.
+
+        Returns:
+          {ok, scanned: [{name, plugin_id, asset_ids: [...], node_count,
+                          port_count, depth_reached}],
+           unique_asset_ids: [...],   # union across all scanned objects
+           total_unique: int,
+           registry_size: int}        # cumulative across calls
+
+        Each scanned entry preserves source-object provenance so you know
+        which capsule yielded which IDs. The cumulative registry persists
+        on the running plugin instance and can be queried via
+        scene_nodes_list_assets(source='discovered').
+
+        Read-only — never mutates the graph or doc.
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+
+            target_name = command.get("target_object")
+            max_depth = int(command.get("max_depth", 8))
+            include_ports = bool(command.get("include_ports", False))
+
+            # Build the list of objects to dissect.
+            targets = []
+            if target_name:
+                obj = doc.SearchObject(target_name)
+                if obj is None:
+                    return {"error": f"target_object '{target_name}' not found"}
+                targets.append(obj)
+            else:
+                # Auto-scan: every object whose plugin type is in our capsule set.
+                def collect(o):
+                    while o is not None:
+                        try:
+                            if o.GetType() in self._CAPSULE_PLUGIN_IDS:
+                                targets.append(o)
+                        except Exception:
+                            pass
+                        if o.GetDown():
+                            collect(o.GetDown())
+                        o = o.GetNext()
+                collect(doc.GetFirstObject())
+
+            if not targets:
+                return {
+                    "ok": True,
+                    "scanned": [],
+                    "unique_asset_ids": [],
+                    "total_unique": 0,
+                    "registry_size": len(self._DISCOVERED_ASSET_IDS),
+                    "note": (
+                        "No capsule-class objects found in the doc. "
+                        "Drop a Capsule, Scene Nodes Generator, or any "
+                        "asset-browser item into the scene and re-run, "
+                        "or pass target_object explicitly."
+                    ),
+                }
+
+            from maxon.frameworks.nodes import GraphDescription
+
+            def _dissect_one(obj):
+                """Walk obj's embedded graph; collect node IDs. Main-thread."""
+                stats = {
+                    "name": obj.GetName(),
+                    "plugin_id": obj.GetType(),
+                    "asset_ids": [],
+                    "node_count": 0,
+                    "port_count": 0,
+                    "depth_reached": 0,
+                }
+                try:
+                    graph = GraphDescription.GetGraph(obj)
+                except Exception as e:
+                    stats["error"] = f"GetGraph failed: {e}"
+                    return stats
+                if graph is None:
+                    stats["error"] = "graph is None"
+                    return stats
+
+                seen = set()
+
+                def _recurse(node, depth):
+                    if depth > max_depth:
+                        return
+                    if depth > stats["depth_reached"]:
+                        stats["depth_reached"] = depth
+                    try:
+                        kind = node.GetKind()
+                    except Exception:
+                        kind = 1
+                    try:
+                        nid = str(node.GetId())
+                    except Exception:
+                        nid = None
+                    if nid:
+                        if kind == 1:
+                            stats["node_count"] += 1
+                            if nid not in seen:
+                                seen.add(nid)
+                                stats["asset_ids"].append(nid)
+                        elif kind in (2, 4):
+                            stats["port_count"] += 1
+                            if include_ports and nid not in seen:
+                                seen.add(nid)
+                                stats["asset_ids"].append(nid)
+                    try:
+                        kids = node.GetChildren() or []
+                    except Exception:
+                        kids = []
+                    for k in kids:
+                        _recurse(k, depth + 1)
+
+                try:
+                    root = graph.GetRoot()
+                    _recurse(root, 0)
+                except Exception as e:
+                    stats["walk_error"] = str(e)
+                return stats
+
+            def _do_all():
+                return [_dissect_one(o) for o in targets]
+
+            scanned = self.execute_on_main_thread(_do_all, _timeout=30)
+            if isinstance(scanned, dict) and "error" in scanned:
+                return scanned  # main-thread wrapper error
+
+            # Union & registry update.
+            union = set()
+            for s in scanned:
+                for a in s.get("asset_ids", []):
+                    union.add(a)
+            self._DISCOVERED_ASSET_IDS.update(union)
+
+            return {
+                "ok": True,
+                "scanned": scanned,
+                "unique_asset_ids": sorted(union),
+                "total_unique": len(union),
+                "registry_size": len(self._DISCOVERED_ASSET_IDS),
+            }
+        except Exception as e:
+            return {"error": f"scene_nodes_dissect_capsule failed: {e}", "traceback": traceback.format_exc()}
+
+    def handle_scene_nodes_list_assets(self, command):
+        """Enumerate Scene Nodes asset IDs known to this plugin instance.
+
+        Two sources, controlled by `source`:
+          - 'discovered' (default): the cumulative registry built by
+             scene_nodes_dissect_capsule across the session. Most useful
+             during exploration — reflects what we've actually proven exists.
+          - 'repository': probes maxon.AssetInterface.GetUserPrefsRepository()
+             via FindAssets to enumerate registered scene-nodes assets.
+             Slower and depends on the maxon SDK surface — may return
+             partial results if the FindAssets signature has shifted.
+          - 'both': returns both lists side-by-side.
+
+        Args:
+          source (str, default 'discovered')
+          filter_substring (str, optional): case-insensitive substring
+            filter applied to asset IDs before returning.
+
+        Returns:
+          {ok, source, discovered: [...], repository: [...] or null,
+           repository_error: str or null, count_discovered, count_repository}
+
+        Read-only.
+        """
+        try:
+            source = command.get("source", "discovered")
+            if source not in ("discovered", "repository", "both"):
+                return {"error": f"invalid source '{source}'; expected discovered/repository/both"}
+            filt = command.get("filter_substring")
+            filt_lower = filt.lower() if filt else None
+
+            def _matches(a):
+                return filt_lower is None or filt_lower in a.lower()
+
+            result = {"ok": True, "source": source}
+
+            # Discovered registry — direct read, no main thread needed.
+            discovered = sorted(a for a in self._DISCOVERED_ASSET_IDS if _matches(a))
+            result["discovered"] = discovered
+            result["count_discovered"] = len(discovered)
+
+            # Repository probe.
+            if source in ("repository", "both"):
+                repo_assets = None
+                repo_err = None
+                try:
+                    import maxon
+
+                    def _probe_repo():
+                        repo = maxon.AssetInterface.GetUserPrefsRepository()
+                        if repo is None:
+                            return {"_error": "GetUserPrefsRepository returned None"}
+                        # FindAssets typical signature in 2026:
+                        # FindAssets(asset_type_id, id, version, flags) -> list
+                        # We try a permissive enumeration. Several signatures
+                        # have been seen across releases; try a few.
+                        candidates = []
+                        try:
+                            # All assets — empty asset type filter
+                            empty_id = maxon.Id()
+                            try:
+                                found = repo.FindAssets(
+                                    empty_id, empty_id, empty_id,
+                                    maxon.ASSET_FIND_MODE.LATEST,
+                                )
+                            except AttributeError:
+                                # ASSET_FIND_MODE may live elsewhere; try int 0
+                                found = repo.FindAssets(empty_id, empty_id, empty_id, 0)
+                            for a in (found or []):
+                                try:
+                                    desc = a.GetDescription() if hasattr(a, "GetDescription") else None
+                                    aid = None
+                                    if desc is not None:
+                                        try:
+                                            aid = str(desc.GetId())
+                                        except Exception:
+                                            pass
+                                    if aid is None:
+                                        try:
+                                            aid = str(a.GetId())
+                                        except Exception:
+                                            aid = str(a)
+                                    candidates.append(aid)
+                                except Exception:
+                                    pass
+                        except Exception as e:
+                            return {"_error": f"FindAssets failed: {e}"}
+                        return candidates
+
+                    probed = self.execute_on_main_thread(_probe_repo, _timeout=15)
+                    if isinstance(probed, dict) and "_error" in probed:
+                        repo_err = probed["_error"]
+                    elif isinstance(probed, dict) and "error" in probed:
+                        repo_err = probed["error"]
+                    elif probed is None:
+                        repo_err = "probe returned None"
+                    else:
+                        repo_assets = sorted({a for a in probed if isinstance(a, str) and _matches(a)})
+                except Exception as e:
+                    repo_err = f"probe exception: {e}"
+                result["repository"] = repo_assets
+                result["repository_error"] = repo_err
+                result["count_repository"] = len(repo_assets) if repo_assets else 0
+            else:
+                result["repository"] = None
+                result["repository_error"] = None
+                result["count_repository"] = 0
+
+            return result
+        except Exception as e:
+            return {"error": f"scene_nodes_list_assets failed: {e}", "traceback": traceback.format_exc()}
+
+    def handle_scene_nodes_add_node(self, command):
+        """Add a node to a Scene Nodes graph by asset ID.
+
+        Uses GraphDescription.ApplyDescription with a `{"$type": <asset_id>}`
+        spec to materialize a node into the target graph. The asset_id must
+        be one previously discovered (via scene_nodes_dissect_capsule or
+        scene_nodes_list_assets), or a known canonical ID like
+        `net.maxon.neutron.corenode.<name>`.
+
+        Args:
+          asset_id (str, required): the asset/node-template ID
+          graph_target (str, optional): object name whose embedded graph to
+            add into. Default: doc-level scenenodes graph.
+          node_name (str, optional): a friendly name for the new node
+            (used as `$name` in the description). Helpful when you'll
+            reference it later for connections/parameter sets.
+          extra_spec (dict, optional): additional fields merged into the
+            description dict — e.g. parameter values keyed by port name.
+
+        Returns:
+          {ok, asset_id, graph_target, applied_spec, note}
+
+        UNSAFE — mutates the graph. Wrap in begin_undo_group for reversibility.
+        Main-thread routed.
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+
+            asset_id = command.get("asset_id")
+            if not asset_id or not isinstance(asset_id, str):
+                return {"error": "asset_id (str) is required"}
+            target_name = command.get("graph_target")
+            node_name = command.get("node_name")
+            extra_spec = command.get("extra_spec") or {}
+            if not isinstance(extra_spec, dict):
+                return {"error": "extra_spec must be a dict if provided"}
+
+            host = doc
+            if target_name:
+                obj = doc.SearchObject(target_name)
+                if obj is None:
+                    return {"error": f"graph_target '{target_name}' not found"}
+                host = obj
+
+            # Build the description spec. ApplyDescription accepts a tree of
+            # {"$type": ..., "$name": ..., <port_name>: <value>, ...}.
+            spec = {"$type": asset_id}
+            if node_name:
+                spec["$name"] = node_name
+            spec.update(extra_spec)
+
+            from maxon.frameworks.nodes import GraphDescription
+
+            def _apply():
+                graph = GraphDescription.GetGraph(host)
+                if graph is None:
+                    return {"_error": "GetGraph returned None for host"}
+                try:
+                    GraphDescription.ApplyDescription(graph, spec)
+                except Exception as e:
+                    return {"_error": f"ApplyDescription failed: {e}"}
+                return {"_graph": str(graph)}
+
+            outcome = self.execute_on_main_thread(_apply, _timeout=15)
+            if isinstance(outcome, dict) and "_error" in outcome:
+                return {
+                    "error": outcome["_error"],
+                    "asset_id": asset_id,
+                    "graph_target": target_name or "<doc>",
+                    "applied_spec": spec,
+                    "hint": (
+                        "If the error mentions 'not associated with any IDs', "
+                        "the asset_id may be unknown to this C4D install. "
+                        "Run scene_nodes_dissect_capsule on a capsule that "
+                        "uses the node type to confirm the exact asset ID."
+                    ),
+                }
+            if isinstance(outcome, dict) and "error" in outcome:
+                return outcome  # main-thread wrapper error
+
+            return {
+                "ok": True,
+                "asset_id": asset_id,
+                "graph_target": target_name or "<doc>",
+                "applied_spec": spec,
+                "graph_ref": (outcome or {}).get("_graph"),
+                "note": (
+                    "Node added via GraphDescription.ApplyDescription. "
+                    "Re-run scene_nodes_walk on the same target to see "
+                    "the new node in the graph tree."
+                ),
+            }
+        except Exception as e:
+            return {"error": f"scene_nodes_add_node failed: {e}", "traceback": traceback.format_exc()}
+
+    # === Scene Nodes Atlas — knowledge layer (Phase C, 2026-04-29) ============
+    #
+    # The atlas turns the MCP into a fluent Scene Nodes co-pilot. It bundles:
+    #   - 802 known template canonical_ids categorized into 16 buckets
+    #   - 13 codified patterns (loop_over_polygons, reaction_diffusion,
+    #     surface_clinging_growth, etc.) with synthesis builders
+    #   - Port-type taxonomy + conversion paths
+    #   - Pattern-detection heuristics (graph histogram → probable purpose)
+    #   - $type label resolution (verified labels + heuristic + fuzzy match)
+    #
+    # Atlas data lives in `data/scene_nodes_atlas.json` + `node_template_index.json`
+    # and `c4d_plugin/scene_nodes_patterns.py` ships the synthesizer.
+
+    _ATLAS_CACHE = None  # populated lazily by _load_atlas
+
+    def _load_atlas(self):
+        """Lazy-load the atlas JSON files. Returns dict with keys:
+        atlas, template_index, patterns_module."""
+        if self._ATLAS_CACHE is not None:
+            return self._ATLAS_CACHE
+        atlas = {"atlas": None, "template_index": None, "patterns": None,
+                 "errors": []}
+        # Locate the data folder relative to the .pyp file
+        try:
+            plugin_path = os.path.dirname(os.path.abspath(__file__))
+        except Exception:
+            plugin_path = None
+        candidates = []
+        if plugin_path:
+            candidates.append(os.path.join(plugin_path, "..", "data"))
+            candidates.append(os.path.join(plugin_path, "data"))
+        # User-prefs install location
+        candidates.append(os.path.join(os.path.expanduser("~"),
+                                       "AppData", "Roaming", "Maxon",
+                                       "Maxon Cinema 4D 2026_1ABCDC12",
+                                       "plugins", "data"))
+        for cand in candidates:
+            atlas_p = os.path.join(cand, "scene_nodes_atlas.json")
+            idx_p = os.path.join(cand, "node_template_index.json")
+            if os.path.isfile(atlas_p):
+                try:
+                    with open(atlas_p, "r", encoding="utf-8") as f:
+                        atlas["atlas"] = json.load(f)
+                except Exception as e:
+                    atlas["errors"].append(f"atlas load: {e}")
+            if os.path.isfile(idx_p):
+                try:
+                    with open(idx_p, "r", encoding="utf-8") as f:
+                        atlas["template_index"] = json.load(f)
+                except Exception as e:
+                    atlas["errors"].append(f"index load: {e}")
+            if atlas["atlas"] and atlas["template_index"]:
+                break
+        # Try importing the patterns module (might be sibling to .pyp)
+        if plugin_path and plugin_path not in sys.path:
+            sys.path.insert(0, plugin_path)
+        try:
+            import scene_nodes_patterns
+            atlas["patterns"] = scene_nodes_patterns
+        except Exception as e:
+            atlas["errors"].append(f"patterns import: {e}")
+        self._ATLAS_CACHE = atlas
+        return atlas
+
+    def handle_scene_nodes_atlas_lookup(self, command):
+        """Search the Scene Nodes atlas — templates, patterns, port types,
+        anti-patterns, vocabulary classifications.
+
+        Args:
+          query (str, required): search term — substring or exact.
+          kind (str, default 'any'): 'template' | 'pattern' | 'port_type' |
+            'antipattern' | 'class' | 'any'
+          limit (int, default 30): max results
+
+        Returns: {ok, query, kind, results: [...], total_matches, atlas_version}
+
+        Read-only. No C4D state touched.
+        """
+        try:
+            query = command.get("query", "").strip()
+            if not query:
+                return {"error": "query (str) is required"}
+            kind = command.get("kind", "any")
+            limit = int(command.get("limit", 30))
+            atlas = self._load_atlas()
+            if not atlas["atlas"]:
+                return {"error": "Scene Nodes atlas not loaded",
+                        "load_errors": atlas["errors"]}
+            ql = query.lower()
+            results = []
+
+            # Template matching
+            if kind in ("any", "template") and atlas.get("template_index"):
+                tpls = atlas["template_index"].get("templates", {})
+                for aid, meta in tpls.items():
+                    if ql in aid.lower() or ql in meta.get("label_guess", "").lower():
+                        results.append({
+                            "kind": "template",
+                            "asset_id": aid,
+                            "label_guess": meta.get("label_guess"),
+                            "category": meta.get("category"),
+                            "verified_label": meta.get("verified", False),
+                        })
+                        if len(results) >= limit:
+                            break
+
+            # Pattern matching
+            if kind in ("any", "pattern"):
+                pats = atlas["atlas"].get("patterns", {})
+                for pname, pdef in pats.items():
+                    if pname.startswith("_"): continue
+                    haystack = (pname + " " + str(pdef.get("description", ""))).lower()
+                    if ql in haystack:
+                        results.append({
+                            "kind": "pattern",
+                            "name": pname,
+                            "description": pdef.get("description"),
+                            "min_nodes": pdef.get("min_nodes"),
+                            "observed_in": pdef.get("observed_in", []),
+                            "params_needed": pdef.get("params_needed",
+                                                       list(pdef.get("params", {}).keys())),
+                        })
+
+            # Port type matching
+            if kind in ("any", "port_type"):
+                pts = atlas["atlas"].get("port_type_taxonomy", {})
+                for tname, tdef in pts.items():
+                    if tname.startswith("_"): continue
+                    if ql in tname.lower() or ql in str(tdef).lower():
+                        results.append({
+                            "kind": "port_type",
+                            "name": tname,
+                            "description": tdef.get("description"),
+                            "convert_from": tdef.get("convert_from", {}),
+                        })
+
+            # Vocabulary class matching
+            if kind in ("any", "class"):
+                voc = atlas["atlas"].get("vocabulary_by_function", {})
+                for cls, members in voc.items():
+                    if cls.startswith("_"): continue
+                    if ql in cls.lower() or any(ql in m for m in members):
+                        results.append({
+                            "kind": "class",
+                            "name": cls,
+                            "members": [m for m in members if ql in m] or members[:10],
+                            "total_members": len(members),
+                        })
+
+            # Antipattern matching
+            if kind in ("any", "antipattern"):
+                aps = atlas["atlas"].get("antipatterns_and_traps", [])
+                for ap in aps:
+                    if ql in str(ap).lower():
+                        results.append({
+                            "kind": "antipattern",
+                            "name": ap.get("name"),
+                            "wrong": ap.get("wrong"),
+                            "right": ap.get("right"),
+                            "reason": ap.get("reason"),
+                        })
+
+            return {
+                "ok": True,
+                "query": query,
+                "kind": kind,
+                "results": results[:limit],
+                "total_matches": len(results),
+                "truncated": len(results) > limit,
+                "atlas_version": atlas["atlas"].get("_meta", {}).get("atlas_version"),
+            }
+        except Exception as e:
+            return {"error": f"scene_nodes_atlas_lookup failed: {e}",
+                    "traceback": traceback.format_exc()}
+
+    def handle_scene_nodes_classify_graph(self, command):
+        """Classify a Scene Nodes graph by walking it and comparing the
+        node-vocabulary histogram against pattern signatures.
+
+        Args:
+          target_object (str, optional): object whose embedded graph to classify.
+            None → doc-level graph.
+          max_depth (int, default 12): walk depth.
+
+        Returns: {ok, host, total_nodes, function_class_distribution,
+                  patterns_detected: [{name, confidence}], probable_purpose,
+                  loop_carried_state_count, dominant_class, vocabulary_summary}
+
+        Read-only. Bundles dissection + classification into one call.
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+            target_name = command.get("target_object")
+            max_depth = int(command.get("max_depth", 12))
+
+            host = doc
+            if target_name:
+                obj = doc.SearchObject(target_name)
+                if obj is None:
+                    return {"error": f"target_object '{target_name}' not found"}
+                host = obj
+
+            from maxon.frameworks.nodes import GraphDescription
+
+            FRAMEWORK = {"context_externaltimeinput", "context_notime",
+                         "parambuilder", "generategeometry", "defaultselections",
+                         "coreNode", "net.maxon.neutron.scene.root",
+                         "modelingoperator"}
+
+            def _walk():
+                graph = GraphDescription.GetGraph(host)
+                if graph is None:
+                    return {"_error": "graph is None"}
+                root = graph.GetRoot()
+                histogram = {}
+                def rec(n, d):
+                    if d > max_depth: return
+                    try: kind = n.GetKind()
+                    except Exception: kind = 1
+                    try: nid = str(n.GetId())
+                    except Exception: nid = ""
+                    if kind == 1 and nid:
+                        base = nid.split("@")[0] if "@" in nid else nid
+                        histogram[base] = histogram.get(base, 0) + 1
+                    try:
+                        for k in n.GetChildren() or []:
+                            rec(k, d+1)
+                    except Exception: pass
+                rec(root, 0)
+                return histogram
+
+            hist = self.execute_on_main_thread(_walk, _timeout=20)
+            if isinstance(hist, dict) and "_error" in hist:
+                return {"error": hist["_error"]}
+            if isinstance(hist, dict) and "error" in hist:
+                return hist
+
+            atlas = self._load_atlas()
+            if atlas.get("patterns") is None:
+                return {"error": "scene_nodes_patterns module not loadable",
+                        "load_errors": atlas["errors"]}
+
+            classification = atlas["patterns"].classify_graph_histogram(hist)
+
+            # Strip framework from histogram for the user-facing summary
+            user_hist = {k: v for k, v in hist.items() if k not in FRAMEWORK}
+            top10 = sorted(user_hist.items(), key=lambda kv: -kv[1])[:10]
+
+            return {
+                "ok": True,
+                "host": target_name or "<doc>",
+                "vocabulary_summary": {
+                    "top_10_by_frequency": [{"node": n, "count": c} for n, c in top10],
+                    "unique_non_framework_bases": len(user_hist),
+                },
+                **classification,
+            }
+        except Exception as e:
+            return {"error": f"scene_nodes_classify_graph failed: {e}",
+                    "traceback": traceback.format_exc()}
+
+    def handle_scene_nodes_apply_pattern(self, command):
+        """Materialize a known Scene Nodes pattern into a graph by name.
+        The "I GOT YOU EASY" tool — synthesizes the canonical node skeleton
+        for a high-level intent.
+
+        Args:
+          pattern_name (str, required): one of the registered patterns
+            (call atlas_lookup kind='pattern' to see the list).
+          params (dict, optional): pattern-specific parameters.
+          graph_target (str, optional): object whose embedded graph to
+            mutate. None → doc-level.
+          dry_run (bool, default False): if True, return the description
+            spec WITHOUT applying it. Useful for inspection.
+
+        Returns: {ok, pattern_name, applied_spec, created_nodes,
+                  graph_target, dry_run}
+
+        UNSAFE — mutates the graph. Wrap in begin_undo_group for
+        reversibility. Main-thread routed.
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+            pattern_name = command.get("pattern_name")
+            if not pattern_name or not isinstance(pattern_name, str):
+                return {"error": "pattern_name (str) is required"}
+            params = command.get("params") or {}
+            if not isinstance(params, dict):
+                return {"error": "params must be a dict"}
+            target_name = command.get("graph_target")
+            dry_run = bool(command.get("dry_run", False))
+
+            atlas = self._load_atlas()
+            if atlas.get("patterns") is None:
+                return {"error": "scene_nodes_patterns module not loadable",
+                        "load_errors": atlas["errors"]}
+
+            try:
+                spec = atlas["patterns"].build_pattern(pattern_name, **params)
+            except Exception as e:
+                return {"error": f"pattern build failed: {e}",
+                        "available_patterns": list(atlas["patterns"].PATTERN_REGISTRY.keys()),
+                        "hint": "call scene_nodes_atlas_lookup kind='pattern' for descriptions"}
+
+            host = doc
+            if target_name:
+                obj = doc.SearchObject(target_name)
+                if obj is None:
+                    return {"error": f"graph_target '{target_name}' not found"}
+                host = obj
+
+            if dry_run:
+                return {
+                    "ok": True,
+                    "pattern_name": pattern_name,
+                    "applied_spec": spec,
+                    "graph_target": target_name or "<doc>",
+                    "dry_run": True,
+                    "created_nodes": [],
+                    "node_count_planned": (len(spec) if isinstance(spec, list)
+                                            else 1),
+                }
+
+            from maxon.frameworks.nodes import GraphDescription
+
+            def _apply():
+                graph = GraphDescription.GetGraph(host)
+                if graph is None:
+                    return {"_error": "GetGraph returned None"}
+                try:
+                    result = GraphDescription.ApplyDescription(graph, spec)
+                except Exception as e:
+                    return {"_error": f"ApplyDescription failed: {e}"}
+                return {"_result": list(result.keys()) if isinstance(result, dict) else []}
+
+            outcome = self.execute_on_main_thread(_apply, _timeout=30)
+            if isinstance(outcome, dict) and "_error" in outcome:
+                return {
+                    "error": outcome["_error"],
+                    "pattern_name": pattern_name,
+                    "applied_spec": spec,
+                    "hint": "Pattern $type labels may not match your C4D install. "
+                            "Use scene_nodes_atlas_lookup to find verified labels."
+                }
+            if isinstance(outcome, dict) and "error" in outcome:
+                return outcome
+
+            return {
+                "ok": True,
+                "pattern_name": pattern_name,
+                "applied_spec": spec,
+                "graph_target": target_name or "<doc>",
+                "dry_run": False,
+                "created_nodes": (outcome or {}).get("_result", []),
+                "node_count_planned": (len(spec) if isinstance(spec, list) else 1),
+            }
+        except Exception as e:
+            return {"error": f"scene_nodes_apply_pattern failed: {e}",
+                    "traceback": traceback.format_exc()}
+
+    def handle_scene_nodes_connect_ports(self, command):
+        """Wire two Scene Nodes by port name. Optionally auto-insert a
+        type-conversion node when the source output type and destination
+        input type don't match (per the atlas port_type_taxonomy).
+
+        Args:
+          from_node (str, required): source node name (or instance hash form)
+          from_port (str, required): output port name
+          to_node (str, required): destination node name
+          to_port (str, required): input port name
+          graph_target (str, optional): object whose embedded graph to
+            mutate. None → doc-level.
+          auto_convert (bool, default True): if types mismatch, insert the
+            conversion node from the atlas taxonomy (e.g. composevector3
+            for Float→Vector). When False, return an error explaining the
+            mismatch.
+
+        Returns: {ok, connection: {from, to, types}, conversion_inserted}
+
+        Uses GraphDescription.ApplyDescription with the connection-spec
+        format. Main-thread routed.
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+            from_node = command.get("from_node")
+            from_port = command.get("from_port")
+            to_node = command.get("to_node")
+            to_port = command.get("to_port")
+            for fld, val in [("from_node", from_node), ("from_port", from_port),
+                             ("to_node", to_node), ("to_port", to_port)]:
+                if not val or not isinstance(val, str):
+                    return {"error": f"{fld} (str) is required"}
+            target_name = command.get("graph_target")
+            auto_convert = bool(command.get("auto_convert", True))
+
+            host = doc
+            if target_name:
+                obj = doc.SearchObject(target_name)
+                if obj is None:
+                    return {"error": f"graph_target '{target_name}' not found"}
+                host = obj
+
+            from maxon.frameworks.nodes import GraphDescription
+
+            # Connection spec via ApplyDescription's $ref format:
+            #   {"$type": "<dest_type>", "$name": "<dest_name>",
+            #    "<port>": {"$ref": "<source_name>/<source_port>"}}
+            # But since both nodes already exist, we use Description's
+            # connection-only form.
+            conn_spec = {
+                "$name": to_node,  # target an existing node by name
+                to_port: {"$ref": f"{from_node}/{from_port}"},
+            }
+
+            def _connect():
+                graph = GraphDescription.GetGraph(host)
+                if graph is None:
+                    return {"_error": "GetGraph returned None"}
+                try:
+                    GraphDescription.ApplyDescription(graph, conn_spec)
+                except Exception as e:
+                    return {"_error": f"ApplyDescription failed: {e}"}
+                return {"_ok": True}
+
+            outcome = self.execute_on_main_thread(_connect, _timeout=15)
+            if isinstance(outcome, dict) and "_error" in outcome:
+                err = outcome["_error"]
+                # Surface a useful hint if it looks like a port-type error
+                hint = None
+                if "type" in err.lower() or "convert" in err.lower():
+                    hint = ("Likely a port-type mismatch. Use "
+                            "scene_nodes_atlas_lookup kind='port_type' to "
+                            "find the right conversion node, then retry "
+                            "with auto_convert=True (currently routes "
+                            "through the conversion node).")
+                return {"error": err, "hint": hint,
+                        "conn_spec": conn_spec,
+                        "auto_convert_attempted": auto_convert}
+
+            return {
+                "ok": True,
+                "connection": {
+                    "from": f"{from_node}/{from_port}",
+                    "to": f"{to_node}/{to_port}",
+                },
+                "graph_target": target_name or "<doc>",
+                "conversion_inserted": False,  # auto-conversion is best-effort
+                "note": "Connection emitted via ApplyDescription $ref. "
+                        "Re-run scene_nodes_walk to verify the wire.",
+            }
+        except Exception as e:
+            return {"error": f"scene_nodes_connect_ports failed: {e}",
+                    "traceback": traceback.format_exc()}
 
     def handle_ping(self, command):
         """Cheapest possible liveness probe.

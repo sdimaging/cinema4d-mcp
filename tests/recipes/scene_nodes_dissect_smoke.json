@@ -1,0 +1,54 @@
+{
+  "name": "scene_nodes_dissect_smoke",
+  "description": "End-to-end Scene Nodes asset-discovery surface: drop a bare Capsule + Scene Nodes Generator, dissect them, then list discovered + repository assets. Locks the scene_nodes_dissect_capsule + scene_nodes_list_assets + scene_nodes_add_node handlers added 2026-04-29 for cracking open the asset-browser ecosystem and building our own graphs. Steps with empty assert lists rely on the runner's automatic ok/error fail-fast.",
+  "setup": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\ndoc = c4d.documents.GetActiveDocument()\nfor n in ['TestCapsule', 'TestSNGenerator']:\n    o = doc.SearchObject(n)\n    if o: o.Remove()\ncap = c4d.BaseObject(5171)\nif cap is not None:\n    cap.SetName('TestCapsule')\n    doc.InsertObject(cap)\ngen = c4d.BaseObject(180420700)\nif gen is not None:\n    gen.SetName('TestSNGenerator')\n    doc.InsertObject(gen)\nc4d.EventAdd()\nprint(f'setup: capsule={cap is not None}, sn_generator={gen is not None}')"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "name": "verify_setup_objects_exist",
+      "command": "list_objects",
+      "args": {},
+      "assert": [
+        {"type": "object_exists", "name": "TestCapsule"}
+      ]
+    },
+    {
+      "name": "auto_scan_dissect_all_capsules",
+      "command": "scene_nodes_dissect_capsule",
+      "args": {"max_depth": 6},
+      "assert": []
+    },
+    {
+      "name": "dissect_specific_capsule",
+      "command": "scene_nodes_dissect_capsule",
+      "args": {"target_object": "TestCapsule", "max_depth": 6},
+      "assert": []
+    },
+    {
+      "name": "list_discovered_assets",
+      "command": "scene_nodes_list_assets",
+      "args": {"source": "discovered"},
+      "assert": []
+    },
+    {
+      "name": "list_assets_both_sources",
+      "command": "scene_nodes_list_assets",
+      "args": {"source": "both"},
+      "assert": []
+    }
+  ],
+  "teardown": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\ndoc = c4d.documents.GetActiveDocument()\nfor n in ['TestCapsule', 'TestSNGenerator']:\n    o = doc.SearchObject(n)\n    if o: o.Remove()\nc4d.EventAdd()\nprint('teardown ok')"
+      }
+    }
+  ]
+}

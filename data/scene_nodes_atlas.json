@@ -1,0 +1,397 @@
+{
+  "_meta": {
+    "atlas_version": "0.1.0",
+    "created": "2026-04-29",
+    "c4d_version_target": "2026.2.x",
+    "node_space": "net.maxon.neutron.nodespace",
+    "description": "Scene Nodes knowledge base for the cinema4d-mcp plugin. Categorizes the node template vocabulary observed across 9 example scenes (Squiggle Spline, Time Offset, Explode Spline Segments, Scaffolds, Whirlpool, City Generator, Fractal Trees, Balloon Inflate, Edge to Spline + Ivy Generator). The 'live_label_index' is filled by Phase A1 enumeration against the running C4D's user prefs repo.",
+    "$type_contract": "ApplyDescription's $type field accepts CASE-SENSITIVE English UI labels (e.g. 'Sphere', 'Inset', 'Loop Carried Value'). Canonical asset IDs (e.g. 'net.maxon.neutron.node.primitive.sphere') do NOT work directly. Bare base-names extracted from existing graphs (e.g. 'extrude', 'inset') are LOCAL graph instance names, NOT template labels — they fail too."
+  },
+
+  "live_label_index": {
+    "_filled_by": "phase_a1_probe.py",
+    "_format": "{ canonical_asset_id: { label: 'UI English label', namespace: 'neutron|redshift|node|user', port_summary: {...} } }",
+    "_status": "pending — populated when scripts/build_atlas.py is run against a live C4D"
+  },
+
+  "framework_nodes": {
+    "_description": "Auto-generated wrapper nodes that appear in EVERY functional capsule — boilerplate, never user-added.",
+    "context_externaltimeinput": "Provides time context to the graph (frame number, time)",
+    "context_notime": "Provides a time-less evaluation context for non-animated paths",
+    "parambuilder": "Wraps user-facing capsule parameters; reads from the host BaseObject",
+    "modelingoperator": "Wraps a graph that behaves as a classic-object modeling operator (deformer/generator)",
+    "generategeometry": "Output sink for generators — emits the resulting BaseObject",
+    "defaultselections": "Supplies fallback selection sets when none is named",
+    "coreNode": "Generic compound-graph wrapper",
+    "net.maxon.neutron.scene.root": "Root container of the scene-nodes branch in a doc-level graph"
+  },
+
+  "visual_organization": {
+    "_description": "Pure layout/documentation primitives. Pass data through unchanged; safe to ignore for semantic analysis.",
+    "scaffold": "A clickable frame that visually groups regions of the editor. Functional pass-through.",
+    "annotation": "Editor-only sticky note. No data flow.",
+    "group": "Collapsible bubble that hides/shows contained nodes. Pass-through.",
+    "reroute": "Visual cable redirect, like a hub — single in, single out, identity.",
+    "floatingio": "Graph boundary I/O attachment point — exposes a port to the parent capsule's parameter UI.",
+    "text": "Text label on the canvas. Editor-only.",
+    "type": "Type declaration scaffold — ports adopt the declared type."
+  },
+
+  "vocabulary_by_function": {
+    "math_scalar": [
+      "arithmetic", "add", "sub", "scale", "pow", "abs", "modulo", "round",
+      "clamp", "evaluate", "interpolate", "blend", "step", "negate", "invert",
+      "sign", "sum"
+    ],
+    "math_vector": [
+      "distance", "dot", "cross", "normalize", "length", "distancetoline",
+      "trigonometry", "angle", "convertdegrees"
+    ],
+    "math_compound": [
+      "composevector3", "composematrix", "decomposematrix", "composecontainer",
+      "decomposecontainer", "vectortofloat", "matrixtovectors", "vectorstomatrix",
+      "matrixfromaxis", "transformvector", "transformmatrix", "transformpoint",
+      "transform_element", "maprange"
+    ],
+    "stochastic": [
+      "noise", "hash", "randomselection"
+    ],
+    "time_and_state": [
+      "time", "memory"
+    ],
+    "logic": [
+      "if", "compare", "switch", "booleannot", "booleanoperator", "or", "typeof",
+      "filter", "active"
+    ],
+    "loop_scaffold": [
+      "loopcarriedvalue", "start", "end", "range", "getcount", "containeriteration",
+      "selectionrange"
+    ],
+    "array_io": [
+      "readvalueatindex", "readvalueatindex2", "writevalueatindex", "get", "get_property",
+      "set", "set_property", "append", "append2", "buildfromvalue",
+      "buildfromsinglevalue", "buildfromvalue", "concat", "erase", "insert",
+      "sort", "sortcontainer", "aggregate", "toarray", "arraynode", "arraybuilder",
+      "arraycont", "swaperase", "indexarrayfromstring", "getsinglearrayfromcontainer",
+      "polygonarrayget", "polygonarrayset", "edgemap"
+    ],
+    "containers": [
+      "container", "composecontainer", "decomposecontainer",
+      "getsinglearrayfromcontainer", "map", "variadictolist"
+    ],
+    "selection_ops": [
+      "buildselection", "setselection", "selectionstringtoselection",
+      "selectionoperator", "selectionrange", "selectionstringparser",
+      "removeselection", "growselection", "shrinkselection", "invertselection",
+      "randomselection", "selfromptids", "selfrompolyids"
+    ],
+    "geometry_modeling": [
+      "extrude", "extrudeline", "inset", "subdivide", "tessellation", "delete",
+      "deletemeshcomponent", "removengons", "connect", "connect_geometries",
+      "pushapart", "filter"
+    ],
+    "geometry_spline": [
+      "spline", "lineget", "lineset", "assembler",
+      "addcontrolpointalongspline", "splitspline", "splinedistnode",
+      "cachesplinenode", "cacherailsplinenode", "resample", "sweepline"
+    ],
+    "geometry_query_byid": [
+      "ptidsfrompolyids", "ptposfrompolyids", "selfrompolyids",
+      "edgesfrompolyids", "polynormalsfrompolyids", "polycenterfrompolyids",
+      "selfromptids", "polyidsfromptids", "edgesfromptids",
+      "vertexnormalsfromptids", "coloralhpafromptids", "weightsfromptids",
+      "getpolygonselectiondata", "getvertexselectiondata", "extractgeobytype"
+    ],
+    "geometry_pointpoly": [
+      "vertex", "pointnode", "pointinfo", "distnode", "infonode",
+      "inner", "geometry", "color"
+    ],
+    "geometry_primitive": [
+      "primitive", "sphere", "nside", "base"
+    ],
+    "object_access_and_instancing": [
+      "objectimport", "legacyobjectaccess", "baselistparameter", "children",
+      "cloner", "ray", "closestpointonsurface",
+      "sqrtrans", "vectrans", "sqrpart", "mat", "combine", "matrix", "rot",
+      "net.maxon.neutron.corenode.multransform_0",
+      "net.maxon.neutron.corenode.multransform_5"
+    ],
+    "io_special": [
+      "prep", "next", "current", "_0", "_1"
+    ]
+  },
+
+  "patterns": {
+    "loop_over_indices": {
+      "description": "Generic indexed iteration. Run a body N times, optionally carry state. The minimum viable Scene Nodes loop.",
+      "min_nodes": 6,
+      "skeleton_nodes": [
+        {"$type": "Loop Carried Value", "$name": "loop"},
+        {"$type": "Range", "$name": "range"},
+        {"$type": "Get Count", "$name": "count"}
+      ],
+      "skeleton_text": "loopcarriedvalue + start + end + range (driven by getcount) + readvalueatindex (per-iter read) + writevalueatindex (per-iter write)",
+      "carried_state_recipe": "One Loop Carried Value per state variable. Initial value via 'init' port; update via 'next' port; read prior via 'current' port.",
+      "observed_in": ["explode_spline_segments (10× range)", "ivy_generator (8× range)", "geo_feedback_loop (4× range)"]
+    },
+
+    "loop_over_polygons": {
+      "description": "Iterate every polygon of an input mesh, run a body, accumulate output. Concrete loop over a known dimension.",
+      "extends": "loop_over_indices",
+      "skeleton_text": "getpolygonselectiondata → getcount → range → readvalueatindex (poly index) → polygonarrayget (per-poly attrs) → [body] → writevalueatindex / append (output)",
+      "observed_in": ["partition_modifier (102 nodes)", "explode_spline_segments (444 nodes)"]
+    },
+
+    "loop_over_points": {
+      "description": "Iterate every point of an input mesh.",
+      "extends": "loop_over_indices",
+      "skeleton_text": "getvertexselectiondata → getcount → range → readvalueatindex → ptposfrompolyids / *fromptids → [body]"
+    },
+
+    "loop_over_spline_segments": {
+      "description": "Iterate spline line segments. Common for spline modifiers.",
+      "extends": "loop_over_indices",
+      "skeleton_text": "spline → getcount → range → lineget → [body] → lineset / assembler",
+      "observed_in": ["squiggle_spline (37 nodes)", "balloon_inflate.angle (50 nodes)", "balloon_inflate.length (50 nodes)"]
+    },
+
+    "reaction_diffusion_on_geometry": {
+      "description": "Two-buffer chemical-concentration update per frame. Memory nodes hold U and V across frames. The classic Gray-Scott pattern.",
+      "min_nodes": 30,
+      "required_nodes": ["memory", "memory", "arithmetic", "blend", "set_property", "get_property"],
+      "skeleton_text": "2× memory (U, V buffers) → get_property (read prior) → arithmetic (diffusion + reaction terms) → blend (smoothing) → set_property (write back) → memory.next (carry to next frame)",
+      "params_needed": ["feed_rate", "kill_rate", "diffusion_u", "diffusion_v", "iterations_per_frame"],
+      "observed_in": ["squiggle_spline"]
+    },
+
+    "surface_clinging_growth": {
+      "description": "Branches that grow while staying close to a host mesh surface. Each step: snap to surface, raycast, choose direction, advance.",
+      "min_nodes": 100,
+      "required_nodes": ["closestpointonsurface", "ray", "loopcarriedvalue", "matrixfromaxis", "transformmatrix", "hash"],
+      "skeleton_text": "loopcarriedvalue × N (carry pos+dir+age+depth) → closestpointonsurface (snap to host) → ray (collision check) → hash + arithmetic (random direction) → compare/if (continue/fork/terminate) → matrixfromaxis + composematrix (local frame) → append → next iteration",
+      "observed_in": ["ivy_generator (668 nodes, 7 carried states)"]
+    },
+
+    "stochastic_branching_decision": {
+      "description": "Hash-driven random decisions per loop step. Used for fractal/L-system patterns.",
+      "required_nodes": ["hash", "compare", "if", "switch"],
+      "skeleton_text": "hash (deterministic random) → compare (vs threshold) → if/switch (branch) → [different sub-paths]",
+      "observed_in": ["ivy_generator (29× hash)", "fractal_trees (multiple)", "geo_feedback_loop"]
+    },
+
+    "fractal_recursion_via_stacking": {
+      "description": "Achieve recursion by stacking N instances of the same deformer on the same input. Each instance applies one level.",
+      "skeleton_text": "single capsule template, dragged N times into the same parent → stacked deformers compose like function composition",
+      "observed_in": ["fractal_trees (Branch Spline Modifier × 7 to × 11)"],
+      "note": "Scene Nodes does NOT support true recursion within a single graph. Stacking is the workaround."
+    },
+
+    "partition_split": {
+      "description": "Stochastically split each polygon into two via a random line cut. Used for procedural city / surface fracturing.",
+      "min_nodes": 100,
+      "required_nodes": ["distancetoline", "clamp", "polygonarrayset", "subdivide", "delete", "deletemeshcomponent", "buildselection", "loopcarriedvalue", "hash"],
+      "skeleton_text": "for each poly: hash → randomized cut line → distancetoline classify points → clamp → subdivide where line crosses → assemble two new polys",
+      "observed_in": ["city_generator.partition_modifier (102 nodes)"]
+    },
+
+    "spline_break_by_threshold": {
+      "description": "Insert control points on a spline wherever a per-point metric (angle change, segment length) exceeds threshold, then split.",
+      "required_nodes": ["addcontrolpointalongspline", "splitspline", "sort", "sortcontainer", "compare"],
+      "skeleton_text": "loop over spline points → measure angle/length → compare vs threshold → addcontrolpointalongspline (add a point) → splitspline (cut)",
+      "observed_in": ["balloon_inflate.angle", "balloon_inflate.length"]
+    },
+
+    "spline_resample_with_displacement": {
+      "description": "Resample a spline at constant arc-length, then displace each sample by time-varying noise.",
+      "required_nodes": ["resample", "splinedistnode", "step", "noise", "time", "transformmatrix"],
+      "skeleton_text": "spline → splinedistnode (arc-length parameterize) → step (uniform sampling) → loop sample points → noise(pos, time) → transformmatrix → emit displaced point",
+      "observed_in": ["balloon_inflate.electric (51 nodes)"]
+    },
+
+    "object_instancing_with_variation": {
+      "description": "Generate N instances of a child object, each with parametric variation driven by a hash + index.",
+      "required_nodes": ["objectimport", "cloner", "multransform", "hash", "noise", "sqrtrans", "vectrans"],
+      "skeleton_text": "objectimport (read child object) → range → readvalueatindex → hash(index) → noise + arithmetic (per-instance values) → sqrtrans/vectrans/sqrpart/combine (transform) → cloner emits",
+      "observed_in": ["time_offset (106 nodes, doc-level graph)"]
+    },
+
+    "per_vertex_property_storage_and_recall": {
+      "description": "Tag each vertex with a named scalar/vector value, then read it back later in the graph or in a downstream capsule.",
+      "required_nodes": ["set_property", "get_property"],
+      "skeleton_text": "set_property name='density' value=<expr> → ... downstream ... → get_property name='density' → use as input to another op",
+      "observed_in": ["squiggle_spline", "ivy_generator"]
+    },
+
+    "mesh_element_query_by_selection": {
+      "description": "Take a user-typed selection name → resolve to actual selection → bulk-extract attributes (position, normal, color, weight) from the selected polys/points.",
+      "min_nodes": 30,
+      "required_nodes": ["selectionstringparser", "selectionstringtoselection", "getpolygonselectiondata", "ptposfrompolyids", "polynormalsfrompolyids", "assembler"],
+      "skeleton_text": "floatingio (sel name from UI) → selectionstringparser → getpolygonselectiondata → 'frompolyids' family bulk extracts → assembler",
+      "observed_in": ["edge_to_spline (69 nodes)"]
+    },
+
+    "selection_evolution_chain": {
+      "description": "Chain of selection ops (random → grow → invert → store named) used between modeling steps.",
+      "required_nodes": ["randomselection", "growselection", "invertselection", "setselection", "selectionoperator"],
+      "skeleton_text": "randomselection N% → growselection by k → invertselection → setselection name='out'",
+      "observed_in": ["city_generator (multiple chains)", "geo_feedback_loop"]
+    }
+  },
+
+  "port_type_taxonomy": {
+    "_description": "Common port data types and known conversion paths. When a port-type mismatch occurs, use the suggested converter node.",
+    "Float64": {
+      "description": "Double-precision float scalar",
+      "convert_from": {
+        "Int": "implicit (auto-promotion in arithmetic nodes)",
+        "Vector": "use 'vectortofloat' (extracts magnitude or component) OR access X/Y/Z component port directly",
+        "Bool": "implicit (true=1.0, false=0.0)"
+      }
+    },
+    "Vector": {
+      "description": "3D vector (Vec3<Float64>)",
+      "convert_from": {
+        "Float64": "use 'composevector3' (x, y, z all to same scalar) OR set ONE component leave others 0",
+        "Matrix": "use 'matrixtovectors' to decompose"
+      }
+    },
+    "Vector4d": {
+      "description": "4D vector (Vec4<Float64>) — color RGBA, homogeneous coords",
+      "convert_from": {"Vector": "extend with 1.0 alpha"}
+    },
+    "Matrix": {
+      "description": "4×4 transform matrix",
+      "convert_from": {
+        "Vector": "via 'composematrix' (rotation+translation) or 'matrixfromaxis' (axis-angle)",
+        "Vec[3]": "use 'vectorstomatrix'"
+      }
+    },
+    "Geometry": {
+      "description": "Polygon mesh data — points, polys, edges, attributes",
+      "convert_from": {"Spline": "via 'tessellation' (sample to polys)"}
+    },
+    "Spline": {
+      "description": "Curve data — control points, segments, knots, tangents",
+      "convert_from": {"Geometry": "use 'edge_to_spline' capsule pattern"}
+    },
+    "Selection": {
+      "description": "Set of element indices (point/poly/edge)",
+      "convert_from": {
+        "String": "use 'selectionstringtoselection' (parses 'sel.name' format)",
+        "Bool array": "use 'buildselection' (mask per element)"
+      }
+    },
+    "Container": {
+      "description": "Heterogeneous typed bundle — multiple named sub-values",
+      "convert_from": {
+        "Array": "use 'composecontainer'",
+        "anything": "wrap with 'composecontainer' specifying field names"
+      },
+      "convert_to": {
+        "Array": "use 'decomposecontainer' or 'getsinglearrayfromcontainer'"
+      }
+    },
+    "Array": {
+      "description": "Homogeneous typed sequence",
+      "convert_from": {
+        "Single value": "use 'buildfromsinglevalue' (creates len-1 array) or 'buildfromvalue'",
+        "Container": "use 'getsinglearrayfromcontainer'"
+      },
+      "common_ops": ["readvalueatindex", "writevalueatindex", "append", "concat", "length", "getcount"]
+    },
+    "Bool": {"description": "Boolean", "convert_from": {"Float64": "use 'compare' (e.g. > 0)", "Int": "implicit"}},
+    "Int": {"description": "Integer", "convert_from": {"Float64": "use 'round'/'modulo'/explicit cast"}},
+    "String": {"description": "Text", "convert_from": {"any": "no automatic conversion — see selectionstringparser for parsing"}}
+  },
+
+  "naming_conventions": {
+    "instance_hash_suffix": {
+      "format": "<basename>@<24-char-base64-ish-hash>",
+      "meaning": "When a node has parameter values set on it, it gets a unique instance ID. Same template + different params = same basename + different hash.",
+      "example": "extrude@PCQnks7bK9AkoujiXGpx77",
+      "extract_basename": "split('@')[0]"
+    },
+    "bare_name": {
+      "meaning": "A node WITHOUT @hash suffix is a sub-node living inside a compound operator (parambuilder, modelingoperator, etc.) or a scaffold/visual primitive. NOT addable directly via add_node — only appears nested inside another node.",
+      "examples": ["parambuilder", "modelingoperator", "generategeometry", "start", "end", "_0", "_1", "concat"]
+    },
+    "modeling_op_internals": {
+      "description": "Modeling operators (Inset, Extrude, etc.) ALWAYS contain these inner nodes after instantiation:",
+      "always_inside": ["selectionstringtoselection", "parambuilder", "modelingoperator", "defaultselections", "generategeometry"]
+    }
+  },
+
+  "capsule_build_template": {
+    "_description": "Universal skeleton present in EVERY functional capsule. The 6 framework nodes wrap any user logic.",
+    "outer_wrapper": [
+      "context_externaltimeinput",
+      "context_notime",
+      "parambuilder",
+      "modelingoperator",
+      "generategeometry",
+      "defaultselections"
+    ],
+    "user_logic_zone": "Sits between read of input geometry and emission via generategeometry. The user's algorithm goes here.",
+    "exposed_params": "Each user-facing parameter = one floatingio node attached to a port on the modelingoperator."
+  },
+
+  "$type_label_dictionary": {
+    "_description": "Verified mapping between dissection bare names, canonical asset IDs, and ApplyDescription $type labels. KEY RULE confirmed via user-supplied canonical IDs (2026-04-29): the bare-name extracted from a dissection (e.g. 'memory' from 'memory@HASH') is ALWAYS the last segment of the canonical asset ID (e.g. 'net.maxon.node.memory'). So `dissection_basename = canonical_id.rsplit('.', 1)[-1]`.",
+    "label_resolution_strategy": "1. Look up bare_name in _verified_working below. 2. If miss: take the canonical asset_id from node_template_index.json (matched by last segment) and use the heuristic-derived label_guess. 3. ApplyDescription may need the LABEL form, not the canonical id — when that fails, use scene_nodes_atlas_lookup to fuzzy-find candidates.",
+    "_verified_working": {
+      "Sphere": {"canonical_id": "net.maxon.neutron.node.primitive.sphere", "bare_name": "sphere", "verified_via": "ApplyDescription returned cube@HASH"},
+      "Cube": {"canonical_id": "net.maxon.neutron.node.primitive.cube", "bare_name": "cube", "verified_via": "ApplyDescription"},
+      "Tube": {"canonical_id": "net.maxon.neutron.node.primitive.tube", "bare_name": "tube", "verified_via": "ApplyDescription"},
+      "Loop Carried Value": {"canonical_id": "(unknown — check 802-template-index)", "bare_name": "loopcarriedvalue", "verified_via": "ApplyDescription"},
+      "Inset": {"canonical_id": "(unknown)", "bare_name": "inset", "verified_via": "ApplyDescription returned inset@HASH/parambuilder/modelingoperator"},
+      "Extrude": {"canonical_id": "(unknown)", "bare_name": "extrude", "verified_via": "ApplyDescription"}
+    },
+    "_user_supplied_canonical_ids": {
+      "_note": "User-confirmed canonical asset IDs from C4D's asset browser (2026-04-29). These match dissection bare names by rsplit('.', 1)[-1].",
+      "Memory": {"canonical_id": "net.maxon.node.memory", "bare_name": "memory"},
+      "Build Array": {"canonical_id": "net.maxon.node.array.buildfromvalue", "bare_name": "buildfromvalue", "note": "the artist-facing label is 'Build Array' even though the canonical last-segment is 'buildfromvalue'"}
+    }
+  },
+
+  "thin_capsules_observed": {
+    "_description": "Capsules that contain 0-3 user-visible nodes — they're just UI wrappers around hidden built-in operations.",
+    "Invert Selection": {"inner_unique_nodes": 0, "function": "wrapped invertselection built-in"},
+    "Shrink Selection": {"inner_unique_nodes": 0, "function": "wrapped shrinkselection built-in"},
+    "Delete": {"inner_unique_nodes": 2, "function": "wraps selectionstringtoselection + deletemeshcomponent"},
+    "Inset": {"inner_unique_nodes": 1, "function": "wraps the modeling op + inset operator"},
+    "Extrude": {"inner_unique_nodes": 1, "function": "wraps the modeling op + extrude operator"}
+  },
+
+  "antipatterns_and_traps": [
+    {
+      "name": "passing_canonical_asset_id_to_$type",
+      "wrong": "ApplyDescription(g, {'$type': 'net.maxon.neutron.node.primitive.sphere'})",
+      "right": "ApplyDescription(g, {'$type': 'Sphere'})",
+      "reason": "$type expects the case-sensitive English UI label, not the asset registry ID."
+    },
+    {
+      "name": "assuming_dissection_ids_are_addable",
+      "wrong": "Take 'extrude@HASH' from dissect_capsule output → use as $type",
+      "right": "Strip hash → 'extrude' is the base name → use the LABEL form 'Extrude' instead",
+      "reason": "Dissection returns local graph instance names. Only the canonicalized English label works in $type."
+    },
+    {
+      "name": "trying_to_add_inner_subnodes_directly",
+      "wrong": "ApplyDescription(g, {'$type': 'parambuilder'})",
+      "right": "Add the OUTER operator (e.g. 'Inset') and the inner nodes appear automatically.",
+      "reason": "parambuilder/modelingoperator/etc. are sub-nodes of compound operators, not addable templates."
+    },
+    {
+      "name": "running_GraphDescription_from_worker_thread",
+      "wrong": "Calling GraphDescription.GetGraph(host) from a non-main thread",
+      "right": "Wrap in self.execute_on_main_thread(_fn)",
+      "reason": "GraphDescription requires main thread; worker calls error with 'must be run from the main thread'"
+    },
+    {
+      "name": "expecting_recursion_in_a_single_graph",
+      "wrong": "Trying to make a graph reference itself",
+      "right": "Stack N copies of a deformer (Fractal Trees pattern), or use loopcarriedvalue with iteration_count to simulate depth-bounded recursion",
+      "reason": "Scene Nodes is not a recursive language."
+    }
+  ]
+}

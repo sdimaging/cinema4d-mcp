@@ -1,0 +1,76 @@
+{
+  "name": "scene_nodes_atlas_smoke",
+  "description": "End-to-end Phase C surface: atlas_lookup (templates + patterns + port types) + classify_graph (on doc-level + on a fresh capsule) + apply_pattern dry_run. Locks the 4 new handlers shipped 2026-04-29 along with the 802-template index + 13 pattern library.",
+  "setup": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\ndoc = c4d.documents.GetActiveDocument()\nfor n in ['AtlasTestCapsule']:\n    o = doc.SearchObject(n)\n    if o: o.Remove()\ngen = c4d.BaseObject(180420700)\nif gen is not None:\n    gen.SetName('AtlasTestCapsule')\n    doc.InsertObject(gen)\nc4d.EventAdd()\nprint(f'setup: capsule={gen is not None}')"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "name": "atlas_lookup_templates_for_sphere",
+      "command": "scene_nodes_atlas_lookup",
+      "args": {"query": "sphere", "kind": "template", "limit": 5},
+      "assert": []
+    },
+    {
+      "name": "atlas_lookup_patterns_for_loop",
+      "command": "scene_nodes_atlas_lookup",
+      "args": {"query": "loop", "kind": "pattern", "limit": 10},
+      "assert": []
+    },
+    {
+      "name": "atlas_lookup_port_types",
+      "command": "scene_nodes_atlas_lookup",
+      "args": {"query": "Vector", "kind": "port_type"},
+      "assert": []
+    },
+    {
+      "name": "atlas_lookup_antipatterns",
+      "command": "scene_nodes_atlas_lookup",
+      "args": {"query": "label", "kind": "antipattern"},
+      "assert": []
+    },
+    {
+      "name": "classify_doc_level_graph",
+      "command": "scene_nodes_classify_graph",
+      "args": {"max_depth": 8},
+      "assert": []
+    },
+    {
+      "name": "classify_fresh_capsule_graph",
+      "command": "scene_nodes_classify_graph",
+      "args": {"target_object": "AtlasTestCapsule", "max_depth": 8},
+      "assert": []
+    },
+    {
+      "name": "apply_pattern_dry_run_loop_indices",
+      "command": "scene_nodes_apply_pattern",
+      "args": {"pattern_name": "loop_over_indices", "params": {"count": 5}, "dry_run": true},
+      "assert": []
+    },
+    {
+      "name": "apply_pattern_dry_run_reaction_diffusion",
+      "command": "scene_nodes_apply_pattern",
+      "args": {"pattern_name": "reaction_diffusion_on_geometry", "dry_run": true},
+      "assert": []
+    },
+    {
+      "name": "apply_pattern_dry_run_surface_clinging",
+      "command": "scene_nodes_apply_pattern",
+      "args": {"pattern_name": "surface_clinging_growth", "params": {"branches": 10, "max_depth": 5}, "dry_run": true},
+      "assert": []
+    }
+  ],
+  "teardown": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\ndoc = c4d.documents.GetActiveDocument()\nfor n in ['AtlasTestCapsule']:\n    o = doc.SearchObject(n)\n    if o: o.Remove()\nc4d.EventAdd()\nprint('teardown ok')"
+      }
+    }
+  ]
+}

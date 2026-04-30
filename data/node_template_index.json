@@ -1,0 +1,4034 @@
+{
+  "_categories": {
+    "asset": 8,
+    "nbo": 28,
+    "neutron/asset": 92,
+    "neutron/distribution": 23,
+    "neutron/geometry": 51,
+    "neutron/group": 9,
+    "neutron/modeling": 50,
+    "neutron/op": 25,
+    "neutron/other": 18,
+    "neutron/primitive": 28,
+    "node/utility": 160,
+    "other": 93,
+    "redshift/core": 158,
+    "redshift/other": 3,
+    "user/rocketlasso": 26,
+    "user/uuid": 30
+  },
+  "_count": 802,
+  "_verified_count": 7,
+  "templates": {
+    "carpaintmaterial@c7ec42b9-38ac-4246-8b8d-d80dff837b84": {
+      "category": "user/uuid",
+      "label_guess": "Carpaintmaterial",
+      "verified": false
+    },
+    "ceramicmaterial@bc14018c-18ee-474d-a872-91f413d89d25": {
+      "category": "user/uuid",
+      "label_guess": "Ceramicmaterial",
+      "verified": false
+    },
+    "colorgrading@f47ad2cd-84e4-4ecb-bb4e-e65987152797": {
+      "category": "user/uuid",
+      "label_guess": "Colorgrading",
+      "verified": false
+    },
+    "colorize@cdb08667-fb68-4f29-8476-d4e72635c5d0": {
+      "category": "user/uuid",
+      "label_guess": "Colorize",
+      "verified": false
+    },
+    "com.github.plugincafe.maxon-assets-nodal-utility.primitives.geo.backdrop": {
+      "category": "other",
+      "label_guess": "Backdrop",
+      "verified": false
+    },
+    "com.github.plugincafe.maxon_assets_nodal_utility.primitive.curve.squarestar": {
+      "category": "other",
+      "label_guess": "Squarestar",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.node.osl": {
+      "category": "redshift/other",
+      "label_guess": "Osl",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.node.output": {
+      "category": "redshift/other",
+      "label_guess": "Output",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.node.reference": {
+      "category": "redshift/other",
+      "label_guess": "Reference",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.ambientocclusion": {
+      "category": "redshift/core",
+      "label_guess": "Ambientocclusion",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.architectural": {
+      "category": "redshift/core",
+      "label_guess": "Architectural",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.brick": {
+      "category": "redshift/core",
+      "label_guess": "Brick",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.bumpblender": {
+      "category": "redshift/core",
+      "label_guess": "Bumpblender",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.bumpmap": {
+      "category": "redshift/core",
+      "label_guess": "Bumpmap",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.c4dhairattribute": {
+      "category": "redshift/core",
+      "label_guess": "C 4 Dhairattribute",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.cameramap": {
+      "category": "redshift/core",
+      "label_guess": "Cameramap",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.carpaint": {
+      "category": "redshift/core",
+      "label_guess": "Carpaint",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.contour": {
+      "category": "redshift/core",
+      "label_guess": "Contour",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.curvature": {
+      "category": "redshift/core",
+      "label_guess": "Curvature",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.displacement": {
+      "category": "redshift/core",
+      "label_guess": "Displacement",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.displacementblender": {
+      "category": "redshift/core",
+      "label_guess": "Displacementblender",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.distance": {
+      "category": "redshift/core",
+      "label_guess": "Distance",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.distorter": {
+      "category": "redshift/core",
+      "label_guess": "Distorter",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.environment": {
+      "category": "redshift/core",
+      "label_guess": "Environment",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.envswitch": {
+      "category": "redshift/core",
+      "label_guess": "Envswitch",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.flakes": {
+      "category": "redshift/core",
+      "label_guess": "Flakes",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.fresnel": {
+      "category": "redshift/core",
+      "label_guess": "Fresnel",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.golaemhsl": {
+      "category": "redshift/core",
+      "label_guess": "Golaemhsl",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.hair": {
+      "category": "redshift/core",
+      "label_guess": "Hair",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.hair2": {
+      "category": "redshift/core",
+      "label_guess": "Hair 2",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.hairrandomcolor": {
+      "category": "redshift/core",
+      "label_guess": "Hairrandomcolor",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.incandescent": {
+      "category": "redshift/core",
+      "label_guess": "Incandescent",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.iortometaltints": {
+      "category": "redshift/core",
+      "label_guess": "Iortometaltints",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.jitter": {
+      "category": "redshift/core",
+      "label_guess": "Jitter",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.light": {
+      "category": "redshift/core",
+      "label_guess": "Light",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.light_dome": {
+      "category": "redshift/core",
+      "label_guess": "Light Dome",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.light_ies": {
+      "category": "redshift/core",
+      "label_guess": "Light Ies",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.light_portal": {
+      "category": "redshift/core",
+      "label_guess": "Light Portal",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.matcap": {
+      "category": "redshift/core",
+      "label_guess": "Matcap",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.material": {
+      "category": "redshift/core",
+      "label_guess": "Material",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.materialblender": {
+      "category": "redshift/core",
+      "label_guess": "Materialblender",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.materiallayer": {
+      "category": "redshift/core",
+      "label_guess": "Materiallayer",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.matteshadow": {
+      "category": "redshift/core",
+      "label_guess": "Matteshadow",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.maxonnoise": {
+      "category": "redshift/core",
+      "label_guess": "Maxonnoise",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.normalmap": {
+      "category": "redshift/core",
+      "label_guess": "Normalmap",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.openpbrmaterial": {
+      "category": "redshift/core",
+      "label_guess": "Openpbrmaterial",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.particleattributelookup": {
+      "category": "redshift/core",
+      "label_guess": "Particleattributelookup",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.pavement": {
+      "category": "redshift/core",
+      "label_guess": "Pavement",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.physicalnightsky": {
+      "category": "redshift/core",
+      "label_guess": "Physicalnightsky",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.physicalsky": {
+      "category": "redshift/core",
+      "label_guess": "Physicalsky",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.physicalsun": {
+      "category": "redshift/core",
+      "label_guess": "Physicalsun",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.randomizedcolorswitch": {
+      "category": "redshift/core",
+      "label_guess": "Randomizedcolorswitch",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.randomizedmaterialswitch": {
+      "category": "redshift/core",
+      "label_guess": "Randomizedmaterialswitch",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rayswitch": {
+      "category": "redshift/core",
+      "label_guess": "Rayswitch",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.roundcorners": {
+      "category": "redshift/core",
+      "label_guess": "Roundcorners",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rscolor2hsv": {
+      "category": "redshift/core",
+      "label_guess": "Rscolor 2 Hsv",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rscolorcomposite": {
+      "category": "redshift/core",
+      "label_guess": "Rscolorcomposite",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rscolorconstant": {
+      "category": "redshift/core",
+      "label_guess": "Rscolorconstant",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rscolorcorrection": {
+      "category": "redshift/core",
+      "label_guess": "Rscolorcorrection",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rscolorlayer": {
+      "category": "redshift/core",
+      "label_guess": "Rscolorlayer",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rscolormaker": {
+      "category": "redshift/core",
+      "label_guess": "Rscolormaker",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rscolormix": {
+      "category": "redshift/core",
+      "label_guess": "Rscolormix",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rscolorrange": {
+      "category": "redshift/core",
+      "label_guess": "Rscolorrange",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rscolorsplitter": {
+      "category": "redshift/core",
+      "label_guess": "Rscolorsplitter",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rshairposition": {
+      "category": "redshift/core",
+      "label_guess": "Rshairposition",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rshsv2color": {
+      "category": "redshift/core",
+      "label_guess": "Rshsv 2 Color",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathabs": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathabs",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathabscolor": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathabscolor",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathabsvector": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathabsvector",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathacos": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathacos",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathadd": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathadd",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathaddvector": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathaddvector",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathasin": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathasin",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathatan": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathatan",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathatan2": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathatan 2",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathbias": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathbias",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathbiascolor": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathbiascolor",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathbiasvector": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathbiasvector",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathcos": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathcos",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathcrossvector": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathcrossvector",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathdiv": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathdiv",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathdivvector": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathdivvector",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathdotvector": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathdotvector",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathexp": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathexp",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathexpcolor": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathexpcolor",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathexpvector": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathexpvector",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathfloor": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathfloor",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathfloorvector": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathfloorvector",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathfrac": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathfrac",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathfracvector": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathfracvector",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathgain": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathgain",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathgaincolor": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathgaincolor",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathgainvector": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathgainvector",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathinv": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathinv",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathinvcolor": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathinvcolor",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathinvvector": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathinvvector",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathlengthvector": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathlengthvector",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathln": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathln",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathlnvector": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathlnvector",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathlog": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathlog",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathlogvector": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathlogvector",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathmax": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathmax",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathmaxvector": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathmaxvector",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathmin": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathmin",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathminvector": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathminvector",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathmix": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathmix",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathmixvector": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathmixvector",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathmod": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathmod",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathmodvector": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathmodvector",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathmul": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathmul",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathmulvector": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathmulvector",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathneg": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathneg",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathnegvector": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathnegvector",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathnormalizevector": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathnormalizevector",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathpow": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathpow",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathpowvector": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathpowvector",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathrange": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathrange",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathrangevector": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathrangevector",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathrcp": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathrcp",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathrcpvector": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathrcpvector",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathsaturate": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathsaturate",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathsaturatecolor": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathsaturatecolor",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathsaturatevector": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathsaturatevector",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathsign": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathsign",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathsignvector": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathsignvector",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathsin": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathsin",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathsqrt": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathsqrt",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathsqrtvector": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathsqrtvector",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathsub": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathsub",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathsubcolor": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathsubcolor",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathsubvector": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathsubvector",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsmathtan": {
+      "category": "redshift/core",
+      "label_guess": "Rsmathtan",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsnoise": {
+      "category": "redshift/core",
+      "label_guess": "Rsnoise",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsramp": {
+      "category": "redshift/core",
+      "label_guess": "Rsramp",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsscalarconstant": {
+      "category": "redshift/core",
+      "label_guess": "Rsscalarconstant",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsscalarramp": {
+      "category": "redshift/core",
+      "label_guess": "Rsscalarramp",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsshaderswitch": {
+      "category": "redshift/core",
+      "label_guess": "Rsshaderswitch",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsuserdatacolor": {
+      "category": "redshift/core",
+      "label_guess": "Rsuserdatacolor",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsuserdatainteger": {
+      "category": "redshift/core",
+      "label_guess": "Rsuserdatainteger",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsuserdatascalar": {
+      "category": "redshift/core",
+      "label_guess": "Rsuserdatascalar",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsuserdatastring": {
+      "category": "redshift/core",
+      "label_guess": "Rsuserdatastring",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsuserdatavector": {
+      "category": "redshift/core",
+      "label_guess": "Rsuserdatavector",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsvectormaker": {
+      "category": "redshift/core",
+      "label_guess": "Rsvectormaker",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.rsvectortoscalars": {
+      "category": "redshift/core",
+      "label_guess": "Rsvectortoscalars",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.skin": {
+      "category": "redshift/core",
+      "label_guess": "Skin",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.sprite": {
+      "category": "redshift/core",
+      "label_guess": "Sprite",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.standardmaterial": {
+      "category": "redshift/core",
+      "label_guess": "Standardmaterial",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.standardvolume": {
+      "category": "redshift/core",
+      "label_guess": "Standardvolume",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.state": {
+      "category": "redshift/core",
+      "label_guess": "State",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.storecolortoaov": {
+      "category": "redshift/core",
+      "label_guess": "Storecolortoaov",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.storeintegertoaov": {
+      "category": "redshift/core",
+      "label_guess": "Storeintegertoaov",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.storescalartoaov": {
+      "category": "redshift/core",
+      "label_guess": "Storescalartoaov",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.subsurfacescatter": {
+      "category": "redshift/core",
+      "label_guess": "Subsurfacescatter",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.surfacetangent": {
+      "category": "redshift/core",
+      "label_guess": "Surfacetangent",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.texturesampler": {
+      "category": "redshift/core",
+      "label_guess": "Texturesampler",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.tiles": {
+      "category": "redshift/core",
+      "label_guess": "Tiles",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.tonemappattern": {
+      "category": "redshift/core",
+      "label_guess": "Tonemappattern",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.toonmaterial": {
+      "category": "redshift/core",
+      "label_guess": "Toonmaterial",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.triplanar": {
+      "category": "redshift/core",
+      "label_guess": "Triplanar",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.unitconversion": {
+      "category": "redshift/core",
+      "label_guess": "Unitconversion",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.uvcontextprojection": {
+      "category": "redshift/core",
+      "label_guess": "Uvcontextprojection",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.uvprojection": {
+      "category": "redshift/core",
+      "label_guess": "Uvprojection",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.vertexattributelookup": {
+      "category": "redshift/core",
+      "label_guess": "Vertexattributelookup",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.volume": {
+      "category": "redshift/core",
+      "label_guess": "Volume",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.volumecolorattribute": {
+      "category": "redshift/core",
+      "label_guess": "Volumecolorattribute",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.volumescalarattribute": {
+      "category": "redshift/core",
+      "label_guess": "Volumescalarattribute",
+      "verified": false
+    },
+    "com.redshift3d.redshift4c4d.nodes.core.wireframe": {
+      "category": "redshift/core",
+      "label_guess": "Wireframe",
+      "verified": false
+    },
+    "com.rocketlasso.neutron.asset.break.modifier": {
+      "category": "user/rocketlasso",
+      "label_guess": "Modifier",
+      "verified": false
+    },
+    "com.rocketlasso.neutron.asset.distribution.bead": {
+      "category": "user/rocketlasso",
+      "label_guess": "Bead",
+      "verified": false
+    },
+    "com.rocketlasso.neutron.asset.distribution.cannonball": {
+      "category": "user/rocketlasso",
+      "label_guess": "Cannonball",
+      "verified": false
+    },
+    "com.rocketlasso.neutron.asset.distribution.partition": {
+      "category": "user/rocketlasso",
+      "label_guess": "Partition",
+      "verified": false
+    },
+    "com.rocketlasso.neutron.asset.distribution.projected.2d.grid": {
+      "category": "user/rocketlasso",
+      "label_guess": "Grid",
+      "verified": false
+    },
+    "com.rocketlasso.neutron.asset.distribution.smart.hex": {
+      "category": "user/rocketlasso",
+      "label_guess": "Hex",
+      "verified": false
+    },
+    "com.rocketlasso.neutron.asset.distribution.stack": {
+      "category": "user/rocketlasso",
+      "label_guess": "Stack",
+      "verified": false
+    },
+    "com.rocketlasso.neutron.asset.fui.wavy": {
+      "category": "user/rocketlasso",
+      "label_guess": "Wavy",
+      "verified": false
+    },
+    "com.rocketlasso.neutron.asset.generator.constellation": {
+      "category": "user/rocketlasso",
+      "label_guess": "Constellation",
+      "verified": false
+    },
+    "com.rocketlasso.neutron.asset.generator.interconnect": {
+      "category": "user/rocketlasso",
+      "label_guess": "Interconnect",
+      "verified": false
+    },
+    "com.rocketlasso.neutron.asset.generator.ivy": {
+      "category": "user/rocketlasso",
+      "label_guess": "Ivy",
+      "verified": false
+    },
+    "com.rocketlasso.neutron.asset.generator.join.spline": {
+      "category": "user/rocketlasso",
+      "label_guess": "Spline",
+      "verified": false
+    },
+    "com.rocketlasso.neutron.asset.generator.weave.spline": {
+      "category": "user/rocketlasso",
+      "label_guess": "Spline",
+      "verified": false
+    },
+    "com.rocketlasso.neutron.asset.mesh.pictureframe@15362c73d8de4bb799e9d3ea19436229": {
+      "category": "user/rocketlasso",
+      "label_guess": "Pictureframe",
+      "verified": false
+    },
+    "com.rocketlasso.neutron.asset.modifier.branch": {
+      "category": "user/rocketlasso",
+      "label_guess": "Branch",
+      "verified": false
+    },
+    "com.rocketlasso.neutron.asset.modifier.catenary": {
+      "category": "user/rocketlasso",
+      "label_guess": "Catenary",
+      "verified": false
+    },
+    "com.rocketlasso.neutron.asset.modifier.dash": {
+      "category": "user/rocketlasso",
+      "label_guess": "Dash",
+      "verified": false
+    },
+    "com.rocketlasso.neutron.asset.modifier.electric": {
+      "category": "user/rocketlasso",
+      "label_guess": "Electric",
+      "verified": false
+    },
+    "com.rocketlasso.neutron.asset.modifier.partition": {
+      "category": "user/rocketlasso",
+      "label_guess": "Partition",
+      "verified": false
+    },
+    "com.rocketlasso.neutron.asset.modifier.swirl": {
+      "category": "user/rocketlasso",
+      "label_guess": "Swirl",
+      "verified": false
+    },
+    "com.rocketlasso.neutron.asset.modifier.trim": {
+      "category": "user/rocketlasso",
+      "label_guess": "Trim",
+      "verified": false
+    },
+    "com.rocketlasso.neutron.asset.primitive.spline.fui.graph": {
+      "category": "user/rocketlasso",
+      "label_guess": "Graph",
+      "verified": false
+    },
+    "com.rocketlasso.neutron.asset.primitive.spline.fui.ring": {
+      "category": "user/rocketlasso",
+      "label_guess": "Ring",
+      "verified": false
+    },
+    "com.rocketlasso.neutron.asset.primitive.spline.grid": {
+      "category": "user/rocketlasso",
+      "label_guess": "Grid",
+      "verified": false
+    },
+    "com.rocketlasso.neutron.asset.pulse.modifier": {
+      "category": "user/rocketlasso",
+      "label_guess": "Modifier",
+      "verified": false
+    },
+    "com.rocketlasso.neutron.asset.stairs": {
+      "category": "user/rocketlasso",
+      "label_guess": "Stairs",
+      "verified": false
+    },
+    "complexnoise@25640258-ac60-4d89-bf6a-4e117bcc4759": {
+      "category": "user/uuid",
+      "label_guess": "Complexnoise",
+      "verified": false
+    },
+    "concretematerial@a8b81bdc-6989-4051-9652-14af48bc23d1": {
+      "category": "user/uuid",
+      "label_guess": "Concretematerial",
+      "verified": false
+    },
+    "cutoutmaterial@13d7fe92-856e-4282-9ae4-ef5e7c23e0a4": {
+      "category": "user/uuid",
+      "label_guess": "Cutoutmaterial",
+      "verified": false
+    },
+    "edgesmask@3f622013-3a52-4f92-8b32-107ccbfbc60a": {
+      "category": "user/uuid",
+      "label_guess": "Edgesmask",
+      "verified": false
+    },
+    "emissionmaterial@219f490d-9e5f-4a3d-b3cd-ccca5fdfd086": {
+      "category": "user/uuid",
+      "label_guess": "Emissionmaterial",
+      "verified": false
+    },
+    "extdgradient@6055f6f0-e902-4db8-8b2b-df24c926db53": {
+      "category": "user/uuid",
+      "label_guess": "Extdgradient",
+      "verified": false
+    },
+    "falloff@ae7af06f-520c-4315-9f65-ae00da8f28a5": {
+      "category": "user/uuid",
+      "label_guess": "Falloff",
+      "verified": false
+    },
+    "goldmaterial@2efa3a34-f5c3-4b7c-938a-1e051180ee8c": {
+      "category": "user/uuid",
+      "label_guess": "Goldmaterial",
+      "verified": false
+    },
+    "granitematerial@d136c819115e41af94ae7282c6187b7c": {
+      "category": "user/uuid",
+      "label_guess": "Granitematerial",
+      "verified": false
+    },
+    "imageprocessing@a4385638-1f45-41f3-8915-695cb3211f5b": {
+      "category": "user/uuid",
+      "label_guess": "Imageprocessing",
+      "verified": false
+    },
+    "landscapemask@d6bddd94-a639-4d04-b67a-261e80f60e37": {
+      "category": "user/uuid",
+      "label_guess": "Landscapemask",
+      "verified": false
+    },
+    "mainnoise@6e58b427-db09-4771-87e4-7b069fb9cd1f": {
+      "category": "user/uuid",
+      "label_guess": "Mainnoise",
+      "verified": false
+    },
+    "marblematerial@b93ae579-c931-42f2-a725-2826fe326744": {
+      "category": "user/uuid",
+      "label_guess": "Marblematerial",
+      "verified": false
+    },
+    "metalfinishsurface@ed9a4b0f-7e1a-42ba-8a87-3bfe101552a3": {
+      "category": "user/uuid",
+      "label_guess": "Metalfinishsurface",
+      "verified": false
+    },
+    "metalmaterial@57200925-b7e7-437e-8092-2df207a91599": {
+      "category": "user/uuid",
+      "label_guess": "Metalmaterial",
+      "verified": false
+    },
+    "multishader@a5b3ccd0f11041d9a2a73bd8798fab6c": {
+      "category": "user/uuid",
+      "label_guess": "Multishader",
+      "verified": false
+    },
+    "net.maxon.aec.vectorworks.material.metal_brush_scratches": {
+      "category": "other",
+      "label_guess": "Metal Brush Scratches",
+      "verified": false
+    },
+    "net.maxon.asset.math.fitrange": {
+      "category": "asset",
+      "label_guess": "Fitrange",
+      "verified": false
+    },
+    "net.maxon.asset.math.frombarycentric": {
+      "category": "asset",
+      "label_guess": "Frombarycentric",
+      "verified": false
+    },
+    "net.maxon.asset.math.inrange": {
+      "category": "asset",
+      "label_guess": "Inrange",
+      "verified": false
+    },
+    "net.maxon.asset.math.pivottransform": {
+      "category": "asset",
+      "label_guess": "Pivottransform",
+      "verified": false
+    },
+    "net.maxon.asset.math.smoothminimum": {
+      "category": "asset",
+      "label_guess": "Smoothminimum",
+      "verified": false
+    },
+    "net.maxon.asset.math.tobarycentric": {
+      "category": "asset",
+      "label_guess": "Tobarycentric",
+      "verified": false
+    },
+    "net.maxon.asset.utility.color": {
+      "category": "asset",
+      "label_guess": "Color",
+      "verified": false
+    },
+    "net.maxon.asset.utility.slider": {
+      "category": "asset",
+      "label_guess": "Slider",
+      "verified": false
+    },
+    "net.maxon.io_substance.node.substance": {
+      "category": "other",
+      "label_guess": "Substance",
+      "verified": false
+    },
+    "net.maxon.nbo.classicobject": {
+      "category": "nbo",
+      "label_guess": "Classicobject",
+      "verified": false
+    },
+    "net.maxon.nbo.node.collision.closestpointonsurface": {
+      "category": "nbo",
+      "label_guess": "Closestpointonsurface",
+      "verified": false
+    },
+    "net.maxon.nbo.node.collision.geometry": {
+      "category": "nbo",
+      "label_guess": "Geometry",
+      "verified": false
+    },
+    "net.maxon.nbo.node.collision.ray": {
+      "category": "nbo",
+      "label_guess": "Ray",
+      "verified": false
+    },
+    "net.maxon.nbo.node.consoleout": {
+      "category": "nbo",
+      "label_guess": "Consoleout",
+      "verified": false
+    },
+    "net.maxon.nbo.node.distribution.particle.sp": {
+      "category": "nbo",
+      "label_guess": "Sp",
+      "verified": false
+    },
+    "net.maxon.nbo.node.distribution.particle.tp": {
+      "category": "nbo",
+      "label_guess": "Tp",
+      "verified": false
+    },
+    "net.maxon.nbo.node.distribution.volume.fillgeometry": {
+      "category": "nbo",
+      "label_guess": "Fillgeometry",
+      "verified": false
+    },
+    "net.maxon.nbo.node.distribution.volume.fillsurface": {
+      "category": "nbo",
+      "label_guess": "Fillsurface",
+      "verified": false
+    },
+    "net.maxon.nbo.node.externalreferencegeometry": {
+      "category": "nbo",
+      "label_guess": "Externalreferencegeometry",
+      "verified": false
+    },
+    "net.maxon.nbo.node.legacyedgeselectiontagimport": {
+      "category": "nbo",
+      "label_guess": "Legacyedgeselectiontagimport",
+      "verified": false
+    },
+    "net.maxon.nbo.node.legacynormaltagimport": {
+      "category": "nbo",
+      "label_guess": "Legacynormaltagimport",
+      "verified": false
+    },
+    "net.maxon.nbo.node.legacyobjectaccess": {
+      "category": "nbo",
+      "label_guess": "Legacyobjectaccess",
+      "verified": false
+    },
+    "net.maxon.nbo.node.legacyobjectimport": {
+      "category": "nbo",
+      "label_guess": "Legacyobjectimport",
+      "verified": false
+    },
+    "net.maxon.nbo.node.legacypointpolyselectiontagimport": {
+      "category": "nbo",
+      "label_guess": "Legacypointpolyselectiontagimport",
+      "verified": false
+    },
+    "net.maxon.nbo.node.legacyuvwtagimport": {
+      "category": "nbo",
+      "label_guess": "Legacyuvwtagimport",
+      "verified": false
+    },
+    "net.maxon.nbo.node.legacyvertexcolortagimport": {
+      "category": "nbo",
+      "label_guess": "Legacyvertexcolortagimport",
+      "verified": false
+    },
+    "net.maxon.nbo.node.legacyvertexmaptagimport": {
+      "category": "nbo",
+      "label_guess": "Legacyvertexmaptagimport",
+      "verified": false
+    },
+    "net.maxon.nbo.node.lightobjectsample": {
+      "category": "nbo",
+      "label_guess": "Lightobjectsample",
+      "verified": false
+    },
+    "net.maxon.nbo.node.materialparametrization": {
+      "category": "nbo",
+      "label_guess": "Materialparametrization",
+      "verified": false
+    },
+    "net.maxon.nbo.node.matrixfromaxis": {
+      "category": "nbo",
+      "label_guess": "Matrixfromaxis",
+      "verified": false
+    },
+    "net.maxon.nbo.node.op.legacyobjectaccess": {
+      "category": "nbo",
+      "label_guess": "Legacyobjectaccess",
+      "verified": false
+    },
+    "net.maxon.nbo.node.splinecontrolpoints": {
+      "category": "nbo",
+      "label_guess": "Splinecontrolpoints",
+      "verified": false
+    },
+    "net.maxon.nbo.node.splinepos": {
+      "category": "nbo",
+      "label_guess": "Splinepos",
+      "verified": false
+    },
+    "net.maxon.nbo.op.material": {
+      "category": "nbo",
+      "label_guess": "Material",
+      "verified": false
+    },
+    "net.maxon.nbo.scene": {
+      "category": "nbo",
+      "label_guess": "Scene",
+      "verified": false
+    },
+    "net.maxon.nbo.taggroup": {
+      "category": "nbo",
+      "label_guess": "Taggroup",
+      "verified": false
+    },
+    "net.maxon.nbo.tagscene": {
+      "category": "nbo",
+      "label_guess": "Tagscene",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.array.buildselection": {
+      "category": "neutron/asset",
+      "label_guess": "Buildselection",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.array.shiftarray": {
+      "category": "neutron/asset",
+      "label_guess": "Shiftarray",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.array.shufflearray": {
+      "category": "neutron/asset",
+      "label_guess": "Shufflearray",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.array.shuffleindexes": {
+      "category": "neutron/asset",
+      "label_guess": "Shuffleindexes",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.array.slice": {
+      "category": "neutron/asset",
+      "label_guess": "Slice",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.conversion.hextocolor": {
+      "category": "neutron/asset",
+      "label_guess": "Hextocolor",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.distribution.geo.scattertiles2d": {
+      "category": "neutron/asset",
+      "label_guess": "Scattertiles 2 D",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.distribution.geo.scattertiles2dmultiasset": {
+      "category": "neutron/asset",
+      "label_guess": "Scattertiles 2 Dmultiasset",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.distribution.template": {
+      "category": "neutron/asset",
+      "label_guess": "Template",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.distribution.trefoil": {
+      "category": "neutron/asset",
+      "label_guess": "Trefoil",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.distribution.trigonometry": {
+      "category": "neutron/asset",
+      "label_guess": "Trigonometry",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.effector.bend": {
+      "category": "neutron/asset",
+      "label_guess": "Bend",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.effector.bulge": {
+      "category": "neutron/asset",
+      "label_guess": "Bulge",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.effector.melt": {
+      "category": "neutron/asset",
+      "label_guess": "Melt",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.effector.plain": {
+      "category": "neutron/asset",
+      "label_guess": "Plain",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.effector.shear": {
+      "category": "neutron/asset",
+      "label_guess": "Shear",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.effector.spherify": {
+      "category": "neutron/asset",
+      "label_guess": "Spherify",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.effector.squashandstretch": {
+      "category": "neutron/asset",
+      "label_guess": "Squashandstretch",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.effector.twist": {
+      "category": "neutron/asset",
+      "label_guess": "Twist",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.effector.wind": {
+      "category": "neutron/asset",
+      "label_guess": "Wind",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.field.box": {
+      "category": "neutron/asset",
+      "label_guess": "Box",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.field.cone": {
+      "category": "neutron/asset",
+      "label_guess": "Cone",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.field.cylinder": {
+      "category": "neutron/asset",
+      "label_guess": "Cylinder",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.field.linear": {
+      "category": "neutron/asset",
+      "label_guess": "Linear",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.field.radial": {
+      "category": "neutron/asset",
+      "label_guess": "Radial",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.field.random": {
+      "category": "neutron/asset",
+      "label_guess": "Random",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.field.remapping": {
+      "category": "neutron/asset",
+      "label_guess": "Remapping",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.field.spherical": {
+      "category": "neutron/asset",
+      "label_guess": "Spherical",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.field.torus": {
+      "category": "neutron/asset",
+      "label_guess": "Torus",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.borderselection": {
+      "category": "neutron/asset",
+      "label_guess": "Borderselection",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.boundingboxselection": {
+      "category": "neutron/asset",
+      "label_guess": "Boundingboxselection",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.calculatecurvature": {
+      "category": "neutron/asset",
+      "label_guess": "Calculatecurvature",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.closestpoint": {
+      "category": "neutron/asset",
+      "label_guess": "Closestpoint",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.composetangent": {
+      "category": "neutron/asset",
+      "label_guess": "Composetangent",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.createnormalsifmissing": {
+      "category": "neutron/asset",
+      "label_guess": "Createnormalsifmissing",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.dualmesh": {
+      "category": "neutron/asset",
+      "label_guess": "Dualmesh",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.edgebreak": {
+      "category": "neutron/asset",
+      "label_guess": "Edgebreak",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.facingselection": {
+      "category": "neutron/asset",
+      "label_guess": "Facingselection",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.facingselection2": {
+      "category": "neutron/asset",
+      "label_guess": "Facingselection 2",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.generatepointnormals": {
+      "category": "neutron/asset",
+      "label_guess": "Generatepointnormals",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.geometryaxis": {
+      "category": "neutron/asset",
+      "label_guess": "Geometryaxis",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.geometryaxisv3": {
+      "category": "neutron/asset",
+      "label_guess": "Geometryaxisv 3",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.geometryorientation": {
+      "category": "neutron/asset",
+      "label_guess": "Geometryorientation",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.geometryresize": {
+      "category": "neutron/asset",
+      "label_guess": "Geometryresize",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.greeble": {
+      "category": "neutron/asset",
+      "label_guess": "Greeble",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.jitter": {
+      "category": "neutron/asset",
+      "label_guess": "Jitter",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.jitteralongnormal": {
+      "category": "neutron/asset",
+      "label_guess": "Jitteralongnormal",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.modulo": {
+      "category": "neutron/asset",
+      "label_guess": "Modulo",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.newlycreated": {
+      "category": "neutron/asset",
+      "label_guess": "Newlycreated",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.noisemodifier": {
+      "category": "neutron/asset",
+      "label_guess": "Noisemodifier",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.noiseselection": {
+      "category": "neutron/asset",
+      "label_guess": "Noiseselection",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.nonmanifold": {
+      "category": "neutron/asset",
+      "label_guess": "Nonmanifold",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.pointstoline": {
+      "category": "neutron/asset",
+      "label_guess": "Pointstoline",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.randomselection": {
+      "category": "neutron/asset",
+      "label_guess": "Randomselection",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.selectall": {
+      "category": "neutron/asset",
+      "label_guess": "Selectall",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.selectbyweight": {
+      "category": "neutron/asset",
+      "label_guess": "Selectbyweight",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.selectionrange": {
+      "category": "neutron/asset",
+      "label_guess": "Selectionrange",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.selectrange": {
+      "category": "neutron/asset",
+      "label_guess": "Selectrange",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.setcolor": {
+      "category": "neutron/asset",
+      "label_guess": "Setcolor",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.setpointsvalue": {
+      "category": "neutron/asset",
+      "label_guess": "Setpointsvalue",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.smoothgeometry": {
+      "category": "neutron/asset",
+      "label_guess": "Smoothgeometry",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.smoothpoints": {
+      "category": "neutron/asset",
+      "label_guess": "Smoothpoints",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.solidify": {
+      "category": "neutron/asset",
+      "label_guess": "Solidify",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.geo.uvtomesh": {
+      "category": "neutron/asset",
+      "label_guess": "Uvtomesh",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.math.angletodms": {
+      "category": "neutron/asset",
+      "label_guess": "Angletodms",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.math.booleannot": {
+      "category": "neutron/asset",
+      "label_guess": "Booleannot",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.math.cycleindex": {
+      "category": "neutron/asset",
+      "label_guess": "Cycleindex",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.math.distancetoline": {
+      "category": "neutron/asset",
+      "label_guess": "Distancetoline",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.math.dmstoangles": {
+      "category": "neutron/asset",
+      "label_guess": "Dmstoangles",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.math.geopositiononequirectangular": {
+      "category": "neutron/asset",
+      "label_guess": "Geopositiononequirectangular",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.math.geopositiononsphere": {
+      "category": "neutron/asset",
+      "label_guess": "Geopositiononsphere",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.math.geopositionstocircledistance": {
+      "category": "neutron/asset",
+      "label_guess": "Geopositionstocircledistance",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.math.pointoncircle": {
+      "category": "neutron/asset",
+      "label_guess": "Pointoncircle",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.math.pointontorus": {
+      "category": "neutron/asset",
+      "label_guess": "Pointontorus",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.math.spring": {
+      "category": "neutron/asset",
+      "label_guess": "Spring",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.op.atomarray": {
+      "category": "neutron/asset",
+      "label_guess": "Atomarray",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.op.barchart": {
+      "category": "neutron/asset",
+      "label_guess": "Barchart",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.op.blendcolor": {
+      "category": "neutron/asset",
+      "label_guess": "Blendcolor",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.op.brickwall": {
+      "category": "neutron/asset",
+      "label_guess": "Brickwall",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.op.cloner": {
+      "category": "neutron/asset",
+      "label_guess": "Cloner",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.op.commandlinetext": {
+      "category": "neutron/asset",
+      "label_guess": "Commandlinetext",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.op.globalpins": {
+      "category": "neutron/asset",
+      "label_guess": "Globalpins",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.op.grass": {
+      "category": "neutron/asset",
+      "label_guess": "Grass",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.op.rain": {
+      "category": "neutron/asset",
+      "label_guess": "Rain",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.op.stairs": {
+      "category": "neutron/asset",
+      "label_guess": "Stairs",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.op.tree": {
+      "category": "neutron/asset",
+      "label_guess": "Tree",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.primitive.landscape": {
+      "category": "neutron/asset",
+      "label_guess": "Landscape",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.primitive.sevensegment": {
+      "category": "neutron/asset",
+      "label_guess": "Sevensegment",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.primitive.spline.circulararrow": {
+      "category": "neutron/asset",
+      "label_guess": "Circulararrow",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.primitive.spline.flightpath": {
+      "category": "neutron/asset",
+      "label_guess": "Flightpath",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.primitive.spline.linearararrow": {
+      "category": "neutron/asset",
+      "label_guess": "Linearararrow",
+      "verified": false
+    },
+    "net.maxon.neutron.asset.utility.sampleshader": {
+      "category": "neutron/asset",
+      "label_guess": "Sampleshader",
+      "verified": false
+    },
+    "net.maxon.neutron.assets.effector.taper": {
+      "category": "neutron/other",
+      "label_guess": "Taper",
+      "verified": false
+    },
+    "net.maxon.neutron.effector.base": {
+      "category": "neutron/other",
+      "label_guess": "Base",
+      "verified": false
+    },
+    "net.maxon.neutron.effector.function": {
+      "category": "neutron/other",
+      "label_guess": "Function",
+      "verified": false
+    },
+    "net.maxon.neutron.effector.link": {
+      "category": "neutron/other",
+      "label_guess": "Link",
+      "verified": false
+    },
+    "net.maxon.neutron.field.base": {
+      "category": "neutron/other",
+      "label_guess": "Base",
+      "verified": false
+    },
+    "net.maxon.neutron.field.function": {
+      "category": "neutron/other",
+      "label_guess": "Function",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.bb": {
+      "category": "neutron/geometry",
+      "label_guess": "Bb",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.connect_geometries": {
+      "category": "neutron/geometry",
+      "label_guess": "Connect Geometries",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.convexhull": {
+      "category": "neutron/geometry",
+      "label_guess": "Convexhull",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.copy_to_points": {
+      "category": "neutron/geometry",
+      "label_guess": "Copy To Points",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.edgemap": {
+      "category": "neutron/geometry",
+      "label_guess": "Edgemap",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.edgetoline": {
+      "category": "neutron/geometry",
+      "label_guess": "Edgetoline",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.explode_islands": {
+      "category": "neutron/geometry",
+      "label_guess": "Explode Islands",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.explode_segments": {
+      "category": "neutron/geometry",
+      "label_guess": "Explode Segments",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.extractgeobytype": {
+      "category": "neutron/geometry",
+      "label_guess": "Extractgeobytype",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.get": {
+      "category": "neutron/geometry",
+      "label_guess": "Get",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.get_information": {
+      "category": "neutron/geometry",
+      "label_guess": "Get Information",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.get_property": {
+      "category": "neutron/geometry",
+      "label_guess": "Get Property",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.getpolygonselectiondata": {
+      "category": "neutron/geometry",
+      "label_guess": "Getpolygonselectiondata",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.getpropertynames": {
+      "category": "neutron/geometry",
+      "label_guess": "Getpropertynames",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.getvertexselectiondata": {
+      "category": "neutron/geometry",
+      "label_guess": "Getvertexselectiondata",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.internal.selection.inverse": {
+      "category": "neutron/geometry",
+      "label_guess": "Inverse",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.interpolate": {
+      "category": "neutron/geometry",
+      "label_guess": "Interpolate",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.lineget": {
+      "category": "neutron/geometry",
+      "label_guess": "Lineget",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.lineset": {
+      "category": "neutron/geometry",
+      "label_guess": "Lineset",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.neighbor": {
+      "category": "neutron/geometry",
+      "label_guess": "Neighbor",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.point.set": {
+      "category": "neutron/geometry",
+      "label_guess": "Set",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.pointinfo": {
+      "category": "neutron/geometry",
+      "label_guess": "Pointinfo",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.pointonoutline": {
+      "category": "neutron/geometry",
+      "label_guess": "Pointonoutline",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.points.nearestneighbor": {
+      "category": "neutron/geometry",
+      "label_guess": "Nearestneighbor",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.pointsmodifier": {
+      "category": "neutron/geometry",
+      "label_guess": "Pointsmodifier",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.polygonarrayget": {
+      "category": "neutron/geometry",
+      "label_guess": "Polygonarrayget",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.polygonarrayset": {
+      "category": "neutron/geometry",
+      "label_guess": "Polygonarrayset",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.polygonget": {
+      "category": "neutron/geometry",
+      "label_guess": "Polygonget",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.polygoninfo": {
+      "category": "neutron/geometry",
+      "label_guess": "Polygoninfo",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.set": {
+      "category": "neutron/geometry",
+      "label_guess": "Set",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.set_property": {
+      "category": "neutron/geometry",
+      "label_guess": "Set Property",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.spline.addcontrolpointalongspline": {
+      "category": "neutron/geometry",
+      "label_guess": "Addcontrolpointalongspline",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.spline.addpoint": {
+      "category": "neutron/geometry",
+      "label_guess": "Addpoint",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.spline.assembler": {
+      "category": "neutron/geometry",
+      "label_guess": "Assembler",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.spline.assembler.bezier": {
+      "category": "neutron/geometry",
+      "label_guess": "Bezier",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.spline.assembler.bspline": {
+      "category": "neutron/geometry",
+      "label_guess": "Bspline",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.spline.assembler.linear": {
+      "category": "neutron/geometry",
+      "label_guess": "Linear",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.spline.assembler.nurbs": {
+      "category": "neutron/geometry",
+      "label_guess": "Nurbs",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.spline.evaluate": {
+      "category": "neutron/geometry",
+      "label_guess": "Evaluate",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.spline.interpolate": {
+      "category": "neutron/geometry",
+      "label_guess": "Interpolate",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.spline.length": {
+      "category": "neutron/geometry",
+      "label_guess": "Length",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.spline.outline": {
+      "category": "neutron/geometry",
+      "label_guess": "Outline",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.spline.resample": {
+      "category": "neutron/geometry",
+      "label_guess": "Resample",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.spline.setclosedstatus": {
+      "category": "neutron/geometry",
+      "label_guess": "Setclosedstatus",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.spline.splinechamfer": {
+      "category": "neutron/geometry",
+      "label_guess": "Splinechamfer",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.spline.splitspline": {
+      "category": "neutron/geometry",
+      "label_guess": "Splitspline",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.spline.tessellation": {
+      "category": "neutron/geometry",
+      "label_guess": "Tessellation",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.spline.tessellation.extractsettings": {
+      "category": "neutron/geometry",
+      "label_guess": "Extractsettings",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.spline.tessellation.settings": {
+      "category": "neutron/geometry",
+      "label_guess": "Settings",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.spline.type": {
+      "category": "neutron/geometry",
+      "label_guess": "Type",
+      "verified": false
+    },
+    "net.maxon.neutron.geometry.transform_element": {
+      "category": "neutron/geometry",
+      "label_guess": "Transform Element",
+      "verified": false
+    },
+    "net.maxon.neutron.group.distribution.base": {
+      "category": "neutron/group",
+      "label_guess": "Base",
+      "verified": false
+    },
+    "net.maxon.neutron.group.distribution.function": {
+      "category": "neutron/group",
+      "label_guess": "Function",
+      "verified": false
+    },
+    "net.maxon.neutron.group.distribution.functionbase": {
+      "category": "neutron/group",
+      "label_guess": "Functionbase",
+      "verified": false
+    },
+    "net.maxon.neutron.group.distribution.loopingfunction": {
+      "category": "neutron/group",
+      "label_guess": "Loopingfunction",
+      "verified": false
+    },
+    "net.maxon.neutron.group.generatorwithmatrix.base": {
+      "category": "neutron/group",
+      "label_guess": "Base",
+      "verified": false
+    },
+    "net.maxon.neutron.group.generatorwithmatrix.spline.base": {
+      "category": "neutron/group",
+      "label_guess": "Base",
+      "verified": false
+    },
+    "net.maxon.neutron.group.primitive.base": {
+      "category": "neutron/group",
+      "label_guess": "Base",
+      "verified": false
+    },
+    "net.maxon.neutron.group.primitive.geometry.base": {
+      "category": "neutron/group",
+      "label_guess": "Base",
+      "verified": false
+    },
+    "net.maxon.neutron.group.primitive.spline.base": {
+      "category": "neutron/group",
+      "label_guess": "Base",
+      "verified": false
+    },
+    "net.maxon.neutron.importer.database.parser": {
+      "category": "neutron/other",
+      "label_guess": "Parser",
+      "verified": false
+    },
+    "net.maxon.neutron.indexarrayfromstring": {
+      "category": "neutron/other",
+      "label_guess": "Indexarrayfromstring",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.alignnormals": {
+      "category": "neutron/modeling",
+      "label_guess": "Alignnormals",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.automaticuv": {
+      "category": "neutron/modeling",
+      "label_guess": "Automaticuv",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.chamfer": {
+      "category": "neutron/modeling",
+      "label_guess": "Chamfer",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.connect": {
+      "category": "neutron/modeling",
+      "label_guess": "Connect",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.delete": {
+      "category": "neutron/modeling",
+      "label_guess": "Delete",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.disconnect": {
+      "category": "neutron/modeling",
+      "label_guess": "Disconnect",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.dissolve": {
+      "category": "neutron/modeling",
+      "label_guess": "Dissolve",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.edgesmooth": {
+      "category": "neutron/modeling",
+      "label_guess": "Edgesmooth",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.evenspacing": {
+      "category": "neutron/modeling",
+      "label_guess": "Evenspacing",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.extrude": {
+      "category": "neutron/modeling",
+      "label_guess": "Extrude",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.extrudeline": {
+      "category": "neutron/modeling",
+      "label_guess": "Extrudeline",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.fitcircle": {
+      "category": "neutron/modeling",
+      "label_guess": "Fitcircle",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.flatten": {
+      "category": "neutron/modeling",
+      "label_guess": "Flatten",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.geometryclone": {
+      "category": "neutron/modeling",
+      "label_guess": "Geometryclone",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.inset": {
+      "category": "neutron/modeling",
+      "label_guess": "Inset",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.latheline": {
+      "category": "neutron/modeling",
+      "label_guess": "Latheline",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.loftline": {
+      "category": "neutron/modeling",
+      "label_guess": "Loftline",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.melt": {
+      "category": "neutron/modeling",
+      "label_guess": "Melt",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.modifier.base": {
+      "category": "neutron/modeling",
+      "label_guess": "Base",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.modifier.line.base": {
+      "category": "neutron/modeling",
+      "label_guess": "Base",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.modifierwithmatrix.base": {
+      "category": "neutron/modeling",
+      "label_guess": "Base",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.optimize": {
+      "category": "neutron/modeling",
+      "label_guess": "Optimize",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.pokepolygons": {
+      "category": "neutron/modeling",
+      "label_guess": "Pokepolygons",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.polygonbevel": {
+      "category": "neutron/modeling",
+      "label_guess": "Polygonbevel",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.quadremesh": {
+      "category": "neutron/modeling",
+      "label_guess": "Quadremesh",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.removengons": {
+      "category": "neutron/modeling",
+      "label_guess": "Removengons",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.removenonmanifold": {
+      "category": "neutron/modeling",
+      "label_guess": "Removenonmanifold",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.retriangulate": {
+      "category": "neutron/modeling",
+      "label_guess": "Retriangulate",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.reversenormals": {
+      "category": "neutron/modeling",
+      "label_guess": "Reversenormals",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.selection.active": {
+      "category": "neutron/modeling",
+      "label_guess": "Active",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.selection.growselection": {
+      "category": "neutron/modeling",
+      "label_guess": "Growselection",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.selection.invertselection": {
+      "category": "neutron/modeling",
+      "label_guess": "Invertselection",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.selection.loop": {
+      "category": "neutron/modeling",
+      "label_guess": "Loop",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.selection.removeselection": {
+      "category": "neutron/modeling",
+      "label_guess": "Removeselection",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.selection.ring": {
+      "category": "neutron/modeling",
+      "label_guess": "Ring",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.selection.setselection": {
+      "category": "neutron/modeling",
+      "label_guess": "Setselection",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.selection.shrinkselection": {
+      "category": "neutron/modeling",
+      "label_guess": "Shrinkselection",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.selection.toarray": {
+      "category": "neutron/modeling",
+      "label_guess": "Toarray",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.selection.transferselection": {
+      "category": "neutron/modeling",
+      "label_guess": "Transferselection",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.selectionmodifier.base": {
+      "category": "neutron/modeling",
+      "label_guess": "Base",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.selectionmodifierwithmatrix.base": {
+      "category": "neutron/modeling",
+      "label_guess": "Base",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.setedgeflow": {
+      "category": "neutron/modeling",
+      "label_guess": "Setedgeflow",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.setedgeslinear": {
+      "category": "neutron/modeling",
+      "label_guess": "Setedgeslinear",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.split": {
+      "category": "neutron/modeling",
+      "label_guess": "Split",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.subdivide": {
+      "category": "neutron/modeling",
+      "label_guess": "Subdivide",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.sweepline": {
+      "category": "neutron/modeling",
+      "label_guess": "Sweepline",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.symmetry": {
+      "category": "neutron/modeling",
+      "label_guess": "Symmetry",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.thicken": {
+      "category": "neutron/modeling",
+      "label_guess": "Thicken",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.triangulate": {
+      "category": "neutron/modeling",
+      "label_guess": "Triangulate",
+      "verified": false
+    },
+    "net.maxon.neutron.modeling.untriangulate": {
+      "category": "neutron/modeling",
+      "label_guess": "Untriangulate",
+      "verified": false
+    },
+    "net.maxon.neutron.node.align": {
+      "category": "neutron/other",
+      "label_guess": "Align",
+      "verified": false
+    },
+    "net.maxon.neutron.node.concatcontainer": {
+      "category": "neutron/other",
+      "label_guess": "Concatcontainer",
+      "verified": false
+    },
+    "net.maxon.neutron.node.distribution.functionhelper": {
+      "category": "neutron/distribution",
+      "label_guess": "Functionhelper",
+      "verified": false
+    },
+    "net.maxon.neutron.node.distribution.geometry.edge": {
+      "category": "neutron/distribution",
+      "label_guess": "Edge",
+      "verified": false
+    },
+    "net.maxon.neutron.node.distribution.geometry.polygoncenter": {
+      "category": "neutron/distribution",
+      "label_guess": "Polygoncenter",
+      "verified": false
+    },
+    "net.maxon.neutron.node.distribution.geometry.polyrandom": {
+      "category": "neutron/distribution",
+      "label_guess": "Polyrandom",
+      "verified": false
+    },
+    "net.maxon.neutron.node.distribution.geometry.polyvoxel": {
+      "category": "neutron/distribution",
+      "label_guess": "Polyvoxel",
+      "verified": false
+    },
+    "net.maxon.neutron.node.distribution.geometry.surfacebluenoise": {
+      "category": "neutron/distribution",
+      "label_guess": "Surfacebluenoise",
+      "verified": false
+    },
+    "net.maxon.neutron.node.distribution.geometry.surfacescaledbluenoise": {
+      "category": "neutron/distribution",
+      "label_guess": "Surfacescaledbluenoise",
+      "verified": false
+    },
+    "net.maxon.neutron.node.distribution.geometry.vertex": {
+      "category": "neutron/distribution",
+      "label_guess": "Vertex",
+      "verified": false
+    },
+    "net.maxon.neutron.node.distribution.parametric.grid": {
+      "category": "neutron/distribution",
+      "label_guess": "Grid",
+      "verified": false
+    },
+    "net.maxon.neutron.node.distribution.parametric.gridoffset": {
+      "category": "neutron/distribution",
+      "label_guess": "Gridoffset",
+      "verified": false
+    },
+    "net.maxon.neutron.node.distribution.parametric.linear": {
+      "category": "neutron/distribution",
+      "label_guess": "Linear",
+      "verified": false
+    },
+    "net.maxon.neutron.node.distribution.parametric.lineartransformed": {
+      "category": "neutron/distribution",
+      "label_guess": "Lineartransformed",
+      "verified": false
+    },
+    "net.maxon.neutron.node.distribution.parametric.mandelbrot": {
+      "category": "neutron/distribution",
+      "label_guess": "Mandelbrot",
+      "verified": false
+    },
+    "net.maxon.neutron.node.distribution.parametric.mandelbulb": {
+      "category": "neutron/distribution",
+      "label_guess": "Mandelbulb",
+      "verified": false
+    },
+    "net.maxon.neutron.node.distribution.parametric.pushapart": {
+      "category": "neutron/distribution",
+      "label_guess": "Pushapart",
+      "verified": false
+    },
+    "net.maxon.neutron.node.distribution.parametric.radial": {
+      "category": "neutron/distribution",
+      "label_guess": "Radial",
+      "verified": false
+    },
+    "net.maxon.neutron.node.distribution.parametric.spiral": {
+      "category": "neutron/distribution",
+      "label_guess": "Spiral",
+      "verified": false
+    },
+    "net.maxon.neutron.node.distribution.spline.controlpoints": {
+      "category": "neutron/distribution",
+      "label_guess": "Controlpoints",
+      "verified": false
+    },
+    "net.maxon.neutron.node.distribution.spline.even": {
+      "category": "neutron/distribution",
+      "label_guess": "Even",
+      "verified": false
+    },
+    "net.maxon.neutron.node.distribution.spline.lineeven": {
+      "category": "neutron/distribution",
+      "label_guess": "Lineeven",
+      "verified": false
+    },
+    "net.maxon.neutron.node.distribution.spline.random": {
+      "category": "neutron/distribution",
+      "label_guess": "Random",
+      "verified": false
+    },
+    "net.maxon.neutron.node.distribution.spline.solidify": {
+      "category": "neutron/distribution",
+      "label_guess": "Solidify",
+      "verified": false
+    },
+    "net.maxon.neutron.node.distribution.spline.step": {
+      "category": "neutron/distribution",
+      "label_guess": "Step",
+      "verified": false
+    },
+    "net.maxon.neutron.node.index": {
+      "category": "neutron/other",
+      "label_guess": "Index",
+      "verified": false
+    },
+    "net.maxon.neutron.node.objectcontainer": {
+      "category": "neutron/other",
+      "label_guess": "Objectcontainer",
+      "verified": false
+    },
+    "net.maxon.neutron.node.primitive.capsule": {
+      "category": "neutron/primitive",
+      "label_guess": "Capsule",
+      "verified": false
+    },
+    "net.maxon.neutron.node.primitive.cone": {
+      "category": "neutron/primitive",
+      "label_guess": "Cone",
+      "verified": false
+    },
+    "net.maxon.neutron.node.primitive.cube": {
+      "category": "neutron/primitive",
+      "label_guess": "Cube",
+      "verified": true
+    },
+    "net.maxon.neutron.node.primitive.curve.arc": {
+      "category": "neutron/primitive",
+      "label_guess": "Arc",
+      "verified": false
+    },
+    "net.maxon.neutron.node.primitive.curve.circle": {
+      "category": "neutron/primitive",
+      "label_guess": "Circle",
+      "verified": true
+    },
+    "net.maxon.neutron.node.primitive.curve.cissoid": {
+      "category": "neutron/primitive",
+      "label_guess": "Cissoid",
+      "verified": false
+    },
+    "net.maxon.neutron.node.primitive.curve.cycloid": {
+      "category": "neutron/primitive",
+      "label_guess": "Cycloid",
+      "verified": false
+    },
+    "net.maxon.neutron.node.primitive.curve.flower": {
+      "category": "neutron/primitive",
+      "label_guess": "Flower",
+      "verified": false
+    },
+    "net.maxon.neutron.node.primitive.curve.formula": {
+      "category": "neutron/primitive",
+      "label_guess": "Formula",
+      "verified": false
+    },
+    "net.maxon.neutron.node.primitive.curve.fourside": {
+      "category": "neutron/primitive",
+      "label_guess": "Fourside",
+      "verified": false
+    },
+    "net.maxon.neutron.node.primitive.curve.helix": {
+      "category": "neutron/primitive",
+      "label_guess": "Helix",
+      "verified": true
+    },
+    "net.maxon.neutron.node.primitive.curve.line": {
+      "category": "neutron/primitive",
+      "label_guess": "Line",
+      "verified": true
+    },
+    "net.maxon.neutron.node.primitive.curve.nside": {
+      "category": "neutron/primitive",
+      "label_guess": "Nside",
+      "verified": false
+    },
+    "net.maxon.neutron.node.primitive.curve.profile": {
+      "category": "neutron/primitive",
+      "label_guess": "Profile",
+      "verified": false
+    },
+    "net.maxon.neutron.node.primitive.curve.rectangle": {
+      "category": "neutron/primitive",
+      "label_guess": "Rectangle",
+      "verified": false
+    },
+    "net.maxon.neutron.node.primitive.curve.segment": {
+      "category": "neutron/primitive",
+      "label_guess": "Segment",
+      "verified": false
+    },
+    "net.maxon.neutron.node.primitive.curve.star": {
+      "category": "neutron/primitive",
+      "label_guess": "Star",
+      "verified": false
+    },
+    "net.maxon.neutron.node.primitive.curve.text": {
+      "category": "neutron/primitive",
+      "label_guess": "Text",
+      "verified": false
+    },
+    "net.maxon.neutron.node.primitive.cylinder": {
+      "category": "neutron/primitive",
+      "label_guess": "Cylinder",
+      "verified": false
+    },
+    "net.maxon.neutron.node.primitive.disc": {
+      "category": "neutron/primitive",
+      "label_guess": "Disc",
+      "verified": false
+    },
+    "net.maxon.neutron.node.primitive.oiltank": {
+      "category": "neutron/primitive",
+      "label_guess": "Oiltank",
+      "verified": false
+    },
+    "net.maxon.neutron.node.primitive.plane": {
+      "category": "neutron/primitive",
+      "label_guess": "Plane",
+      "verified": false
+    },
+    "net.maxon.neutron.node.primitive.platonic": {
+      "category": "neutron/primitive",
+      "label_guess": "Platonic",
+      "verified": false
+    },
+    "net.maxon.neutron.node.primitive.polygon": {
+      "category": "neutron/primitive",
+      "label_guess": "Polygon",
+      "verified": false
+    },
+    "net.maxon.neutron.node.primitive.pyramid": {
+      "category": "neutron/primitive",
+      "label_guess": "Pyramid",
+      "verified": false
+    },
+    "net.maxon.neutron.node.primitive.sphere": {
+      "category": "neutron/primitive",
+      "label_guess": "Sphere",
+      "verified": true
+    },
+    "net.maxon.neutron.node.primitive.torus": {
+      "category": "neutron/primitive",
+      "label_guess": "Torus",
+      "verified": true
+    },
+    "net.maxon.neutron.node.primitive.tube": {
+      "category": "neutron/primitive",
+      "label_guess": "Tube",
+      "verified": true
+    },
+    "net.maxon.neutron.node.range": {
+      "category": "neutron/other",
+      "label_guess": "Range",
+      "verified": false
+    },
+    "net.maxon.neutron.op.addpackage": {
+      "category": "neutron/op",
+      "label_guess": "Addpackage",
+      "verified": false
+    },
+    "net.maxon.neutron.op.addpackages": {
+      "category": "neutron/op",
+      "label_guess": "Addpackages",
+      "verified": false
+    },
+    "net.maxon.neutron.op.base": {
+      "category": "neutron/op",
+      "label_guess": "Base",
+      "verified": false
+    },
+    "net.maxon.neutron.op.children": {
+      "category": "neutron/op",
+      "label_guess": "Children",
+      "verified": false
+    },
+    "net.maxon.neutron.op.cloner": {
+      "category": "neutron/op",
+      "label_guess": "Cloner",
+      "verified": false
+    },
+    "net.maxon.neutron.op.color": {
+      "category": "neutron/op",
+      "label_guess": "Color",
+      "verified": false
+    },
+    "net.maxon.neutron.op.distribution": {
+      "category": "neutron/op",
+      "label_guess": "Distribution",
+      "verified": false
+    },
+    "net.maxon.neutron.op.effector": {
+      "category": "neutron/op",
+      "label_guess": "Effector",
+      "verified": false
+    },
+    "net.maxon.neutron.op.field": {
+      "category": "neutron/op",
+      "label_guess": "Field",
+      "verified": false
+    },
+    "net.maxon.neutron.op.filter": {
+      "category": "neutron/op",
+      "label_guess": "Filter",
+      "verified": false
+    },
+    "net.maxon.neutron.op.geometry": {
+      "category": "neutron/op",
+      "label_guess": "Geometry",
+      "verified": false
+    },
+    "net.maxon.neutron.op.instance": {
+      "category": "neutron/op",
+      "label_guess": "Instance",
+      "verified": false
+    },
+    "net.maxon.neutron.op.lookat": {
+      "category": "neutron/op",
+      "label_guess": "Lookat",
+      "verified": false
+    },
+    "net.maxon.neutron.op.matrix": {
+      "category": "neutron/op",
+      "label_guess": "Matrix",
+      "verified": false
+    },
+    "net.maxon.neutron.op.modelingmodifier": {
+      "category": "neutron/op",
+      "label_guess": "Modelingmodifier",
+      "verified": false
+    },
+    "net.maxon.neutron.op.modelingmodifier.line": {
+      "category": "neutron/op",
+      "label_guess": "Line",
+      "verified": false
+    },
+    "net.maxon.neutron.op.null": {
+      "category": "neutron/op",
+      "label_guess": "Null",
+      "verified": false
+    },
+    "net.maxon.neutron.op.objectbase": {
+      "category": "neutron/op",
+      "label_guess": "Objectbase",
+      "verified": false
+    },
+    "net.maxon.neutron.op.objectgroup": {
+      "category": "neutron/op",
+      "label_guess": "Objectgroup",
+      "verified": false
+    },
+    "net.maxon.neutron.op.primitive": {
+      "category": "neutron/op",
+      "label_guess": "Primitive",
+      "verified": false
+    },
+    "net.maxon.neutron.op.root": {
+      "category": "neutron/op",
+      "label_guess": "Root",
+      "verified": false
+    },
+    "net.maxon.neutron.op.selectionmodifier": {
+      "category": "neutron/op",
+      "label_guess": "Selectionmodifier",
+      "verified": false
+    },
+    "net.maxon.neutron.op.spline.primitive": {
+      "category": "neutron/op",
+      "label_guess": "Primitive",
+      "verified": false
+    },
+    "net.maxon.neutron.op.stack": {
+      "category": "neutron/op",
+      "label_guess": "Stack",
+      "verified": false
+    },
+    "net.maxon.neutron.op.tessellate": {
+      "category": "neutron/op",
+      "label_guess": "Tessellate",
+      "verified": false
+    },
+    "net.maxon.neutron.particle.base": {
+      "category": "neutron/other",
+      "label_guess": "Base",
+      "verified": false
+    },
+    "net.maxon.neutron.particle.simple.base": {
+      "category": "neutron/other",
+      "label_guess": "Base",
+      "verified": false
+    },
+    "net.maxon.neutron.primitive.geometry": {
+      "category": "neutron/other",
+      "label_guess": "Geometry",
+      "verified": false
+    },
+    "net.maxon.neutron.scenetag.archigrass": {
+      "category": "neutron/other",
+      "label_guess": "Archigrass",
+      "verified": false
+    },
+    "net.maxon.neutron.unittestscene": {
+      "category": "neutron/other",
+      "label_guess": "Unittestscene",
+      "verified": false
+    },
+    "net.maxon.node.abs": {
+      "category": "node/utility",
+      "label_guess": "Abs",
+      "verified": false
+    },
+    "net.maxon.node.access.composearraycoll_objects": {
+      "category": "node/utility",
+      "label_guess": "Composearraycoll Objects",
+      "verified": false
+    },
+    "net.maxon.node.access.composecloninginfo": {
+      "category": "node/utility",
+      "label_guess": "Composecloninginfo",
+      "verified": false
+    },
+    "net.maxon.node.access.composecolor32": {
+      "category": "node/utility",
+      "label_guess": "Composecolor 32",
+      "verified": false
+    },
+    "net.maxon.node.access.composecolor64": {
+      "category": "node/utility",
+      "label_guess": "Composecolor 64",
+      "verified": false
+    },
+    "net.maxon.node.access.composecolora32": {
+      "category": "node/utility",
+      "label_guess": "Composecolora 32",
+      "verified": false
+    },
+    "net.maxon.node.access.composecolora64": {
+      "category": "node/utility",
+      "label_guess": "Composecolora 64",
+      "verified": false
+    },
+    "net.maxon.node.access.composecstring": {
+      "category": "node/utility",
+      "label_guess": "Composecstring",
+      "verified": false
+    },
+    "net.maxon.node.access.composematrix32": {
+      "category": "node/utility",
+      "label_guess": "Composematrix 32",
+      "verified": false
+    },
+    "net.maxon.node.access.composematrix64": {
+      "category": "node/utility",
+      "label_guess": "Composematrix 64",
+      "verified": false
+    },
+    "net.maxon.node.access.composestring": {
+      "category": "node/utility",
+      "label_guess": "Composestring",
+      "verified": false
+    },
+    "net.maxon.node.access.composevector2d32": {
+      "category": "node/utility",
+      "label_guess": "Composevector 2 D 32",
+      "verified": false
+    },
+    "net.maxon.node.access.composevector2d64": {
+      "category": "node/utility",
+      "label_guess": "Composevector 2 D 64",
+      "verified": false
+    },
+    "net.maxon.node.access.composevector3d32": {
+      "category": "node/utility",
+      "label_guess": "Composevector 3 D 32",
+      "verified": false
+    },
+    "net.maxon.node.access.composevector3d64": {
+      "category": "node/utility",
+      "label_guess": "Composevector 3 D 64",
+      "verified": false
+    },
+    "net.maxon.node.access.composevector4d32": {
+      "category": "node/utility",
+      "label_guess": "Composevector 4 D 32",
+      "verified": false
+    },
+    "net.maxon.node.access.composevector4d64": {
+      "category": "node/utility",
+      "label_guess": "Composevector 4 D 64",
+      "verified": false
+    },
+    "net.maxon.node.access.decomposearraycoll_objects": {
+      "category": "node/utility",
+      "label_guess": "Decomposearraycoll Objects",
+      "verified": false
+    },
+    "net.maxon.node.access.decomposecloninginfo": {
+      "category": "node/utility",
+      "label_guess": "Decomposecloninginfo",
+      "verified": false
+    },
+    "net.maxon.node.access.decomposecolor32": {
+      "category": "node/utility",
+      "label_guess": "Decomposecolor 32",
+      "verified": false
+    },
+    "net.maxon.node.access.decomposecolor64": {
+      "category": "node/utility",
+      "label_guess": "Decomposecolor 64",
+      "verified": false
+    },
+    "net.maxon.node.access.decomposecolora32": {
+      "category": "node/utility",
+      "label_guess": "Decomposecolora 32",
+      "verified": false
+    },
+    "net.maxon.node.access.decomposecolora64": {
+      "category": "node/utility",
+      "label_guess": "Decomposecolora 64",
+      "verified": false
+    },
+    "net.maxon.node.access.decomposecstring": {
+      "category": "node/utility",
+      "label_guess": "Decomposecstring",
+      "verified": false
+    },
+    "net.maxon.node.access.decomposematrix32": {
+      "category": "node/utility",
+      "label_guess": "Decomposematrix 32",
+      "verified": false
+    },
+    "net.maxon.node.access.decomposematrix64": {
+      "category": "node/utility",
+      "label_guess": "Decomposematrix 64",
+      "verified": false
+    },
+    "net.maxon.node.access.decomposestring": {
+      "category": "node/utility",
+      "label_guess": "Decomposestring",
+      "verified": false
+    },
+    "net.maxon.node.access.decomposevector2d32": {
+      "category": "node/utility",
+      "label_guess": "Decomposevector 2 D 32",
+      "verified": false
+    },
+    "net.maxon.node.access.decomposevector2d64": {
+      "category": "node/utility",
+      "label_guess": "Decomposevector 2 D 64",
+      "verified": false
+    },
+    "net.maxon.node.access.decomposevector3d32": {
+      "category": "node/utility",
+      "label_guess": "Decomposevector 3 D 32",
+      "verified": false
+    },
+    "net.maxon.node.access.decomposevector3d64": {
+      "category": "node/utility",
+      "label_guess": "Decomposevector 3 D 64",
+      "verified": false
+    },
+    "net.maxon.node.access.decomposevector4d32": {
+      "category": "node/utility",
+      "label_guess": "Decomposevector 4 D 32",
+      "verified": false
+    },
+    "net.maxon.node.access.decomposevector4d64": {
+      "category": "node/utility",
+      "label_guess": "Decomposevector 4 D 64",
+      "verified": false
+    },
+    "net.maxon.node.aggregate": {
+      "category": "node/utility",
+      "label_guess": "Aggregate",
+      "verified": false
+    },
+    "net.maxon.node.angle": {
+      "category": "node/utility",
+      "label_guess": "Angle",
+      "verified": false
+    },
+    "net.maxon.node.annotation": {
+      "category": "node/utility",
+      "label_guess": "Annotation",
+      "verified": false
+    },
+    "net.maxon.node.anyandall": {
+      "category": "node/utility",
+      "label_guess": "Anyandall",
+      "verified": false
+    },
+    "net.maxon.node.arithmetic": {
+      "category": "node/utility",
+      "label_guess": "Arithmetic",
+      "verified": false
+    },
+    "net.maxon.node.array.append": {
+      "category": "node/utility",
+      "label_guess": "Append",
+      "verified": false
+    },
+    "net.maxon.node.array.append2": {
+      "category": "node/utility",
+      "label_guess": "Append 2",
+      "verified": false
+    },
+    "net.maxon.node.array.arithmetic": {
+      "category": "node/utility",
+      "label_guess": "Arithmetic",
+      "verified": false
+    },
+    "net.maxon.node.array.blend": {
+      "category": "node/utility",
+      "label_guess": "Blend",
+      "verified": false
+    },
+    "net.maxon.node.array.buildfromsinglevalue": {
+      "category": "node/utility",
+      "label_guess": "Buildfromsinglevalue",
+      "verified": false
+    },
+    "net.maxon.node.array.buildfromvalue": {
+      "category": "node/utility",
+      "label_guess": "Buildfromvalue",
+      "verified": false
+    },
+    "net.maxon.node.array.concat": {
+      "category": "node/utility",
+      "label_guess": "Concat",
+      "verified": false
+    },
+    "net.maxon.node.array.erase": {
+      "category": "node/utility",
+      "label_guess": "Erase",
+      "verified": false
+    },
+    "net.maxon.node.array.eraseall": {
+      "category": "node/utility",
+      "label_guess": "Eraseall",
+      "verified": false
+    },
+    "net.maxon.node.array.getcount": {
+      "category": "node/utility",
+      "label_guess": "Getcount",
+      "verified": false
+    },
+    "net.maxon.node.array.getfromarraycontainer": {
+      "category": "node/utility",
+      "label_guess": "Getfromarraycontainer",
+      "verified": false
+    },
+    "net.maxon.node.array.getlastelement": {
+      "category": "node/utility",
+      "label_guess": "Getlastelement",
+      "verified": false
+    },
+    "net.maxon.node.array.getlastelement2": {
+      "category": "node/utility",
+      "label_guess": "Getlastelement 2",
+      "verified": false
+    },
+    "net.maxon.node.array.getsinglearrayfromcontainer": {
+      "category": "node/utility",
+      "label_guess": "Getsinglearrayfromcontainer",
+      "verified": false
+    },
+    "net.maxon.node.array.insert": {
+      "category": "node/utility",
+      "label_guess": "Insert",
+      "verified": false
+    },
+    "net.maxon.node.array.insert2": {
+      "category": "node/utility",
+      "label_guess": "Insert 2",
+      "verified": false
+    },
+    "net.maxon.node.array.isincluded": {
+      "category": "node/utility",
+      "label_guess": "Isincluded",
+      "verified": false
+    },
+    "net.maxon.node.array.isincluded2": {
+      "category": "node/utility",
+      "label_guess": "Isincluded 2",
+      "verified": false
+    },
+    "net.maxon.node.array.popelement": {
+      "category": "node/utility",
+      "label_guess": "Popelement",
+      "verified": false
+    },
+    "net.maxon.node.array.popelement2": {
+      "category": "node/utility",
+      "label_guess": "Popelement 2",
+      "verified": false
+    },
+    "net.maxon.node.array.readvalueatindex": {
+      "category": "node/utility",
+      "label_guess": "Readvalueatindex",
+      "verified": false
+    },
+    "net.maxon.node.array.readvalueatindex2": {
+      "category": "node/utility",
+      "label_guess": "Readvalueatindex 2",
+      "verified": false
+    },
+    "net.maxon.node.array.reverse": {
+      "category": "node/utility",
+      "label_guess": "Reverse",
+      "verified": false
+    },
+    "net.maxon.node.array.scalararithmetic": {
+      "category": "node/utility",
+      "label_guess": "Scalararithmetic",
+      "verified": false
+    },
+    "net.maxon.node.array.setinarraycontainer": {
+      "category": "node/utility",
+      "label_guess": "Setinarraycontainer",
+      "verified": false
+    },
+    "net.maxon.node.array.sort": {
+      "category": "node/utility",
+      "label_guess": "Sort",
+      "verified": false
+    },
+    "net.maxon.node.array.sortcontainer": {
+      "category": "node/utility",
+      "label_guess": "Sortcontainer",
+      "verified": false
+    },
+    "net.maxon.node.array.swaperase": {
+      "category": "node/utility",
+      "label_guess": "Swaperase",
+      "verified": false
+    },
+    "net.maxon.node.array.truncate": {
+      "category": "node/utility",
+      "label_guess": "Truncate",
+      "verified": false
+    },
+    "net.maxon.node.array.writevalueatindex": {
+      "category": "node/utility",
+      "label_guess": "Writevalueatindex",
+      "verified": false
+    },
+    "net.maxon.node.array.writevalueatindex2": {
+      "category": "node/utility",
+      "label_guess": "Writevalueatindex 2",
+      "verified": false
+    },
+    "net.maxon.node.atan2": {
+      "category": "node/utility",
+      "label_guess": "Atan 2",
+      "verified": false
+    },
+    "net.maxon.node.blend": {
+      "category": "node/utility",
+      "label_guess": "Blend",
+      "verified": false
+    },
+    "net.maxon.node.booleanoperator": {
+      "category": "node/utility",
+      "label_guess": "Booleanoperator",
+      "verified": false
+    },
+    "net.maxon.node.boxstep": {
+      "category": "node/utility",
+      "label_guess": "Boxstep",
+      "verified": false
+    },
+    "net.maxon.node.bypassable": {
+      "category": "node/utility",
+      "label_guess": "Bypassable",
+      "verified": false
+    },
+    "net.maxon.node.clamp": {
+      "category": "node/utility",
+      "label_guess": "Clamp",
+      "verified": false
+    },
+    "net.maxon.node.cmdlinearg": {
+      "category": "node/utility",
+      "label_guess": "Cmdlinearg",
+      "verified": false
+    },
+    "net.maxon.node.compare": {
+      "category": "node/utility",
+      "label_guess": "Compare",
+      "verified": false
+    },
+    "net.maxon.node.composecontainer": {
+      "category": "node/utility",
+      "label_guess": "Composecontainer",
+      "verified": false
+    },
+    "net.maxon.node.composematrix": {
+      "category": "node/utility",
+      "label_guess": "Composematrix",
+      "verified": false
+    },
+    "net.maxon.node.container": {
+      "category": "node/utility",
+      "label_guess": "Container",
+      "verified": false
+    },
+    "net.maxon.node.containeriteration": {
+      "category": "node/utility",
+      "label_guess": "Containeriteration",
+      "verified": false
+    },
+    "net.maxon.node.context.get": {
+      "category": "node/utility",
+      "label_guess": "Get",
+      "verified": false
+    },
+    "net.maxon.node.cross": {
+      "category": "node/utility",
+      "label_guess": "Cross",
+      "verified": false
+    },
+    "net.maxon.node.decomposecontainer": {
+      "category": "node/utility",
+      "label_guess": "Decomposecontainer",
+      "verified": false
+    },
+    "net.maxon.node.decomposematrix": {
+      "category": "node/utility",
+      "label_guess": "Decomposematrix",
+      "verified": false
+    },
+    "net.maxon.node.distance": {
+      "category": "node/utility",
+      "label_guess": "Distance",
+      "verified": false
+    },
+    "net.maxon.node.dot": {
+      "category": "node/utility",
+      "label_guess": "Dot",
+      "verified": false
+    },
+    "net.maxon.node.exp": {
+      "category": "node/utility",
+      "label_guess": "Exp",
+      "verified": false
+    },
+    "net.maxon.node.exp2": {
+      "category": "node/utility",
+      "label_guess": "Exp 2",
+      "verified": false
+    },
+    "net.maxon.node.floatingio": {
+      "category": "node/utility",
+      "label_guess": "Floatingio",
+      "verified": false
+    },
+    "net.maxon.node.fraction": {
+      "category": "node/utility",
+      "label_guess": "Fraction",
+      "verified": false
+    },
+    "net.maxon.node.getmemberinfo": {
+      "category": "node/utility",
+      "label_guess": "Getmemberinfo",
+      "verified": false
+    },
+    "net.maxon.node.group": {
+      "category": "node/utility",
+      "label_guess": "Group",
+      "verified": false
+    },
+    "net.maxon.node.group.missingasset": {
+      "category": "node/utility",
+      "label_guess": "Missingasset",
+      "verified": false
+    },
+    "net.maxon.node.groupwithports": {
+      "category": "node/utility",
+      "label_guess": "Groupwithports",
+      "verified": false
+    },
+    "net.maxon.node.if": {
+      "category": "node/utility",
+      "label_guess": "If",
+      "verified": false
+    },
+    "net.maxon.node.inversematrix": {
+      "category": "node/utility",
+      "label_guess": "Inversematrix",
+      "verified": false
+    },
+    "net.maxon.node.invert": {
+      "category": "node/utility",
+      "label_guess": "Invert",
+      "verified": false
+    },
+    "net.maxon.node.io.in": {
+      "category": "node/utility",
+      "label_guess": "In",
+      "verified": false
+    },
+    "net.maxon.node.io.out": {
+      "category": "node/utility",
+      "label_guess": "Out",
+      "verified": false
+    },
+    "net.maxon.node.length": {
+      "category": "node/utility",
+      "label_guess": "Length",
+      "verified": false
+    },
+    "net.maxon.node.log": {
+      "category": "node/utility",
+      "label_guess": "Log",
+      "verified": false
+    },
+    "net.maxon.node.log2": {
+      "category": "node/utility",
+      "label_guess": "Log 2",
+      "verified": false
+    },
+    "net.maxon.node.loopcarriedvalue": {
+      "category": "node/utility",
+      "label_guess": "Loopcarriedvalue",
+      "verified": false
+    },
+    "net.maxon.node.maprange": {
+      "category": "node/utility",
+      "label_guess": "Maprange",
+      "verified": false
+    },
+    "net.maxon.node.matrixtovectors": {
+      "category": "node/utility",
+      "label_guess": "Matrixtovectors",
+      "verified": false
+    },
+    "net.maxon.node.memory": {
+      "category": "node/utility",
+      "label_guess": "Memory",
+      "verified": false
+    },
+    "net.maxon.node.meta.getportid": {
+      "category": "node/utility",
+      "label_guess": "Getportid",
+      "verified": false
+    },
+    "net.maxon.node.meta.hasvalue": {
+      "category": "node/utility",
+      "label_guess": "Hasvalue",
+      "verified": false
+    },
+    "net.maxon.node.meta.isconstant": {
+      "category": "node/utility",
+      "label_guess": "Isconstant",
+      "verified": false
+    },
+    "net.maxon.node.meta.staticassert": {
+      "category": "node/utility",
+      "label_guess": "Staticassert",
+      "verified": false
+    },
+    "net.maxon.node.modulo": {
+      "category": "node/utility",
+      "label_guess": "Modulo",
+      "verified": false
+    },
+    "net.maxon.node.negate": {
+      "category": "node/utility",
+      "label_guess": "Negate",
+      "verified": false
+    },
+    "net.maxon.node.nodeasset": {
+      "category": "node/utility",
+      "label_guess": "Nodeasset",
+      "verified": false
+    },
+    "net.maxon.node.noise": {
+      "category": "node/utility",
+      "label_guess": "Noise",
+      "verified": false
+    },
+    "net.maxon.node.normalize": {
+      "category": "node/utility",
+      "label_guess": "Normalize",
+      "verified": false
+    },
+    "net.maxon.node.pow": {
+      "category": "node/utility",
+      "label_guess": "Pow",
+      "verified": false
+    },
+    "net.maxon.node.quantize": {
+      "category": "node/utility",
+      "label_guess": "Quantize",
+      "verified": false
+    },
+    "net.maxon.node.queryconfiguration": {
+      "category": "node/utility",
+      "label_guess": "Queryconfiguration",
+      "verified": false
+    },
+    "net.maxon.node.reciprocal": {
+      "category": "node/utility",
+      "label_guess": "Reciprocal",
+      "verified": false
+    },
+    "net.maxon.node.reflect": {
+      "category": "node/utility",
+      "label_guess": "Reflect",
+      "verified": false
+    },
+    "net.maxon.node.reroute": {
+      "category": "node/utility",
+      "label_guess": "Reroute",
+      "verified": false
+    },
+    "net.maxon.node.root": {
+      "category": "node/utility",
+      "label_guess": "Root",
+      "verified": false
+    },
+    "net.maxon.node.round": {
+      "category": "node/utility",
+      "label_guess": "Round",
+      "verified": false
+    },
+    "net.maxon.node.scaffold": {
+      "category": "node/utility",
+      "label_guess": "Scaffold",
+      "verified": false
+    },
+    "net.maxon.node.scale": {
+      "category": "node/utility",
+      "label_guess": "Scale",
+      "verified": false
+    },
+    "net.maxon.node.scalematrix": {
+      "category": "node/utility",
+      "label_guess": "Scalematrix",
+      "verified": false
+    },
+    "net.maxon.node.script.formula": {
+      "category": "node/utility",
+      "label_guess": "Formula",
+      "verified": false
+    },
+    "net.maxon.node.sign": {
+      "category": "node/utility",
+      "label_guess": "Sign",
+      "verified": false
+    },
+    "net.maxon.node.smoothstep": {
+      "category": "node/utility",
+      "label_guess": "Smoothstep",
+      "verified": false
+    },
+    "net.maxon.node.step": {
+      "category": "node/utility",
+      "label_guess": "Step",
+      "verified": false
+    },
+    "net.maxon.node.strength": {
+      "category": "node/utility",
+      "label_guess": "Strength",
+      "verified": false
+    },
+    "net.maxon.node.string.case": {
+      "category": "node/utility",
+      "label_guess": "Case",
+      "verified": false
+    },
+    "net.maxon.node.string.concat": {
+      "category": "node/utility",
+      "label_guess": "Concat",
+      "verified": false
+    },
+    "net.maxon.node.string.join": {
+      "category": "node/utility",
+      "label_guess": "Join",
+      "verified": false
+    },
+    "net.maxon.node.string.length": {
+      "category": "node/utility",
+      "label_guess": "Length",
+      "verified": false
+    },
+    "net.maxon.node.string.prefixsuffix": {
+      "category": "node/utility",
+      "label_guess": "Prefixsuffix",
+      "verified": false
+    },
+    "net.maxon.node.string.print": {
+      "category": "node/utility",
+      "label_guess": "Print",
+      "verified": false
+    },
+    "net.maxon.node.string.random_string_from_source": {
+      "category": "node/utility",
+      "label_guess": "Random String From Source",
+      "verified": false
+    },
+    "net.maxon.node.string.random_string_generator": {
+      "category": "node/utility",
+      "label_guess": "Random String Generator",
+      "verified": false
+    },
+    "net.maxon.node.string.repeat": {
+      "category": "node/utility",
+      "label_guess": "Repeat",
+      "verified": false
+    },
+    "net.maxon.node.string.reverse": {
+      "category": "node/utility",
+      "label_guess": "Reverse",
+      "verified": false
+    },
+    "net.maxon.node.string.searchandreplace": {
+      "category": "node/utility",
+      "label_guess": "Searchandreplace",
+      "verified": false
+    },
+    "net.maxon.node.string.split": {
+      "category": "node/utility",
+      "label_guess": "Split",
+      "verified": false
+    },
+    "net.maxon.node.string.strip": {
+      "category": "node/utility",
+      "label_guess": "Strip",
+      "verified": false
+    },
+    "net.maxon.node.string.substr": {
+      "category": "node/utility",
+      "label_guess": "Substr",
+      "verified": false
+    },
+    "net.maxon.node.string.truncate": {
+      "category": "node/utility",
+      "label_guess": "Truncate",
+      "verified": false
+    },
+    "net.maxon.node.sum": {
+      "category": "node/utility",
+      "label_guess": "Sum",
+      "verified": false
+    },
+    "net.maxon.node.switch": {
+      "category": "node/utility",
+      "label_guess": "Switch",
+      "verified": false
+    },
+    "net.maxon.node.transformmatrix": {
+      "category": "node/utility",
+      "label_guess": "Transformmatrix",
+      "verified": false
+    },
+    "net.maxon.node.transformvector": {
+      "category": "node/utility",
+      "label_guess": "Transformvector",
+      "verified": false
+    },
+    "net.maxon.node.trigonometry": {
+      "category": "node/utility",
+      "label_guess": "Trigonometry",
+      "verified": false
+    },
+    "net.maxon.node.type": {
+      "category": "node/utility",
+      "label_guess": "Type",
+      "verified": false
+    },
+    "net.maxon.node.typeof": {
+      "category": "node/utility",
+      "label_guess": "Typeof",
+      "verified": false
+    },
+    "net.maxon.node.ubermaterial.node": {
+      "category": "node/utility",
+      "label_guess": "Node",
+      "verified": false
+    },
+    "net.maxon.node.utility.debugassert": {
+      "category": "node/utility",
+      "label_guess": "Debugassert",
+      "verified": false
+    },
+    "net.maxon.node.variadiccount": {
+      "category": "node/utility",
+      "label_guess": "Variadiccount",
+      "verified": false
+    },
+    "net.maxon.node.vectorstomatrix": {
+      "category": "node/utility",
+      "label_guess": "Vectorstomatrix",
+      "verified": false
+    },
+    "net.maxon.node.withoutputs": {
+      "category": "node/utility",
+      "label_guess": "Withoutputs",
+      "verified": false
+    },
+    "net.maxon.node.withparameters": {
+      "category": "node/utility",
+      "label_guess": "Withparameters",
+      "verified": false
+    },
+    "net.maxon.nodes.scene.geo.spline.generator.edgetospline": {
+      "category": "other",
+      "label_guess": "Edgetospline",
+      "verified": false
+    },
+    "net.maxon.nodes.simulation.particlenodemodifier.getproperty": {
+      "category": "other",
+      "label_guess": "Getproperty",
+      "verified": false
+    },
+    "net.maxon.nodes.simulation.particlenodemodifier.getpropertyarray": {
+      "category": "other",
+      "label_guess": "Getpropertyarray",
+      "verified": false
+    },
+    "net.maxon.nodes.simulation.particlenodemodifier.modifier": {
+      "category": "other",
+      "label_guess": "Modifier",
+      "verified": false
+    },
+    "net.maxon.nodes.simulation.particlenodemodifier.setproperty": {
+      "category": "other",
+      "label_guess": "Setproperty",
+      "verified": false
+    },
+    "net.maxon.pattern.node.conversion.colorprofile": {
+      "category": "other",
+      "label_guess": "Colorprofile",
+      "verified": false
+    },
+    "net.maxon.pattern.node.conversion.colorspace": {
+      "category": "other",
+      "label_guess": "Colorspace",
+      "verified": false
+    },
+    "net.maxon.pattern.node.conversion.colortofloat": {
+      "category": "other",
+      "label_guess": "Colortofloat",
+      "verified": false
+    },
+    "net.maxon.pattern.node.conversion.composecolor": {
+      "category": "other",
+      "label_guess": "Composecolor",
+      "verified": false
+    },
+    "net.maxon.pattern.node.conversion.composecolora": {
+      "category": "other",
+      "label_guess": "Composecolora",
+      "verified": false
+    },
+    "net.maxon.pattern.node.conversion.composevector2": {
+      "category": "other",
+      "label_guess": "Composevector 2",
+      "verified": false
+    },
+    "net.maxon.pattern.node.conversion.composevector3": {
+      "category": "other",
+      "label_guess": "Composevector 3",
+      "verified": false
+    },
+    "net.maxon.pattern.node.conversion.composevector4": {
+      "category": "other",
+      "label_guess": "Composevector 4",
+      "verified": false
+    },
+    "net.maxon.pattern.node.conversion.convertdegrees": {
+      "category": "other",
+      "label_guess": "Convertdegrees",
+      "verified": false
+    },
+    "net.maxon.pattern.node.conversion.ocio": {
+      "category": "other",
+      "label_guess": "Ocio",
+      "verified": false
+    },
+    "net.maxon.pattern.node.conversion.splitcolorcomponents": {
+      "category": "other",
+      "label_guess": "Splitcolorcomponents",
+      "verified": false
+    },
+    "net.maxon.pattern.node.conversion.splitvectorcomponents": {
+      "category": "other",
+      "label_guess": "Splitvectorcomponents",
+      "verified": false
+    },
+    "net.maxon.pattern.node.conversion.vectortofloat": {
+      "category": "other",
+      "label_guess": "Vectortofloat",
+      "verified": false
+    },
+    "net.maxon.pattern.node.effect.biasgain": {
+      "category": "other",
+      "label_guess": "Biasgain",
+      "verified": false
+    },
+    "net.maxon.pattern.node.effect.blend": {
+      "category": "other",
+      "label_guess": "Blend",
+      "verified": false
+    },
+    "net.maxon.pattern.node.effect.colorcorrection": {
+      "category": "other",
+      "label_guess": "Colorcorrection",
+      "verified": false
+    },
+    "net.maxon.pattern.node.effect.colorhsl": {
+      "category": "other",
+      "label_guess": "Colorhsl",
+      "verified": false
+    },
+    "net.maxon.pattern.node.effect.colortemperature": {
+      "category": "other",
+      "label_guess": "Colortemperature",
+      "verified": false
+    },
+    "net.maxon.pattern.node.effect.contrast": {
+      "category": "other",
+      "label_guess": "Contrast",
+      "verified": false
+    },
+    "net.maxon.pattern.node.effect.distorter": {
+      "category": "other",
+      "label_guess": "Distorter",
+      "verified": false
+    },
+    "net.maxon.pattern.node.effect.exposure": {
+      "category": "other",
+      "label_guess": "Exposure",
+      "verified": false
+    },
+    "net.maxon.pattern.node.effect.fresnelconductor": {
+      "category": "other",
+      "label_guess": "Fresnelconductor",
+      "verified": false
+    },
+    "net.maxon.pattern.node.effect.fresneldielectric": {
+      "category": "other",
+      "label_guess": "Fresneldielectric",
+      "verified": false
+    },
+    "net.maxon.pattern.node.effect.invertcolor": {
+      "category": "other",
+      "label_guess": "Invertcolor",
+      "verified": false
+    },
+    "net.maxon.pattern.node.effect.keyer": {
+      "category": "other",
+      "label_guess": "Keyer",
+      "verified": false
+    },
+    "net.maxon.pattern.node.effect.layer": {
+      "category": "other",
+      "label_guess": "Layer",
+      "verified": false
+    },
+    "net.maxon.pattern.node.effect.premultiply": {
+      "category": "other",
+      "label_guess": "Premultiply",
+      "verified": false
+    },
+    "net.maxon.pattern.node.effect.shuffle": {
+      "category": "other",
+      "label_guess": "Shuffle",
+      "verified": false
+    },
+    "net.maxon.pattern.node.effect.shufflecombine": {
+      "category": "other",
+      "label_guess": "Shufflecombine",
+      "verified": false
+    },
+    "net.maxon.pattern.node.effect.transform2d": {
+      "category": "other",
+      "label_guess": "Transform 2 D",
+      "verified": false
+    },
+    "net.maxon.pattern.node.effect.unpremultiply": {
+      "category": "other",
+      "label_guess": "Unpremultiply",
+      "verified": false
+    },
+    "net.maxon.pattern.node.effect.whitebalance": {
+      "category": "other",
+      "label_guess": "Whitebalance",
+      "verified": false
+    },
+    "net.maxon.pattern.node.generator.ambientocclusion": {
+      "category": "other",
+      "label_guess": "Ambientocclusion",
+      "verified": false
+    },
+    "net.maxon.pattern.node.generator.blackbody": {
+      "category": "other",
+      "label_guess": "Blackbody",
+      "verified": false
+    },
+    "net.maxon.pattern.node.generator.cells": {
+      "category": "other",
+      "label_guess": "Cells",
+      "verified": false
+    },
+    "net.maxon.pattern.node.generator.checkerboard": {
+      "category": "other",
+      "label_guess": "Checkerboard",
+      "verified": false
+    },
+    "net.maxon.pattern.node.generator.flakes": {
+      "category": "other",
+      "label_guess": "Flakes",
+      "verified": false
+    },
+    "net.maxon.pattern.node.generator.gradient": {
+      "category": "other",
+      "label_guess": "Gradient",
+      "verified": false
+    },
+    "net.maxon.pattern.node.generator.grid": {
+      "category": "other",
+      "label_guess": "Grid",
+      "verified": false
+    },
+    "net.maxon.pattern.node.generator.hash": {
+      "category": "other",
+      "label_guess": "Hash",
+      "verified": false
+    },
+    "net.maxon.pattern.node.generator.image": {
+      "category": "other",
+      "label_guess": "Image",
+      "verified": false
+    },
+    "net.maxon.pattern.node.generator.multiray": {
+      "category": "other",
+      "label_guess": "Multiray",
+      "verified": false
+    },
+    "net.maxon.pattern.node.generator.noise": {
+      "category": "other",
+      "label_guess": "Noise",
+      "verified": false
+    },
+    "net.maxon.pattern.node.generator.random": {
+      "category": "other",
+      "label_guess": "Random",
+      "verified": false
+    },
+    "net.maxon.pattern.node.generator.ray": {
+      "category": "other",
+      "label_guess": "Ray",
+      "verified": false
+    },
+    "net.maxon.pattern.node.generator.scatter": {
+      "category": "other",
+      "label_guess": "Scatter",
+      "verified": false
+    },
+    "net.maxon.pattern.node.generator.scratches": {
+      "category": "other",
+      "label_guess": "Scratches",
+      "verified": false
+    },
+    "net.maxon.pattern.node.generator.spline": {
+      "category": "other",
+      "label_guess": "Spline",
+      "verified": false
+    },
+    "net.maxon.pattern.node.generator.thinfilm": {
+      "category": "other",
+      "label_guess": "Thinfilm",
+      "verified": false
+    },
+    "net.maxon.pattern.node.generator.vertexcolor": {
+      "category": "other",
+      "label_guess": "Vertexcolor",
+      "verified": false
+    },
+    "net.maxon.pattern.node.generator.vertexmap": {
+      "category": "other",
+      "label_guess": "Vertexmap",
+      "verified": false
+    },
+    "net.maxon.pattern.node.generator.voronoi": {
+      "category": "other",
+      "label_guess": "Voronoi",
+      "verified": false
+    },
+    "net.maxon.pattern.node.info.light": {
+      "category": "other",
+      "label_guess": "Light",
+      "verified": false
+    },
+    "net.maxon.pattern.node.info.mograph": {
+      "category": "other",
+      "label_guess": "Mograph",
+      "verified": false
+    },
+    "net.maxon.pattern.node.info.object": {
+      "category": "other",
+      "label_guess": "Object",
+      "verified": false
+    },
+    "net.maxon.pattern.node.shape.circle": {
+      "category": "other",
+      "label_guess": "Circle",
+      "verified": false
+    },
+    "net.maxon.pattern.node.shape.line": {
+      "category": "other",
+      "label_guess": "Line",
+      "verified": false
+    },
+    "net.maxon.pattern.node.shape.ngon": {
+      "category": "other",
+      "label_guess": "Ngon",
+      "verified": false
+    },
+    "net.maxon.pattern.node.shape.spiral": {
+      "category": "other",
+      "label_guess": "Spiral",
+      "verified": false
+    },
+    "net.maxon.pattern.node.shape.star": {
+      "category": "other",
+      "label_guess": "Star",
+      "verified": false
+    },
+    "net.maxon.pattern.node.twod.areaaverage": {
+      "category": "other",
+      "label_guess": "Areaaverage",
+      "verified": false
+    },
+    "net.maxon.pattern.node.twod.blur": {
+      "category": "other",
+      "label_guess": "Blur",
+      "verified": false
+    },
+    "net.maxon.pattern.node.twod.cache": {
+      "category": "other",
+      "label_guess": "Cache",
+      "verified": false
+    },
+    "net.maxon.pattern.node.twod.kernel": {
+      "category": "other",
+      "label_guess": "Kernel",
+      "verified": false
+    },
+    "net.maxon.pattern.node.utility.camerainfo": {
+      "category": "other",
+      "label_guess": "Camerainfo",
+      "verified": false
+    },
+    "net.maxon.pattern.node.utility.debug": {
+      "category": "other",
+      "label_guess": "Debug",
+      "verified": false
+    },
+    "net.maxon.pattern.node.utility.objectlink": {
+      "category": "other",
+      "label_guess": "Objectlink",
+      "verified": false
+    },
+    "net.maxon.pattern.node.utility.passthrough": {
+      "category": "other",
+      "label_guess": "Passthrough",
+      "verified": false
+    },
+    "net.maxon.pattern.node.utility.rayinfo": {
+      "category": "other",
+      "label_guess": "Rayinfo",
+      "verified": false
+    },
+    "net.maxon.pattern.node.utility.renderobject": {
+      "category": "other",
+      "label_guess": "Renderobject",
+      "verified": false
+    },
+    "net.maxon.pattern.node.utility.sceneinfo": {
+      "category": "other",
+      "label_guess": "Sceneinfo",
+      "verified": false
+    },
+    "net.maxon.pattern.node.utility.shadingcontext": {
+      "category": "other",
+      "label_guess": "Shadingcontext",
+      "verified": false
+    },
+    "net.maxon.pattern.node.utility.time": {
+      "category": "other",
+      "label_guess": "Time",
+      "verified": false
+    },
+    "net.maxon.render.node.bsdf": {
+      "category": "other",
+      "label_guess": "Bsdf",
+      "verified": false
+    },
+    "net.maxon.render.node.bump": {
+      "category": "other",
+      "label_guess": "Bump",
+      "verified": false
+    },
+    "net.maxon.render.node.displacement": {
+      "category": "other",
+      "label_guess": "Displacement",
+      "verified": false
+    },
+    "net.maxon.render.node.emission": {
+      "category": "other",
+      "label_guess": "Emission",
+      "verified": false
+    },
+    "net.maxon.render.node.gradientplacement": {
+      "category": "other",
+      "label_guess": "Gradientplacement",
+      "verified": false
+    },
+    "net.maxon.render.node.material": {
+      "category": "other",
+      "label_guess": "Material",
+      "verified": false
+    },
+    "net.maxon.render.node.normal": {
+      "category": "other",
+      "label_guess": "Normal",
+      "verified": false
+    },
+    "net.maxon.render.node.placement2d": {
+      "category": "other",
+      "label_guess": "Placement 2 D",
+      "verified": false
+    },
+    "net.maxon.render.node.placement3d": {
+      "category": "other",
+      "label_guess": "Placement 3 D",
+      "verified": false
+    },
+    "net.maxon.render.node.projection": {
+      "category": "other",
+      "label_guess": "Projection",
+      "verified": false
+    },
+    "net.maxon.render.node.setshadingcontext": {
+      "category": "other",
+      "label_guess": "Setshadingcontext",
+      "verified": false
+    },
+    "patternsgenerator@5c4b27ac-dfe2-4fe5-8e14-2e689feb6583": {
+      "category": "user/uuid",
+      "label_guess": "Patternsgenerator",
+      "verified": false
+    },
+    "plasticmaterial@32edaf41b2194eda8835d6618fe45e13": {
+      "category": "user/uuid",
+      "label_guess": "Plasticmaterial",
+      "verified": false
+    },
+    "rockmaterial@629f3c89-7b68-411e-a7cd-4a8d4de72328": {
+      "category": "user/uuid",
+      "label_guess": "Rockmaterial",
+      "verified": false
+    },
+    "rocksurface@3af546a0-5378-4fcc-9c55-0e9c198e9383": {
+      "category": "user/uuid",
+      "label_guess": "Rocksurface",
+      "verified": false
+    },
+    "setalpha@f3cd9942-a03f-4d86-afad-6ee6336c99c5": {
+      "category": "user/uuid",
+      "label_guess": "Setalpha",
+      "verified": false
+    },
+    "transform@677a4ca8-f5c5-4aba-b194-cfa18ac96f88": {
+      "category": "user/uuid",
+      "label_guess": "Transform",
+      "verified": false
+    },
+    "triplanar@d41d0525-5dc6-4877-ab83-5862d4c88e43": {
+      "category": "user/uuid",
+      "label_guess": "Triplanar",
+      "verified": false
+    },
+    "veins@ea7bd015-fc87-4bb8-8360-6b264d4e4a98": {
+      "category": "user/uuid",
+      "label_guess": "Veins",
+      "verified": false
+    },
+    "wood@615e681e-cb8f-445c-8fc6-0937815e0779": {
+      "category": "user/uuid",
+      "label_guess": "Wood",
+      "verified": false
+    },
+    "wood@f529187085d24b5898c69662d0870ea2": {
+      "category": "user/uuid",
+      "label_guess": "Wood",
+      "verified": false
+    }
+  }
+}

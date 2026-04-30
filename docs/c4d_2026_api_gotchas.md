@@ -261,6 +261,40 @@ Field-layer subtype constants (also top-level): `c4d.FLfield`,
 
 ---
 
+## 19. Capsule plugin IDs are the entry point for asset-ID discovery
+
+**Context:** C4D 2026 buries Scene Nodes asset IDs (the strings you need
+to programmatically create graph nodes via `GraphDescription.ApplyDescription`)
+behind every Capsule object. The Asset Browser is full of them (Primitive
+▶ Cube, Modifier ▶ Bevel, etc.) — each one is a classic-object-shaped
+wrapper around a Scene Nodes graph.
+
+**Wrong:** Trying to enumerate available Scene Nodes asset IDs via the
+maxon SDK alone — `maxon.AssetInterface.GetUserPrefsRepository().FindAssets`
+has shifting signatures and doesn't reliably return scene-nodes assets in
+a usable form.
+
+**Fix:** Walk existing capsules via `GraphDescription.GetGraph(obj)` +
+recursive `GetChildren()` and collect every node's `GetId()`. The
+canonical capsule plugin IDs to scan for in a doc:
+
+```
+5171      = Capsule
+180420400 = Scene Nodes Deformer
+180420500/600/700 = Scene Nodes Generator (3 variants)
+440000274 = Capsule Field
+1057221   = Simulation Scene
+```
+
+The cinema4d-mcp `scene_nodes_dissect_capsule` handler implements this
+pattern and caches discovered IDs into a session-level registry.
+
+**Caveat:** `GraphDescription.GetGraph` MUST run on the main thread.
+From a worker thread it errors with "GetGraph() must be run from the
+main thread" (same constraint as undo / maxon.frameworks.* APIs).
+
+---
+
 ## Discovery process
 
 This list grows organically. Whenever runtime contradicts an API
