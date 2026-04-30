@@ -25,7 +25,8 @@ mesh_misc.framework;\
 graph.framework;\
 nodes.framework;\
 nodespace.framework;\
-neutron.framework
+neutron.framework;\
+command.framework
 
 C4D=true
 

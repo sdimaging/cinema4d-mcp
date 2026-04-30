@@ -14595,6 +14595,14 @@ class C4DSocketServer(threading.Thread):
     _OP_LOGGER_READ           = 12
     _OP_LOGGER_CLEAR          = 13
     _BC_KEY_LOG_DUMP          = 1057845041
+    # Phase A.2.1 maxon command-framework observer ops
+    _OP_OBSERVER_START        = 20
+    _OP_OBSERVER_STOP         = 21
+    _OP_OBSERVER_READ         = 22
+    _OP_OBSERVER_CLEAR        = 23
+    _BC_KEY_CMD_OBSERVER_DUMP = 1057845050
+    # Phase A.2.2 maxon command-framework registry enumeration
+    _OP_LIST_COMMANDS         = 30
 
     def _mcp_helper_dispatch(self, op_code, args, timeout_s=5.0):
         """Send a request to the cinema4d_mcp_helper C++ plugin via
@@ -14683,40 +14691,55 @@ class C4DSocketServer(threading.Thread):
         return last
 
     def handle_scene_nodes_helper_logger(self, command):
-        """Phase A.2 diagnostic — drive the C++ shim's promiscuous
-        CoreMessage logger to identify what messages fire during a
-        manual editor gesture (e.g. right-click port → Add Input).
+        """Phase A.2 / A.2.1 diagnostic driver. Two channels:
 
-        Per GPT review: this is a CHEAP FIRST NET. Empty log does NOT
-        prove "no command exists" — it only proves the legacy CoreMessage
-        path is empty. If this returns no useful entries during the probe
-        gesture, Phase A.2.1 (CommandObserverInterface subscription) is
-        the actual definitive probe.
+        Phase A.2 (legacy CoreMessage logger):
+          action = 'start'  | 'stop'  | 'read'  | 'clear'
+          Logs every CoreMessage that fires (id, BFM_CORE_ID, par1, par2).
+          Confirmed empirically (2026-04-30): right-click "Add Input"
+          gesture does NOT broadcast through CoreMessage.
 
-        Args:
-          action (str, required): one of 'start', 'stop', 'read', 'clear'
+        Phase A.2.1 (maxon command framework observer):
+          action = 'observer_start' | 'observer_stop' | 'observer_read' |
+                   'observer_clear'
+          Subscribes to maxon::CommandObserverInterface::
+          ObservableCommandInvokedInfo. Captures every command invocation
+          with its maxon::Id (string-form) cmdId, interactive flag, and
+          interaction stage. This is the definitive probe for whether the
+          editor gesture goes through the command framework.
 
-        Returns:
-          {ok, action, status, status_msg, log_dump (only on 'read'),
-           protocol_version}
-
-        SAFE — instrumentation only, no scene mutation.
+        Returns: {ok, action, status, status_msg, log_dump (on read),
+                  cmd_observer_dump (on observer_read), protocol_version}
         """
         try:
             action = command.get("action")
             op_map = {
-                "start": self._OP_LOGGER_START,
-                "stop":  self._OP_LOGGER_STOP,
-                "read":  self._OP_LOGGER_READ,
-                "clear": self._OP_LOGGER_CLEAR,
+                # Phase A.2 — legacy CoreMessage logger
+                "start":           self._OP_LOGGER_START,
+                "stop":            self._OP_LOGGER_STOP,
+                "read":            self._OP_LOGGER_READ,
+                "clear":           self._OP_LOGGER_CLEAR,
+                # Phase A.2.1 — maxon command framework observer
+                "observer_start":  self._OP_OBSERVER_START,
+                "observer_stop":   self._OP_OBSERVER_STOP,
+                "observer_read":   self._OP_OBSERVER_READ,
+                "observer_clear":  self._OP_OBSERVER_CLEAR,
+                # Phase A.2.2 — direct registry enumeration
+                "list_commands":   self._OP_LIST_COMMANDS,
             }
             if action not in op_map:
                 return {"error": f"action must be one of {list(op_map.keys())}; "
                                   f"got {action!r}"}
 
+            # 'list_commands' supports an optional substring filter passed
+            # via BC_KEY_TARGET (the C++ side reads it from there).
+            extra_args = {}
+            if action == "list_commands" and command.get("filter"):
+                extra_args["target"] = str(command.get("filter"))
+
             def _dispatch():
                 try:
-                    return self._mcp_helper_dispatch(op_map[action], {})
+                    return self._mcp_helper_dispatch(op_map[action], extra_args)
                 except Exception as e:
                     return {"_error": str(e)}
 
@@ -14743,6 +14766,28 @@ class C4DSocketServer(threading.Thread):
                     result["log_dump_lines"] = len(dump.splitlines()) if dump else 0
                 except Exception as e:
                     result["log_dump_err"] = str(e)
+
+            # On 'list_commands' or 'observer_read', fetch the dump
+            if action == "list_commands":
+                def _read_obs():
+                    wc = c4d.GetWorldContainerInstance()
+                    return wc.GetString(self._BC_KEY_CMD_OBSERVER_DUMP)
+                try:
+                    dump = self.execute_on_main_thread(_read_obs, _timeout=5)
+                    result["commands_dump"] = dump if dump else ""
+                    result["commands_count"] = len(dump.splitlines()) if dump else 0
+                except Exception as e:
+                    result["commands_dump_err"] = str(e)
+            if action == "observer_read":
+                def _read_obs():
+                    wc = c4d.GetWorldContainerInstance()
+                    return wc.GetString(self._BC_KEY_CMD_OBSERVER_DUMP)
+                try:
+                    dump = self.execute_on_main_thread(_read_obs, _timeout=5)
+                    result["cmd_observer_dump"] = dump if dump else ""
+                    result["cmd_observer_lines"] = len(dump.splitlines()) if dump else 0
+                except Exception as e:
+                    result["cmd_observer_dump_err"] = str(e)
             return result
         except Exception as e:
             return {"error": f"scene_nodes_helper_logger failed: {e}",

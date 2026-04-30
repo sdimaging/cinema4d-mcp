@@ -42,6 +42,7 @@ scaling.
 #include "maxon/nodes_all.h"
 #include "maxon/nimbusbase.h"
 #include "maxon/neutron_ids.h"
+#include "maxon/commandobservable.h"
 
 namespace cinema
 {
@@ -72,8 +73,7 @@ const Int32 BC_KEY_NEW_PORT_ID    = 1057845022;
 const Int32 BC_KEY_PROTOCOL_VER   = 1057845023;
 const Int32 BC_KEY_DEBUG          = 1057845030; // optional debug trail (Phase A.1)
 
-// Phase A.2 — promiscuous CoreMessage logger keys
-const Int32 BC_KEY_LOG_ACTIVE     = 1057845040; // Bool — set by client to enable
+// Phase A.2 — promiscuous CoreMessage logger key (read-back only)
 const Int32 BC_KEY_LOG_DUMP       = 1057845041; // String — read by client
 
 const Int32 OP_PING                   = 0;
@@ -83,6 +83,21 @@ const Int32 OP_LOGGER_START           = 10;
 const Int32 OP_LOGGER_STOP            = 11;
 const Int32 OP_LOGGER_READ            = 12;
 const Int32 OP_LOGGER_CLEAR           = 13;
+// Phase A.2.1 maxon command-framework observer ops (the definitive probe
+// after A.2 returned only UI broadcasts — confirms editor right-click
+// "Add Input" goes through the maxon command framework, not legacy
+// CoreMessage. See docs/cpp_shim_phase_a2_1_design.md.)
+const Int32 OP_OBSERVER_START         = 20;
+const Int32 OP_OBSERVER_STOP          = 21;
+const Int32 OP_OBSERVER_READ          = 22;
+const Int32 OP_OBSERVER_CLEAR         = 23;
+// Phase A.2.2 — direct registry enumeration. CommandClasses is the maxon
+// command framework's registry of every registered command's class. We
+// can iterate it and dump every registered Id, then search for ones
+// matching "input"/"port"/"floating"/etc. This is more direct than
+// observer-based capture: we get the FULL list of every callable command,
+// regardless of whether the user invoked it.
+const Int32 OP_LIST_COMMANDS          = 30;
 
 // Phase A.2 — promiscuous CoreMessage logger state. When active, every
 // CoreMessage that fires (including ones NOT from our own SpecialEventAdd)
@@ -105,6 +120,25 @@ static maxon::Bool g_loggerActive = false;
 static String      g_msgLog;
 static Int32       g_msgLogCount = 0;
 static const Int32 G_MSG_LOG_CAP = 1000;
+
+// Phase A.2.1 — maxon command framework observer state. Subscription is
+// established lazily on first OP_OBSERVER_START and then KEPT for the
+// plugin's lifetime (we leak the ticket — simpler than tracking the
+// FunctionBaseRef type, and the plugin lifetime is the only concern).
+// The g_cmdObserverActive flag gates whether the callback writes to the
+// log, allowing repeated start/stop cycles cheaply.
+static maxon::CommandObserverRef g_cmdObserver;
+static maxon::Bool g_cmdObserverSubscribed = false;
+static maxon::Bool g_cmdObserverActive = false;
+static String      g_cmdObserverLog;
+static Int32       g_cmdObserverCount = 0;
+static const Int32 G_CMD_OBSERVER_CAP = 1000;
+const Int32 BC_KEY_CMD_OBSERVER_DUMP = 1057845050;
+
+#if 0  // Phase A.1 AddPort experiment — kept commented out as documentation
+       // (see commit 670ae14 + docs/cpp_shim_phase_b_design.md). Wrapping
+       // in #if 0 lets the SDK API references stay in source for Phase B
+       // reuse without triggering "unused function" warnings (-WX).
 
 // ============================================================================
 // Helpers
@@ -289,6 +323,96 @@ static Int32 DoAddFloatingIOPort(BaseContainer* wc)
 	return 0;
 }
 
+#endif  // Phase A.1 AddPort experiment
+
+// ============================================================================
+// Phase A.2.2 — direct registry enumeration of CommandClasses
+// ============================================================================
+
+// Dump every registered maxon command class Id to the cmd-observer log.
+// Pattern: maxon::CommandClasses::GetEntriesWithId() iterates the registry.
+// Each entry has GetKey() (the maxon::Id) and GetValue() (the class).
+static maxon::Result<void> ListCommandClasses_Impl(maxon::Bool filter,
+                                                    const maxon::String& filterStr)
+{
+	iferr_scope;
+	String dump;
+	Int32 count = 0;
+	Int32 matched = 0;
+	for (const auto& entry : maxon::CommandClasses::GetEntriesWithId())
+	{
+		count++;
+		const maxon::Id idObj = entry.GetKey();
+		const maxon::String idStr = idObj.ToString();
+		if (filter)
+		{
+			// case-insensitive substring filter
+			maxon::Int found;
+			if (!idStr.FindUpper(filterStr, &found))
+				continue;
+		}
+		matched++;
+		dump += MaxonConvert(idStr);
+		dump += "\n";
+	}
+	g_cmdObserverLog = dump;
+	g_cmdObserverCount = matched;
+	return maxon::OK;
+}
+
+// ============================================================================
+// Phase A.2.1 — CommandObserverInterface subscription helper
+// ============================================================================
+
+// Lazy first-time subscription. Once subscribed, the observer stays
+// subscribed for the plugin lifetime. The g_cmdObserverActive flag gates
+// callback logging.
+static maxon::Result<void> EnsureCommandObserverSubscribed_Impl()
+{
+	iferr_scope;
+
+	if (g_cmdObserverSubscribed)
+		return maxon::OK;
+
+	// Create an observer instance via the registered class.
+	// OPEN QUESTION: this creates a fresh instance — if the global command
+	// system fires events through a SPECIFIC singleton, we won't receive
+	// them. Sanity-check: subscribe + invoke a known command via
+	// CallCommand → if the callback fires, we have the right instance.
+	// If not, need to find the singleton accessor.
+	g_cmdObserver = maxon::CommandObserverObjectClass().Create() iferr_return;
+
+	// Subscribe to ObservableCommandInvokedInfo (the most informative
+	// observable — fires at every stage of command invocation with the
+	// full CommandDataRef + InvocationState context).
+	g_cmdObserver.ObservableCommandInvokedInfo(true).AddObserver(
+		[](const maxon::Id& cid,
+		   const maxon::Result<maxon::COMMANDRESULT>& res,
+		   const maxon::CommandDataRef& data,
+		   const maxon::InvocationState& state) -> maxon::Result<void>
+		{
+			(void)res;
+			(void)data;
+			if (g_cmdObserverActive && g_cmdObserverCount < G_CMD_OBSERVER_CAP)
+			{
+				g_cmdObserverCount++;
+				g_cmdObserverLog += "[";
+				g_cmdObserverLog += String::IntToString((Int64)g_cmdObserverCount);
+				g_cmdObserverLog += "] cmdId=";
+				g_cmdObserverLog += MaxonConvert(cid.ToString());
+				g_cmdObserverLog += " interactive=";
+				g_cmdObserverLog += state._interactive ? "true" : "false";
+				g_cmdObserverLog += " interaction=";
+				g_cmdObserverLog += String::IntToString((Int64)(maxon::Int)state._interaction);
+				g_cmdObserverLog += "\n";
+			}
+			return maxon::OK;
+		}) iferr_return;
+
+	g_cmdObserverSubscribed = true;
+	return maxon::OK;
+}
+
 // ============================================================================
 // MessageData receiver
 // ============================================================================
@@ -389,6 +513,75 @@ public:
 				wc->SetString(BC_KEY_STATUS_MSG, "logger cleared"_s);
 				status = 0;
 				break;
+
+			case OP_OBSERVER_START:
+			{
+				// Lazy subscribe on first start (idempotent).
+				iferr (EnsureCommandObserverSubscribed_Impl())
+				{
+					wc->SetString(BC_KEY_STATUS_MSG,
+						String("observer subscribe failed: ") + MaxonConvert(err.GetMessage()));
+					status = 1;
+					break;
+				}
+				g_cmdObserverActive = true;
+				wc->SetString(BC_KEY_STATUS_MSG, "command observer started"_s);
+				status = 0;
+				break;
+			}
+
+			case OP_OBSERVER_STOP:
+				g_cmdObserverActive = false;
+				wc->SetString(BC_KEY_STATUS_MSG, "command observer stopped"_s);
+				status = 0;
+				break;
+
+			case OP_OBSERVER_READ:
+			{
+				wc->SetString(BC_KEY_CMD_OBSERVER_DUMP, g_cmdObserverLog);
+				String summary;
+				summary += "command observer subscribed=";
+				summary += g_cmdObserverSubscribed ? "true" : "false";
+				summary += " active=";
+				summary += g_cmdObserverActive ? "true" : "false";
+				summary += " entries=";
+				summary += String::IntToString((Int64)g_cmdObserverCount);
+				wc->SetString(BC_KEY_STATUS_MSG, summary);
+				status = 0;
+				break;
+			}
+
+			case OP_OBSERVER_CLEAR:
+				g_cmdObserverLog = String();
+				g_cmdObserverCount = 0;
+				wc->SetString(BC_KEY_STATUS_MSG, "command observer cleared"_s);
+				status = 0;
+				break;
+
+			case OP_LIST_COMMANDS:
+			{
+				// Read filter from BC_KEY_TARGET (reuse existing key) — empty = no filter.
+				const String filterStr = wc->GetString(BC_KEY_TARGET);
+				const maxon::String filterMaxon = MaxonConvert(filterStr);
+				const maxon::Bool useFilter = (filterStr.GetLength() > 0);
+				iferr (ListCommandClasses_Impl(useFilter, filterMaxon))
+				{
+					wc->SetString(BC_KEY_STATUS_MSG,
+						String("list cmds failed: ") + MaxonConvert(err.GetMessage()));
+					status = 1;
+					break;
+				}
+				wc->SetString(BC_KEY_CMD_OBSERVER_DUMP, g_cmdObserverLog);
+				String summary;
+				summary += "matched=";
+				summary += String::IntToString((Int64)g_cmdObserverCount);
+				summary += " (filter=";
+				summary += filterStr.GetLength() > 0 ? filterStr : String("(none)");
+				summary += ")";
+				wc->SetString(BC_KEY_STATUS_MSG, summary);
+				status = 0;
+				break;
+			}
 			default:
 				wc->SetString(BC_KEY_STATUS_MSG, "unknown op-code"_s);
 				status = 99;
