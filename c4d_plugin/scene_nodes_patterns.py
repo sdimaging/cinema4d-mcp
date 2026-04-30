@@ -35,6 +35,8 @@ VERIFIED_LABELS: dict[str, str] = {
     # Distribution / scatter (THE killer scatter primitives)
     "Surface Blue-Noise": "surfacebluenoise",
     "Surface Scaled Blue-Noise": "surfacescaledbluenoise",
+    # Capsule UD exposure
+    "Floating IO": "floatingio",  # exposes graph ports to parent capsule's Attribute Manager
     # Loop scaffold
     "Range": "range",
     "Loop Carried Value": "loopcarriedvalue",

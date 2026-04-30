@@ -3235,6 +3235,59 @@ async def scene_nodes_connect_ports(
 
 
 @mcp.tool()
+async def scene_nodes_create_capsule_with_pattern(
+    pattern_name: str,
+    capsule_type: str = "generator",
+    capsule_name: Optional[str] = None,
+    params: Optional[Dict[str, Any]] = None,
+    ctx: Context = None,
+) -> str:
+    """Create a fresh Scene Nodes Generator/Deformer object AND populate
+    its embedded graph with the named pattern. The "I GOT YOU EASY"
+    artist-facing entrypoint — one call, capsule appears in the object
+    tree, ready for parameterization via the Attribute Manager.
+
+    This is the canonical capsule-first authoring tool. Instead of
+    apply_pattern (which mutates the doc-level graph), this creates a
+    self-contained capsule object the artist can drag/drop, parameterize,
+    and store Selection Tags from per the bidirectionality principle.
+
+    22 patterns available — call scene_nodes_atlas_lookup kind='pattern'
+    for the catalog. Examples:
+      - 'procedural_surface_scatter' (host=mesh, count=200)
+      - 'hash_threshold_selection' (threshold=0.3, seed=42)
+      - 'memory_capsule_state_carrier' (the simplest possible capsule)
+      - 'reaction_diffusion_on_geometry' (Gray-Scott on mesh)
+
+    Args:
+      pattern_name: registered pattern name (per atlas)
+      capsule_type: 'generator' (180420700, default) | 'sn_gen_a' (180420500)
+        | 'sn_gen_b' (180420600) | 'sn_gen_c' (180420700) | 'deformer'
+        (180420400) | 'capsule' (5171)
+      capsule_name: name for the new object (default: derived from pattern_name)
+      params: pattern-specific kwargs (see atlas)
+
+    UNSAFE — inserts an object into the doc and mutates its graph.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {
+            "command": "scene_nodes_create_capsule_with_pattern",
+            "pattern_name": pattern_name,
+            "capsule_type": capsule_type,
+        }
+        if capsule_name is not None:
+            cmd["capsule_name"] = capsule_name
+        if params is not None:
+            cmd["params"] = params
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
 async def scene_nodes_describe_node_template(
     label: str,
     graph_target: Optional[str] = None,

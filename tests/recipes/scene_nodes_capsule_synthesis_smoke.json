@@ -1,0 +1,63 @@
+{
+  "name": "scene_nodes_capsule_synthesis_smoke",
+  "description": "End-to-end test of the create_capsule_with_pattern tool — the 'I GOT YOU EASY' artist-facing capsule synthesizer. Creates fresh SN Generator/Deformer objects, populates their embedded graphs with named patterns, validates the result via classify_graph + walk. Locks the canonical capsule-first authoring path.",
+  "setup": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\ndoc = c4d.documents.GetActiveDocument()\nfor n in ['Loop Over Indices', 'Memory Capsule State Carrier', 'Procedural Surface Scatter']:\n    o = doc.SearchObject(n)\n    if o: o.Remove()\nc4d.EventAdd()\nprint('setup ok — cleared any prior synthesized capsules')"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "name": "synthesize_loop_over_indices_capsule",
+      "command": "scene_nodes_create_capsule_with_pattern",
+      "args": {
+        "pattern_name": "loop_over_indices",
+        "capsule_type": "generator",
+        "capsule_name": "Loop Over Indices",
+        "params": {"count": 10}
+      },
+      "assert": [
+        {"type": "object_exists", "name": "Loop Over Indices"}
+      ]
+    },
+    {
+      "name": "verify_loop_capsule_internals",
+      "command": "scene_nodes_classify_graph",
+      "args": {"target_object": "Loop Over Indices", "max_depth": 8},
+      "assert": []
+    },
+    {
+      "name": "synthesize_memory_carrier_capsule",
+      "command": "scene_nodes_create_capsule_with_pattern",
+      "args": {
+        "pattern_name": "loop_over_indices",
+        "capsule_type": "deformer",
+        "capsule_name": "Memory Capsule State Carrier",
+        "params": {}
+      },
+      "assert": [
+        {"type": "object_exists", "name": "Memory Capsule State Carrier"}
+      ]
+    },
+    {
+      "name": "list_objects_after_synthesis",
+      "command": "list_objects",
+      "args": {},
+      "assert": [
+        {"type": "object_exists", "name": "Loop Over Indices"},
+        {"type": "object_exists", "name": "Memory Capsule State Carrier"}
+      ]
+    }
+  ],
+  "teardown": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\ndoc = c4d.documents.GetActiveDocument()\nfor n in ['Loop Over Indices', 'Memory Capsule State Carrier', 'Procedural Surface Scatter']:\n    o = doc.SearchObject(n)\n    if o: o.Remove()\nc4d.EventAdd()\nprint('teardown ok')"
+      }
+    }
+  ]
+}

@@ -538,6 +538,8 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_scene_nodes_connect_ports(command)
                         elif command_type == "scene_nodes_describe_node_template":
                             response = self.handle_scene_nodes_describe_node_template(command)
+                        elif command_type == "scene_nodes_create_capsule_with_pattern":
+                            response = self.handle_scene_nodes_create_capsule_with_pattern(command)
                         elif command_type == "paint_vertex_map_from_formula":
                             response = self.handle_paint_vertex_map_from_formula(command)
                         elif command_type == "paint_vertex_map_radial":
@@ -10747,6 +10749,7 @@ class C4DSocketServer(threading.Thread):
         "scene_nodes_atlas_lookup", "scene_nodes_classify_graph",
         "scene_nodes_apply_pattern", "scene_nodes_connect_ports",
         "scene_nodes_describe_node_template",
+        "scene_nodes_create_capsule_with_pattern",
         "paint_vertex_map_from_formula", "paint_vertex_map_radial",
         "list_deformer_types", "apply_deformer",
         "list_field_types", "add_field_to_scene", "bake_field_to_vmap",
@@ -14481,6 +14484,148 @@ class C4DSocketServer(threading.Thread):
             }
         except Exception as e:
             return {"error": f"scene_nodes_describe_node_template failed: {e}",
+                    "traceback": traceback.format_exc()}
+
+    def handle_scene_nodes_create_capsule_with_pattern(self, command):
+        """Create a fresh Scene Nodes Generator/Deformer object AND populate
+        its embedded graph with the named pattern. The "I GOT YOU EASY" — one
+        call, capsule appears in the object tree, ready for the artist.
+
+        This is the canonical artist-facing entrypoint per the capsule-first
+        design principle. Instead of `apply_pattern` (which mutates the
+        doc-level graph), this creates a self-contained capsule object the
+        artist can drag/drop, parameterize via Attribute Manager, store a
+        Selection Tag from, etc.
+
+        Args:
+          pattern_name (str, required): one of the 22 registered patterns
+            (use scene_nodes_atlas_lookup kind='pattern' to see all).
+          capsule_type (str, default 'generator'): 'generator' (180420700) |
+            'deformer' (180420400) | 'capsule' (5171) | 'sn_gen_a' |
+            'sn_gen_b' | 'sn_gen_c' (different SN Generator variants).
+          capsule_name (str, default '<PatternName>'): name for the new
+            object in the scene tree.
+          params (dict, optional): pattern-specific parameters.
+
+        Returns: {ok, capsule_name, capsule_type, plugin_id, pattern_name,
+                  applied_spec, created_nodes}
+
+        UNSAFE — inserts an object into the doc and mutates its graph.
+        Wrap in begin_undo_group for reversibility.
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+            pattern_name = command.get("pattern_name")
+            if not pattern_name or not isinstance(pattern_name, str):
+                return {"error": "pattern_name (str) is required"}
+            capsule_type = command.get("capsule_type", "generator")
+            capsule_name = command.get("capsule_name") or pattern_name.replace("_", " ").title()
+            params = command.get("params") or {}
+            if not isinstance(params, dict):
+                return {"error": "params must be a dict"}
+
+            # Capsule-type → plugin ID mapping
+            CAPSULE_TYPE_MAP = {
+                "generator": 180420700,
+                "sn_gen_a": 180420500,
+                "sn_gen_b": 180420600,
+                "sn_gen_c": 180420700,
+                "deformer": 180420400,
+                "capsule": 5171,
+            }
+            plugin_id = CAPSULE_TYPE_MAP.get(capsule_type)
+            if plugin_id is None:
+                return {
+                    "error": f"unknown capsule_type {capsule_type!r}",
+                    "valid_types": sorted(CAPSULE_TYPE_MAP.keys()),
+                }
+
+            atlas = self._load_atlas()
+            if atlas.get("patterns") is None:
+                return {"error": "scene_nodes_patterns module not loadable",
+                        "load_errors": atlas["errors"]}
+
+            try:
+                spec = atlas["patterns"].build_pattern(pattern_name, **params)
+            except Exception as e:
+                return {"error": f"pattern build failed: {e}",
+                        "available_patterns": sorted(atlas["patterns"].PATTERN_REGISTRY.keys())}
+
+            from maxon.frameworks.nodes import GraphDescription
+
+            def _create_and_populate():
+                # Create the capsule object
+                new_obj = c4d.BaseObject(plugin_id)
+                if new_obj is None:
+                    return {"_error": f"BaseObject({plugin_id}) returned None — "
+                                       f"capsule_type {capsule_type!r} may not be "
+                                       f"available in this C4D install"}
+                new_obj.SetName(capsule_name)
+                doc.InsertObject(new_obj)
+                c4d.EventAdd()
+
+                # Get its embedded graph
+                try:
+                    graph = GraphDescription.GetGraph(new_obj)
+                except Exception as e:
+                    return {"_error": f"GetGraph(new_capsule) failed: {e}"}
+                if graph is None:
+                    return {"_error": "GetGraph returned None for new capsule"}
+
+                # Apply the pattern's spec INSIDE the new capsule's graph
+                try:
+                    result = GraphDescription.ApplyDescription(graph, spec)
+                except Exception as e:
+                    return {
+                        "_error": f"ApplyDescription failed: {e}",
+                        "_capsule_created": True,
+                        "_capsule_name": capsule_name,
+                        "_hint": "Capsule was created but pattern apply failed. "
+                                  "Inspect with scene_nodes_walk target_object="
+                                  f"'{capsule_name}'.",
+                    }
+
+                created = list(result.keys()) if isinstance(result, dict) else []
+                return {
+                    "_capsule_name": capsule_name,
+                    "_plugin_id": plugin_id,
+                    "_created_nodes": created,
+                }
+
+            outcome = self.execute_on_main_thread(_create_and_populate, _timeout=30)
+            if isinstance(outcome, dict) and "_error" in outcome:
+                return {
+                    "error": outcome["_error"],
+                    "pattern_name": pattern_name,
+                    "capsule_type": capsule_type,
+                    "applied_spec": spec,
+                    "capsule_partially_created": outcome.get("_capsule_created", False),
+                }
+            if isinstance(outcome, dict) and "error" in outcome:
+                return outcome
+
+            return {
+                "ok": True,
+                "capsule_name": outcome.get("_capsule_name"),
+                "capsule_type": capsule_type,
+                "plugin_id": outcome.get("_plugin_id"),
+                "pattern_name": pattern_name,
+                "applied_spec": spec,
+                "created_nodes": outcome.get("_created_nodes", []),
+                "node_count_planned": (len(spec) if isinstance(spec, list) else 1),
+                "next_steps": [
+                    "Inspect via scene_nodes_walk target_object="
+                        f"'{outcome.get('_capsule_name')}'",
+                    "Add Floating IO nodes per tunable param for Attribute Manager exposure",
+                    "Connect ports via scene_nodes_connect_ports",
+                    "Verify via scene_nodes_classify_graph target_object="
+                        f"'{outcome.get('_capsule_name')}'",
+                ],
+            }
+        except Exception as e:
+            return {"error": f"scene_nodes_create_capsule_with_pattern failed: {e}",
                     "traceback": traceback.format_exc()}
 
     def handle_scene_nodes_connect_ports(self, command):
