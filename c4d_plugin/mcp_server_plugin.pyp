@@ -14673,81 +14673,43 @@ class C4DSocketServer(threading.Thread):
         return last
 
     def handle_scene_nodes_add_floating_io_port(self, command):
-        """Add a named port to a Floating IO node via the C++ shim's
-        AddPort wrapper. Replicates what the C4D editor does on drag-wire
-        when an artist exposes a parameter.
+        """[UNSUPPORTED — see docs/c4d_2026_api_gotchas.md gotcha #36]
 
-        Phase A.1 (2026-04-30): the C++ shim must be built + installed
-        + C4D restarted before this works. Verify via
-        scene_nodes_helper_ping.
+        Phase A.1 (2026-04-30) deep-dive proved that runtime AddPort on
+        a FloatingIO is fundamentally unsupported by the C4D 2026 C++
+        runtime. All four variants we tried get rejected:
 
-        Args:
-          graph_target (str, required): name of the BaseObject hosting
-            the Scene Nodes graph (e.g. 'FIO_Probe').
-          fio_node_id (str, required): the Floating IO instance ID. Pass
-            the FULL ID ('floatingio@HASH') or just the last path
-            segment — both match.
-          port_name (str, required): exact name for the new port. Should
-            match the canonical-attribute-path convention Maxon's
-            shipped capsules use:
-              hiddenin1.<canonical.attribute.path>  for input side
-              in1.<canonical.attribute.path>        for output side
-          direction (str, optional): 'input' (default) or 'output'.
+          fio.AddPort(name)              -> "You can't add a port directly to node Root"
+          fio.GetInputs().AddPort(name)  -> "PrivateIsNodeAFloatingIo not fulfilled"
+          graph.AddPorts(fio, ...)       -> "VARIADIC_TEMPLATE not fulfilled"
+          graph.AddPorts(portlist, ...)  -> same
 
-        Returns:
-          {ok, new_port_id, status, status_msg, protocol_version,
-           graph_target, fio_node_id, port_name, direction}
+        FloatingIO is marked `/// INTERNAL.` in the SDK. The C4D editor's
+        drag-wire UX uses a higher-level "instantiate-with-modification"
+        operation that reaches the maxon::nodes::MutableRoot template-
+        DEFINITION layer (template-build-time, not runtime graph mutation).
 
-        UNSAFE — mutates the graph. Always verify via scene_nodes_walk
-        post-call.
+        The actual path for "user-tunable capsule with AM params" is
+        Phase B: build a complete NodeTemplate definition, save as a
+        net.maxon.node.assettype.nodetemplate (.c4dnodes) asset. See:
+          - docs/scene_nodes_guide.md §8 "Phase A.1 finding"
+          - docs/c4d_2026_api_gotchas.md gotchas #36 + #28-35
+          - cpp_shim/cinema4d_mcp_helper/source/main.cpp (Phase B target)
+
+        This handler is kept as a stub returning a clear unsupported-error
+        so callers don't hit cryptic C++ rejection messages and instead
+        get pointed at the right path.
         """
-        try:
-            graph_target = command.get("graph_target")
-            fio_node_id = command.get("fio_node_id")
-            port_name = command.get("port_name")
-            direction = command.get("direction", "input")
-            for fld, val in [("graph_target", graph_target),
-                              ("fio_node_id", fio_node_id),
-                              ("port_name", port_name)]:
-                if not val or not isinstance(val, str):
-                    return {"error": f"{fld} (str) is required"}
-            if direction not in ("input", "output"):
-                return {"error": f"direction must be 'input' or 'output' "
-                                  f"(got {direction!r})"}
-            is_output = (direction == "output")
-
-            def _dispatch():
-                try:
-                    return self._mcp_helper_dispatch(
-                        self._OP_ADD_FLOATING_IO_PORT,
-                        {"target": graph_target,
-                         "node_id": fio_node_id,
-                         "port_name": port_name,
-                         "is_output": is_output})
-                except Exception as e:
-                    return {"_error": str(e)}
-
-            outcome = self.execute_on_main_thread(_dispatch, _timeout=15)
-            if isinstance(outcome, dict) and "_error" in outcome:
-                return {"error": outcome["_error"]}
-
-            status = outcome.get("status", -1)
-            status_msg = outcome.get("status_msg", "")
-            ok = (status == 0)
-            return {
-                "ok": ok,
-                "new_port_id": outcome.get("new_port_id", "") if ok else None,
-                "status": status,
-                "status_msg": status_msg,
-                "protocol_version": outcome.get("protocol_version", -1),
-                "graph_target": graph_target,
-                "fio_node_id": fio_node_id,
-                "port_name": port_name,
-                "direction": direction,
-            }
-        except Exception as e:
-            return {"error": f"scene_nodes_add_floating_io_port failed: {e}",
-                    "traceback": traceback.format_exc()}
+        return {
+            "error": "runtime AddPort on FloatingIO is unsupported "
+                     "in C4D 2026 — see docs/c4d_2026_api_gotchas.md "
+                     "gotcha #36 + scene_nodes_guide.md §8. The actual "
+                     "path is NodeTemplate publishing (Phase B); use "
+                     "scene_nodes_save_as_asset for File-type round-trip "
+                     "in the meantime.",
+            "supported": False,
+            "phase_b_status": "in design — see cpp_shim/README.md",
+        }
 
     def handle_scene_nodes_helper_ping(self, command):
         """Probe the cinema4d_mcp_helper C++ companion plugin.

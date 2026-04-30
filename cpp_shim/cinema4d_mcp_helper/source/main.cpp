@@ -1,20 +1,36 @@
 /* cinema4d_mcp_helper — C++ companion plugin for cinema4d-mcp.
 
-PHASE A.1 (2026-04-30): wraps GraphModelInterface::AddPort for named-port
-creation on a Floating IO node inside an SN Generator's embedded graph.
-This is what the C4D editor calls on drag-wire when an artist exposes a
-parameter — Python's maxon.frameworks.{nodes,graph} module doesn't wrap
-the singular AddPort form, so we do it here.
+STATUS (2026-04-30): bridge architecture proven; Phase A.1 (FIO AddPort)
+abandoned per gotcha #36 — runtime AddPort on FloatingIO is fundamentally
+unsupported by the C4D 2026 runtime regardless of language/wrapping.
+Phase B (NodeTemplate publishing via maxon::nodes::MutableRoot) is the
+actual path for user-tunable capsules with AM-surfaced params.
 
-Phase A.0 (earlier): minimal MessageData skeleton — verified plugin loads
-+ is discoverable via FindPlugin.
+Phase A.0 (kept): MessageData skeleton — plugin loads, is discoverable
+via FindPlugin(1057845, PLUGINTYPE_COREMESSAGE), responds to OP_PING
+through the SpecialEventAdd dispatch protocol.
 
-Protocol (Python <-> C++ via shared GetWorldContainerInstance):
-  Python writes args under our BC keys, fires
-  c4d.SendCoreMessage(MSG_MCP_HELPER_REQ, c4d.BaseContainer()).
-  C++ CoreMessage reads world container, dispatches by op-code, writes
-  result back. Python reads result. Single in-flight only — MCP socket
-  serializes calls at the orchestration layer.
+Phase A.1 dispatch (kept; reusable for Phase B):
+  Python:
+    1. Worker thread writes args to GetWorldContainerInstance under
+       reserved BC keys.
+    2. Calls execute_on_main_thread(_write_and_fire) -> writes args +
+       SpecialEventAdd(MCP_HELPER_PLUGIN_ID, op_code, 0).
+    3. Worker sleeps + polls execute_on_main_thread(_read) until
+       BC_KEY_STATUS != -1 sentinel (or timeout).
+  C++:
+    CoreMessage(EVMSG_CHANGE) fires -> filter by bc.GetInt32(BFM_CORE_ID)
+    == MCP_HELPER_PLUGIN_ID -> read op-code from BFM_CORE_PAR1 -> dispatch
+    -> write status / message / response payload back to world container.
+
+OP_ADD_FLOATING_IO_PORT now returns a clear "unsupported" error pointing
+at gotcha #36 instead of rejecting via cryptic Maxon runtime errors.
+
+Phase B will add OP_PUBLISH_NODETEMPLATE: takes a typed-port spec, builds
+a maxon::nodes::MutableRoot, registers as net.maxon.node.assettype.
+nodetemplate (.c4dnodes) asset. Per GPT discipline: start with the
+minimal possible template (1 input -> 1 internal node -> 1 output) before
+scaling.
 */
 
 #include "main.h"
@@ -92,7 +108,10 @@ static Bool MatchesNodeIdSegment(const maxon::GraphNode& node, const maxon::Stri
 }
 
 // ============================================================================
-// AddPort implementation — returns Result<void> so iferr_return works clean
+// AddPort implementation — Phase A.1 historical (kept for future revisit)
+// Currently the dispatch routes OP_ADD_FLOATING_IO_PORT to a clean
+// "unsupported" reply; the implementation below is retained so the file
+// keeps the SDK API references for documentation and Phase B reuse.
 // ============================================================================
 
 static maxon::Result<void> DoAddFloatingIOPort_Impl(BaseContainer* wc,
@@ -280,7 +299,11 @@ public:
 				status = 0;
 				break;
 			case OP_ADD_FLOATING_IO_PORT:
-				status = DoAddFloatingIOPort(wc);
+				// Runtime AddPort on FloatingIO is fundamentally unsupported
+				// by the C4D 2026 runtime (gotcha #36). Return a clean
+				// unsupported message rather than running the failing impl.
+				wc->SetString(BC_KEY_STATUS_MSG, "Runtime AddPort on FloatingIO is unsupported in C4D 2026 — see gotcha #36. Use NodeTemplate publishing path (Phase B)."_s);
+				status = 100;
 				break;
 			default:
 				wc->SetString(BC_KEY_STATUS_MSG, "unknown op-code"_s);
