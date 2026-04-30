@@ -54,6 +54,7 @@ const Int32 BC_KEY_STATUS         = 1057845020;
 const Int32 BC_KEY_STATUS_MSG     = 1057845021;
 const Int32 BC_KEY_NEW_PORT_ID    = 1057845022;
 const Int32 BC_KEY_PROTOCOL_VER   = 1057845023;
+const Int32 BC_KEY_DEBUG          = 1057845030; // optional debug trail (Phase A.1)
 
 const Int32 OP_PING                  = 0;
 const Int32 OP_ADD_FLOATING_IO_PORT  = 1;
@@ -140,22 +141,45 @@ static maxon::Result<void> DoAddFloatingIOPort_Impl(BaseContainer* wc,
 	if (!root.IsValid())
 		return maxon::UnexpectedError(MAXON_SOURCE_LOCATION, "graph view root is invalid"_s);
 
-	// GetInnerNodes is on the GraphNode, NOT on the graph reference (gotcha
-	// #30). Recurses through node-kind children; the receiver is invoked for
-	// each. Return true to continue, false to stop.
-	root.GetInnerNodes(maxon::NODE_KIND::NODE, false,
-		[&foundFio, &fioTargetMaxon](const maxon::GraphNode& candidate) -> maxon::Result<maxon::Bool>
+	// Walk top-level children of view root. Switched from GetInnerNodes
+	// (recursive) to GetChildren (one level) — the FIO we want is at the
+	// top level for our use case, and the recursive walk previously matched
+	// the root node itself somehow (live error: "You can't add a port
+	// directly to node Root").
+	//
+	// Diagnostic: build a debug trail in cinema::String (which is what
+	// BaseContainer::SetString expects) — captures each candidate's ID and
+	// whether it matched. Python reads this from BC_KEY_STATUS_MSG.
+	String debug;
+	debug += "rootId=";
+	debug += MaxonConvert(root.GetId().ToString());
+	debug += " target=";
+	debug += MaxonConvert(fioTargetMaxon);
+	debug += " candidates=[";
+	maxon::Bool firstCandidate = true;
+
+	root.GetChildren([&foundFio, &fioTargetMaxon, &debug, &firstCandidate](const maxon::GraphNode& candidate) -> maxon::Result<maxon::Bool>
 		{
+			if (!firstCandidate)
+				debug += ", ";
+			firstCandidate = false;
+			debug += MaxonConvert(candidate.GetId().ToString());
 			if (foundFio.IsValid())
-				return maxon::Bool(true); // already found, keep iterating (cheap)
+				return maxon::Bool(true);
 			if (MatchesNodeIdSegment(candidate, fioTargetMaxon))
+			{
 				foundFio = candidate;
+				debug += "(MATCH)";
+			}
 			return maxon::Bool(true);
-		}) iferr_return;
+		}, maxon::NODE_KIND::NODE) iferr_return;
+
+	debug += "]";
+	wc->SetString(BC_KEY_DEBUG, debug);
 
 	if (!foundFio.IsValid())
 		return maxon::UnexpectedError(MAXON_SOURCE_LOCATION,
-			"fio_node_id not found in graph"_s);
+			"fio_node_id not found among top-level children of view root"_s);
 
 	// AddPort on the FIO node DIRECTLY, not on its GetInputs/GetOutputs
 	// containers. Live error from a previous attempt was:
