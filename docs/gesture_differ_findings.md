@@ -81,37 +81,113 @@ the wrong abstraction. The correct target is `GraphNode::AddPort` on the
 The "Maxon internal-only" framing on this gesture turns out to be wrong: the API
 is fully reachable from Python as long as you find the right object.
 
-# Open: port datatype mechanism
+# Solved: port datatype = typed default value
 
-`AddPort(name)` takes only one argument and creates an untyped port (`GetType()`
-returns the generic `net.maxon.graph.graphnode` for all root-level ports,
-including the standard `time`, `frame`, `nimbus`, etc.).
-
-Probed datatype attribute keys via `port.GetValue(<key>)` on the **existing**
-typed `geometryout` port:
+The breakthrough realization came from inspecting Sphere.radius (which the
+editor's tooltip shows as `Type: Float64, Value: 6`):
 
 ```
-net.maxon.node.attribute.datatype          → None
-net.maxon.node.port.datatype               → None
-net.maxon.description.data.base.datatype   → None
-net.maxon.description.data.base.defaultvalue → None
-net.maxon.description.ui.base.gui          → None
-net.maxon.description.ui.base.guitypeid    → None
-net.maxon.node.attribute.valuetype         → None
-net.maxon.node.port.template               → None
-net.maxon.node.port.wrappednode            → None
-... (all None)
+GetType()              → net.maxon.graph.graphnode  (same as untyped ports!)
+GetEffectivePortValue() → maxon.Float64 object ... data: 6
 ```
 
-**Port datatype is not stored as a writable GraphNode attribute the Python
-binding exposes.** The editor's tooltip displays
-`net.maxon.geometryabstraction.objects.mesh.mesh` for GeometryObject ports —
-that's the canonical type Id — but writing it under any of the candidate keys
-above doesn't make C4D treat the port as that type.
+**The port itself doesn't carry type info.** `GetType()` returns the GraphNode
+class (always `net.maxon.graph.graphnode` for any port). The editor's tooltip
+reads the type from the **value** flowing through the port. So setting a port's
+type = setting its default value to a value of the desired type:
 
-Likely it's held at the template/registry layer (port template registration
-similar to `MAXON_DECLARATION_REGISTER`), or via a C++-only API surface like
-`GraphNode::SetWrappedNode` / `Port::SetTemplate`.
+```python
+txn = graph.BeginTransaction()
+new_port = inputs.AddPort("my_float_param")
+new_port.SetPortValue(maxon.Float64(0.0))   # types it as Float64
+txn.Commit()
+```
+
+Verified across all primitive types:
+- `maxon.Float64(default)` → typed Float64 port
+- `maxon.Int64(default)` → typed Int64
+- `maxon.Vector64(x,y,z)` → typed Vector64
+- `maxon.Bool(default)` → typed Bool
+- `maxon.String(default)` → typed String
+
+After SetPortValue, `GetEffectivePortValue()` returns the right typed object,
+matching what the editor's tooltip would display.
+
+`maxon.Geometry` / `maxon.Mesh` / `maxon.GeometryObject` aren't exposed in the
+Python binding; graph-IO ports route geometry as part of node connections rather
+than via SetPortValue. This is fine for the parameter-exposure use case (which
+is what FIO ports are for).
+
+# Canonical datatype list (from the editor's Resource Editor dropdown)
+
+The Resource Editor's `Data Type` dropdown lists every type a user can pick
+when adding a port via the right-click menu:
+
+| UI label | maxon Python constructor |
+|---|---|
+| Bool | `maxon.Bool(False)` |
+| Color | (Vector64 with 3 components, RGB convention) |
+| ColorAlpha | (Vector64 with 4 components, RGBA) |
+| Float | `maxon.Float64(0.0)` |
+| GeometryObject | (graph-IO, not via SetPortValue) |
+| Int | `maxon.Int64(0)` |
+| Matrix | (likely needs maxon.Matrix64) |
+| String | `maxon.String("")` |
+| TimeValue | (TimeValue type) |
+| Url | (Url type) |
+| Vector | `maxon.Vector64(0,0,0)` |
+| Vector2d | (Vector2d) |
+| Vector4d | (Vector4d) |
+
+# Per-port advanced attributes (from Resource Editor)
+
+The editor's "Advanced" tab exposes additional per-port writable attributes
+beyond datatype:
+
+- `Group Identifier`: `net.maxon.node.base.group.inputs` — tells the editor
+  this port is in the inputs port-list (vs `...group.outputs` for outputs).
+  Probably what `root.GetInputs()` resolves to internally.
+- `Animatable`: bool — whether the port can be keyframed
+- `Hide Port in Nodegraph`: bool — visibility in the editor canvas
+- `Is Converter Port`: bool
+- `Scene Port Mode`: enum (None/...)
+- `Show Condition` / `Enable Condition`: filter expressions
+- `Parent Folder ID`: nesting under groups
+- `Import Splines As`: enum
+
+Plus from the General tab:
+- `String` (display name, separate from Identifier)
+- `Default Value`
+- `User Interface` (custom GUI override)
+- `Read Only` (bool)
+- `Multiline` (bool, for strings)
+
+These all map to specific Id-keyed attributes the editor reads. Future synthesizer
+work: enumerate the matching attribute Ids for these so a complete port can be
+declared in a single call.
+
+# Complete synthesis recipe
+
+```python
+from maxon.frameworks.nodes import GraphDescription
+import maxon
+
+graph = GraphDescription.GetGraph(scene_nodes_generator_object)
+txn = graph.BeginTransaction()
+
+# Add Input with Float64 type:
+input_port = graph.GetRoot().GetInputs().AddPort("my_radius")
+input_port.SetPortValue(maxon.Float64(1.0))
+
+# Add Input with Vector64 type:
+vec_port = graph.GetRoot().GetInputs().AddPort("my_offset")
+vec_port.SetPortValue(maxon.Vector64(0, 0, 0))
+
+# Add Output (untyped — will adopt type from incoming connection):
+out_port = graph.GetRoot().GetOutputs().AddPort("my_result")
+
+txn.Commit()
+```
 
 # Open: persistence + AM exposure
 
@@ -123,13 +199,23 @@ These are the next checks before declaring the primitive production-ready.
 
 # Implications for the strategic plan
 
-This **partially unblocks Lane 1 (Research)** — the structural primitive for FIO
-port creation is now public-API. Datatype-discrimination is the remaining gap.
+This **fully unblocks Lane 1 (Research)** for the FIO port creation question.
+Both structural creation and datatype assignment are now public-API:
+
+```python
+graph.GetRoot().GetInputs().AddPort(name)    # creates the port (untyped)
+new_port.SetPortValue(maxon.Float64(0.0))    # assigns type (any maxon primitive)
+```
 
 For Lane 2 (Product), this means a custom Generator can programmatically
-expose its parameter surface through this primitive — once datatype is solved.
-Until then, untyped ports may still be usable if C4D infers the type from
-downstream connections.
+expose its parameter surface — Float, Int, Vector, Bool, String inputs +
+outputs — entirely from Python without touching C++ or the Resource Editor.
+This is the cornerstone of programmatic Scene Nodes capsule authoring.
+
+Two remaining checks before treating this as production-ready:
+- Persistence (save+reopen — do API-added ports survive?)
+- AM exposure (do typed ports appear in the Scene Nodes Generator's
+  Attribute Manager and become user-editable?)
 
 # Reproducing the experiments
 
