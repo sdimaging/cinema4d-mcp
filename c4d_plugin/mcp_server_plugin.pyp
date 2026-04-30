@@ -11897,16 +11897,20 @@ class C4DSocketServer(threading.Thread):
             vmap_name = command.get("vmap_name", "field_baked")
             space = command.get("space", "world")
 
-            # Build a FieldList containing only this field
+            # Build a FieldList containing only this field.
+            # API in C4D 2026: FieldList is at c4d.FieldList (top-level),
+            # NOT in c4d.modules.mograph. The other helpers (FieldLayer,
+            # FieldInput, FieldOutput, FieldInfo) ARE in c4d.modules.mograph.
+            # This was wrong in initial impl; caught by fields_smoke recipe.
             try:
+                FieldList = c4d.FieldList
                 from c4d.modules import mograph as _mg
-                FieldList = _mg.FieldList
                 FieldLayer = _mg.FieldLayer
                 FieldInput = _mg.FieldInput
                 FieldInfo = _mg.FieldInfo
                 FieldOutput = _mg.FieldOutput
             except Exception as e:
-                return {"error": f"c4d.modules.mograph FieldList API not available: {e}"}
+                return {"error": f"FieldList API not available: {e}"}
 
             flist = FieldList()
             layer = FieldLayer(c4d.FLfield)
