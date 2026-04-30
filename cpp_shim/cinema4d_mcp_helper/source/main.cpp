@@ -148,11 +148,33 @@ static maxon::Result<void> DoAddFloatingIOPort_Impl(BaseContainer* wc,
 		return maxon::UnexpectedError(MAXON_SOURCE_LOCATION,
 			"fio_node_id not found in graph"_s);
 
-	// AddPort on the inputs / outputs container of the FIO. The container
-	// itself is a GraphNode (a port node) and supports AddPort directly.
+	// AddPort on the inputs / outputs container of the FIO. GetInputs(),
+	// GetOutputs(), and AddPort all return Result<GraphNode> via the
+	// SFINAEHelper template. We unwrap with the SDK-canonical `iferr (decl
+	// = expr) { return err; }` block pattern (see gotcha #33). After the
+	// block, the declared variable is in scope as the unwrapped value.
+
 	maxon::GraphTransaction txn = graph.BeginTransaction() iferr_return;
 
-	maxon::GraphNode container = isOutput ? foundFio.GetOutputs() : foundFio.GetInputs();
+	// Get the inputs/outputs container of the FIO. Two separate iferr
+	// blocks rather than a ternary — keeps each Result unwrap clean.
+	maxon::GraphNode container;
+	if (isOutput)
+	{
+		iferr (maxon::GraphNode outs = foundFio.GetOutputs())
+		{
+			return err;
+		}
+		container = outs;
+	}
+	else
+	{
+		iferr (maxon::GraphNode ins = foundFio.GetInputs())
+		{
+			return err;
+		}
+		container = ins;
+	}
 	if (!container.IsValid())
 		return maxon::UnexpectedError(MAXON_SOURCE_LOCATION,
 			"FIO has no inputs/outputs container"_s);
@@ -161,13 +183,15 @@ static maxon::Result<void> DoAddFloatingIOPort_Impl(BaseContainer* wc,
 	maxon::Id portId;
 	portId.Init(portNameMaxon) iferr_return;
 
-	// container.AddPort returns Result<GraphNode>. Use the explicit unwrap
-	// pattern — `iferr_return` doesn't extract the value cleanly when the
-	// caller-site type is the deduced template form (gotcha #29 caveat).
-	maxon::Result<maxon::GraphNode> portResult = container.AddPort(portId);
-	if (portResult.IsError())
-		return portResult.GetError();
-	maxon::GraphNode newPort = portResult.GetValue();
+	// AddPort — same iferr-block pattern.
+	maxon::GraphNode newPort;
+	{
+		iferr (maxon::GraphNode added = container.AddPort(portId))
+		{
+			return err;
+		}
+		newPort = added;
+	}
 	if (!newPort.IsValid())
 		return maxon::UnexpectedError(MAXON_SOURCE_LOCATION,
 			"AddPort returned invalid GraphNode"_s);

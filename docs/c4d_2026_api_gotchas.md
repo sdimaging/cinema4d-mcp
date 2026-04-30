@@ -552,29 +552,64 @@ implementation forwarded to the graph internally.
 
 ---
 
-## 33. `Result<GraphNode>` from `AddPort` may need explicit unwrap (not just `iferr_return`)
+## 33. Use `iferr (decl = expr) { return err; }` block pattern, not `IsError()`
 
-`container.AddPort(portId)` returns a templated `Result<GraphNode>`. The
-chained `iferr_return` pattern that works for most other Maxon APIs:
-```cpp
-maxon::GraphNode newPort = container.AddPort(portId) iferr_return;  // FAILS
-```
-sometimes fails to compile with:
+`Result<T>` has NO `IsError()` method. Despite intuition, the API uses
+comparison operators (`== maxon::OK`, `== maxon::FAILED`) or — more
+canonically — the `iferr` block macro that auto-binds an `err` variable.
+
+The chained `Type x = expr iferr_return;` pattern works for many Maxon
+APIs but breaks for `GraphNode`-returning template methods (`GetInputs`,
+`GetOutputs`, `AddPort`, etc.) because the SFINAEHelper template return
+type doesn't always unwrap cleanly to the declared LHS type. Compile
+error:
 ```
 error C2440: 'initializing': cannot convert from 'maxon::Result<maxon::GraphNode>' to 'maxon::GraphNode'
 ```
-This appears to depend on the inferred type of the `container` (the
-SFINAEHelper template that drives `AddPort`'s return type may resolve to
-something `iferr_return` doesn't unwrap cleanly).
 
-**Bulletproof workaround — explicit Result unwrap:**
+**Canonical pattern — `iferr` block (verified from
+plugins/example.nodes/source/space/nodesystem_presethandler.cpp:81):**
 ```cpp
-maxon::Result<maxon::GraphNode> portResult = container.AddPort(portId);
-if (portResult.IsError())
-    return portResult.GetError();
-maxon::GraphNode newPort = portResult.GetValue();
+iferr (maxon::nodes::Port port = maxon::nodes::ToPort(node))
+{
+    return err;  // 'err' auto-bound by the iferr macro to the maxon::Error
+}
+// 'port' is in scope here as the unwrapped Port value
 ```
-Verbose but always compiles. Use this pattern when `iferr_return` fights you.
+
+**Applied to GraphNode-returning template methods:**
+```cpp
+// Get a port container — won't unwrap with iferr_return chain
+maxon::GraphNode container;
+{
+    iferr (maxon::GraphNode tmp = fio.GetInputs())  // or GetOutputs()
+    {
+        return err;
+    }
+    container = tmp;  // 'tmp' is the unwrapped value here
+}
+
+// AddPort same shape:
+maxon::GraphNode newPort;
+{
+    iferr (maxon::GraphNode added = container.AddPort(portId))
+    {
+        return err;
+    }
+    newPort = added;
+}
+```
+
+The trailing `iferr_return` form still works fine for non-template
+returns: `BeginTransaction()`, `Init()`, `Commit()`, etc. Reach for the
+`iferr` block specifically when `iferr_return` fights the compiler.
+
+`Result<T>` checking via comparison if you need it without the macro:
+```cpp
+if (result == maxon::FAILED) return result.GetError();
+T value = result.GetValue();
+```
+But the `iferr` block is cleaner and idiomatic.
 
 ---
 
