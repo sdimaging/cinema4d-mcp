@@ -157,45 +157,31 @@ static maxon::Result<void> DoAddFloatingIOPort_Impl(BaseContainer* wc,
 		return maxon::UnexpectedError(MAXON_SOURCE_LOCATION,
 			"fio_node_id not found in graph"_s);
 
-	// AddPort on the inputs / outputs container of the FIO. GetInputs(),
-	// GetOutputs(), and AddPort all return Result<GraphNode> via the
-	// SFINAEHelper template. We unwrap with the SDK-canonical `iferr (decl
-	// = expr) { return err; }` block pattern (see gotcha #33). After the
-	// block, the declared variable is in scope as the unwrapped value.
+	// AddPort on the FIO node DIRECTLY, not on its GetInputs/GetOutputs
+	// containers. Live error from a previous attempt was:
+	//   "Illegal argument: Condition PrivateIsNodeAFloatingIo(trueNode)
+	//    not fulfilled."
+	// — the implementation checks that the parent IS a FloatingIO node.
+	// The hidden-vs-visible port pair (hiddenin1.<path> + in1.<path>) is
+	// created automatically by AddPort when the parent is a FIO; direction
+	// is controlled by the FIO's net.maxon.node.floatingio.attribute.
+	// direction Bool node-attribute, set separately.
+	//
+	// Note: isOutput parameter retained for API compatibility but does NOT
+	// route to a different parent — see comment above. Future revision can
+	// SetValue on attribute.direction here if needed.
+	(void)isOutput;
 
 	maxon::GraphTransaction txn = graph.BeginTransaction() iferr_return;
-
-	// Get the inputs/outputs container of the FIO. Two separate iferr
-	// blocks rather than a ternary — keeps each Result unwrap clean.
-	maxon::GraphNode container;
-	if (isOutput)
-	{
-		iferr (maxon::GraphNode outs = foundFio.GetOutputs())
-		{
-			return err;
-		}
-		container = outs;
-	}
-	else
-	{
-		iferr (maxon::GraphNode ins = foundFio.GetInputs())
-		{
-			return err;
-		}
-		container = ins;
-	}
-	if (!container.IsValid())
-		return maxon::UnexpectedError(MAXON_SOURCE_LOCATION,
-			"FIO has no inputs/outputs container"_s);
 
 	const maxon::String portNameMaxon = MaxonConvert(portName);
 	maxon::Id portId;
 	portId.Init(portNameMaxon) iferr_return;
 
-	// AddPort — same iferr-block pattern.
+	// AddPort on the FIO itself — the iferr block unwraps Result<GraphNode>.
 	maxon::GraphNode newPort;
 	{
-		iferr (maxon::GraphNode added = container.AddPort(portId))
+		iferr (maxon::GraphNode added = foundFio.AddPort(portId))
 		{
 			return err;
 		}

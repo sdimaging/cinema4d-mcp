@@ -707,30 +707,47 @@ But the `iferr` block is cleaner and idiomatic.
 
 ---
 
-## 31. `GraphNode.AddPort(name)` lives on the PORT (not the graph)
+## 31. `AddPort` on a Floating IO must be called on the FIO node DIRECTLY (not on GetInputs/GetOutputs)
 
-The C++ surface for adding a named port to an existing port-container has
-two callable forms:
-
-```cpp
-// On the graph:
-maxon::Result<GraphNode> AddPort(const GraphNode& parent, const Id& name);
-
-// On a GraphNode (template wrapper that delegates to the graph):
-Result<GraphNode> AddPort(const Id& name) const;
+**Corrected 2026-04-30** after live error feedback from the C++ runtime:
+```
+Illegal argument: Condition PrivateIsNodeAFloatingIo(trueNode) not fulfilled.
 ```
 
-Both are equivalent. To add a named port to a Floating IO node's input
-container, use the second form on the container (NOT on the FIO node):
+The `AddPort` implementation explicitly checks that the parent is a
+FloatingIO node. Passing the FIO's `GetInputs()` or `GetOutputs()`
+container fails this check.
+
+**Correct usage:**
 ```cpp
-maxon::GraphNode container = fio.GetInputs();   // or .GetOutputs()
+maxon::GraphTransaction txn = graph.BeginTransaction() iferr_return;
+
 maxon::Id portId;
 portId.Init(MaxonConvert(portName)) iferr_return;
-maxon::GraphNode newPort = container.AddPort(portId) iferr_return;
+
+// Call AddPort ON THE FIO NODE (not on GetInputs()):
+maxon::GraphNode newPort;
+{
+    iferr (maxon::GraphNode added = fio.AddPort(portId))
+    {
+        return err;
+    }
+    newPort = added;
+}
+
+txn.Commit() iferr_return;
 ```
 
-Calling `fio.AddPort(...)` directly fails — the FIO is a NODE, not a port
-container. Always go through `GetInputs()` / `GetOutputs()`.
+The hidden+visible port pair (`hiddenin1.<path>` + `in1.<path>`) is
+created automatically by `AddPort` when the parent is a FIO. Input vs
+output direction is controlled separately by the FIO's
+`net.maxon.node.floatingio.attribute.direction` Bool node-attribute,
+set via `node.SetValue(maxon::InternedId(...), value)`.
+
+**For non-FIO graph nodes:** `AddPort` would have to be called on the
+node itself too — the same `PrivateIsNodeA<NodeType>` check applies per
+template. The FIO error message is the most informative because it names
+the expected node type explicitly.
 
 ---
 
