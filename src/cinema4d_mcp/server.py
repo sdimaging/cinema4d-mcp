@@ -1758,6 +1758,121 @@ async def clear_console_log(ctx: Context = None) -> str:
         return format_c4d_response(response, "clear_console_log")
 
 
+# ---- Action logs (xcwajdax port — Cursor skill / replay workflows) ----
+
+
+@mcp.tool()
+async def get_action_log(
+    limit: Optional[int] = None,
+    ctx: Context = None,
+) -> str:
+    """Return the MCP action log buffer — recent commands the MCP dispatcher
+    executed, sanitized (no code/script payloads, just operation + safe params).
+    Useful for "what did the AI just do?" audit trails or replay.
+
+    Args:
+      limit: return only the last N events (default: full buffer, capped at 500)
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {"command": "get_action_log"}
+        if limit is not None:
+            cmd["limit"] = limit
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
+async def export_action_log(
+    file_path: str,
+    limit: Optional[int] = None,
+    ctx: Context = None,
+) -> str:
+    """Write the MCP action log to a JSON file at file_path (absolute path).
+    Useful for archiving session traces or generating replay scripts.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {"command": "export_action_log", "file_path": file_path}
+        if limit is not None:
+            cmd["limit"] = limit
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
+async def get_ui_action_log(
+    limit: Optional[int] = None,
+    ctx: Context = None,
+) -> str:
+    """Return the UI action log buffer — user actions observed in C4D's UI
+    (object create/delete, selection changes, transform edits, time changes,
+    keyframe add/delete) populated by the UiActionObserver MessageData
+    plugin polling every 400ms.
+
+    Useful for: "what has the user done since I last looked?" / replay
+    user demos / Cursor skill-generation workflows.
+
+    Args:
+      limit: return only the last N events (default: full buffer, capped at 2000)
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {"command": "get_ui_action_log"}
+        if limit is not None:
+            cmd["limit"] = limit
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
+async def export_ui_action_log(
+    file_path: str,
+    limit: Optional[int] = None,
+    ctx: Context = None,
+) -> str:
+    """Write the UI action log to a JSON file at file_path (absolute path).
+    Includes scene_name + fps in the payload header.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {"command": "export_ui_action_log", "file_path": file_path}
+        if limit is not None:
+            cmd["limit"] = limit
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
+async def clear_action_log(
+    include_ui: bool = False,
+    ctx: Context = None,
+) -> str:
+    """Empty the MCP action log buffer. If include_ui=True, also clears
+    the UI action log buffer.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {"command": "clear_action_log", "include_ui": include_ui}
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
 # ---- Tier 3: Plugin lifecycle ----
 
 

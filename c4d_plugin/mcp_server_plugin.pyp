@@ -21,6 +21,33 @@ from collections import deque
 
 PLUGIN_ID = 1057843  # Unique plugin ID for SpecialEventAdd
 
+# UI Action Observer plugin ID — registered as a c4d.plugins.MessageData so
+# we can observe user actions in C4D's UI (object create/delete, selection
+# changes, transform edits, keyframe add/delete) and append them to the
+# UI action log. Adapted from xcwajdax's port (3d2bb9b21066) — Cursor
+# skill-generation pattern. Used for MCP "what did the user just do?" /
+# replay-as-script workflows.
+UI_OBSERVER_PLUGIN_ID = 1057844
+
+# Action log size caps. MCP action log = recent COMMANDS the MCP dispatcher
+# executed (sanitized — no code/script payloads); UI action log = recent
+# USER actions in the C4D UI (independent of MCP traffic).
+ACTION_LOG_MAX = 500
+UI_ACTION_LOG_MAX = 2000
+# Snapshot+diff time budget; over this, skip reorder events for large scenes.
+SNAPSHOT_MAX_MS = 80
+PARAM_EPSILON = 1e-5
+ANIM_SNAPSHOT_EVERY_TICKS = 5  # build anim snapshot every N timer ticks (~2s @ 400ms)
+# Transform param IDs for keyframe snapshot (position/rotation/scale only).
+_TRANSFORM_PARAM_IDS = frozenset([
+    getattr(c4d, "ID_BASEOBJECT_POSITION", None),
+    getattr(c4d, "ID_BASEOBJECT_ROTATION", None),
+    getattr(c4d, "ID_BASEOBJECT_SCALE", None),
+]) - {None}
+
+# Module-level reference so UiActionObserver can push events when server runs.
+_g_ui_log_server = None
+
 # Transport guardrail — reject command payloads above this size to avoid
 # OOMing the plugin if a client misbehaves (e.g. dumping a multi-GB scene
 # into a single execute_python script). 5MB is generous for any reasonable
@@ -132,6 +159,269 @@ if C4D_VERSION_MAJOR < 20:
     )
 
 
+# ============================================================
+# UI Action Observer — scene-snapshot helpers
+# Adapted from xcwajdax's port (commit 3d2bb9b21066). The observer polls
+# the active doc every 400ms, builds a lightweight snapshot of every
+# object's {name, type_id, parent_guid, sibling_index, visible, transform},
+# diffs against the previous snapshot, and emits typed events for every
+# user action: create_object, delete_object, rename_object, reparent_object,
+# reorder_siblings, visibility_change, transform-param edits, selection
+# change, time/frame change, keyframe_add/keyframe_delete.
+# ============================================================
+
+def _get_node_visible(obj):
+    """Return visibility flag for object (not hidden in OM). Uses NBIT_OM_HIDE if available."""
+    try:
+        nbit_hide = getattr(c4d, "NBIT_OM_HIDE", None)
+        if nbit_hide is not None and hasattr(obj, "GetNBit"):
+            return not obj.GetNBit(nbit_hide)
+    except Exception:
+        pass
+    return True
+
+
+def _build_scene_snapshot(doc):
+    """Build a lightweight scene snapshot for diffing. Returns
+    (snapshot_dict, selection_guids, selection_names) or (None, [], []) on error.
+    snapshot_dict = {"nodes": {guid: {name, type_id, parent_guid, index, visible, position, rotation, scale}}}.
+    """
+    if not doc:
+        return (None, [], [])
+    nodes = {}
+    selection_guids = []
+    selection_names = []
+
+    def _vec_to_list(v):
+        if v is None:
+            return None
+        try:
+            return [float(v.x), float(v.y), float(v.z)]
+        except Exception:
+            return None
+
+    def walk(obj, parent_guid, sibling_index):
+        if obj is None:
+            return
+        try:
+            guid = str(obj.GetGUID())
+            nodes[guid] = {
+                "name": obj.GetName() or "",
+                "type_id": obj.GetType(),
+                "parent_guid": parent_guid,
+                "index": sibling_index,
+                "visible": _get_node_visible(obj),
+                "position": _vec_to_list(obj.GetAbsPos()) if hasattr(obj, "GetAbsPos") else None,
+                "rotation": _vec_to_list(obj.GetAbsRot()) if hasattr(obj, "GetAbsRot") else None,
+                "scale": _vec_to_list(obj.GetAbsScale()) if hasattr(obj, "GetAbsScale") else None,
+            }
+        except Exception:
+            return
+        child = obj.GetDown()
+        idx = 0
+        while child:
+            walk(child, guid, idx)
+            idx += 1
+            child = child.GetNext()
+
+    try:
+        root = doc.GetFirstObject()
+        idx = 0
+        while root:
+            walk(root, None, idx)
+            idx += 1
+            root = root.GetNext()
+    except Exception:
+        return (None, [], [])
+
+    try:
+        flags = getattr(c4d, "GETACTIVEOBJECTFLAGS_NONE", 0)
+        sel = doc.GetActiveObjects(flags)
+        if sel:
+            for o in sel:
+                try:
+                    selection_guids.append(str(o.GetGUID()))
+                    selection_names.append(o.GetName() or "")
+                except Exception:
+                    pass
+    except Exception:
+        active = doc.GetActiveObject()
+        if active:
+            try:
+                selection_guids.append(str(active.GetGUID()))
+                selection_names.append(active.GetName() or "")
+            except Exception:
+                pass
+
+    return ({"nodes": nodes}, selection_guids, selection_names)
+
+
+def _vec_differs(a, b, epsilon):
+    """True if two [x,y,z] lists differ by more than epsilon."""
+    if a is None or b is None:
+        return a != b
+    if len(a) != 3 or len(b) != 3:
+        return True
+    return (abs(a[0] - b[0]) > epsilon or abs(a[1] - b[1]) > epsilon or
+            abs(a[2] - b[2]) > epsilon)
+
+
+def _diff_snapshots(prev, curr, prev_sel_guids, curr_sel_guids, curr_sel_names,
+                    now, frame, skip_reorder):
+    """Diff two scene snapshots; emit events: create/delete/rename/reparent/
+    reorder/visibility/param/selection."""
+    events = []
+    if not prev or not curr:
+        return events
+    prev_nodes = prev.get("nodes") or {}
+    curr_nodes = curr.get("nodes") or {}
+    prev_guids = set(prev_nodes.keys())
+    curr_guids = set(curr_nodes.keys())
+    eps = PARAM_EPSILON
+
+    for guid in (curr_guids - prev_guids):
+        n = curr_nodes.get(guid, {})
+        events.append({
+            "type": "ui_command", "action": "create_object",
+            "guid": guid, "object_name": n.get("name", ""),
+            "time": now, "frame": frame,
+            "details": {"type_id": n.get("type_id"),
+                         "parent_guid": n.get("parent_guid"),
+                         "index": n.get("index")},
+        })
+
+    for guid in (prev_guids - curr_guids):
+        n = prev_nodes.get(guid, {})
+        events.append({
+            "type": "ui_command", "action": "delete_object",
+            "guid": guid, "object_name": n.get("name", ""),
+            "time": now, "frame": frame, "details": {},
+        })
+
+    for guid in (prev_guids & curr_guids):
+        pn = prev_nodes[guid]
+        cn = curr_nodes[guid]
+        if pn.get("name") != cn.get("name"):
+            events.append({
+                "type": "ui_command", "action": "rename_object",
+                "guid": guid, "object_name": cn.get("name", ""),
+                "time": now, "frame": frame,
+                "details": {"old_name": pn.get("name"), "new_name": cn.get("name")},
+            })
+        if pn.get("parent_guid") != cn.get("parent_guid"):
+            events.append({
+                "type": "ui_command", "action": "reparent_object",
+                "guid": guid, "object_name": cn.get("name", ""),
+                "time": now, "frame": frame,
+                "details": {"old_parent_guid": pn.get("parent_guid"),
+                            "new_parent_guid": cn.get("parent_guid")},
+            })
+        same_parent = pn.get("parent_guid") == cn.get("parent_guid")
+        if not skip_reorder and same_parent and pn.get("index") != cn.get("index"):
+            events.append({
+                "type": "ui_command", "action": "reorder_siblings",
+                "guid": guid, "object_name": cn.get("name", ""),
+                "time": now, "frame": frame,
+                "details": {"parent_guid": cn.get("parent_guid"),
+                            "old_index": pn.get("index"),
+                            "new_index": cn.get("index")},
+            })
+        if pn.get("visible") != cn.get("visible"):
+            events.append({
+                "type": "ui_command", "action": "visibility_change",
+                "guid": guid, "object_name": cn.get("name", ""),
+                "time": now, "frame": frame,
+                "details": {"visible": cn.get("visible")},
+            })
+        for param in ("position", "rotation", "scale"):
+            if _vec_differs(pn.get(param), cn.get(param), eps):
+                events.append({
+                    "type": "param", "object_guid": guid,
+                    "object_name": cn.get("name", ""), "param": param,
+                    "old": pn.get(param), "new": cn.get(param),
+                    "time": now, "frame": frame,
+                })
+
+    if prev_sel_guids != curr_sel_guids:
+        active_name = curr_sel_names[0] if curr_sel_names else None
+        events.append({
+            "type": "selection",
+            "active_guid": curr_sel_guids[0] if curr_sel_guids else None,
+            "active_name": active_name,
+            "guids": list(curr_sel_guids),
+            "names": list(curr_sel_names) if curr_sel_names else [],
+            "time": now, "frame": frame,
+        })
+
+    return events
+
+
+class UiActionObserver(c4d.plugins.MessageData):
+    """Polls the active doc every 400ms, diffs scene snapshots, emits UI events
+    to the MCP server's UI action log. Adapted from xcwajdax 3d2bb9b21066."""
+
+    def __init__(self):
+        self._last_snapshot = None
+        self._last_sel_guids = []
+        self._last_sel_names = []
+        self._last_frame = None
+        self._initialized = False
+
+    def GetTimer(self):
+        return 400
+
+    def CoreMessage(self, id, bc):
+        if id != c4d.MSG_TIMER:
+            return True
+        global _g_ui_log_server
+        if not _g_ui_log_server:
+            return True
+        doc = c4d.documents.GetActiveDocument()
+        if not doc:
+            return True
+        try:
+            t0 = time.perf_counter()
+            curr_snapshot, curr_sel_guids, curr_sel_names = _build_scene_snapshot(doc)
+            if curr_snapshot is None:
+                return True
+            from datetime import datetime
+            now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+            frame = int(doc.GetTime().GetFrame(doc.GetFps())) if doc.GetFps() else 0
+
+            if not self._initialized:
+                self._last_snapshot = curr_snapshot
+                self._last_sel_guids = list(curr_sel_guids)
+                self._last_sel_names = list(curr_sel_names)
+                self._last_frame = frame
+                self._initialized = True
+                return True
+
+            if self._last_frame is not None and frame != self._last_frame:
+                _g_ui_log_server._append_ui_action({
+                    "type": "time_change",
+                    "old_frame": self._last_frame,
+                    "new_frame": frame,
+                    "play_state": "playing" if frame > self._last_frame else "stopped",
+                    "time": now,
+                })
+            self._last_frame = frame
+
+            elapsed_ms = (time.perf_counter() - t0) * 1000
+            skip_reorder = elapsed_ms > SNAPSHOT_MAX_MS
+
+            for ev in _diff_snapshots(self._last_snapshot, curr_snapshot,
+                                       self._last_sel_guids, curr_sel_guids,
+                                       curr_sel_names, now, frame, skip_reorder):
+                _g_ui_log_server._append_ui_action(ev)
+
+            self._last_snapshot = curr_snapshot
+            self._last_sel_guids = list(curr_sel_guids)
+            self._last_sel_names = list(curr_sel_names)
+        except Exception:
+            pass
+        return True
+
+
 class C4DSocketServer(threading.Thread):
     """Socket Server running in a background thread, sending logs & status via queue."""
 
@@ -171,6 +461,71 @@ class C4DSocketServer(threading.Thread):
         self._guid_to_name_registry = (
             {}
         )  # Maps guid -> {'requested_name': str, 'actual_name': str}
+
+        # MCP action log — recent dispatched commands (sanitized).
+        # Used for skill generation / "what did the MCP just do?" workflows.
+        self._action_log = []
+        self._action_log_lock = threading.Lock()
+
+        # UI action log — user actions observed in C4D's UI (independent
+        # of MCP traffic). Populated by UiActionObserver MessageData plugin.
+        self._ui_action_log = []
+        self._ui_action_log_lock = threading.Lock()
+
+    def _sanitize_command_params(self, command):
+        """Build a JSON-serializable subset of `command` for the action log.
+        Strips code/scripts and large blobs. Whitelist of safe keys."""
+        SAFE_KEYS = (
+            "name", "object_name", "target", "target_name", "primitive_type",
+            "type", "position", "size", "material_name", "cloner_name",
+            "effector_type", "field_type", "field_name", "group_name",
+            "object_names", "cloner_type", "light_type", "shape_type",
+            "camera_name", "property_name", "property", "frame", "value",
+            "mode", "count", "file_path", "selection_name", "pattern_name",
+            "capsule_type", "capsule_name", "asset_id", "label", "query",
+            "kind", "limit", "max_depth", "target_object", "graph_target",
+            "from_node", "from_port", "to_node", "to_port",
+        )
+        params = {}
+        for k, v in command.items():
+            if k in ("command", "code", "script"):
+                continue
+            if k not in SAFE_KEYS:
+                continue
+            if isinstance(v, (str, int, float, bool, type(None))):
+                params[k] = v
+            elif isinstance(v, (list, tuple)) and len(str(v)) < 200:
+                params[k] = list(v)
+            elif isinstance(v, dict) and len(str(v)) < 200:
+                params[k] = dict(v)
+        return params
+
+    def _append_action_log(self, event_dict):
+        """Thread-safe append to the MCP action log."""
+        with self._action_log_lock:
+            event_dict["t"] = len(self._action_log)
+            self._action_log.append(event_dict)
+            if len(self._action_log) > ACTION_LOG_MAX:
+                self._action_log[:] = self._action_log[-ACTION_LOG_MAX:]
+
+    def get_action_log_snapshot(self):
+        """Thread-safe copy of the MCP action log."""
+        with self._action_log_lock:
+            return list(self._action_log)
+
+    def _append_ui_action(self, event_dict):
+        """Thread-safe append to the UI action log."""
+        with self._ui_action_log_lock:
+            event_dict = dict(event_dict)
+            event_dict["t"] = len(self._ui_action_log)
+            self._ui_action_log.append(event_dict)
+            if len(self._ui_action_log) > UI_ACTION_LOG_MAX:
+                self._ui_action_log[:] = self._ui_action_log[-UI_ACTION_LOG_MAX:]
+
+    def get_ui_action_log_snapshot(self):
+        """Thread-safe copy of the UI action log."""
+        with self._ui_action_log_lock:
+            return list(self._ui_action_log)
 
     def log(self, message):
         """Send log messages to UI via queue and trigger an event.
@@ -495,6 +850,17 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_get_console_log(command)
                         elif command_type == "clear_console_log":
                             response = self.handle_clear_console_log(command)
+                        # Action logs (xcwajdax port — Cursor skill / replay)
+                        elif command_type == "get_action_log":
+                            response = self.handle_get_action_log(command)
+                        elif command_type == "export_action_log":
+                            response = self.handle_export_action_log(command)
+                        elif command_type == "get_ui_action_log":
+                            response = self.handle_get_ui_action_log(command)
+                        elif command_type == "export_ui_action_log":
+                            response = self.handle_export_ui_action_log(command)
+                        elif command_type == "clear_action_log":
+                            response = self.handle_clear_action_log(command)
                         # Plugin lifecycle
                         elif command_type == "list_installed_plugins":
                             response = self.handle_list_installed_plugins(command)
@@ -634,6 +1000,28 @@ class C4DSocketServer(threading.Thread):
                             response["duration_ms"] = int((time.time() - request_start) * 1000)
                             if request_id is not None:
                                 response.setdefault("request_id", request_id)
+
+                            # Action log: append a sanitized record of every
+                            # dispatched command. Skip the action-log queries
+                            # themselves to avoid recursion noise.
+                            ACTION_LOG_SKIP = {"get_action_log", "export_action_log",
+                                               "get_ui_action_log", "export_ui_action_log",
+                                               "clear_action_log", "get_console_log",
+                                               "clear_console_log", "ping", "doctor"}
+                            if command_type not in ACTION_LOG_SKIP:
+                                try:
+                                    from datetime import datetime
+                                    self._append_action_log({
+                                        "type": "mcp_command",
+                                        "command": command_type,
+                                        "params": self._sanitize_command_params(command),
+                                        "ok": response.get("ok", True),
+                                        "error": response.get("error"),
+                                        "duration_ms": response.get("duration_ms"),
+                                        "time": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+                                    })
+                                except Exception:
+                                    pass
 
                         # Send the response as JSON
                         response_json = json.dumps(response) + "\n"
@@ -7835,6 +8223,139 @@ class C4DSocketServer(threading.Thread):
             return {"error": f"clear_console_log failed: {e}"}
         return {"status": "ok", "buffer_cleared": True}
 
+    # ---- Action logs (MCP-issued commands + UI user actions) ----
+    # Adapted from xcwajdax's port (3d2bb9b21066). The MCP action log is
+    # populated by the dispatcher (sanitized command + result); the UI
+    # action log is populated by UiActionObserver MessageData polling.
+
+    def handle_get_action_log(self, command):
+        """Return the MCP action log buffer (recent dispatched commands)."""
+        try:
+            limit = command.get("limit")
+            with self._action_log_lock:
+                events = list(self._action_log)
+            if limit is not None:
+                try:
+                    limit = int(limit)
+                    events = events[-limit:] if limit > 0 else []
+                except (TypeError, ValueError):
+                    pass
+            from datetime import datetime
+            return {
+                "ok": True,
+                "version": 1,
+                "source": "cinema4d",
+                "recorded_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "events": events,
+                "buffer_size": len(events),
+                "buffer_max": ACTION_LOG_MAX,
+            }
+        except Exception as e:
+            return {"error": f"get_action_log failed: {e}",
+                    "traceback": traceback.format_exc()}
+
+    def handle_export_action_log(self, command):
+        """Write the MCP action log to a file (file_path required, absolute)."""
+        try:
+            file_path = (command.get("file_path") or "").strip()
+            if not file_path:
+                return {"error": "file_path is required"}
+            limit = command.get("limit")
+            with self._action_log_lock:
+                events = list(self._action_log)
+            if limit is not None:
+                try:
+                    limit = int(limit)
+                    events = events[-limit:] if limit > 0 else []
+                except (TypeError, ValueError):
+                    pass
+            from datetime import datetime
+            payload = {
+                "version": 1, "source": "cinema4d",
+                "recorded_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "events": events,
+            }
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(json.dumps(payload, indent=2, ensure_ascii=False))
+            return {"ok": True, "file_path": file_path,
+                    "event_count": len(events)}
+        except Exception as e:
+            return {"error": f"export_action_log failed: {e}",
+                    "traceback": traceback.format_exc()}
+
+    def handle_get_ui_action_log(self, command):
+        """Return the UI action log buffer (user actions in C4D UI)."""
+        try:
+            limit = command.get("limit")
+            with self._ui_action_log_lock:
+                events = list(self._ui_action_log)
+            if limit is not None:
+                try:
+                    limit = int(limit)
+                    events = events[-limit:] if limit > 0 else []
+                except (TypeError, ValueError):
+                    pass
+            from datetime import datetime
+            return {
+                "ok": True,
+                "version": 1,
+                "source": "cinema4d-ui",
+                "recorded_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "events": events,
+                "buffer_size": len(events),
+                "buffer_max": UI_ACTION_LOG_MAX,
+                "observer_active": _g_ui_log_server is not None,
+            }
+        except Exception as e:
+            return {"error": f"get_ui_action_log failed: {e}",
+                    "traceback": traceback.format_exc()}
+
+    def handle_export_ui_action_log(self, command):
+        """Write the UI action log to a file (file_path required, absolute)."""
+        try:
+            file_path = (command.get("file_path") or "").strip()
+            if not file_path:
+                return {"error": "file_path is required"}
+            limit = command.get("limit")
+            with self._ui_action_log_lock:
+                events = list(self._ui_action_log)
+            if limit is not None:
+                try:
+                    limit = int(limit)
+                    events = events[-limit:] if limit > 0 else []
+                except (TypeError, ValueError):
+                    pass
+            from datetime import datetime
+            doc = c4d.documents.GetActiveDocument()
+            payload = {
+                "version": 1, "source": "cinema4d-ui",
+                "recorded_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "scene_name": doc.GetDocumentName() if doc else None,
+                "fps": (doc.GetFps() if doc and doc.GetFps() else 30),
+                "events": events,
+            }
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(json.dumps(payload, indent=2, ensure_ascii=False))
+            return {"ok": True, "file_path": file_path,
+                    "event_count": len(events)}
+        except Exception as e:
+            return {"error": f"export_ui_action_log failed: {e}",
+                    "traceback": traceback.format_exc()}
+
+    def handle_clear_action_log(self, command):
+        """Empty the MCP action log + (optionally) the UI action log."""
+        try:
+            include_ui = bool(command.get("include_ui", False))
+            with self._action_log_lock:
+                self._action_log[:] = []
+            if include_ui:
+                with self._ui_action_log_lock:
+                    self._ui_action_log[:] = []
+            return {"ok": True, "cleared_mcp": True,
+                    "cleared_ui": include_ui}
+        except Exception as e:
+            return {"error": f"clear_action_log failed: {e}"}
+
     # ---- Plugin lifecycle (Tier 3) ----
 
     def _plugin_type_name(self, type_id):
@@ -10739,6 +11260,9 @@ class C4DSocketServer(threading.Thread):
         "sample_bitmap_at_uv",
         "run_modeling_command",
         "get_console_log", "clear_console_log",
+        "get_action_log", "export_action_log",
+        "get_ui_action_log", "export_ui_action_log",
+        "clear_action_log",
         "get_c4d_info",
         "get_capabilities", "doctor", "ping",
         "scene_snapshot", "scene_diff",
@@ -10782,6 +11306,7 @@ class C4DSocketServer(threading.Thread):
         "get_viewport_state",
         "vertex_map_stats", "uv_layout_stats",
         "get_console_log", "clear_console_log",
+        "get_action_log", "get_ui_action_log",  # read-only log queries
         "get_c4d_info", "get_capabilities", "doctor", "ping",
         "scene_snapshot", "scene_diff",
         "scene_nodes_status",  # read-only inspection of Scene Nodes graphs
@@ -15356,6 +15881,10 @@ class SocketServerDialog(gui.GeDialog):
             mcp_install_geprint_hook()
             self.server = C4DSocketServer(msg_queue=self.msg_queue)
             self.server.start()
+            # Wire up the global ref so UiActionObserver pushes to this server's
+            # UI action log (xcwajdax port).
+            global _g_ui_log_server
+            _g_ui_log_server = self.server
 
         self.Enable(1011, False)
         self.Enable(1012, True)
@@ -15365,6 +15894,8 @@ class SocketServerDialog(gui.GeDialog):
         if self.server:
             self.server.stop()
             self.server = None
+            global _g_ui_log_server
+            _g_ui_log_server = None
             self.Enable(1011, True)
             self.Enable(1012, False)
             # leave the GePrint hook in place so the buffer keeps
@@ -15439,4 +15970,13 @@ if __name__ == "__main__":
         None,
         None,
         _socket_server_plugin,
+    )
+    # Register the UI action observer (MessageData) so user UI actions
+    # (object create/delete, selection, transform, time) populate the
+    # UI action log buffer. Adapted from xcwajdax port 3d2bb9b21066.
+    c4d.plugins.RegisterMessagePlugin(
+        UI_OBSERVER_PLUGIN_ID,
+        "MCP UI Action Observer",
+        0,
+        UiActionObserver(),
     )
