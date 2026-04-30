@@ -3474,6 +3474,48 @@ async def scene_nodes_add_floating_io_port(
 
 
 @mcp.tool()
+async def scene_nodes_helper_logger(
+    action: str,
+    ctx: Context = None,
+) -> str:
+    """Phase A.2 diagnostic — drive the C++ shim's promiscuous CoreMessage
+    logger. Used to identify what messages fire during a manual editor
+    gesture (e.g. right-click port → Add Input/Add Output).
+
+    Workflow:
+      1. action='start'  — enable the logger
+      2. (manually perform the gesture in C4D's Node Editor)
+      3. action='stop'   — disable the logger
+      4. action='read'   — return the captured log
+      5. action='clear'  — empty the log buffer
+
+    Per GPT review: this is a CHEAP FIRST NET. Empty log does NOT prove
+    "no command exists" — it only proves the legacy CoreMessage path is
+    empty. If the probe returns nothing useful, Phase A.2.1
+    (CommandObserverInterface subscription via the maxon command
+    framework) is the actual definitive probe.
+
+    Args:
+      action: one of 'start', 'stop', 'read', 'clear'
+
+    Returns: {ok, action, status, status_msg, log_dump (read only)}
+
+    SAFE — instrumentation only.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {
+            "command": "scene_nodes_helper_logger",
+            "action": action,
+        }
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
 async def scene_nodes_helper_ping(
     ctx: Context = None,
 ) -> str:

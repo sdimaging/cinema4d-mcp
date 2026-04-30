@@ -912,6 +912,8 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_scene_nodes_load_asset(command)
                         elif command_type == "scene_nodes_helper_ping":
                             response = self.handle_scene_nodes_helper_ping(command)
+                        elif command_type == "scene_nodes_helper_logger":
+                            response = self.handle_scene_nodes_helper_logger(command)
                         elif command_type == "scene_nodes_add_floating_io_port":
                             response = self.handle_scene_nodes_add_floating_io_port(command)
                         elif command_type == "paint_vertex_map_from_formula":
@@ -11431,7 +11433,8 @@ class C4DSocketServer(threading.Thread):
         "scene_nodes_describe_node_template",
         "scene_nodes_create_capsule_with_pattern",
         "scene_nodes_save_as_asset", "scene_nodes_load_asset",
-        "scene_nodes_helper_ping", "scene_nodes_add_floating_io_port",
+        "scene_nodes_helper_ping", "scene_nodes_helper_logger",
+        "scene_nodes_add_floating_io_port",
         "paint_vertex_map_from_formula", "paint_vertex_map_radial",
         "list_deformer_types", "apply_deformer",
         "list_field_types", "add_field_to_scene", "bake_field_to_vmap",
@@ -11474,6 +11477,7 @@ class C4DSocketServer(threading.Thread):
         "scene_nodes_atlas_lookup",     # read-only — atlas search
         "scene_nodes_classify_graph",   # read-only — graph classification
         "scene_nodes_helper_ping",      # read-only — C++ shim discovery probe
+        "scene_nodes_helper_logger",    # read-only — Phase A.2 diagnostic
         "list_deformer_types",  # discovery only, no scene mutation
         "list_field_types",     # discovery only, no scene mutation
         "list_osl_snippets",    # constants only, no mutation
@@ -14585,6 +14589,12 @@ class C4DSocketServer(threading.Thread):
     _BC_KEY_PROTOCOL_VER  = 1057845023
     _OP_PING                  = 0
     _OP_ADD_FLOATING_IO_PORT  = 1
+    # Phase A.2 promiscuous CoreMessage logger ops (per GPT review)
+    _OP_LOGGER_START          = 10
+    _OP_LOGGER_STOP           = 11
+    _OP_LOGGER_READ           = 12
+    _OP_LOGGER_CLEAR          = 13
+    _BC_KEY_LOG_DUMP          = 1057845041
 
     def _mcp_helper_dispatch(self, op_code, args, timeout_s=5.0):
         """Send a request to the cinema4d_mcp_helper C++ plugin via
@@ -14671,6 +14681,72 @@ class C4DSocketServer(threading.Thread):
             "see gotcha #35), (b) helper rebuilt without restart, "
             "(c) unknown op-code.")
         return last
+
+    def handle_scene_nodes_helper_logger(self, command):
+        """Phase A.2 diagnostic — drive the C++ shim's promiscuous
+        CoreMessage logger to identify what messages fire during a
+        manual editor gesture (e.g. right-click port → Add Input).
+
+        Per GPT review: this is a CHEAP FIRST NET. Empty log does NOT
+        prove "no command exists" — it only proves the legacy CoreMessage
+        path is empty. If this returns no useful entries during the probe
+        gesture, Phase A.2.1 (CommandObserverInterface subscription) is
+        the actual definitive probe.
+
+        Args:
+          action (str, required): one of 'start', 'stop', 'read', 'clear'
+
+        Returns:
+          {ok, action, status, status_msg, log_dump (only on 'read'),
+           protocol_version}
+
+        SAFE — instrumentation only, no scene mutation.
+        """
+        try:
+            action = command.get("action")
+            op_map = {
+                "start": self._OP_LOGGER_START,
+                "stop":  self._OP_LOGGER_STOP,
+                "read":  self._OP_LOGGER_READ,
+                "clear": self._OP_LOGGER_CLEAR,
+            }
+            if action not in op_map:
+                return {"error": f"action must be one of {list(op_map.keys())}; "
+                                  f"got {action!r}"}
+
+            def _dispatch():
+                try:
+                    return self._mcp_helper_dispatch(op_map[action], {})
+                except Exception as e:
+                    return {"_error": str(e)}
+
+            outcome = self.execute_on_main_thread(_dispatch, _timeout=10)
+            if isinstance(outcome, dict) and "_error" in outcome:
+                return {"error": outcome["_error"]}
+
+            result = {
+                "ok": (outcome.get("status", -1) == 0),
+                "action": action,
+                "status": outcome.get("status"),
+                "status_msg": outcome.get("status_msg"),
+                "protocol_version": outcome.get("protocol_version"),
+            }
+
+            # On 'read', also fetch the log dump (separate BC key)
+            if action == "read":
+                def _read_dump():
+                    wc = c4d.GetWorldContainerInstance()
+                    return wc.GetString(self._BC_KEY_LOG_DUMP)
+                try:
+                    dump = self.execute_on_main_thread(_read_dump, _timeout=5)
+                    result["log_dump"] = dump if dump else ""
+                    result["log_dump_lines"] = len(dump.splitlines()) if dump else 0
+                except Exception as e:
+                    result["log_dump_err"] = str(e)
+            return result
+        except Exception as e:
+            return {"error": f"scene_nodes_helper_logger failed: {e}",
+                    "traceback": traceback.format_exc()}
 
     def handle_scene_nodes_add_floating_io_port(self, command):
         """[UNSUPPORTED — see docs/c4d_2026_api_gotchas.md gotcha #36]

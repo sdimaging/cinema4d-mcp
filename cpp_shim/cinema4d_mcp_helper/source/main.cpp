@@ -72,8 +72,39 @@ const Int32 BC_KEY_NEW_PORT_ID    = 1057845022;
 const Int32 BC_KEY_PROTOCOL_VER   = 1057845023;
 const Int32 BC_KEY_DEBUG          = 1057845030; // optional debug trail (Phase A.1)
 
-const Int32 OP_PING                  = 0;
-const Int32 OP_ADD_FLOATING_IO_PORT  = 1;
+// Phase A.2 — promiscuous CoreMessage logger keys
+const Int32 BC_KEY_LOG_ACTIVE     = 1057845040; // Bool — set by client to enable
+const Int32 BC_KEY_LOG_DUMP       = 1057845041; // String — read by client
+
+const Int32 OP_PING                   = 0;
+const Int32 OP_ADD_FLOATING_IO_PORT   = 1;
+// Phase A.2 promiscuous-logger ops (per-GPT empirical-probe approach)
+const Int32 OP_LOGGER_START           = 10;
+const Int32 OP_LOGGER_STOP            = 11;
+const Int32 OP_LOGGER_READ            = 12;
+const Int32 OP_LOGGER_CLEAR           = 13;
+
+// Phase A.2 — promiscuous CoreMessage logger state. When active, every
+// CoreMessage that fires (including ones NOT from our own SpecialEventAdd)
+// is appended to a static String. User runs the probe scenario
+// (right-click port → Add Input) and we read back what message IDs
+// fired during that gesture.
+//
+// IMPORTANT (per GPT review): this is a CHEAP FIRST NET, not the
+// definitive probe. CoreMessage covers legacy BFM_*/plugin messages but
+// does NOT cover the maxon command framework's ObservableCommandInvokedInfo.
+// If this logger finds nothing during Add Input/Add Output, that does
+// NOT prove "no command exists" — it only proves the legacy message path
+// is empty. Phase A.2.1 (CommandObserverInterface subscription via
+// frameworks/command.framework/commandobservable.h) is the actual
+// definitive probe and must be tried before declaring the editor action
+// non-callable.
+//
+// Cap log at 1000 entries to prevent runaway if user forgets to stop.
+static maxon::Bool g_loggerActive = false;
+static String      g_msgLog;
+static Int32       g_msgLogCount = 0;
+static const Int32 G_MSG_LOG_CAP = 1000;
 
 // ============================================================================
 // Helpers
@@ -266,13 +297,32 @@ class CinemaMcpHelper : public MessageData
 public:
 	virtual Bool CoreMessage(Int32 id, const BaseContainer& bc) override
 	{
-		(void)id; // we filter by BFM_CORE_ID in the BC, not by the type id
+		// Phase A.2 promiscuous logger — record every CoreMessage that
+		// fires while active. Empirical probe to identify what messages
+		// fire when user does right-click port → Add Input/Add Output
+		// in the Node Editor. See gotcha #34/#35 for dispatch model.
+		if (g_loggerActive && g_msgLogCount < G_MSG_LOG_CAP)
+		{
+			g_msgLogCount++;
+			g_msgLog += "[";
+			g_msgLog += String::IntToString((Int64)g_msgLogCount);
+			g_msgLog += "] type_id=";
+			g_msgLog += String::IntToString((Int64)id);
+			g_msgLog += " core_id=";
+			g_msgLog += String::IntToString((Int64)bc.GetInt32(BFM_CORE_ID));
+			g_msgLog += " par1=";
+			g_msgLog += String::IntToString((Int64)bc.GetInt32(BFM_CORE_PAR1));
+			g_msgLog += " par2=";
+			g_msgLog += String::IntToString((Int64)bc.GetInt32(BFM_CORE_PAR2));
+			g_msgLog += "\n";
+		}
 
-		// Only handle messages from our own SpecialEventAdd calls.
+		// Only handle requests addressed to us via SpecialEventAdd.
 		// SpecialEventAdd(MCP_HELPER_PLUGIN_ID, op, 0) encodes the
 		// plugin_id at BFM_CORE_ID and the op at BFM_CORE_PAR1.
 		if (bc.GetInt32(BFM_CORE_ID) != MCP_HELPER_PLUGIN_ID)
 			return true;
+		(void)id;
 
 		BaseContainer* wc = GetWorldContainerInstance();
 		if (!wc)
@@ -304,6 +354,40 @@ public:
 				// unsupported message rather than running the failing impl.
 				wc->SetString(BC_KEY_STATUS_MSG, "Runtime AddPort on FloatingIO is unsupported in C4D 2026 — see gotcha #36. Use NodeTemplate publishing path (Phase B)."_s);
 				status = 100;
+				break;
+
+			case OP_LOGGER_START:
+				g_loggerActive = true;
+				wc->SetString(BC_KEY_STATUS_MSG, "logger started — perform the probe action now"_s);
+				status = 0;
+				break;
+
+			case OP_LOGGER_STOP:
+				g_loggerActive = false;
+				wc->SetString(BC_KEY_STATUS_MSG, "logger stopped"_s);
+				status = 0;
+				break;
+
+			case OP_LOGGER_READ:
+			{
+				// Dump the captured log into BC_KEY_LOG_DUMP. Caller can
+				// also poll BC_KEY_DEBUG which carries a quick summary.
+				wc->SetString(BC_KEY_LOG_DUMP, g_msgLog);
+				String summary;
+				summary += "logger active=";
+				summary += g_loggerActive ? "true" : "false";
+				summary += " entries=";
+				summary += String::IntToString((Int64)g_msgLogCount);
+				wc->SetString(BC_KEY_STATUS_MSG, summary);
+				status = 0;
+				break;
+			}
+
+			case OP_LOGGER_CLEAR:
+				g_msgLog = String();
+				g_msgLogCount = 0;
+				wc->SetString(BC_KEY_STATUS_MSG, "logger cleared"_s);
+				status = 0;
 				break;
 			default:
 				wc->SetString(BC_KEY_STATUS_MSG, "unknown op-code"_s);
