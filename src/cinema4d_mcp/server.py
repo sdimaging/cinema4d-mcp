@@ -1987,22 +1987,24 @@ async def recipe_run(
         }
         t0 = time.time()
 
-        # Setup phase
+        # Setup phase — same dual-check as main steps (error key OR ok:false)
         for s in setup_steps:
             cmd = dict(s.get("args") or {})
             cmd["command"] = s["command"]
             r = send_to_c4d(connection, cmd)
-            ok = "error" not in r
+            ok = ("error" not in r) and (r.get("ok") is not False)
             report["setup_results"].append({
                 "command": s["command"],
                 "ok": ok,
-                "error": r.get("error") if not ok else None,
+                "error": r.get("error", f"command returned ok={r.get('ok')}") if not ok else None,
             })
-            if not ok and stop_on_fail:
+            # Setup failures ALWAYS poison the recipe — this is required-precondition logic
+            if not ok:
                 report["ok"] = False
-                report["aborted"] = "setup failed"
-                report["duration_ms"] = int((time.time() - t0) * 1000)
-                return json.dumps(report, indent=2)
+                if stop_on_fail:
+                    report["aborted"] = "setup failed"
+                    report["duration_ms"] = int((time.time() - t0) * 1000)
+                    return json.dumps(report, indent=2)
 
         # Main steps
         for idx, st in enumerate(main_steps):
@@ -2070,17 +2072,21 @@ async def recipe_run(
                 report["aborted"] = f"step '{step_name}' failed"
                 break
 
-        # Teardown phase (always runs, even after failures, unless explicitly stopped)
+        # Teardown phase — same dual-check; failures DON'T short-circuit the
+        # recipe (cleanup must run) but DO poison report["ok"] so the caller
+        # knows their state may be dirty.
         for s in teardown_steps:
             cmd = dict(s.get("args") or {})
             cmd["command"] = s["command"]
             r = send_to_c4d(connection, cmd)
-            ok = "error" not in r
+            ok = ("error" not in r) and (r.get("ok") is not False)
             report["teardown_results"].append({
                 "command": s["command"],
                 "ok": ok,
-                "error": r.get("error") if not ok else None,
+                "error": r.get("error", f"command returned ok={r.get('ok')}") if not ok else None,
             })
+            if not ok:
+                report["ok"] = False
 
         report["duration_ms"] = int((time.time() - t0) * 1000)
         return json.dumps(report, indent=2)

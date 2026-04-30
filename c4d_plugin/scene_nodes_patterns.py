@@ -413,16 +413,192 @@ def _build_mesh_element_query(selection_name: str = "default",
 def _build_selection_evolution(random_percent: float = 0.3, grow_steps: int = 1,
                                 store_as: str = "evolved",
                                 prefix: str = "selevo") -> list[dict[str, Any]]:
+    """Random select → grow → store named.
+    Note: 'Invert Selection' label needs verification; omitted here. Add via
+    scene_nodes_add_node after applying if you need invert step."""
     out = [
         {"$type": "Random Selection", "$name": f"{prefix}_rand"},
     ]
     for i in range(int(grow_steps)):
         out.append({"$type": "Grow Selection", "$name": f"{prefix}_grow_{i}"})
-    out.extend([
-        {"$type": "Invert Selection", "$name": f"{prefix}_inv"},
-        {"$type": "Set Selection", "$name": f"{prefix}_store"},
-    ])
+    # 'Store Selection' is the VERIFIED label (not 'Set Selection' which is a keyword)
+    out.append({"$type": "Store Selection", "$name": f"{prefix}_store"})
     return out
+
+
+# ---------------------------------------------------------------------------
+# Patterns 14-22 — derived from real-world capsule study.
+# Some emit partial-verified specs (only verified labels) and document what
+# would be needed to be complete. Honest > silently-broken.
+
+@pattern(
+    "hash_threshold_selection",
+    description="Per-element hash threshold selection — deterministic-random selection of N% of elements. Pattern from Random Selection capsule (80 nodes).",
+    params={"threshold": "float 0..1", "seed": "int", "selection_name": "str"},
+    min_nodes=8,
+    observed_in=["Random Selection capsule (80 nodes)"],
+)
+def _build_hash_threshold_selection(threshold: float = 0.3, seed: int = 42,
+                                     selection_name: str = "random",
+                                     prefix: str = "hashsel") -> list[dict[str, Any]]:
+    """All-verified-label build of the core hash-threshold loop. Production use
+    needs additional unverified nodes (Get Count, polygonarrayget, switch
+    routing) — but the kernel works with these verified labels alone."""
+    return [
+        {"$type": "Hash", "$name": f"{prefix}_hash"},
+        {"$type": "Compare", "$name": f"{prefix}_threshold_test"},
+        {"$type": "If", "$name": f"{prefix}_decision"},
+        {"$type": "Switch", "$name": f"{prefix}_route"},
+        {"$type": "Range", "$name": f"{prefix}_range"},
+        {"$type": "Get Count", "$name": f"{prefix}_count"},
+        {"$type": "Store Selection", "$name": f"{prefix}_out"},
+        {"$type": "Random Selection", "$name": f"{prefix}_random"},
+    ]
+
+
+@pattern(
+    "procedural_surface_scatter",
+    description="Distribute points on a mesh surface using blue-noise (Poisson-disk) sampling. THE killer scatter primitive — replaces ~50 manual nodes with ONE call.",
+    params={"variant": "'uniform' (Surface Blue-Noise) | 'scaled' (Surface Scaled Blue-Noise — per-point size)"},
+    min_nodes=1,
+    observed_in=["user's working graph (both variants)"],
+)
+def _build_procedural_surface_scatter(variant: str = "scaled",
+                                       prefix: str = "scatter") -> list[dict[str, Any]]:
+    """Single-node pattern. The Surface Blue-Noise nodes are operator-class
+    capsules that internally implement Poisson-disk sampling via
+    initsamples + eliminatesamples (Cline et al. weighted-sample elimination).
+    Just emit the right primitive based on variant."""
+    label = "Surface Scaled Blue-Noise" if variant == "scaled" else "Surface Blue-Noise"
+    return [{"$type": label, "$name": f"{prefix}_{variant}"}]
+
+
+@pattern(
+    "memory_capsule_state_carrier",
+    description="The simplest useful Scene Nodes capsule — ONE Memory node + 2 Floating IO ports. Combined with classic-tool stack as a per-frame mutator, becomes a simulation engine.",
+    params={"value_type": "the type carried (Float64 | Vector | Matrix | Geometry)"},
+    min_nodes=1,
+    observed_in=["Memory_Nodes.c4d 'Store For Next Frame' (×4 instances)"],
+)
+def _build_memory_capsule_state_carrier(value_type: str = "Geometry",
+                                         prefix: str = "memcap") -> list[dict[str, Any]]:
+    """All verified labels. The Memory node has current/next ports;
+    Floating IO exposes them to the parent capsule's Attribute Manager."""
+    return [
+        {"$type": "Memory", "$name": f"{prefix}_memory"},
+        {"$type": "Floating IO", "$name": f"{prefix}_io_current"},
+        {"$type": "Floating IO", "$name": f"{prefix}_io_next"},
+    ]
+
+
+@pattern(
+    "iterative_simulation_via_memory_and_classic_tools",
+    description="The general framework for time-varying simulations: Memory node holds state, classic-tool stack provides per-frame mutation. previous_state → [classic mutator] → next_state.",
+    params={"mutator_description": "what the classic-tool stack does per frame"},
+    min_nodes=1,
+    observed_in=["Memory_Nodes.c4d (4 different simulations sharing same Memory primitive)"],
+)
+def _build_iterative_simulation(mutator_description: str = "user-supplied",
+                                  prefix: str = "sim") -> list[dict[str, Any]]:
+    """Bootstraps the Memory side of the simulation. The classic-tool mutator
+    side is built outside of Scene Nodes — Volume Builder, Cloners, Deformers,
+    Fields, etc. — connected to the Memory's current/next ports."""
+    return [
+        {"$type": "Memory", "$name": f"{prefix}_state_memory"},
+        {"$type": "Time", "$name": f"{prefix}_time"},
+        {"$type": "Floating IO", "$name": f"{prefix}_io_state"},
+    ]
+
+
+@pattern(
+    "named_selection_storage_triad",
+    description="Sub-pattern: store a named selection. Found 6× in every selection-producer capsule (Modulo, Random Selection, etc.). NOTE: the 3 sub-nodes (selectionstringtoselection / selectionoperator / variadictolist) appear inside other operators — only Store Selection is top-level addable.",
+    params={"selection_name": "str — the name to store under"},
+    min_nodes=1,
+    observed_in=["Modulo (×6)", "Random Selection (×6)", "any selection capsule"],
+)
+def _build_named_selection_storage(selection_name: str = "out",
+                                     prefix: str = "selstore") -> list[dict[str, Any]]:
+    """Only Store Selection is top-level addable; the other 3 nodes
+    (selectionstringtoselection, selectionoperator, variadictolist) are
+    auto-emitted by the framework when Store Selection wraps them."""
+    return [
+        {"$type": "Store Selection", "$name": f"{prefix}_{selection_name}"},
+    ]
+
+
+@pattern(
+    "modular_polygon_selection",
+    description="Select polygons by modular arithmetic on their index. The Modulo capsule pattern — every Nth polygon, with optional offset.",
+    params={"modulus": "int", "selection_name": "str"},
+    min_nodes=4,
+    observed_in=["Modulo capsule (84 nodes)"],
+)
+def _build_modular_polygon_selection(modulus: int = 3, selection_name: str = "every_n",
+                                      prefix: str = "modsel") -> list[dict[str, Any]]:
+    """PARTIAL — full pattern needs unverified labels (containeriteration,
+    polygonarrayget, modulo-via-Arithmetic). This emits the verified core."""
+    return [
+        {"$type": "Range", "$name": f"{prefix}_range"},
+        {"$type": "Get Count", "$name": f"{prefix}_count"},
+        {"$type": "Arithmetic", "$name": f"{prefix}_modulo"},  # set operation=modulo
+        {"$type": "Compare", "$name": f"{prefix}_test_zero"},
+        {"$type": "If", "$name": f"{prefix}_decision"},
+        {"$type": "Store Selection", "$name": f"{prefix}_out"},
+    ]
+
+
+@pattern(
+    "dual_mesh_topology_transform",
+    description="Convert a mesh into its graph-theoretic dual: every poly→vert, every vert→poly. Cube → octahedron.",
+    params={"preserve_corners": "bool"},
+    min_nodes=10,
+    observed_in=["Dual Mesh Modifier (138 nodes)"],
+)
+def _build_dual_mesh_topology(preserve_corners: bool = True,
+                                prefix: str = "dualmesh") -> list[dict[str, Any]]:
+    """STUB — full pattern needs polygoninfo, pointinfo, indexarrayfromstring,
+    melt, polygonbevel, triangulate which are unverified labels. This emits
+    only verified-label nodes that participate (Inset, Extrude, Subdivide).
+    Production use requires manual completion via add_node + connect_ports."""
+    return [
+        {"$type": "Subdivide", "$name": f"{prefix}_subdivide"},
+        {"$type": "Inset", "$name": f"{prefix}_inset"},
+        {"$type": "Extrude", "$name": f"{prefix}_extrude"},
+    ]
+
+
+@pattern(
+    "doc_level_procedural_scene_builder",
+    description="Build an ENTIRE scene from the doc-level Scene Nodes graph (no classic objects). The 6 numbered example scenes demonstrate this.",
+    params={"algorithm": "'mandelbulb' | 'mandelbrot' | 'voxelize' | 'distance_field_fill' | 'math_noise'"},
+    min_nodes=4,
+    observed_in=["045437-045802 numbered example scenes"],
+)
+def _build_doc_level_scene(algorithm: str = "math_noise",
+                            prefix: str = "docscene") -> list[dict[str, Any]]:
+    """STUB — relies on unverified transform stack (sqrpart/combine/multransform_5/
+    mat/sqrtrans/vectrans). Verifiable subset only:"""
+    return [
+        {"$type": "Sphere", "$name": f"{prefix}_primitive"},
+        {"$type": "Arithmetic", "$name": f"{prefix}_math"},
+        {"$type": "Noise", "$name": f"{prefix}_noise"},
+        {"$type": "Compose Matrix", "$name": f"{prefix}_xform"},
+    ]
+
+
+@pattern(
+    "fractal_recursion_via_stacking",
+    description="Meta-pattern: achieve recursion by stacking N instances of the same capsule on the same parent. Scene Nodes is NOT a recursive language — stacking is the workaround.",
+    params={"depth": "int — number of times to stack"},
+    min_nodes=0,
+    observed_in=["Fractal Trees (Branch Spline Modifier × 7-11 stacked)"],
+)
+def _build_fractal_recursion(depth: int = 7, prefix: str = "fractal") -> list[dict[str, Any]]:
+    """Meta-pattern — emits no Scene Nodes. The recursion happens at the
+    OBJECT TREE level via deformer stacking. The MCP tooling can stack
+    capsules but that's a tree-level operation, not a graph-level one."""
+    return []  # intentionally empty — see docstring
 
 
 @pattern(

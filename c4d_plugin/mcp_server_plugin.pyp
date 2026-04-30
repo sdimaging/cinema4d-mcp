@@ -11994,7 +11994,11 @@ class C4DSocketServer(threading.Thread):
                 c4d.EventAdd()
                 return True
 
-            self.execute_on_main_thread(_do, _timeout=10)
+            mt_result = self.execute_on_main_thread(_do, _timeout=10)
+            # If main-thread routing returned an error envelope, surface it
+            if isinstance(mt_result, dict) and "error" in mt_result:
+                return {"error": f"set_parameter main-thread exec failed: {mt_result['error']}",
+                        "traceback": mt_result.get("traceback")}
 
             try:
                 final = obj[pid]
