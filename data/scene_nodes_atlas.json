@@ -246,6 +246,24 @@
       "observed_in": ["Modulo capsule (net.maxon.neutron.asset.geo.modulo, 84 nodes / 56 unique bases / 6 levels)"]
     },
 
+    "dual_mesh_topology_transform": {
+      "description": "Convert a mesh into its graph-theoretic dual: every poly→vert, every vert→poly, every edge→edge. The Dual Mesh Modifier capsule pattern.",
+      "min_nodes": 100,
+      "required_nodes": ["geoselectionrange", "polygoninfo", "pointinfo", "indexarrayfromstring", "extrude", "inset", "melt", "subdivide", "polygonbevel", "triangulate", "delete", "deletemeshcomponent", "connect", "selectionstringtoselection"],
+      "skeleton_text": "input mesh → polygoninfo (centroids, per-poly) → geoselectionrange × N → extrude+inset+melt to spawn vertex per poly center → pointinfo (neighbors, per-vert) → indexarrayfromstring × N to build per-vert poly-ring selections → connect ring-of-poly-centers → polygonbevel + triangulate → delete original geometry → output dual mesh",
+      "params_needed": ["preserve_corners (bool)", "smoothing", "naming_convention"],
+      "observed_in": ["Dual Mesh Modifier capsule (138 nodes / 46 unique bases / 7 levels)"],
+      "subpatterns_used": ["named_selection_storage_triad (14× selectionstringtoselection)", "dynamic_selection_naming (5× string.concat building per-element names)"]
+    },
+
+    "dynamic_selection_naming": {
+      "description": "Build per-element selection names at runtime using string.concat — e.g. 'dual_v_42' per vertex. Lets a graph generate uniquely-named selections that downstream operators can reference by name even when count is dynamic.",
+      "is_subpattern_of": ["dual_mesh_topology_transform", "any per-element-named-output algorithm"],
+      "required_nodes": ["string.concat (net.maxon.pattern.node.string.concat)", "indexarrayfromstring", "selectionstringtoselection", "setselection"],
+      "skeleton_text": "index/idx → string.concat with prefix → indexarrayfromstring → selectionstringtoselection → setselection",
+      "observed_in": ["Dual Mesh Modifier (5× string.concat for runtime-named selections)"]
+    },
+
     "named_selection_storage_triad": {
       "description": "The canonical 3-node sub-pattern that appears every time you store a named selection inside a capsule — selectionstringtoselection + selectionoperator + variadictolist.",
       "is_subpattern_of": ["any selection-producing operator", "modular_polygon_selection (×6)", "selection_evolution_chain"],

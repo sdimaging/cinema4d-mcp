@@ -580,6 +580,21 @@ PATTERN_SIGNATURES = [
 ]
 
 
+def _normalize_basename(b: str) -> str:
+    """Strip canonical-ID prefixes so 'net.maxon.node.switch' counts as 'switch'.
+
+    Some dissections emit fully-qualified basenames when a local name
+    collides with another node in the graph. For classification, we want
+    the simple basename. Pattern observed in Dual Mesh Modifier dissection
+    (2026-04-29): ~half the switches were emitted as
+    `net.maxon.node.switch@HASH` instead of `switch@HASH`.
+    """
+    # Strip canonical prefixes — keep only last segment
+    if b.startswith("net.maxon.") or b.startswith("com."):
+        return b.rsplit(".", 1)[-1]
+    return b
+
+
 def classify_graph_histogram(histogram: dict[str, int]) -> dict[str, Any]:
     """Given a {basename: count} histogram from a dissection, return:
       - function_class_distribution (fractions per class)
@@ -587,6 +602,12 @@ def classify_graph_histogram(histogram: dict[str, int]) -> dict[str, Any]:
       - loop_carried_state_count
       - probable_purpose (heuristic English description)
     """
+    # Normalize: collapse 'net.maxon.node.switch' → 'switch' before counting
+    normalized = {}
+    for b, c in histogram.items():
+        nb = _normalize_basename(b)
+        normalized[nb] = normalized.get(nb, 0) + c
+    histogram = normalized
     total = sum(histogram.values()) or 1
     # Function class distribution
     class_counts = {}
