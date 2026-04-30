@@ -3,14 +3,13 @@
 //   1. GraphModelInterface::AddPort(parent, Id name) for named FIO ports
 //   2. NodeTemplate-typed asset publishing (.c4dnodes format)
 //
-// PHASE A.0: this file currently builds the minimum skeleton needed to prove
-// the Python <-> C++ bridge round-trips a Message() call. Scene Nodes logic
-// arrives in subsequent phases — at which point asset.framework /
-// graph.framework / nodes.framework get added back to APIS.
+// PHASE A.1 (2026-04-30): adds graph/nodes/nodespace frameworks for the
+// AddPort wrapper. Phase A.0 minimal-build verified loadability; A.1
+// adds the actual Scene Nodes primitives.
 //
 // Layout matches the user's existing working plugins (Luminary, MechFlow,
-// Spikr2) — same Platform / APIs / stylecheck / ModuleId convention to
-// avoid build-pipeline surprises on first compile.
+// Spikr2) — same Platform / stylecheck / ModuleId convention to avoid
+// build-pipeline surprises.
 
 Platform=Win64;OSX;Linux
 
@@ -22,7 +21,10 @@ cinema_hybrid.framework;\
 core.framework;\
 math.framework;\
 misc.framework;\
-mesh_misc.framework
+mesh_misc.framework;\
+graph.framework;\
+nodes.framework;\
+nodespace.framework
 
 C4D=true
 

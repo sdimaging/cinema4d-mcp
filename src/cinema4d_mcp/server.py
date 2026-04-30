@@ -3425,6 +3425,55 @@ async def scene_nodes_create_capsule_with_pattern(
 
 
 @mcp.tool()
+async def scene_nodes_add_floating_io_port(
+    graph_target: str,
+    fio_node_id: str,
+    port_name: str,
+    direction: str = "input",
+    ctx: Context = None,
+) -> str:
+    """Add a named port to a Floating IO node via the C++ shim's AddPort
+    wrapper. Replicates what the C4D editor does on drag-wire when an
+    artist exposes a parameter — the singular GraphModelInterface::AddPort
+    isn't wrapped in Python's maxon.frameworks, so we route through the
+    C++ companion plugin (cinema4d_mcp_helper).
+
+    Phase A.1 (2026-04-30): requires the C++ shim built + installed +
+    C4D restarted. Verify via scene_nodes_helper_ping first.
+
+    Args:
+      graph_target: name of the BaseObject hosting the Scene Nodes graph.
+      fio_node_id: Floating IO instance ID. Full ID ('floatingio@HASH')
+        or just the last segment — both match.
+      port_name: exact name for the new port. Convention from Maxon's
+        shipped capsules:
+          hiddenin1.<canonical.attribute.path>  for input side
+          in1.<canonical.attribute.path>        for output side
+      direction: 'input' (default) or 'output'. Determines whether the
+        port is added to the FIO's inputs or outputs container.
+
+    Returns: {ok, new_port_id, status, status_msg, protocol_version, ...}
+
+    UNSAFE — mutates the graph. Always verify via scene_nodes_walk
+    post-call to confirm the port actually appeared.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {
+            "command": "scene_nodes_add_floating_io_port",
+            "graph_target": graph_target,
+            "fio_node_id": fio_node_id,
+            "port_name": port_name,
+            "direction": direction,
+        }
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
 async def scene_nodes_helper_ping(
     ctx: Context = None,
 ) -> str:

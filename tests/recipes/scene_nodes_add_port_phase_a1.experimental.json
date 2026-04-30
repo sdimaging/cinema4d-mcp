@@ -1,0 +1,82 @@
+{
+  "name": "scene_nodes_add_port_phase_a1.experimental",
+  "description": "EXPERIMENTAL — narrowly-scoped Phase A.1 test of the C++ shim's AddPort wrapper. Creates a fresh FIO_Probe SN Generator with one Floating IO node, calls scene_nodes_add_floating_io_port to add a named port, then verifies the port shows up via direct GetInputs/GetOutputs walk. Phase B (NodeTemplate publishing) covers AM-param surfacing and is out of scope here. Per GPT discipline: prove the named-port creation primitive works in isolation BEFORE testing AM exposure or larger workflows. Requires cpp_shim built + installed + C4D restarted (verify via scene_nodes_helper_ping returning helper_loaded=True before running this).",
+  "setup": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\ndoc = c4d.documents.GetActiveDocument()\nfor n in ['FIO_Probe']:\n    o = doc.SearchObject(n)\n    if o: o.Remove()\nc4d.EventAdd()\nprint('phase A.1 setup ok')"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "name": "step1_verify_helper_loaded",
+      "command": "scene_nodes_helper_ping",
+      "args": {},
+      "assert": []
+    },
+    {
+      "name": "step2_create_fio_probe_capsule_with_floating_io",
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\nimport maxon\nfrom maxon.frameworks.nodes import GraphDescription\ndoc = c4d.documents.GetActiveDocument()\ngen = c4d.BaseObject(180420700)\ngen.SetName('FIO_Probe')\ndoc.InsertObject(gen)\nc4d.EventAdd()\ng = GraphDescription.GetGraph(gen)\nresult = GraphDescription.ApplyDescription(g, [{'$type': 'Floating IO', '$name': 'fio_top'}])\n# Find the floatingio instance ID for the test\nfio_id = None\nfor c in (g.GetRoot().GetChildren() or []):\n    cid = str(c.GetId())\n    if cid.split('/')[-1].startswith('floatingio@') and '/' not in cid:\n        fio_id = cid; break\nif not fio_id: raise RuntimeError('no top-level floatingio created')\nprint(f'FIO_Probe created with fio_id={fio_id}')"
+      },
+      "assert": [{"type": "object_exists", "name": "FIO_Probe"}]
+    },
+    {
+      "name": "step3_capture_baseline_port_count",
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\nimport maxon\nfrom maxon.frameworks.nodes import GraphDescription\ndoc = c4d.documents.GetActiveDocument()\ngen = doc.SearchObject('FIO_Probe')\ng = GraphDescription.GetGraph(gen)\nfio = None\nfor c in (g.GetRoot().GetChildren() or []):\n    cid = str(c.GetId())\n    if cid.split('/')[-1].startswith('floatingio@') and '/' not in cid:\n        fio = c; break\nif not fio: raise RuntimeError('floatingio not found')\nins_before = list(fio.GetInputs().GetChildren() or [])\nouts_before = list(fio.GetOutputs().GetChildren() or [])\nprint(f'BASELINE inputs={len(ins_before)}, outputs={len(outs_before)}')\nfor p in ins_before: print(f'  in:  {str(p.GetId()).split(chr(60))[-1]}')\nfor p in outs_before: print(f'  out: {str(p.GetId()).split(chr(62))[-1]}')"
+      },
+      "assert": []
+    },
+    {
+      "name": "step4_call_AddPort_via_cpp_shim",
+      "command": "scene_nodes_add_floating_io_port",
+      "args": {
+        "graph_target": "FIO_Probe",
+        "fio_node_id": "floatingio",
+        "port_name": "hiddenin1.com.sdimaging.test.myparam",
+        "direction": "input"
+      },
+      "assert": []
+    },
+    {
+      "name": "step5_verify_new_input_port_landed",
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\nimport maxon\nfrom maxon.frameworks.nodes import GraphDescription\ndoc = c4d.documents.GetActiveDocument()\ngen = doc.SearchObject('FIO_Probe')\ng = GraphDescription.GetGraph(gen)\nfio = None\nfor c in (g.GetRoot().GetChildren() or []):\n    cid = str(c.GetId())\n    if cid.split('/')[-1].startswith('floatingio@') and '/' not in cid:\n        fio = c; break\nif not fio: raise RuntimeError('floatingio not found')\nins_after = list(fio.GetInputs().GetChildren() or [])\nfound_target = None\nfor p in ins_after:\n    pid = str(p.GetId())\n    if 'com.sdimaging.test.myparam' in pid:\n        found_target = pid; break\nif not found_target:\n    print(f'FAIL: hiddenin1.com.sdimaging.test.myparam port NOT found. Inputs:')\n    for p in ins_after: print(f'  {str(p.GetId())}')\n    raise AssertionError('AddPort did not land')\nprint(f'PASS: new port found -> {found_target}')\nprint(f'Total inputs after AddPort: {len(ins_after)}')"
+      },
+      "assert": []
+    },
+    {
+      "name": "step6_call_AddPort_for_output_side",
+      "command": "scene_nodes_add_floating_io_port",
+      "args": {
+        "graph_target": "FIO_Probe",
+        "fio_node_id": "floatingio",
+        "port_name": "in1.com.sdimaging.test.myparam",
+        "direction": "output"
+      },
+      "assert": []
+    },
+    {
+      "name": "step7_verify_new_output_port_landed",
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\nimport maxon\nfrom maxon.frameworks.nodes import GraphDescription\ndoc = c4d.documents.GetActiveDocument()\ngen = doc.SearchObject('FIO_Probe')\ng = GraphDescription.GetGraph(gen)\nfio = None\nfor c in (g.GetRoot().GetChildren() or []):\n    cid = str(c.GetId())\n    if cid.split('/')[-1].startswith('floatingio@') and '/' not in cid:\n        fio = c; break\nif not fio: raise RuntimeError('floatingio not found')\nouts_after = list(fio.GetOutputs().GetChildren() or [])\nfound_target = None\nfor p in outs_after:\n    pid = str(p.GetId())\n    if 'com.sdimaging.test.myparam' in pid:\n        found_target = pid; break\nif not found_target:\n    print(f'FAIL: in1.com.sdimaging.test.myparam port NOT found. Outputs:')\n    for p in outs_after: print(f'  {str(p.GetId())}')\n    raise AssertionError('AddPort (output side) did not land')\nprint(f'PASS: new output port found -> {found_target}')\nprint(f'Total outputs after AddPort: {len(outs_after)}')"
+      },
+      "assert": []
+    }
+  ],
+  "teardown": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\ndoc = c4d.documents.GetActiveDocument()\nfor n in ['FIO_Probe']:\n    o = doc.SearchObject(n)\n    if o: o.Remove()\nc4d.EventAdd()\nprint('phase A.1 teardown ok')"
+      }
+    }
+  ]
+}

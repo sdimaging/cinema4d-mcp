@@ -912,6 +912,8 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_scene_nodes_load_asset(command)
                         elif command_type == "scene_nodes_helper_ping":
                             response = self.handle_scene_nodes_helper_ping(command)
+                        elif command_type == "scene_nodes_add_floating_io_port":
+                            response = self.handle_scene_nodes_add_floating_io_port(command)
                         elif command_type == "paint_vertex_map_from_formula":
                             response = self.handle_paint_vertex_map_from_formula(command)
                         elif command_type == "paint_vertex_map_radial":
@@ -11429,7 +11431,7 @@ class C4DSocketServer(threading.Thread):
         "scene_nodes_describe_node_template",
         "scene_nodes_create_capsule_with_pattern",
         "scene_nodes_save_as_asset", "scene_nodes_load_asset",
-        "scene_nodes_helper_ping",
+        "scene_nodes_helper_ping", "scene_nodes_add_floating_io_port",
         "paint_vertex_map_from_formula", "paint_vertex_map_radial",
         "list_deformer_types", "apply_deformer",
         "list_field_types", "add_field_to_scene", "bake_field_to_vmap",
@@ -14562,6 +14564,146 @@ class C4DSocketServer(threading.Thread):
             return result
         except Exception as e:
             return {"error": f"scene_nodes_list_assets failed: {e}", "traceback": traceback.format_exc()}
+
+    # ----------------------------------------------------------------
+    # C++ shim protocol constants — mirror cpp_shim/cinema4d_mcp_helper/
+    # source/main.cpp. Keep in sync when modifying either side.
+    # ----------------------------------------------------------------
+    _MCP_HELPER_PLUGIN_ID = 1057845
+    _MSG_MCP_HELPER_REQ   = 1057845001
+    _BC_KEY_OP            = 1057845010
+    _BC_KEY_TARGET        = 1057845011
+    _BC_KEY_NODE_ID       = 1057845012
+    _BC_KEY_PORT_NAME     = 1057845013
+    _BC_KEY_IS_OUTPUT     = 1057845014
+    _BC_KEY_STATUS        = 1057845020
+    _BC_KEY_STATUS_MSG    = 1057845021
+    _BC_KEY_NEW_PORT_ID   = 1057845022
+    _BC_KEY_PROTOCOL_VER  = 1057845023
+    _OP_PING                  = 0
+    _OP_ADD_FLOATING_IO_PORT  = 1
+
+    def _mcp_helper_dispatch(self, op_code, args):
+        """Send a request to the cinema4d_mcp_helper C++ plugin via the
+        shared world container + custom CoreMessage. Returns a dict with
+        status, status_msg, new_port_id, protocol_version. Raises
+        RuntimeError if the helper plugin isn't loaded.
+
+        Must run on the main thread (CoreMessage dispatch is main-thread
+        only). Caller wraps in execute_on_main_thread.
+        """
+        # Confirm helper is present
+        plug = c4d.plugins.FindPlugin(self._MCP_HELPER_PLUGIN_ID,
+                                       c4d.PLUGINTYPE_COREMESSAGE)
+        if plug is None:
+            raise RuntimeError(
+                "cinema4d_mcp_helper C++ plugin not loaded "
+                "(id 1057845). Run scripts/build_cpp_shim.sh and "
+                "restart C4D — see cpp_shim/README.md.")
+
+        wc = c4d.plugins.GetWorldContainerInstance()
+        # Write request
+        wc.SetInt32(self._BC_KEY_OP, int(op_code))
+        wc.SetString(self._BC_KEY_TARGET, args.get("target", "") or "")
+        wc.SetString(self._BC_KEY_NODE_ID, args.get("node_id", "") or "")
+        wc.SetString(self._BC_KEY_PORT_NAME, args.get("port_name", "") or "")
+        wc.SetBool(self._BC_KEY_IS_OUTPUT, bool(args.get("is_output", False)))
+        # Reset response slots
+        wc.SetInt32(self._BC_KEY_STATUS, -1)
+        wc.SetString(self._BC_KEY_STATUS_MSG, "")
+        wc.SetString(self._BC_KEY_NEW_PORT_ID, "")
+        wc.SetInt32(self._BC_KEY_PROTOCOL_VER, -1)
+
+        # Fire the request — broadcast CoreMessage with our custom ID.
+        # CoreMessage dispatch is synchronous: when SendCoreMessage
+        # returns, all listeners have been called. So results are ready
+        # to read immediately after.
+        c4d.SendCoreMessage(self._MSG_MCP_HELPER_REQ, c4d.BaseContainer())
+
+        # Read response
+        return {
+            "status": wc.GetInt32(self._BC_KEY_STATUS),
+            "status_msg": wc.GetString(self._BC_KEY_STATUS_MSG),
+            "new_port_id": wc.GetString(self._BC_KEY_NEW_PORT_ID),
+            "protocol_version": wc.GetInt32(self._BC_KEY_PROTOCOL_VER),
+        }
+
+    def handle_scene_nodes_add_floating_io_port(self, command):
+        """Add a named port to a Floating IO node via the C++ shim's
+        AddPort wrapper. Replicates what the C4D editor does on drag-wire
+        when an artist exposes a parameter.
+
+        Phase A.1 (2026-04-30): the C++ shim must be built + installed
+        + C4D restarted before this works. Verify via
+        scene_nodes_helper_ping.
+
+        Args:
+          graph_target (str, required): name of the BaseObject hosting
+            the Scene Nodes graph (e.g. 'FIO_Probe').
+          fio_node_id (str, required): the Floating IO instance ID. Pass
+            the FULL ID ('floatingio@HASH') or just the last path
+            segment — both match.
+          port_name (str, required): exact name for the new port. Should
+            match the canonical-attribute-path convention Maxon's
+            shipped capsules use:
+              hiddenin1.<canonical.attribute.path>  for input side
+              in1.<canonical.attribute.path>        for output side
+          direction (str, optional): 'input' (default) or 'output'.
+
+        Returns:
+          {ok, new_port_id, status, status_msg, protocol_version,
+           graph_target, fio_node_id, port_name, direction}
+
+        UNSAFE — mutates the graph. Always verify via scene_nodes_walk
+        post-call.
+        """
+        try:
+            graph_target = command.get("graph_target")
+            fio_node_id = command.get("fio_node_id")
+            port_name = command.get("port_name")
+            direction = command.get("direction", "input")
+            for fld, val in [("graph_target", graph_target),
+                              ("fio_node_id", fio_node_id),
+                              ("port_name", port_name)]:
+                if not val or not isinstance(val, str):
+                    return {"error": f"{fld} (str) is required"}
+            if direction not in ("input", "output"):
+                return {"error": f"direction must be 'input' or 'output' "
+                                  f"(got {direction!r})"}
+            is_output = (direction == "output")
+
+            def _dispatch():
+                try:
+                    return self._mcp_helper_dispatch(
+                        self._OP_ADD_FLOATING_IO_PORT,
+                        {"target": graph_target,
+                         "node_id": fio_node_id,
+                         "port_name": port_name,
+                         "is_output": is_output})
+                except Exception as e:
+                    return {"_error": str(e)}
+
+            outcome = self.execute_on_main_thread(_dispatch, _timeout=15)
+            if isinstance(outcome, dict) and "_error" in outcome:
+                return {"error": outcome["_error"]}
+
+            status = outcome.get("status", -1)
+            status_msg = outcome.get("status_msg", "")
+            ok = (status == 0)
+            return {
+                "ok": ok,
+                "new_port_id": outcome.get("new_port_id", "") if ok else None,
+                "status": status,
+                "status_msg": status_msg,
+                "protocol_version": outcome.get("protocol_version", -1),
+                "graph_target": graph_target,
+                "fio_node_id": fio_node_id,
+                "port_name": port_name,
+                "direction": direction,
+            }
+        except Exception as e:
+            return {"error": f"scene_nodes_add_floating_io_port failed: {e}",
+                    "traceback": traceback.format_exc()}
 
     def handle_scene_nodes_helper_ping(self, command):
         """Probe the cinema4d_mcp_helper C++ companion plugin.
