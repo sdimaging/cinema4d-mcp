@@ -1,0 +1,51 @@
+{
+  "name": "octane_osl_smoke",
+  "description": "End-to-end Octane OSL pipeline: enumerate snippets, drop a checker OSL texture into a material's diffuse channel, then attach a fisheye_180 OSL camera to a CameraObject. Locks the Octane OSL surface area discovered 2026-04-29 (plugin id 1039813 for 'OSL texture' shader; tag id 1029524 for 'Octane Camera' with mode OCT_CAMERA_OSL=3).",
+  "setup": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\ndoc = c4d.documents.GetActiveDocument()\nfor n in ['OSLTestCam', 'OSLChecker', 'SmokeOSLChecker']:\n    o = doc.SearchObject(n)\n    if o: o.Remove()\nm_old = doc.SearchMaterial('OSLChecker')\nif m_old: m_old.Remove()\ncam = c4d.BaseObject(c4d.Ocamera)\ncam.SetName('OSLTestCam')\ncam.SetAbsPos(c4d.Vector(0, 100, -500))\ndoc.InsertObject(cam)\nmat = c4d.BaseMaterial(c4d.Mmaterial)\nmat.SetName('OSLChecker')\ndoc.InsertMaterial(mat)\nc4d.EventAdd()\nprint(f'setup ok: camera + material ready')"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "name": "enumerate_snippets",
+      "command": "list_osl_snippets",
+      "args": {},
+      "assert": []
+    },
+    {
+      "name": "create_osl_texture_in_material",
+      "command": "octane_create_osl_texture",
+      "args": {
+        "snippet": "checker",
+        "name": "DiffuseOSL",
+        "host_material": "OSLChecker",
+        "host_channel": "diffuse"
+      },
+      "assert": []
+    },
+    {
+      "name": "set_camera_to_osl_fisheye",
+      "command": "octane_set_camera_to_osl",
+      "args": {
+        "camera_target": "OSLTestCam",
+        "snippet": "camera_fisheye_180"
+      },
+      "assert": [
+        {"type": "object_exists", "name": "OSLTestCam"},
+        {"type": "object_has_tag", "name": "OSLTestCam", "tag_type": 1029524}
+      ]
+    }
+  ],
+  "teardown": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\ndoc = c4d.documents.GetActiveDocument()\no = doc.SearchObject('OSLTestCam')\nif o: o.Remove()\nm = doc.SearchMaterial('OSLChecker')\nif m: m.Remove()\nc4d.EventAdd()\nprint('teardown ok')"
+      }
+    }
+  ]
+}
