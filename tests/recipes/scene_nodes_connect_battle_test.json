@@ -1,0 +1,133 @@
+{
+  "name": "scene_nodes_connect_battle_test",
+  "description": "Battle-test the rewritten connect_ports handler (imperative BeginTransaction+Connect path) against real synthesized capsules. Creates 4 capsules across the 4 verified-only patterns, makes multiple port connections, walks each to verify the wires landed via inline Python checks. If ANY wire fails to land, the recipe fails.",
+  "setup": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\ndoc = c4d.documents.GetActiveDocument()\nfor n in ['BT_Memory', 'BT_Scatter', 'BT_HashSel', 'BT_Loop']:\n    o = doc.SearchObject(n)\n    if o: o.Remove()\nc4d.EventAdd()\nprint('battle-test setup ok')"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "name": "create_memory_capsule",
+      "command": "scene_nodes_create_capsule_with_pattern",
+      "args": {
+        "pattern_name": "memory_capsule_state_carrier",
+        "capsule_type": "generator",
+        "capsule_name": "BT_Memory",
+        "params": {"value_type": "Geometry"}
+      },
+      "assert": [{"type": "object_exists", "name": "BT_Memory"}]
+    },
+    {
+      "name": "connect_memory_to_floatingio",
+      "command": "scene_nodes_connect_ports",
+      "args": {
+        "from_node": "memory",
+        "from_port": "nextout._0",
+        "to_node": "floatingio",
+        "to_port": "net.maxon.node.floatingio.portlist",
+        "graph_target": "BT_Memory"
+      },
+      "assert": []
+    },
+    {
+      "name": "verify_memory_wire_landed",
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\nimport maxon\nfrom maxon.frameworks.nodes import GraphDescription\ndoc = c4d.documents.GetActiveDocument()\ncap = doc.SearchObject('BT_Memory')\nif not cap: raise RuntimeError('BT_Memory not in scene')\ng = GraphDescription.GetGraph(cap)\nmem_node = None; io_node = None\nfor c in (g.GetRoot().GetChildren() or []):\n    cid = str(c.GetId())\n    if '@' in cid and '/' not in cid:\n        b = cid.split('@')[0]\n        if b == 'memory': mem_node = c\n        elif b == 'floatingio': io_node = c\nif not mem_node: raise RuntimeError('memory node not found')\nif not io_node: raise RuntimeError('floatingio node not found')\n# Find the source port and check its outgoing connections\nnextout = next((p for p in (mem_node.GetOutputs().GetChildren() or []) if 'nextout._0' in str(p.GetId())), None)\nif not nextout: raise RuntimeError('memory.nextout._0 port not found')\nconns = list(nextout.GetConnections(1))\nif not conns: raise AssertionError(f'memory.nextout._0 has 0 outgoing connections (expected 1 to floatingio)')\n# Verify it points to floatingio's portlist\nfound_target = False\nfor (target_port, wires) in conns:\n    pid = str(target_port.GetId())\n    if 'floatingio' in pid and 'portlist' in pid:\n        found_target = True; break\nif not found_target: raise AssertionError(f'memory.nextout._0 connections do not include floatingio.portlist; got: {[str(p[0].GetId()) for p in conns]}')\nprint(f'WIRE VERIFIED: memory.nextout._0 -> floatingio.portlist on {cap.GetName()}')"
+      },
+      "assert": []
+    },
+    {
+      "name": "create_scatter_capsule",
+      "command": "scene_nodes_create_capsule_with_pattern",
+      "args": {
+        "pattern_name": "procedural_surface_scatter",
+        "capsule_type": "generator",
+        "capsule_name": "BT_Scatter",
+        "params": {"variant": "scaled"}
+      },
+      "assert": [{"type": "object_exists", "name": "BT_Scatter"}]
+    },
+    {
+      "name": "verify_scatter_capsule_has_scaled_bluenoise",
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\nimport maxon\nfrom maxon.frameworks.nodes import GraphDescription\ndoc = c4d.documents.GetActiveDocument()\ncap = doc.SearchObject('BT_Scatter')\nif not cap: raise RuntimeError('BT_Scatter not in scene')\ng = GraphDescription.GetGraph(cap)\nfound = False\nfor c in (g.GetRoot().GetChildren() or []):\n    cid = str(c.GetId())\n    if '@' in cid and '/' not in cid and cid.split('@')[0] == 'surfacescaledbluenoise':\n        found = True; break\nif not found: raise AssertionError('BT_Scatter is missing surfacescaledbluenoise node')\nprint('SCATTER VERIFIED: surfacescaledbluenoise present in BT_Scatter')"
+      },
+      "assert": []
+    },
+    {
+      "name": "create_hash_threshold_capsule",
+      "command": "scene_nodes_create_capsule_with_pattern",
+      "args": {
+        "pattern_name": "hash_threshold_selection",
+        "capsule_type": "generator",
+        "capsule_name": "BT_HashSel",
+        "params": {"threshold": 0.3, "seed": 42, "selection_name": "random"}
+      },
+      "assert": [{"type": "object_exists", "name": "BT_HashSel"}]
+    },
+    {
+      "name": "connect_hash_resultfloat_to_compare_in1",
+      "command": "scene_nodes_connect_ports",
+      "args": {
+        "from_node": "hash",
+        "from_port": "resultfloat",
+        "to_node": "compare",
+        "to_port": "in1",
+        "graph_target": "BT_HashSel"
+      },
+      "assert": []
+    },
+    {
+      "name": "verify_hash_to_compare_wire",
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\nimport maxon\nfrom maxon.frameworks.nodes import GraphDescription\ndoc = c4d.documents.GetActiveDocument()\ncap = doc.SearchObject('BT_HashSel')\nif not cap: raise RuntimeError('BT_HashSel not in scene')\ng = GraphDescription.GetGraph(cap)\nhash_node = None\nfor c in (g.GetRoot().GetChildren() or []):\n    cid = str(c.GetId())\n    if '@' in cid and '/' not in cid and cid.split('@')[0] == 'hash':\n        hash_node = c; break\nif not hash_node: raise RuntimeError('hash node not found')\nresultfloat = next((p for p in (hash_node.GetOutputs().GetChildren() or []) if str(p.GetId()).endswith('resultfloat')), None)\nif not resultfloat: raise RuntimeError('hash.resultfloat port not found')\nconns = list(resultfloat.GetConnections(1))\nif not conns: raise AssertionError(f'hash.resultfloat has 0 outgoing connections (expected 1 to compare.in1)')\nfound = False\nfor (target_port, wires) in conns:\n    pid = str(target_port.GetId())\n    if 'compare' in pid.lower() and 'in1' in pid:\n        found = True; break\nif not found: raise AssertionError(f'hash.resultfloat does not connect to compare.in1; got: {[str(p[0].GetId()) for p in conns]}')\nprint('WIRE VERIFIED: hash.resultfloat -> compare.in1 on BT_HashSel')"
+      },
+      "assert": []
+    },
+    {
+      "name": "create_loop_capsule",
+      "command": "scene_nodes_create_capsule_with_pattern",
+      "args": {
+        "pattern_name": "loop_over_indices",
+        "capsule_type": "generator",
+        "capsule_name": "BT_Loop",
+        "params": {"prefix": "btloop", "carried": []}
+      },
+      "assert": [{"type": "object_exists", "name": "BT_Loop"}]
+    },
+    {
+      "name": "verify_loop_has_range_and_getcount",
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\nimport maxon\nfrom maxon.frameworks.nodes import GraphDescription\ndoc = c4d.documents.GetActiveDocument()\ncap = doc.SearchObject('BT_Loop')\nif not cap: raise RuntimeError('BT_Loop not in scene')\ng = GraphDescription.GetGraph(cap)\nbases = set()\nfor c in (g.GetRoot().GetChildren() or []):\n    cid = str(c.GetId())\n    if '@' in cid and '/' not in cid:\n        bases.add(cid.split('@')[0])\nrequired = {'range', 'getcount'}\nmissing = required - bases\nif missing: raise AssertionError(f'BT_Loop missing {missing} (got bases: {sorted(bases)})')\nprint(f'LOOP VERIFIED: BT_Loop contains {sorted(required)} (full vocab: {sorted(bases)})')"
+      },
+      "assert": []
+    },
+    {
+      "name": "summary_count_capsules_in_scene",
+      "command": "list_objects",
+      "args": {},
+      "assert": [
+        {"type": "object_exists", "name": "BT_Memory"},
+        {"type": "object_exists", "name": "BT_Scatter"},
+        {"type": "object_exists", "name": "BT_HashSel"},
+        {"type": "object_exists", "name": "BT_Loop"}
+      ]
+    }
+  ],
+  "teardown": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\ndoc = c4d.documents.GetActiveDocument()\nfor n in ['BT_Memory', 'BT_Scatter', 'BT_HashSel', 'BT_Loop']:\n    o = doc.SearchObject(n)\n    if o: o.Remove()\nc4d.EventAdd()\nprint('teardown ok')"
+      }
+    }
+  ]
+}
