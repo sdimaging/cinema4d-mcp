@@ -520,6 +520,8 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_scene_nodes_create_graph(command)
                         elif command_type == "scene_nodes_open_editor":
                             response = self.handle_scene_nodes_open_editor(command)
+                        elif command_type == "scene_nodes_walk":
+                            response = self.handle_scene_nodes_walk(command)
                         elif command_type == "paint_vertex_map_from_formula":
                             response = self.handle_paint_vertex_map_from_formula(command)
                         elif command_type == "paint_vertex_map_radial":
@@ -10714,6 +10716,7 @@ class C4DSocketServer(threading.Thread):
         "scene_snapshot", "scene_diff",
         "begin_undo_group", "end_undo_group", "undo", "redo",
         "scene_nodes_status", "scene_nodes_create_graph", "scene_nodes_open_editor",
+        "scene_nodes_walk",
         "paint_vertex_map_from_formula", "paint_vertex_map_radial",
         "list_deformer_types", "apply_deformer",
         "list_field_types", "add_field_to_scene", "bake_field_to_vmap",
@@ -10747,6 +10750,7 @@ class C4DSocketServer(threading.Thread):
         "get_c4d_info", "get_capabilities", "doctor", "ping",
         "scene_snapshot", "scene_diff",
         "scene_nodes_status",  # read-only inspection of Scene Nodes graphs
+        "scene_nodes_walk",    # read-only graph traversal
         "list_deformer_types",  # discovery only, no scene mutation
         "list_field_types",     # discovery only, no scene mutation
         "image_inspect", "images_compare",  # disk-read only, no C4D state
@@ -12692,6 +12696,112 @@ class C4DSocketServer(threading.Thread):
             }
         except Exception as e:
             return {"error": f"scene_nodes_create_graph failed: {e}", "traceback": traceback.format_exc()}
+
+    def handle_scene_nodes_walk(self, command):
+        """Walk a Scene Nodes graph and return a typed structural summary.
+
+        Args:
+          target_object: object name. If set, walks the per-object embedded
+            graph (Capsule pattern). If None (default), walks the doc-level
+            scene-nodes graph.
+          max_depth: how deep to recurse (default 2). Top-level children
+            are always included; deeper levels included up to max_depth.
+          include_ports: include port (kind 2/4) entries (default False —
+            they clutter the tree).
+
+        Returns: {root: {id, is_root, children: [...]}, summary: {...}}
+
+        For each node:
+          - id: asset id (e.g. "net.maxon.neutron.scene.root", or "builder")
+          - kind: integer kind (1=node, 2=output port, 4=input port)
+          - kind_name: 'node' / 'output_port' / 'input_port' / 'unknown'
+          - input_count, output_count, child_count
+          - children: recursive list (when depth < max_depth)
+
+        Read-only — never mutates the graph. Main-thread routed because
+        all maxon.frameworks.nodes calls require it.
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+            target_name = command.get("target_object")
+            max_depth = int(command.get("max_depth", 2))
+            include_ports = bool(command.get("include_ports", False))
+
+            host = doc
+            if target_name:
+                obj = doc.SearchObject(target_name)
+                if obj is None:
+                    return {"error": f"target_object '{target_name}' not found"}
+                host = obj
+
+            from maxon.frameworks.nodes import GraphDescription
+
+            _kind_names = {1: "node", 2: "output_port", 4: "input_port"}
+
+            def _node_summary(n, depth):
+                """Recursive summarizer — runs on main thread already."""
+                out = {}
+                try:
+                    out["id"] = str(n.GetId())
+                except Exception as e:
+                    out["id_error"] = str(e)
+                try:
+                    k = n.GetKind()
+                    out["kind"] = k
+                    out["kind_name"] = _kind_names.get(k, "unknown")
+                except Exception as e:
+                    out["kind_error"] = str(e)
+                try:
+                    out["is_root"] = bool(n.IsRoot())
+                except Exception:
+                    pass
+                # Port counts (skip on port nodes — would error)
+                if out.get("kind") == 1:
+                    try:
+                        inputs = n.GetInputs()
+                        out["input_count"] = len(inputs.GetChildren()) if inputs else 0
+                    except Exception as e:
+                        out["input_error"] = str(e)
+                    try:
+                        outputs = n.GetOutputs()
+                        out["output_count"] = len(outputs.GetChildren()) if outputs else 0
+                    except Exception as e:
+                        out["output_error"] = str(e)
+                # Children
+                try:
+                    kids = n.GetChildren() or []
+                    if not include_ports:
+                        kids = [k for k in kids if (
+                            (lambda kn: kn.GetKind() == 1 if hasattr(kn, "GetKind") else True)(k)
+                        )]
+                    out["child_count"] = len(kids)
+                    if depth < max_depth:
+                        out["children"] = [_node_summary(k, depth + 1) for k in kids]
+                except Exception as e:
+                    out["children_error"] = str(e)
+                return out
+
+            def _walk():
+                graph = GraphDescription.GetGraph(host)
+                root = graph.GetRoot()
+                summary = _node_summary(root, 0)
+                return summary
+
+            result = self.execute_on_main_thread(_walk, _timeout=15)
+            if isinstance(result, dict) and "error" in result and "kind" not in result:
+                return result  # error from main-thread wrapper
+
+            return {
+                "ok": True,
+                "host": target_name or "<doc>",
+                "max_depth": max_depth,
+                "include_ports": include_ports,
+                "root": result,
+            }
+        except Exception as e:
+            return {"error": f"scene_nodes_walk failed: {e}", "traceback": traceback.format_exc()}
 
     def handle_scene_nodes_open_editor(self, command):
         """Open the Scene Nodes editor window for the doc-level graph.

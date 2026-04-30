@@ -2640,6 +2640,59 @@ async def scene_nodes_create_graph(
 
 
 @mcp.tool()
+async def scene_nodes_walk(
+    target_object: Optional[str] = None,
+    max_depth: int = 2,
+    include_ports: bool = False,
+    ctx: Context = None,
+) -> str:
+    """Walk a Scene Nodes graph and return a typed structural summary.
+
+    Use this to discover what nodes exist in a graph + their hierarchy.
+    Pairs with the planned scene_nodes_add_node and scene_nodes_connect_ports
+    for graph editing — first walk to learn what's there, then mutate.
+
+    Args:
+      target_object: object name. If set, walks the per-object embedded
+        graph (Capsule pattern). Default: doc-level scene-nodes graph.
+      max_depth: how deep to recurse (default 2). Top-level always included.
+      include_ports: include port (kind 2/4) entries (default False —
+        they clutter; set True for debugging connections).
+
+    Returns:
+      {ok, host, max_depth, root: {id, kind, kind_name, is_root,
+       input_count, output_count, child_count, children: [...]}}
+
+    Node kinds:
+      - 1 = node (the kind you usually care about)
+      - 2 = output port
+      - 4 = input port
+
+    For doc-level graph, expect 6 root children:
+      - net.maxon.neutron.scene.root (the actual scene tree)
+      - context_externaltimeinput, context_notime (time contexts)
+      - builder (where user-driven node-additions accumulate)
+      - graph-level input + output ports
+
+    Read-only.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {
+            "command": "scene_nodes_walk",
+            "max_depth": max_depth,
+            "include_ports": include_ports,
+        }
+        if target_object is not None:
+            cmd["target_object"] = target_object
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
 async def scene_nodes_open_editor(ctx: Context = None) -> str:
     """Open the Scene Nodes editor window for the doc-level graph.
 
