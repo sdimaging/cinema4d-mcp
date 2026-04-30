@@ -235,7 +235,26 @@
       "required_nodes": ["randomselection", "growselection", "invertselection", "setselection", "selectionoperator"],
       "skeleton_text": "randomselection N% → growselection by k → invertselection → setselection name='out'",
       "observed_in": ["city_generator (multiple chains)", "geo_feedback_loop"]
+    },
+
+    "modular_polygon_selection": {
+      "description": "Select polygons by modular arithmetic on their index. The Modulo capsule pattern: every Nth polygon, with optional offset and AND/OR combination of multiple mod conditions.",
+      "min_nodes": 50,
+      "required_nodes": ["polygonarrayget", "containeriteration", "modulo", "compare", "switch", "buildselection", "setselection"],
+      "skeleton_text": "polygonarrayget → containeriteration × 2 (nested) → for each poly: readvalueatindex (poly idx) + length (count) → modulo × N (one per condition) → compare × N → switch tree (combine logic) → buildselection → setselection (named output)",
+      "params_needed": ["modulus", "offset", "combination_mode (and|or)", "selection_name"],
+      "observed_in": ["Modulo capsule (net.maxon.neutron.asset.geo.modulo, 84 nodes / 56 unique bases / 6 levels)"]
+    },
+
+    "named_selection_storage_triad": {
+      "description": "The canonical 3-node sub-pattern that appears every time you store a named selection inside a capsule — selectionstringtoselection + selectionoperator + variadictolist.",
+      "is_subpattern_of": ["any selection-producing operator", "modular_polygon_selection (×6)", "selection_evolution_chain"],
+      "required_nodes": ["selectionstringtoselection", "selectionoperator", "variadictolist"],
+      "skeleton_text": "variadictolist (collect inputs) → selectionoperator (apply op) → selectionstringtoselection (resolve named ref) → setselection (commit)",
+      "observed_in": ["Modulo (×6)", "Random Selection (×3)", "almost every modeling-op capsule"],
+      "rule_of_thumb": "If your pattern produces a selection, expect 1-6× this triad in the inner graph."
     }
+
   },
 
   "port_type_taxonomy": {
