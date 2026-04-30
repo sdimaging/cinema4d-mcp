@@ -2293,6 +2293,104 @@ async def volume_to_polygons(
 
 
 @mcp.tool()
+async def get_parameter(
+    target: str,
+    parameter: Any,
+    target_kind: str = "object",
+    tag_name: Optional[str] = None,
+    ctx: Context = None,
+) -> str:
+    """Read an arbitrary parameter from any object/tag/material.
+
+    Lowest-level read primitive. Works for ANY parameter — common ones,
+    renderer-specific (Octane/Redshift), plugin-specific, custom user-data.
+
+    Args:
+      target: object name (or material/tag name depending on target_kind)
+      parameter: int (raw id e.g. 1100), str (c4d constant name e.g.
+                 "PRIM_CUBE_LEN"), or list (DescID structure: just [id]
+                 for single-level, or [[id, dtype, creator], ...] for full)
+      target_kind: 'object' (default) | 'material' | 'tag'
+      tag_name: required if target_kind='tag' — name of the tag
+
+    Returns: {target, parameter_resolved, value, value_type}.
+    Vectors come back as [x,y,z], matrices as {off, v1, v2, v3} dicts,
+    primitives unchanged. Read-only.
+
+    Example:
+      get_parameter(target="MyCube", parameter="PRIM_CUBE_LEN")
+      → {value: [200.0, 200.0, 200.0], value_type: "Vector"}
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {
+            "command": "get_parameter",
+            "target": target,
+            "parameter": parameter,
+            "target_kind": target_kind,
+        }
+        if tag_name is not None: cmd["tag_name"] = tag_name
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
+async def set_parameter(
+    target: str,
+    parameter: Any,
+    value: Any,
+    target_kind: str = "object",
+    tag_name: Optional[str] = None,
+    undo: bool = True,
+    ctx: Context = None,
+) -> str:
+    """Write an arbitrary parameter on any object/tag/material.
+
+    Lowest-level write primitive. Auto-coerces common shapes:
+      - [x, y, z] → c4d.Vector
+      - [r, g, b, a] → c4d.Vector (alpha dropped)
+      - {"r":, "g":, "b":} → c4d.Vector
+      - bool/int/float/str → as-is
+
+    Args:
+      target: object name (or material/tag name)
+      parameter: int (raw id), str (c4d constant name), or list (DescID)
+      value: the value to set
+      target_kind: 'object' (default) | 'material' | 'tag'
+      tag_name: required if target_kind='tag'
+      undo: True (default) — wraps in StartUndo/AddUndo/EndUndo so the
+        change is one Cmd-Z undo-able
+
+    Returns: {target, parameter, old_value, new_value}. UNSAFE — mutates
+    target. Use this when there's no higher-level helper for the property
+    you want to change (Octane-specific knobs, custom userdata, etc.).
+
+    Example:
+      set_parameter(target="MyCube", parameter="PRIM_CUBE_LEN",
+                    value=[300, 100, 50])
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {
+            "command": "set_parameter",
+            "target": target,
+            "parameter": parameter,
+            "value": value,
+            "target_kind": target_kind,
+            "undo": undo,
+        }
+        if tag_name is not None: cmd["tag_name"] = tag_name
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
 async def list_osl_snippets(ctx: Context = None) -> str:
     """Return the curated set of OSL snippets shipped with the plugin.
 

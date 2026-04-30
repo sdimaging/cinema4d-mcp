@@ -540,6 +540,10 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_octane_create_osl_texture(command)
                         elif command_type == "list_osl_snippets":
                             response = self.handle_list_osl_snippets(command)
+                        elif command_type == "get_parameter":
+                            response = self.handle_get_parameter(command)
+                        elif command_type == "set_parameter":
+                            response = self.handle_set_parameter(command)
                         elif command_type == "create_volume_builder":
                             response = self.handle_create_volume_builder(command)
                         elif command_type == "create_volume_mesher":
@@ -10725,6 +10729,7 @@ class C4DSocketServer(threading.Thread):
         "list_deformer_types", "apply_deformer",
         "list_field_types", "add_field_to_scene", "bake_field_to_vmap",
         "octane_create_osl_texture", "list_osl_snippets",
+        "get_parameter", "set_parameter",
         "create_volume_builder", "create_volume_mesher", "volume_to_polygons",
         "image_inspect", "images_compare", "scene_assert",
     )
@@ -10759,6 +10764,7 @@ class C4DSocketServer(threading.Thread):
         "list_deformer_types",  # discovery only, no scene mutation
         "list_field_types",     # discovery only, no scene mutation
         "list_osl_snippets",    # constants only, no mutation
+        "get_parameter",        # read-only param introspection
         "image_inspect", "images_compare",  # disk-read only, no C4D state
         "scene_assert",                     # read-only declarative verification
     })
@@ -11719,6 +11725,245 @@ class C4DSocketServer(threading.Thread):
             }
         except Exception as e:
             return {"error": f"volume_to_polygons failed: {e}", "traceback": traceback.format_exc()}
+
+    # === Generic parameter access ==========================================
+    #
+    # The lowest-level primitives that unlock arbitrary parameter set/get
+    # for any C4D object/tag/material. Higher-level tools (modify_object,
+    # link_shader_to_parameter, etc.) build on top, but sometimes you need
+    # to tweak something obscure (Octane-specific, Redshift-specific, a
+    # rare deformer param) where there's no helper. These three tools
+    # cover that.
+
+    def _resolve_param_id(self, pid_spec):
+        """Resolve a parameter spec (int, c4d const name, or DescID-friendly
+        list) into an int id or DescID. Returns (resolved, error)."""
+        if isinstance(pid_spec, int):
+            return pid_spec, None
+        if isinstance(pid_spec, str):
+            # Try as c4d.<NAME>
+            v = getattr(c4d, pid_spec, None)
+            if v is None:
+                return None, f"unknown c4d constant: {pid_spec!r}"
+            return v, None
+        if isinstance(pid_spec, list) and pid_spec:
+            # Build a DescID from a list of (level_id, dtype, creator) triples
+            # Most callers just want a single-level DescID; accept short forms.
+            try:
+                if all(isinstance(x, int) for x in pid_spec):
+                    # Single-level DescID with default dtype/creator
+                    return c4d.DescID(c4d.DescLevel(pid_spec[0])), None
+                # full triple form: [[id, dtype, creator], ...]
+                levels = []
+                for lv in pid_spec:
+                    if isinstance(lv, list) and len(lv) == 3:
+                        levels.append(c4d.DescLevel(int(lv[0]), int(lv[1]), int(lv[2])))
+                    else:
+                        return None, f"bad DescLevel spec: {lv!r}"
+                return c4d.DescID(*levels), None
+            except Exception as e:
+                return None, f"DescID build failed: {e}"
+        return None, f"unsupported pid spec: {pid_spec!r}"
+
+    def _coerce_value(self, raw, hint=None):
+        """Best-effort: accept Python primitives + lists, return a C4D value.
+
+        - [x, y, z] → c4d.Vector(x, y, z)
+        - [r, g, b, a] (4 floats) → c4d.Vector (RGB), drop alpha
+        - bool/int/float/str → as-is
+        - dict {"r":..., "g":..., "b":...} → c4d.Vector
+        """
+        if isinstance(raw, dict) and all(k in raw for k in ("r", "g", "b")):
+            return c4d.Vector(float(raw["r"]), float(raw["g"]), float(raw["b"]))
+        if isinstance(raw, list) and len(raw) == 3 and all(isinstance(x, (int, float)) for x in raw):
+            return c4d.Vector(float(raw[0]), float(raw[1]), float(raw[2]))
+        if isinstance(raw, list) and len(raw) == 4 and all(isinstance(x, (int, float)) for x in raw):
+            return c4d.Vector(float(raw[0]), float(raw[1]), float(raw[2]))  # drop alpha
+        return raw
+
+    def _serialize_value(self, v):
+        """Convert a C4D value to a JSON-friendly Python value."""
+        if isinstance(v, c4d.Vector):
+            return [v.x, v.y, v.z]
+        if isinstance(v, c4d.Matrix):
+            return {
+                "off": [v.off.x, v.off.y, v.off.z],
+                "v1":  [v.v1.x, v.v1.y, v.v1.z],
+                "v2":  [v.v2.x, v.v2.y, v.v2.z],
+                "v3":  [v.v3.x, v.v3.y, v.v3.z],
+            }
+        if isinstance(v, (int, float, str, bool)) or v is None:
+            return v
+        # Fall back to repr for unknown types
+        try:
+            return {"__type": type(v).__name__, "repr": repr(v)[:200]}
+        except Exception:
+            return None
+
+    def handle_get_parameter(self, command):
+        """Read an arbitrary parameter from a target object/tag/material.
+
+        Args:
+          target: object name (or guid) — defaults to active selection
+          target_kind: 'object' (default) | 'material' | 'tag'
+          tag_name: required if target_kind='tag' — name of the tag on target
+          parameter: int (raw id), str (c4d constant name like 'PRIM_CUBE_LEN'),
+                     or list (DescID structure: [id, dtype, creator] triples
+                     or just [id] for single-level)
+
+        Returns: {target, parameter_resolved, value} where value is JSON-friendly
+        (Vectors → [x,y,z], Matrices → dict, primitives as-is).
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+
+            kind = command.get("target_kind", "object")
+            if kind == "object":
+                obj, err = self._resolve_target_object(command, doc, key="target")
+                if err: return {"error": err}
+            elif kind == "material":
+                name = command.get("target")
+                m = doc.GetFirstMaterial()
+                obj = None
+                while m:
+                    if m.GetName() == name:
+                        obj = m; break
+                    m = m.GetNext()
+                if obj is None:
+                    return {"error": f"material '{name}' not found"}
+            elif kind == "tag":
+                base, err = self._resolve_target_object(command, doc, key="target")
+                if err: return {"error": err}
+                tag_name = command.get("tag_name")
+                if not tag_name:
+                    return {"error": "tag_name required for target_kind='tag'"}
+                obj = None
+                for t in base.GetTags():
+                    if t.GetName() == tag_name:
+                        obj = t; break
+                if obj is None:
+                    return {"error": f"tag '{tag_name}' not found on '{base.GetName()}'"}
+            else:
+                return {"error": f"unknown target_kind '{kind}'"}
+
+            pid, perr = self._resolve_param_id(command.get("parameter"))
+            if perr:
+                return {"error": perr}
+
+            try:
+                raw = obj[pid]
+            except Exception as e:
+                return {"error": f"read failed: {e}", "parameter_resolved": str(pid)}
+
+            return {
+                "ok": True,
+                "target": obj.GetName(),
+                "target_kind": kind,
+                "parameter_resolved": str(pid),
+                "value": self._serialize_value(raw),
+                "value_type": type(raw).__name__,
+            }
+        except Exception as e:
+            return {"error": f"get_parameter failed: {e}", "traceback": traceback.format_exc()}
+
+    def handle_set_parameter(self, command):
+        """Write an arbitrary parameter on a target object/tag/material.
+
+        Args (same as get_parameter, plus):
+          value: the value to set. Auto-coerced:
+            - [x,y,z] → c4d.Vector
+            - [r,g,b,a] → c4d.Vector (alpha dropped)
+            - {"r":, "g":, "b":} → c4d.Vector
+            - primitives passed through
+          undo: True (default) — wraps in StartUndo/AddUndo/EndUndo so
+            the change is reversible from C4D's Edit menu.
+
+        UNSAFE — mutates target. Returns {target, parameter, old_value, new_value}.
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+
+            kind = command.get("target_kind", "object")
+            if kind == "object":
+                obj, err = self._resolve_target_object(command, doc, key="target")
+                if err: return {"error": err}
+            elif kind == "material":
+                name = command.get("target")
+                m = doc.GetFirstMaterial()
+                obj = None
+                while m:
+                    if m.GetName() == name:
+                        obj = m; break
+                    m = m.GetNext()
+                if obj is None:
+                    return {"error": f"material '{name}' not found"}
+            elif kind == "tag":
+                base, err = self._resolve_target_object(command, doc, key="target")
+                if err: return {"error": err}
+                tag_name = command.get("tag_name")
+                if not tag_name:
+                    return {"error": "tag_name required for target_kind='tag'"}
+                obj = None
+                for t in base.GetTags():
+                    if t.GetName() == tag_name:
+                        obj = t; break
+                if obj is None:
+                    return {"error": f"tag '{tag_name}' not found on '{base.GetName()}'"}
+            else:
+                return {"error": f"unknown target_kind '{kind}'"}
+
+            pid, perr = self._resolve_param_id(command.get("parameter"))
+            if perr:
+                return {"error": perr}
+
+            try:
+                old = obj[pid]
+            except Exception as e:
+                return {"error": f"read-before-write failed: {e}", "parameter_resolved": str(pid)}
+
+            new_raw = command.get("value")
+            new_val = self._coerce_value(new_raw)
+
+            do_undo = bool(command.get("undo", True))
+
+            def _do():
+                if do_undo:
+                    doc.StartUndo()
+                    try:
+                        if hasattr(obj, "AddUndo"):
+                            doc.AddUndo(c4d.UNDOTYPE_CHANGE_SMALL, obj)
+                    except Exception:
+                        pass
+                obj[pid] = new_val
+                if hasattr(obj, "Message"):
+                    obj.Message(c4d.MSG_UPDATE)
+                if do_undo:
+                    doc.EndUndo()
+                c4d.EventAdd()
+                return True
+
+            self.execute_on_main_thread(_do, _timeout=10)
+
+            try:
+                final = obj[pid]
+            except Exception:
+                final = new_val
+
+            return {
+                "ok": True,
+                "target": obj.GetName(),
+                "target_kind": kind,
+                "parameter_resolved": str(pid),
+                "old_value": self._serialize_value(old),
+                "new_value": self._serialize_value(final),
+                "undo_wrapped": do_undo,
+            }
+        except Exception as e:
+            return {"error": f"set_parameter failed: {e}", "traceback": traceback.format_exc()}
 
     # === Octane OSL injection ===============================================
 
