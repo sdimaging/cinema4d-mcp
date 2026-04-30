@@ -407,7 +407,64 @@ The cinema4d-mcp plugin ships **9 scene-nodes-specific tools**. Use them in this
 
 ---
 
-## 8. Known unresolved labels
+## 8. The Floating IO / capsule Attribute Manager bridge (partial map)
+
+**Discovered 2026-04-30** via GPT 5.5 review + live probing. The bridge between Scene Nodes graphs and the Attribute Manager is **partly mapped** but has a known gap.
+
+### What's confirmed
+
+**Path 777 is the SN-derived AM namespace.** Every Scene Nodes Generator (plugin id 180420700) has a built-in `Description` with 77 DescIDs, of which 12 sit under root 777. The path levels under 777 are **4-byte char-ID-encoded ASCII** spelling out canonical asset IDs:
+
+```
+[777, 1852142638, 1835104367, 1848536687, 1684352610, 1634952494,
+ 1735552885, 1882089838, 1886745715, 1]
+   ↓ decode each level via struct.pack(">I", n).decode("ascii")
+"<777>/net./maxo/n.no/de.b/ase./grou/p.in/puts/<1>"
+   = "777 / net.maxon.node.base.group.inputs / 1"
+```
+
+**The 12 standard groups under root 777:**
+| Decoded path | Dtype | Semantic |
+|---|---|---|
+| `net.maxon.datadescription.editor.1` | 1 | editor metadata |
+| `net.maxon.node.base.<HASH>/<1>` | 11 | instance-hash leaf (see caveat below) |
+| `net.maxon.node.base.filtertags/<1>` | 130 | filter tags string |
+| `net.maxon.node.base.category/<1>` | 15 | node category int |
+| `<777>/<1>` | 12 | (anonymous) |
+| `net.maxon.node.base.group.basic/<1>` | 1 | **Basic** group folder |
+| `net.maxon.node.base.group.coord/<1>` | 1 | **Coord** group folder |
+| `net.maxon.node.base.group.inputs/<1>` | 1 | **Inputs** group folder |
+| `net.maxon.node.base.group.outputs/<1>` | 1 | **Outputs** group folder |
+| `geom/etry/out` | 12 | geometry output |
+| `net.maxon.node.base.group.object/<1>` | 1 | **Object** group folder |
+| `net.maxon.render.node.base.group.context/<1>` | 1 | **Context** group folder |
+
+**Reads**: leaf dtypes (130/15/12) READ via `obj[descid]`. Group dtype=1 entries return "object unknown in Python" — they're folder containers, not values.
+
+### The caveat (gap GPT 5.5 flagged)
+
+**The DescID tree is STATIC.** Empirical comparison (3 probes — Vector via Memory, Float via Range.count, Geometry via Sphere — each with Memory+FloatingIO+wire) showed **identical 12-DescID layouts every time**. The hash `BrM5f_dgHBXvK6gQuZ3cQA` that LOOKS per-instance is actually **fixed Maxon-shipped placeholder**, identical across all probes.
+
+**Conclusion:** Adding a Floating IO node and wiring it does NOT auto-emit a new DescID. Floating IO requires explicit `PORTLIST` configuration (typed port-descriptor input — not just a wire) for the bridge to populate. The bridge mechanism beyond the static schema is not yet mapped.
+
+### What this unlocks
+
+- **You can read static SN Generator metadata** (Filter Tags, Node Category) via `enumerate_descids` + `get_parameter`.
+- **You can navigate the Inputs/Outputs/Basic/Coord/Object/Context group containers** by decoded path.
+- **You CAN'T (yet) round-trip "add a Floating IO → see a UD param appear in Attribute Manager"** programmatically — the PORTLIST config step is the missing piece.
+
+### How `enumerate_descids` exposes this
+
+After 2026-04-30, every entry under root 777 returns:
+- `path`: the raw level-id list (e.g. `[777, 1852142638, ...]`)
+- `decoded_path`: the human-readable form (e.g. `"<777>/net./maxo/n.no/..."`)
+- `instance_hash`: extracted hash segment when present (4-char tokens not in canonical vocab)
+- `semantic_guess`: heuristic classification (`group_inputs`, `group_outputs`, `instance_hash_leaf`, etc.)
+- `current_value` OR `current_value_error` per-row (whole row preserved on read failure)
+
+---
+
+## 9. Known unresolved labels
 
 These templates exist (confirmed via dissection) but no working `$type` label has been found. They're either keyword-only, framework-sub-node-only (auto-emitted, not addable), or need a label form we haven't tried.
 

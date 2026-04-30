@@ -7809,6 +7809,43 @@ class C4DSocketServer(threading.Thread):
             return obj, None
         return None, "Must provide 'guid' or 'object_name'"
 
+    @staticmethod
+    def _decode_charid_level(n):
+        """Best-effort decode of a 32-bit int as 4-byte ASCII (Maxon char-ID encoding).
+        Returns the decoded string OR None when the int isn't ASCII-printable.
+        Per GPT 5.5 review 2026-04-30: don't assume EVERY int is ASCII —
+        the final '1' marker, integer indices, and unknown IDs stay raw."""
+        if not isinstance(n, int) or n <= 0:
+            return None
+        try:
+            import struct
+            s = struct.pack(">I", n).decode("ascii", errors="replace")
+            s = s.rstrip("\x00")
+            if s and all(c.isprintable() for c in s) and "�" not in s:
+                return s
+        except Exception:
+            pass
+        return None
+
+    def _decode_descid_path(self, level_ids):
+        """Convert a list of int level-IDs into a slash-joined decoded path.
+        Each level: try char-ID decode, fall back to '<raw_int>'. Maxon's
+        Scene Nodes capsule-derived parameters live under DescID root 777
+        with subsequent levels char-ID-encoded canonical asset IDs.
+
+        Example: [777, 1852142638, 1835104367, 1848536687, 1684352610,
+                  1634952494, 1735552885, 1882089838, 1886745715, 1]
+                 → "<777>/net./maxo/n.no/de.b/ase./grou/p.in/puts/<1>"
+                 (i.e. "777 / net.maxon.node.base.group.inputs / 1")
+
+        Discovered 2026-04-30. Documented in scene_nodes_guide.md.
+        """
+        parts = []
+        for lid in (level_ids or []):
+            decoded = self._decode_charid_level(lid)
+            parts.append(decoded if decoded else f"<{lid}>")
+        return "/".join(parts)
+
     def _value_to_jsonable(self, value):
         """Convert a c4d value (Vector / Matrix / BaseTime / BaseList2D / scalar) to JSON-friendly form."""
         try:
@@ -8003,6 +8040,60 @@ class C4DSocketServer(threading.Thread):
                     entry["group_path"] = _tuple_or_descid_path(groupid)
                 except Exception as e:
                     entry["_field_errors"]["group_path"] = str(e)
+                # Decoded path — char-ID-encoded canonical asset IDs
+                # surface for Scene Nodes Generator (180420700) params.
+                # Ex: [777, 1852142638, ...] → "<777>/net./maxo/..."
+                # Discovery 2026-04-30 (GPT 5.5 review): Maxon's Scene
+                # Nodes-derived AM params live under DescID root 777
+                # with subsequent levels char-ID-encoded canonical IDs.
+                try:
+                    entry["decoded_path"] = self._decode_descid_path(entry["path"])
+                except Exception as e:
+                    entry["_field_errors"]["decoded_path"] = str(e)
+                # Extract @hash-like instance segment if present (for
+                # Floating-IO-style per-port refs). Hash segments are
+                # decoded but don't match canonical token vocab.
+                _CANON = {"net.", "maxo", "n.no", "de.b", "ase.", "grou",
+                          "p.in", "p.ou", "p.ba", "p.co", "p.ob", "n.re",
+                          "nder", ".nod", "e.ba", "se.g", "roup", ".con",
+                          "text", "sic", "ord", "ject", "puts", "tput",
+                          "filt", "erta", "gs", "cate", "gory", "geom",
+                          "etry", "out", "n.da", "tade", "scri", "ptio",
+                          "n.ed", "itor", ".1", "s"}
+                hash_parts = []
+                try:
+                    if entry["path"] and entry["path"][0] == 777:
+                        for lid in entry["path"][1:-1]:
+                            decoded = self._decode_charid_level(lid)
+                            if decoded and decoded not in _CANON and len(decoded) == 4:
+                                hash_parts.append(decoded)
+                except Exception:
+                    pass
+                if hash_parts:
+                    entry["instance_hash"] = "".join(hash_parts)
+                # Semantic guess from decoded path
+                if entry.get("decoded_path"):
+                    dp = entry["decoded_path"]
+                    if "p.in/puts" in dp:
+                        entry["semantic_guess"] = "group_inputs"
+                    elif "p.ou/tput" in dp:
+                        entry["semantic_guess"] = "group_outputs"
+                    elif "p.ba/sic" in dp:
+                        entry["semantic_guess"] = "group_basic"
+                    elif "p.co/ord" in dp:
+                        entry["semantic_guess"] = "group_coord"
+                    elif "p.ob/ject" in dp:
+                        entry["semantic_guess"] = "group_object"
+                    elif ".con/text" in dp:
+                        entry["semantic_guess"] = "group_context"
+                    elif "geom/etry" in dp:
+                        entry["semantic_guess"] = "geometry_out"
+                    elif "filt/erta/gs" in dp:
+                        entry["semantic_guess"] = "filter_tags"
+                    elif "cate/gory" in dp:
+                        entry["semantic_guess"] = "node_category"
+                    elif hash_parts:
+                        entry["semantic_guess"] = "instance_hash_leaf"
 
                 # Rich metadata (per GPT 5.5 review 2026-04-30):
                 # custom GUI, default, min/max/step, unit, creator
