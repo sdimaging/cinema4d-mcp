@@ -197,6 +197,21 @@ doc.InsertObject(poly)  # REQUIRED — result is orphan otherwise
 
 **Fix (server.py side):** Auto-translate `/mnt/<drive>/...` to `<DRIVE>:\\...` before sending the command. Already implemented in `_normalize_paths_in_command` — applied to known path-arg keys (`file_path`, `save_path`, `save_dir`, `bitmap_path`, `path`, etc.).
 
+## 17. DescriptionResource IDs vs Shader Plugin IDs (don't confuse)
+
+**Wrong:** `c4d.BaseShader(c4d.DESCRIPTIONRESOURCE_OSLTEXTURE)` to instantiate Octane's OSL texture (804752314 — description resource id, NOT a plugin id).
+
+**Actual:** Calling `BaseShader()` with a description-resource ID hangs C4D (no plugin matches → infinite wait somewhere). The actual plugin id has to come from `c4d.plugins.FilterPluginList(c4d.PLUGINTYPE_SHADER, True)` — for Octane's "OSL texture" it's `1039813`.
+
+**Heuristic:** any constant named `DESCRIPTIONRESOURCE_*` is for editing/UI registration of a description resource. Plugin instantiation needs the PLUGIN ID from `FilterPluginList`. They're different namespaces with similar-looking integer IDs.
+
+```python
+from c4d.plugins import FilterPluginList
+shaders = FilterPluginList(c4d.PLUGINTYPE_SHADER, True)
+osl_plugin_id = next((p.GetID() for p in shaders if p.GetName() == "OSL texture"), None)
+shader = c4d.BaseShader(osl_plugin_id)  # works
+```
+
 ## 16. `FieldList` is at top-level `c4d`, NOT in `c4d.modules.mograph`
 
 **Wrong:** `from c4d.modules import mograph; flist = mograph.FieldList()`

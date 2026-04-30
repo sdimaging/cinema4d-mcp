@@ -11722,9 +11722,15 @@ class C4DSocketServer(threading.Thread):
 
     # === Octane OSL injection ===============================================
 
-    # Octane's OSL Texture shader resource id (cracked from the loaded
-    # plugin's constants in C4D 2026). Used to instantiate the shader
-    # via c4d.BaseShader(<this id>). The shader exposes:
+    # Octane OSL Texture shader plugin id, discovered via FilterPluginList(
+    # PLUGINTYPE_SHADER) — name "OSL texture", id 1039813.
+    #
+    # IMPORTANT: this is NOT c4d.DESCRIPTIONRESOURCE_OSLTEXTURE (804752314)
+    # which is a description-resource id (UI editing schema), NOT a shader
+    # plugin id. Calling BaseShader(804752314) hangs C4D. Caught
+    # 2026-04-29 — connection-closed crash on first invocation.
+    #
+    # The shader exposes (after instantiation via BaseShader(1039813)):
     #   c4d.OSL_CODE_EDITOR (1901): source code (string)
     #   c4d.OSL_AUTO_COMPILE (1905): auto-compile bool
     #   c4d.OSL_NEED_COMPILE: compile-needed flag
@@ -11733,7 +11739,7 @@ class C4DSocketServer(threading.Thread):
     #   c4d.OSL_MODE_*: internal vs external source mode
     #   c4d.OSL_FLOAT1..4 / INT1..4 / VECTOR1..4 / BOOL1..4 / STR1..4 /
     #     FILE1..4 / TEX_LINK1..4 / PROJECTION1..4: typed input slots
-    OCTANE_OSL_TEXTURE_ID = 804752314  # c4d.DESCRIPTIONRESOURCE_OSLTEXTURE
+    OCTANE_OSL_TEXTURE_ID = 1039813
 
     # Some sample OSL snippets to seed creative work (curated minimal set).
     # All compile clean against Octane's OSL runtime in C4D 2026.
@@ -12122,7 +12128,6 @@ class C4DSocketServer(threading.Thread):
                 from c4d.modules import mograph as _mg
                 FieldLayer = _mg.FieldLayer
                 FieldInput = _mg.FieldInput
-                FieldInfo = _mg.FieldInfo
                 FieldOutput = _mg.FieldOutput
             except Exception as e:
                 return {"error": f"FieldList API not available: {e}"}
@@ -12132,14 +12137,16 @@ class C4DSocketServer(threading.Thread):
             layer.SetLinkedObject(field)
             flist.InsertLayer(layer)
 
-            # Build inputs from dest verts (in world space)
+            # Build inputs from dest verts (in world space if requested)
             n = dest.GetPointCount()
             mg = dest.GetMg() if space == "world" else c4d.Matrix()
             positions = [mg.Mul(dest.GetPoint(i)) for i in range(n)]
 
+            # Minimal sample pattern. The previous impl built a dead
+            # FieldInfo via flist.GetSampleFlags() which doesn't exist —
+            # fields_smoke recipe caught it. SampleListSimple takes:
+            #   (caller, FieldInput, FieldOutput) → fills the output.
             field_input = FieldInput(positions, n)
-            field_info = FieldInfo.Create(c4d.FIELDSAMPLE_FLAG_VALUE, field_input,
-                                          flist.GetSampleFlags(False, False))
             field_output = FieldOutput.Create(n, c4d.FIELDSAMPLE_FLAG_VALUE)
             flist.SampleListSimple(dest, field_input, field_output)
 
