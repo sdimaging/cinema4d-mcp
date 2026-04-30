@@ -5,22 +5,27 @@
 //
 // PHASE A.0: this file currently builds the minimum skeleton needed to prove
 // the Python <-> C++ bridge round-trips a Message() call. Scene Nodes logic
-// arrives in subsequent phases.
+// arrives in subsequent phases — at which point asset.framework /
+// graph.framework / nodes.framework get added back to APIS.
+//
+// Layout matches the user's existing working plugins (Luminary, MechFlow,
+// Spikr2) — same Platform / APIs / stylecheck / ModuleId convention to
+// avoid build-pipeline surprises on first compile.
 
-Platform=Win64;OSX
+Platform=Win64;OSX;Linux
 
 Type=DLL
 
 APIS=\
-    asset.framework;\
-    cinema.framework;\
-    cinema_hybrid.framework;\
-    core.framework;\
-    graph.framework;\
-    nodes.framework;\
-    nodespace.framework
+cinema.framework;\
+cinema_hybrid.framework;\
+core.framework;\
+math.framework;\
+misc.framework;\
+mesh_misc.framework
 
 C4D=true
-stylecheck.level=3
+
+stylecheck.level=0
 
 ModuleId=net.sdimaging.cinema4d_mcp_helper
