@@ -14329,6 +14329,28 @@ class C4DSocketServer(threading.Thread):
                 graph = GraphDescription.GetGraph(host)
                 if graph is None:
                     return {"_error": "GetGraph returned None"}
+
+                # Snapshot existing top-level @hash nodes BEFORE adding —
+                # so we can diff to find what was actually added (not what
+                # was leaked by a prior probe). Cleanup wasn't reliable so
+                # we have to assume leftover state.
+                def _top_level_hashed_ids():
+                    found = set()
+                    try:
+                        root = graph.GetRoot()
+                        for child in (root.GetChildren() or []):
+                            try:
+                                cid = str(child.GetId())
+                                if "@" in cid and "/" not in cid:
+                                    found.add(cid)
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
+                    return found
+
+                before = _top_level_hashed_ids()
+
                 # Add the node
                 try:
                     result = GraphDescription.ApplyDescription(
@@ -14336,17 +14358,33 @@ class C4DSocketServer(threading.Thread):
                     )
                 except Exception as e:
                     return {"_error": f"label '{label}' not resolvable: {e}"}
-                # Find the new instance — looks like <basename>@<hash>
-                # whose path doesn't contain "/"
-                new_node = None
-                for k, v in result.items():
-                    ks = str(k)
-                    if "@" in ks and "/" not in ks:
-                        new_node = v
-                        new_id = ks
-                        break
+
+                # Find specifically what was added — diff against the snapshot
+                after = _top_level_hashed_ids()
+                added_ids = after - before
+                if not added_ids:
+                    # Maybe the node was added but isn't top-level (rare)
+                    # Fall back to result-dict scan
+                    for k, v in result.items():
+                        ks = str(k)
+                        if "@" in ks and "/" not in ks and ks not in before:
+                            added_ids = {ks}
+                            break
+                if not added_ids:
+                    return {"_error": "could not find newly-added node "
+                                       "(probe may have failed silently)"}
+                new_id = next(iter(added_ids))
+                new_node = result.get(new_id)
                 if new_node is None:
-                    return {"_error": "could not find newly-added node in result"}
+                    # Look it up via graph traversal
+                    try:
+                        for child in (graph.GetRoot().GetChildren() or []):
+                            if str(child.GetId()) == new_id:
+                                new_node = child; break
+                    except Exception:
+                        pass
+                if new_node is None:
+                    return {"_error": f"found added id {new_id!r} but node ref unavailable"}
                 # Walk ports
                 inputs_list = []
                 outputs_list = []
@@ -14380,11 +14418,24 @@ class C4DSocketServer(threading.Thread):
                             pass
                 except Exception:
                     pass
-                # Best-effort cleanup
+                # Cleanup — try multiple strategies. Plain .Remove() is
+                # known to silently fail. GraphDescription.RemoveCommand
+                # via ApplyDescription is the documented path.
+                cleanup_via = None
                 try:
-                    new_node.Remove()
+                    GraphDescription.ApplyDescription(graph, {
+                        "$name": new_id,
+                        "$commands": GraphDescription.RemoveCommand,
+                    })
+                    cleanup_via = "RemoveCommand"
                 except Exception:
-                    pass
+                    try:
+                        new_node.Remove()
+                        cleanup_via = "Remove"
+                    except Exception:
+                        cleanup_via = None
+                # Verify cleanup actually worked
+                still_present = new_id in _top_level_hashed_ids()
                 # Try to extract canonical_id from result keys (the
                 # 'data' suffix often is the canonical id when present)
                 canonical_id = new_id.split("@")[0] if new_id else None
@@ -14395,6 +14446,9 @@ class C4DSocketServer(threading.Thread):
                     "inputs": inputs_list,
                     "outputs": outputs_list,
                     "inner_nodes": inner_nodes,
+                    "cleanup_via": cleanup_via,
+                    "cleanup_succeeded": not still_present,
+                    "leaked": still_present,
                 }
 
             outcome = self.execute_on_main_thread(_probe, _timeout=15)
@@ -14418,6 +14472,9 @@ class C4DSocketServer(threading.Thread):
                     "output_count": len(outcome.get("outputs", [])),
                     "inner_count": len(outcome.get("inner_nodes", [])),
                 },
+                "cleanup_via": outcome.get("cleanup_via"),
+                "cleanup_succeeded": outcome.get("cleanup_succeeded"),
+                "leaked": outcome.get("leaked"),
                 "note": "Probe-add-then-remove. The instance ID's basename "
                         "(text before '@') is the dissection-form name and "
                         "matches the canonical asset ID's last segment.",

@@ -372,7 +372,16 @@
     "_user_supplied_canonical_ids": {
       "_note": "User-confirmed canonical asset IDs from C4D's asset browser (2026-04-29). These match dissection bare names by rsplit('.', 1)[-1].",
       "Memory": {"canonical_id": "net.maxon.node.memory", "bare_name": "memory"},
-      "Build Array": {"canonical_id": "net.maxon.node.array.buildfromvalue", "bare_name": "buildfromvalue", "note": "the artist-facing label is 'Build Array' even though the canonical last-segment is 'buildfromvalue'"}
+      "Build Array": {"canonical_id": "net.maxon.node.array.buildfromvalue", "bare_name": "buildfromvalue", "note": "the artist-facing label is 'Build Array' even though the canonical last-segment is 'buildfromvalue'"},
+      "Append": {"canonical_id": "net.maxon.node.array.append2", "bare_name": "append2", "label_status": "unresolved — none of {Append, Append Array, Add To Array, append2} work as $type"},
+      "Concat": {"canonical_id_array": "net.maxon.node.array.concat", "canonical_id_string": "net.maxon.node.string.concat", "label_status": "AMBIGUOUS — 'Concatenate' returns disambig list of these two; no working $type form found yet"},
+      "Resample (Spline)": {"canonical_id": "net.maxon.neutron.geometry.spline.resample", "bare_name": "resample", "verified_label": "Resample Spline", "subtype": "net.maxon.asset.subtype.node.operator", "rule_observed": "Domain-suffix label form: '<LastSegment> <Domain>'"},
+      "Modulo (Geo)": {"canonical_id": "net.maxon.neutron.asset.geo.modulo", "subtype": "net.maxon.asset.subtype.node.operator", "label_status": "AMBIGUOUS — domain-suffix forms (Geometry Modulo, Geo Modulo) all fail"}
+    },
+    "_critical_keyword_vs_template_distinction": {
+      "rule": "Asset browser entries come in MULTIPLE TYPES. ApplyDescription's $type ONLY accepts NodeTemplate-typed entries — NOT Keyword entries.",
+      "evidence": "User-supplied: 'Set Selection' has Asset ID 'keyword@0656a456b8bf467981f8d0b439142e2c' and Type ID 'net.maxon.assettype.keyword' — it's a search/category KEYWORD, not a template. The actual template that does set-selection is labeled 'Store Selection' (verified working).",
+      "implication": "When labels look reasonable but fail with 'not associated with any IDs', the entry might be a keyword. Look for an adjacent template with a slightly different label that does the same conceptual operation."
     }
   },
 

@@ -26,6 +26,71 @@ from typing import Any, Optional
 
 
 # ---------------------------------------------------------------------------
+# VERIFIED $type labels — confirmed working with ApplyDescription via live
+# probing 2026-04-29. Each label adds a new top-level node when used.
+# Maps verified English label → dissection bare-name. Use this to validate
+# pattern synthesizer output before sending to ApplyDescription.
+
+VERIFIED_LABELS: dict[str, str] = {
+    # Loop scaffold
+    "Range": "range",
+    "Loop Carried Value": "loopcarriedvalue",
+    "Memory": "memory",
+    "Get Count": "getcount",
+    # Math/logic
+    "Hash": "hash", "Compare": "compare", "If": "if", "Switch": "switch",
+    "Arithmetic": "arithmetic", "Scale": "scale", "Round": "round",
+    "Clamp": "clamp", "Blend": "blend", "Step": "step", "Negate": "negate",
+    "Invert": "invert", "Distance": "distance", "Normalize": "normalize",
+    "Boolean Operator": "booleanoperator",
+    # Vector/matrix
+    "Compose Matrix": "composematrix", "Decompose Matrix": "decomposematrix",
+    "Dot Product": "dot", "Cross Product": "cross",
+    "Vector Length": "length",
+    # Stochastic / time
+    "Noise": "mainnoise", "Time": "time",
+    # Array
+    "Build Array": "buildfromvalue",
+    # Primitives
+    "Sphere": "sphere", "Cube": "cube", "Tube": "tube",
+    # Modeling
+    "Inset": "inset", "Extrude": "extrude", "Subdivide": "subdivide",
+    # Selection
+    "Random Selection": "randomselection",
+    "Grow Selection": "growselection",
+    "Store Selection": "setselection",
+    # Spline
+    "Resample Spline": "resample",
+}
+
+# UNVERIFIED — these labels are referenced by patterns but haven't been
+# confirmed to work via ApplyDescription. Likely need different label
+# forms. The pattern builders that use them currently ship best-guess
+# labels and may fail at apply time.
+UNVERIFIED_LABELS_USED_BY_PATTERNS: set[str] = {
+    "Container Iteration",  # used by loop_over_*
+    "Read Value At Index", "Write Value At Index",
+    "Append", "Concat",  # ambiguous — multiple templates collide
+    "Get Polygon Selection Data", "Get Vertex Selection Data",
+    "Selection String Parser", "Selection String To Selection",
+    "Pt Pos From Poly Ids", "Poly Normals From Poly Ids",
+    "Poly Center From Poly Ids", "Color Alpha From Pt Ids",
+    "Weights From Pt Ids", "Edges From Poly Ids",
+    "Closest Point On Surface", "Ray",
+    "Compose Vector 3", "Matrix From Axis",
+    "Push Apart", "Line Get", "Assembler",
+    "Add Control Point Along Spline", "Split Spline", "Sort Container",
+    "Length",  # disambig: Vector Length works, plain Length doesn't
+    "Object Import", "Cloner",
+    "Set Property", "Get Property",
+}
+
+
+def is_verified(label: str) -> bool:
+    return label in VERIFIED_LABELS
+
+
+# ---------------------------------------------------------------------------
 # Pattern registry — name → builder function. Populated by @pattern decorator.
 
 PATTERN_REGISTRY: dict[str, dict[str, Any]] = {}
@@ -85,18 +150,16 @@ def build_pattern(name: str, **kwargs) -> dict[str, Any]:
 )
 def _build_loop_over_indices(count: int = 10, carried: Optional[list] = None,
                               prefix: str = "loop") -> list[dict[str, Any]]:
-    """Emit the minimum loop scaffolding: Range driving an iteration."""
+    """Emit the minimum loop scaffolding: Range driving an iteration with
+    optional carried state. Only verified labels (Range, Loop Carried Value).
+    """
     carried = carried or []
     out: list[dict[str, Any]] = []
-    # Range provides the index sequence
     out.append({"$type": "Range", "$name": f"{prefix}_range"})
-    # Iteration container
-    out.append({"$type": "Container Iteration", "$name": f"{prefix}_iter"})
-    # Add a Loop Carried Value per state var. Initial value comes from
-    # the user via downstream wiring.
     for var_name, var_type, _init in carried:
         out.append({"$type": "Loop Carried Value",
                     "$name": f"{prefix}_carry_{var_name}"})
+    out.append({"$type": "Get Count", "$name": f"{prefix}_count"})
     return out
 
 

@@ -1,0 +1,560 @@
+{
+  "Abs": {
+    "err": "The node type reference 'Abs' (lang: 'en-US', space: 'net.maxon.neutron.nodespace') is not associated with any IDs. ",
+    "resolved": false
+  },
+  "Add": {
+    "err": "The node type reference 'Add' (lang: 'en-US', space: 'net.maxon.neutron.nodespace') is not associated with any IDs. ",
+    "resolved": false
+  },
+  "Append": {
+    "err": "The node type reference 'Append' (lang: 'en-US', space: 'net.maxon.neutron.nodespace') is not associated with any IDs. ",
+    "resolved": false
+  },
+  "Arithmetic": {
+    "basename": "arithmetic",
+    "inputs": [
+      "operation",
+      "datatype",
+      "in2",
+      "in1"
+    ],
+    "outputs": [
+      "out"
+    ],
+    "resolved": true
+  },
+  "Blend": {
+    "basename": "blend",
+    "inputs": [
+      "foreground",
+      "background",
+      "blendmode",
+      "maskblend",
+      "maskred",
+      "maskgreen",
+      "maskblue",
+      "maskalpha",
+      "alphahandling"
+    ],
+    "outputs": [
+      "result"
+    ],
+    "resolved": true
+  },
+  "Boolean": {
+    "err": "The node type reference 'Boolean' (lang: 'en-US', space: 'net.maxon.neutron.nodespace') is not associated with any IDs. ",
+    "resolved": false
+  },
+  "Build Array": {
+    "basename": "buildfromvalue",
+    "inputs": [
+      "datatypein"
+    ],
+    "outputs": [
+      "arraylengthout"
+    ],
+    "resolved": true
+  },
+  "Clamp": {
+    "basename": "clamp",
+    "inputs": [
+      "datatype",
+      "in3",
+      "in2",
+      "in1"
+    ],
+    "outputs": [
+      "out"
+    ],
+    "resolved": true
+  },
+  "Compare": {
+    "basename": "compare",
+    "inputs": [
+      "operation",
+      "datatype",
+      "in2",
+      "in1"
+    ],
+    "outputs": [
+      "out"
+    ],
+    "resolved": true
+  },
+  "Compose Matrix": {
+    "basename": "composematrix",
+    "inputs": [
+      "rotationorder",
+      "scale",
+      "translation",
+      "rotation"
+    ],
+    "outputs": [
+      "out"
+    ],
+    "resolved": true
+  },
+  "Compose Vector 3": {
+    "err": "The node type reference 'Compose Vector 3' (lang: 'en-US', space: 'net.maxon.neutron.nodespace') is not associated with ",
+    "resolved": false
+  },
+  "Concat": {
+    "err": "The node type reference 'Concat' (lang: 'en-US', space: 'net.maxon.neutron.nodespace') is not associated with any IDs. ",
+    "resolved": false
+  },
+  "Container Iteration": {
+    "err": "The node type reference 'Container Iteration' (lang: 'en-US', space: 'net.maxon.neutron.nodespace') is not associated wi",
+    "resolved": false
+  },
+  "Cross": {
+    "err": "The node type reference 'Cross' (lang: 'en-US', space: 'net.maxon.neutron.nodespace') is not associated with any IDs. ",
+    "resolved": false
+  },
+  "Cube": {
+    "basename": "cube",
+    "inputs": [
+      "net.maxon.command.modeling.primitive.cube.subz",
+      "net.maxon.command.modeling.primitive.cube.suby",
+      "net.maxon.command.modeling.primitive.cube.subx",
+      "net.maxon.command.modeling.primitive.cube.separate",
+      "net.maxon.command.modeling.primitive.size",
+      "net.maxon.command.modeling.primitive.fillets.segment",
+      "net.maxon.command.modeling.primitive.fillets.radius",
+      "net.maxon.command.modeling.primitive.fillets.enable"
+    ],
+    "outputs": [
+      "geometryout"
+    ],
+    "resolved": true
+  },
+  "Decompose Matrix": {
+    "basename": "decomposematrix",
+    "inputs": [
+      "rotationorder",
+      "matrix"
+    ],
+    "outputs": [
+      "scale",
+      "translation",
+      "rotation"
+    ],
+    "resolved": true
+  },
+  "Distance": {
+    "basename": "distance",
+    "inputs": [
+      "operation",
+      "datatype",
+      "in2",
+      "in1"
+    ],
+    "outputs": [
+      "out"
+    ],
+    "resolved": true
+  },
+  "Dot": {
+    "err": "The node type reference 'Dot' (lang: 'en-US', space: 'net.maxon.neutron.nodespace') is not associated with any IDs. ",
+    "resolved": false
+  },
+  "Extrude": {
+    "basename": "extrude",
+    "inputs": [
+      "net.maxon.command.modeling.extrude.base.rotation",
+      "net.maxon.command.modeling.extrude.base.perstep",
+      "net.maxon.command.modeling.extrude.createcaps",
+      "net.maxon.command.modeling.extrude.base.maxangle",
+      "net.maxon.command.modeling.extrude.base.useislands",
+      "net.maxon.command.modeling.extrude.base.createngons",
+      "net.maxon.command.modeling.extrude.base.subdivisions",
+      "net.maxon.command.modeling.extrude.base.insetvar",
+      "net.maxon.command.modeling.extrude.base.inset",
+      "net.maxon.command.modeling.extrude.base.offsetvar",
+      "net.maxon.command.modeling.extrude.base.offset",
+      "selection",
+      "selectionstring",
+      "mode",
+      "geometryin"
+    ],
+    "outputs": [
+      "geometryout"
+    ],
+    "resolved": true
+  },
+  "For Each": {
+    "err": "The node type reference 'For Each' (lang: 'en-US', space: 'net.maxon.neutron.nodespace') is not associated with any IDs.",
+    "resolved": false
+  },
+  "Get Count": {
+    "basename": "getcount",
+    "inputs": [
+      "datatype",
+      "arrayin"
+    ],
+    "outputs": [
+      "countout"
+    ],
+    "resolved": true
+  },
+  "Grow Selection": {
+    "basename": "growselection",
+    "inputs": [
+      "net.maxon.command.modeling.selection.expand.steps",
+      "mode",
+      "geometryin"
+    ],
+    "outputs": [
+      "geometryout"
+    ],
+    "resolved": true
+  },
+  "Hash": {
+    "basename": "hash",
+    "inputs": [
+      "seed",
+      "salt",
+      "minimum",
+      "maximum"
+    ],
+    "outputs": [
+      "resultcolora",
+      "resultcolor",
+      "resultint",
+      "resultfloat",
+      "resultvector3",
+      "resultvector2",
+      "resultbool"
+    ],
+    "resolved": true
+  },
+  "If": {
+    "basename": "if",
+    "inputs": [
+      "datatype",
+      "in3",
+      "in2",
+      "in1"
+    ],
+    "outputs": [
+      "out"
+    ],
+    "resolved": true
+  },
+  "Inset": {
+    "basename": "inset",
+    "inputs": [
+      "net.maxon.command.modeling.extrude.base.perstep",
+      "net.maxon.command.modeling.extrude.base.maxangle",
+      "net.maxon.command.modeling.extrude.base.useislands",
+      "net.maxon.command.modeling.extrude.base.createngons",
+      "net.maxon.command.modeling.extrude.base.subdivisions",
+      "net.maxon.command.modeling.extrude.base.insetvar",
+      "net.maxon.command.modeling.extrude.base.inset",
+      "net.maxon.command.modeling.extrude.base.insetprop",
+      "net.maxon.command.modeling.extrude.base.proportional",
+      "selection",
+      "selectionstring",
+      "mode",
+      "geometryin"
+    ],
+    "outputs": [
+      "geometryout"
+    ],
+    "resolved": true
+  },
+  "Invert": {
+    "basename": "invert",
+    "inputs": [
+      "in",
+      "datatype"
+    ],
+    "outputs": [
+      "out"
+    ],
+    "resolved": true
+  },
+  "Iterate": {
+    "err": "The node type reference 'Iterate' (lang: 'en-US', space: 'net.maxon.neutron.nodespace') is not associated with any IDs. ",
+    "resolved": false
+  },
+  "Length": {
+    "err": "The node type reference 'Length' (lang: 'en-US', space: 'net.maxon.neutron.nodespace') is not associated with any IDs. ",
+    "resolved": false
+  },
+  "Loop Carried Value": {
+    "basename": "loopcarriedvalue",
+    "inputs": [
+      "innerdomain",
+      "outerdomain",
+      "types",
+      "initial._0",
+      "current._0"
+    ],
+    "outputs": [
+      "domain",
+      "next._0",
+      "final._0"
+    ],
+    "resolved": true
+  },
+  "Memory": {
+    "basename": "memory",
+    "inputs": [
+      "domain",
+      "types",
+      "initial._0",
+      "current._0"
+    ],
+    "outputs": [
+      "nextout._0",
+      "currentout._0",
+      "next._0",
+      "net.maxon.node.memory.dependency_0"
+    ],
+    "resolved": true
+  },
+  "Modulo": {
+    "err": "The node type reference 'Modulo' (lang: 'en-US', space: 'net.maxon.neutron.nodespace') is ambiguous. Use more precise re",
+    "resolved": false
+  },
+  "Negate": {
+    "basename": "negate",
+    "inputs": [
+      "in",
+      "datatype"
+    ],
+    "outputs": [
+      "out"
+    ],
+    "resolved": true
+  },
+  "Noise": {
+    "basename": "mainnoise",
+    "inputs": [
+      "noisetype@UyzMvTq3O56oH6NFG5lOak",
+      "inport@RGgFmpm3Jx7vyEnqzn8fBN",
+      "octaves@LrIsHF62L5VrK6oQyoVsjl",
+      "seed@UcrLmQLOERSmQX2Oel14Tm",
+      "lacunarity@MKPHkm0oCRlsYFnbjGnwSh",
+      "gain@f_CrJPoSAd_gIdJY3d1qRn",
+      "inport@HUTCREz5N56j4Z2o_YKc1v",
+      "inport@eQfObi4vDtUnno$VAZmspS",
+      "animationspeed@GzkMfNdEGlHisuX7ECT9tm",
+      "absolute@ZuKs_Z6FNh5v2SY6rxpdAj",
+      "exponent@bzuLQDReKNAvegfoJ1izlj",
+      "inport@Yi4fu1d0IpYgBCnA_9Hc_l",
+      "inport@BcKjzKMYNRqjSHrqLWhZpk",
+      "inport@RPErPiXAFVKncL$Yh54Voi",
+      "index@cFmKuZ35OJ_h2MY7xZj_4X",
+      "localoffset@HVMH$Pn8Kx5ll1bsXDlsKK",
+      "locallength@eKZInXEdFpnnfEKs97190P",
+      "localrotation@a89sHCGrHN5mUjwMAfWCwJ",
+      "localpivot@dGL0UqOMA1SvPK_iNN5qwL",
+      "localrepetitions@b6_ar8MEPxroT7LRfR1dkN",
+      "localdecalu@DSTPqTS5CpJp$QQnkh2E2P",
+      "localdecalv@IyAgn9AgMJ4qSQ8_EDtP3P",
+      "localmodeu@WIQqEk0wBFxrWYvZ14BL_P",
+      "localmodev@Zeik3yxKOd7i$HAgcBnt3M",
+      "spacetype@XJgWmwRkIBBvC3zM7N2$4j",
+      "referencesize@SojWM2YgKxHrxyzEmqIUKV",
+      "spaceposition@Ts31vjfSOxQt2hDq7AUwHV",
+      "spacescale@EaA_eF$tC9ov3Z2eJSI6HV",
+      "spacerotation@DlmCeFoWINAngP36ne1eLQ",
+      "spacerotationorder@Pc2ZsMDjBFJs8Y8LbBcy0T",
+      "context@MVWNhmUoJZpmoelm9GXlWW"
+    ],
+    "outputs": [
+      "outport@FHbBmNwPBlVg8FPOMo15Bg"
+    ],
+    "resolved": true
+  },
+  "Normalize": {
+    "basename": "normalize",
+    "inputs": [
+      "in",
+      "datatype"
+    ],
+    "outputs": [
+      "out"
+    ],
+    "resolved": true
+  },
+  "Pow": {
+    "err": "The node type reference 'Pow' (lang: 'en-US', space: 'net.maxon.neutron.nodespace') is not associated with any IDs. ",
+    "resolved": false
+  },
+  "Push Apart": {
+    "err": "The node type reference 'Push Apart' (lang: 'en-US', space: 'net.maxon.neutron.nodespace') is not associated with any ID",
+    "resolved": false
+  },
+  "Random Selection": {
+    "basename": "randomselection",
+    "inputs": [
+      "inport@fjMMNrovDRakRxKIQrAHkj",
+      "inport@W7ihSMVTPdzv4bNdTrr_8_",
+      "inport@WWlpJ4tlH1kpF8$HYILQn4",
+      "in@MUdl1BDiG9Uu0Vx$_2WEqQ",
+      "in@C8eFp8A3PpekVdMg1CCWhr",
+      "geometryin"
+    ],
+    "outputs": [
+      "arrayout@OltDd3JfE9PtLrKWg9S9W9",
+      "outport@aRRpjkYwFdFhAfAvFy74XM",
+      "geometryout"
+    ],
+    "resolved": true
+  },
+  "Range": {
+    "basename": "range",
+    "inputs": [
+      "start",
+      "end",
+      "domain"
+    ],
+    "outputs": [
+      "count",
+      "out",
+      "innerdomain",
+      "outerdomain"
+    ],
+    "resolved": true
+  },
+  "Read Value At Index": {
+    "err": "The node type reference 'Read Value At Index' (lang: 'en-US', space: 'net.maxon.neutron.nodespace') is not associated wi",
+    "resolved": false
+  },
+  "Resample": {
+    "err": "The node type reference 'Resample' (lang: 'en-US', space: 'net.maxon.neutron.nodespace') is not associated with any IDs.",
+    "resolved": false
+  },
+  "Round": {
+    "basename": "round",
+    "inputs": [
+      "in",
+      "operation",
+      "datatype"
+    ],
+    "outputs": [
+      "out"
+    ],
+    "resolved": true
+  },
+  "Scale": {
+    "basename": "scale",
+    "inputs": [
+      "datatype",
+      "in2",
+      "in1"
+    ],
+    "outputs": [
+      "out"
+    ],
+    "resolved": true
+  },
+  "Set Selection": {
+    "err": "The node type reference 'Set Selection' (lang: 'en-US', space: 'net.maxon.neutron.nodespace') is not associated with any",
+    "resolved": false
+  },
+  "Sphere": {
+    "basename": "sphere",
+    "inputs": [
+      "net.maxon.command.modeling.primitive.sphere.segment",
+      "net.maxon.command.modeling.primitive.sphere.radius",
+      "net.maxon.command.modeling.primitive.sphere.type"
+    ],
+    "outputs": [
+      "geometryout"
+    ],
+    "resolved": true
+  },
+  "Step": {
+    "basename": "step",
+    "inputs": [
+      "datatype",
+      "in2",
+      "in1"
+    ],
+    "outputs": [
+      "out"
+    ],
+    "resolved": true
+  },
+  "Sub": {
+    "err": "The node type reference 'Sub' (lang: 'en-US', space: 'net.maxon.neutron.nodespace') is not associated with any IDs. ",
+    "resolved": false
+  },
+  "Subdivide": {
+    "basename": "subdivide",
+    "inputs": [
+      "net.maxon.command.modeling.subdivide.smoothuv",
+      "net.maxon.command.modeling.subdivide.type",
+      "net.maxon.command.modeling.subdivide.subdivisions",
+      "net.maxon.command.modeling.subdivide.iterations",
+      "net.maxon.command.modeling.subdivide.angle",
+      "net.maxon.command.modeling.subdivide.smooth",
+      "selection",
+      "selectionstring",
+      "mode",
+      "geometryin"
+    ],
+    "outputs": [
+      "geometryout"
+    ],
+    "resolved": true
+  },
+  "Switch": {
+    "basename": "switch",
+    "inputs": [
+      "cycle",
+      "index",
+      "in",
+      "datatype"
+    ],
+    "outputs": [
+      "out"
+    ],
+    "resolved": true
+  },
+  "Time": {
+    "basename": "time",
+    "inputs": [
+      "context"
+    ],
+    "outputs": [
+      "frame",
+      "fps",
+      "scenetime",
+      "systemtime"
+    ],
+    "resolved": true
+  },
+  "Tube": {
+    "basename": "tube",
+    "inputs": [
+      "net.maxon.command.modeling.primitive.tube.height",
+      "net.maxon.command.modeling.primitive.tube.heightsegment",
+      "net.maxon.command.modeling.primitive.tube.segment",
+      "net.maxon.command.modeling.primitive.tube.rotationsegment",
+      "net.maxon.command.modeling.primitive.tube.outerradius",
+      "net.maxon.command.modeling.primitive.tube.innerradius",
+      "net.maxon.command.modeling.primitive.fillets.segment",
+      "net.maxon.command.modeling.primitive.fillets.radius",
+      "net.maxon.command.modeling.primitive.fillets.enable",
+      "net.maxon.command.modeling.primitive.orientation.axis",
+      "net.maxon.command.modeling.primitive.slice.gridsize",
+      "net.maxon.command.modeling.primitive.slice.regulargrid",
+      "net.maxon.command.modeling.primitive.slice.to",
+      "net.maxon.command.modeling.primitive.slice.from",
+      "net.maxon.command.modeling.primitive.slice.enable"
+    ],
+    "outputs": [
+      "geometryout"
+    ],
+    "resolved": true
+  },
+  "Write Value At Index": {
+    "err": "The node type reference 'Write Value At Index' (lang: 'en-US', space: 'net.maxon.neutron.nodespace') is not associated w",
+    "resolved": false
+  }
+}
