@@ -2391,6 +2391,63 @@ async def set_parameter(
 
 
 @mcp.tool()
+async def octane_set_camera_to_osl(
+    camera_target: str,
+    source_code: Optional[str] = None,
+    snippet: Optional[str] = None,
+    baking: bool = False,
+    auto_compile: bool = True,
+    name: Optional[str] = None,
+    ctx: Context = None,
+) -> str:
+    """Set an Octane Camera tag on a CameraObject to OSL mode + inject source.
+
+    Octane's OSL Camera lets you write per-pixel ray-generation as OSL.
+    Use cases: custom fisheye projections, anamorphic squeeze, post-FX
+    distortions baked into camera rays, panoramic-cube layouts, weird
+    artistic projections.
+
+    Args:
+      camera_target: name of the C4D CameraObject. If it doesn't have an
+        Octane Camera tag, one is added.
+      source_code: OSL source as a string (mutually exclusive with snippet)
+      snippet: shorthand for one of the canned camera snippets:
+        camera_pinhole, camera_fisheye_180, camera_anamorphic_squeeze,
+        camera_vortex. Snippet wins if both supplied.
+      baking: True → use OSL_BAKING mode (4) instead of OSL mode (3).
+        For UV-baking workflows where you want OSL ray generation during
+        a bake pass.
+      auto_compile: compile on parameter change (default True)
+      name: name for the new Octane Camera tag (default "Octane Camera")
+
+    Pattern (custom-projection workflow):
+      create_camera(name="MyCam")
+      octane_set_camera_to_osl(camera_target="MyCam",
+                               snippet="camera_fisheye_180")
+      → camera now renders through a 180-degree fisheye OSL shader in
+        Octane's render pipeline.
+
+    UNSAFE — mutates the target camera. Octane plugin must be loaded.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {
+            "command": "octane_set_camera_to_osl",
+            "camera_target": camera_target,
+            "baking": baking,
+            "auto_compile": auto_compile,
+        }
+        if source_code is not None: cmd["source_code"] = source_code
+        if snippet is not None: cmd["snippet"] = snippet
+        if name is not None: cmd["name"] = name
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
 async def list_osl_snippets(ctx: Context = None) -> str:
     """Return the curated set of OSL snippets shipped with the plugin.
 

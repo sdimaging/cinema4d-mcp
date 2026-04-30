@@ -544,6 +544,8 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_get_parameter(command)
                         elif command_type == "set_parameter":
                             response = self.handle_set_parameter(command)
+                        elif command_type == "octane_set_camera_to_osl":
+                            response = self.handle_octane_set_camera_to_osl(command)
                         elif command_type == "create_volume_builder":
                             response = self.handle_create_volume_builder(command)
                         elif command_type == "create_volume_mesher":
@@ -10728,7 +10730,7 @@ class C4DSocketServer(threading.Thread):
         "paint_vertex_map_from_formula", "paint_vertex_map_radial",
         "list_deformer_types", "apply_deformer",
         "list_field_types", "add_field_to_scene", "bake_field_to_vmap",
-        "octane_create_osl_texture", "list_osl_snippets",
+        "octane_create_osl_texture", "octane_set_camera_to_osl", "list_osl_snippets",
         "get_parameter", "set_parameter",
         "create_volume_builder", "create_volume_mesher", "volume_to_polygons",
         "image_inspect", "images_compare", "scene_assert",
@@ -11986,9 +11988,14 @@ class C4DSocketServer(threading.Thread):
     #     FILE1..4 / TEX_LINK1..4 / PROJECTION1..4: typed input slots
     OCTANE_OSL_TEXTURE_ID = 1039813
 
-    # Some sample OSL snippets to seed creative work (curated minimal set).
-    # All compile clean against Octane's OSL runtime in C4D 2026.
+    # Octane Camera tag plugin id, discovered via FilterPluginList.
+    # Inserted on a CameraObject; controls Octane-specific camera params.
+    OCTANE_CAMERA_TAG_ID = 1029524
+
+    # Some sample OSL snippets organized by target. Texture snippets are
+    # for octane_create_osl_texture; camera snippets for octane_set_camera_to_osl.
     _OSL_SNIPPETS = {
+        # === Texture / Shader OSL ===
         "constant_red": (
             "// constant red color\n"
             "shader constant_red(output color Cout = color(1, 0, 0)) {}\n"
@@ -12017,6 +12024,99 @@ class C4DSocketServer(threading.Thread):
             "    float cx = u - 0.5, cy = v - 0.5;\n"
             "    float r = sqrt(cx * cx + cy * cy);\n"
             "    Cout = color(r * 2);\n"
+            "}\n"
+        ),
+        # === OSL Projection (used as a Texture shader, samples world coords) ===
+        "projection_xz_planar": (
+            "// project world XZ as UV — planar projection from above\n"
+            "shader projection_xz_planar(\n"
+            "    float Scale = 100,\n"
+            "    output color Cout = 0)\n"
+            "{\n"
+            "    point P = transform(\"world\", point(0,0,0)) + I * length(P);\n"
+            "    float u_ = mod(P[0] / Scale, 1);\n"
+            "    float v_ = mod(P[2] / Scale, 1);\n"
+            "    Cout = color(u_, v_, 0);\n"
+            "}\n"
+        ),
+        "projection_triplanar": (
+            "// triplanar projection — blend three orthogonal projections by normal\n"
+            "shader projection_triplanar(\n"
+            "    color SideX = color(1, 0, 0),\n"
+            "    color SideY = color(0, 1, 0),\n"
+            "    color SideZ = color(0, 0, 1),\n"
+            "    output color Cout = 0)\n"
+            "{\n"
+            "    vector wn = normalize(transform(\"world\", N));\n"
+            "    vector w = vector(abs(wn[0]), abs(wn[1]), abs(wn[2]));\n"
+            "    float total = w[0] + w[1] + w[2];\n"
+            "    Cout = (SideX * w[0] + SideY * w[1] + SideZ * w[2]) / total;\n"
+            "}\n"
+        ),
+        # === OSL Camera shaders (applied to Octane Camera tag in OSL mode) ===
+        "camera_pinhole": (
+            "// minimal pinhole camera — replicates default thin-lens behavior\n"
+            "shader camera_pinhole(\n"
+            "    float FocalMM = 35,\n"
+            "    output point P = 0,\n"
+            "    output vector D = 0)\n"
+            "{\n"
+            "    float fx = (u - 0.5) * 2.0;\n"
+            "    float fy = (v - 0.5) * 2.0;\n"
+            "    float scl = 36.0 / FocalMM;\n"
+            "    P = point(0, 0, 0);\n"
+            "    D = normalize(vector(fx * scl, fy * scl, 1));\n"
+            "}\n"
+        ),
+        "camera_fisheye_180": (
+            "// 180-degree fisheye projection\n"
+            "shader camera_fisheye_180(\n"
+            "    output point P = 0,\n"
+            "    output vector D = 0)\n"
+            "{\n"
+            "    float cx = (u - 0.5) * 2.0;\n"
+            "    float cy = (v - 0.5) * 2.0;\n"
+            "    float r = sqrt(cx * cx + cy * cy);\n"
+            "    if (r > 1.0) { D = vector(0,0,0); return; }\n"
+            "    float theta = r * M_PI_2;\n"
+            "    float phi = atan2(cy, cx);\n"
+            "    P = point(0, 0, 0);\n"
+            "    D = vector(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));\n"
+            "}\n"
+        ),
+        "camera_anamorphic_squeeze": (
+            "// anamorphic — horizontal squeeze for cinematic widescreen\n"
+            "shader camera_anamorphic_squeeze(\n"
+            "    float Squeeze = 1.78,\n"
+            "    float FocalMM = 35,\n"
+            "    output point P = 0,\n"
+            "    output vector D = 0)\n"
+            "{\n"
+            "    float fx = (u - 0.5) * 2.0 * Squeeze;\n"
+            "    float fy = (v - 0.5) * 2.0;\n"
+            "    float scl = 36.0 / FocalMM;\n"
+            "    P = point(0, 0, 0);\n"
+            "    D = normalize(vector(fx * scl, fy * scl, 1));\n"
+            "}\n"
+        ),
+        "camera_vortex": (
+            "// vortex — radial twist of ray angle by distance from center\n"
+            "shader camera_vortex(\n"
+            "    float Twist = 2.0,\n"
+            "    float FocalMM = 35,\n"
+            "    output point P = 0,\n"
+            "    output vector D = 0)\n"
+            "{\n"
+            "    float cx = (u - 0.5) * 2.0;\n"
+            "    float cy = (v - 0.5) * 2.0;\n"
+            "    float r = sqrt(cx * cx + cy * cy);\n"
+            "    float angle = r * Twist;\n"
+            "    float ca = cos(angle), sa = sin(angle);\n"
+            "    float rx = cx * ca - cy * sa;\n"
+            "    float ry = cx * sa + cy * ca;\n"
+            "    float scl = 36.0 / FocalMM;\n"
+            "    P = point(0, 0, 0);\n"
+            "    D = normalize(vector(rx * scl, ry * scl, 1));\n"
             "}\n"
         ),
     }
@@ -12165,6 +12265,120 @@ class C4DSocketServer(threading.Thread):
             }
         except Exception as e:
             return {"error": f"octane_create_osl_texture failed: {e}", "traceback": traceback.format_exc()}
+
+    def handle_octane_set_camera_to_osl(self, command):
+        """Set an Octane Camera tag to OSL mode + inject OSL source.
+
+        Args:
+          camera_target: name of the C4D CameraObject to attach to.
+            If the camera doesn't have an Octane Camera tag, one is added.
+          source_code: OSL source as a string (mutually exclusive with snippet)
+          snippet: shorthand for one of the canned camera snippets:
+            camera_pinhole, camera_fisheye_180, camera_anamorphic_squeeze,
+            camera_vortex. Snippet wins if both are set.
+          baking: True → use OSL_BAKING mode (4) instead of OSL mode (3).
+            For UV-baking workflows where you want OSL ray generation
+            during a bake pass.
+          name: optional name for the new Octane Camera tag (default
+            "Octane Camera").
+
+        UNSAFE — mutates the target camera. Pattern:
+          create_camera(name="MyCam")
+          octane_set_camera_to_osl(camera_target="MyCam",
+                                   snippet="camera_fisheye_180")
+          → camera now renders through a 180-degree fisheye OSL shader
+            in Octane.
+        """
+        try:
+            doc = c4d.documents.GetActiveDocument()
+            if not doc:
+                return {"error": "No active document"}
+
+            cam_name = command.get("camera_target")
+            if not cam_name:
+                return {"error": "Provide camera_target"}
+            cam = doc.SearchObject(cam_name)
+            if cam is None:
+                return {"error": f"camera_target '{cam_name}' not found"}
+            if cam.GetType() != c4d.Ocamera:
+                return {"error": f"target '{cam_name}' is not a Camera object (type={cam.GetTypeName()})"}
+
+            # Resolve source
+            source = command.get("source_code")
+            snippet = command.get("snippet")
+            if snippet:
+                if snippet not in self._OSL_SNIPPETS:
+                    return {
+                        "error": f"Unknown snippet '{snippet}'",
+                        "valid_snippets": list(self._OSL_SNIPPETS.keys()),
+                    }
+                source = self._OSL_SNIPPETS[snippet]
+            if not source:
+                source = self._OSL_SNIPPETS["camera_pinhole"]
+
+            # Find existing Octane Camera tag, or add one
+            oct_tag = None
+            for t in cam.GetTags():
+                if t.GetType() == self.OCTANE_CAMERA_TAG_ID:
+                    oct_tag = t
+                    break
+            tag_added = False
+            if oct_tag is None:
+                oct_tag = c4d.BaseTag(self.OCTANE_CAMERA_TAG_ID)
+                if not oct_tag:
+                    return {"error": (
+                        "Could not instantiate Octane Camera tag "
+                        f"(plugin id {self.OCTANE_CAMERA_TAG_ID}). Octane "
+                        "plugin may not be loaded."
+                    )}
+                oct_tag.SetName(command.get("name", "Octane Camera"))
+                cam.InsertTag(oct_tag)
+                tag_added = True
+
+            # Set mode → OSL or OSL_BAKING
+            mode_const = c4d.OCT_CAMERA_OSL_BAKING if command.get("baking") else c4d.OCT_CAMERA_OSL
+            warnings = []
+            try:
+                oct_tag[c4d.OCT_CAMERA_TYPE_SELECT] = mode_const
+            except Exception as e:
+                warnings.append(f"set OCT_CAMERA_TYPE_SELECT failed: {e}")
+
+            # Inject the OSL source
+            try:
+                oct_tag[c4d.OCTANECAM_OSL_CODE_EDITOR] = source
+            except Exception as e:
+                return {"error": f"set OCTANECAM_OSL_CODE_EDITOR failed: {e}", "warnings": warnings}
+
+            # Auto-compile flag (default True)
+            try:
+                oct_tag[c4d.OCTANECAM_OSL_AUTO_COMPILE] = bool(command.get("auto_compile", True))
+            except Exception:
+                pass
+
+            cam.Message(c4d.MSG_UPDATE)
+            c4d.EventAdd()
+
+            # Read compile log if available
+            compile_log = None
+            try:
+                compile_log = oct_tag[c4d.OCTANECAM_OSL_LOG_OUTPUT]
+            except Exception:
+                pass
+
+            return {
+                "ok": True,
+                "camera_target": cam.GetName(),
+                "octane_tag_name": oct_tag.GetName(),
+                "tag_added_now": tag_added,
+                "mode_const": mode_const,
+                "mode_label": "OSL_BAKING" if command.get("baking") else "OSL",
+                "source_length": len(source),
+                "source_preview": source[:200],
+                "compile_log": compile_log,
+                "warnings": warnings or None,
+            }
+        except Exception as e:
+            return {"error": f"octane_set_camera_to_osl failed: {e}", "traceback": traceback.format_exc()}
 
     def handle_list_osl_snippets(self, command):
         """Return the set of canned OSL snippets shipped with the plugin."""
