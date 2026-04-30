@@ -237,6 +237,24 @@
       "observed_in": ["city_generator (multiple chains)", "geo_feedback_loop"]
     },
 
+    "hash_threshold_selection": {
+      "description": "Select N% of elements (polys/edges/points) randomly via per-element hash(seed,index) compared against threshold. Deterministic-random — same seed = same selection every time. The Random Selection capsule pattern.",
+      "min_nodes": 70,
+      "required_nodes": ["polygonarrayget", "range", "readvalueatindex", "getcount", "hash", "compare", "switch", "active", "type", "setselection", "invertselection"],
+      "skeleton_text": "polygonarrayget → range × 3 + readvalueatindex + getcount → for each element: hash(seed, idx) → compare vs threshold → switch tree (mode dispatch) → buildfromvalue/append → setselection × 3 (poly/edge/point modes)",
+      "params_needed": ["seed", "threshold (0..1)", "element_mode (poly|edge|point)", "selection_name"],
+      "observed_in": ["Random Selection capsule (80 nodes / 55 unique / 5 levels)"],
+      "subpatterns_used": ["named_selection_storage_triad (×6)", "element_mode_dispatch_triplet (3× parallel pipelines)"]
+    },
+
+    "element_mode_dispatch_triplet": {
+      "description": "The canonical 'polygon | edge | point' polymorphic dispatch — every selection-producer capsule has THREE parallel pipelines (one per geometry-element-type), routed via active+switch+type. User picks mode in UD; active port enables the right branch.",
+      "is_subpattern_of": ["any selection-producer capsule (Random Selection, Modulo, Set Selection variants, etc.)"],
+      "required_nodes": ["active", "switch", "type"],
+      "rule_of_thumb": "If a capsule produces selections AND has 3× active + 3× setselection + 3× invertselection, it almost certainly implements element-mode dispatch.",
+      "observed_in": ["Random Selection (3× active, 3× setselection, 3× invertselection)", "Modulo (3× setselection, 3× modulo)"]
+    },
+
     "modular_polygon_selection": {
       "description": "Select polygons by modular arithmetic on their index. The Modulo capsule pattern: every Nth polygon, with optional offset and AND/OR combination of multiple mod conditions.",
       "min_nodes": 50,
@@ -370,6 +388,18 @@
     ],
     "user_logic_zone": "Sits between read of input geometry and emission via generategeometry. The user's algorithm goes here.",
     "exposed_params": "Each user-facing parameter = one floatingio node attached to a port on the modelingoperator."
+  },
+
+  "_design_principle_selection_capsule_bidirectionality": {
+    "rule": "Selection-producer capsules (Random Selection, Modulo, Set Selection, etc.) are BIDIRECTIONAL bridges between Scene Nodes graphs and the C4D object tree. Their named output selections live in BOTH worlds simultaneously: (1) inside the graph as values flowing to downstream nodes, AND (2) on the host object as classic Polygon/Edge/Vertex Selection Tags consumable by ANY classic C4D tool.",
+    "why": "Selection Tags are the lingua franca C4D's classic systems speak. Materials reference them via 'Restriction'; MoGraph Cloners have a 'Selection' field; the Reduce deformer; Restriction Tags themselves; viewport polygon/edge/point selection display — every classic surface can consume a named selection. So when a Scene Nodes capsule emits a named selection, the artist gets it *both* in the node-flow path (consumed by Inset/Extrude/etc.) AND in the classic-tool path (consumed by everything else in C4D).",
+    "implications_for_pattern_library": [
+      "Every selection-producer pattern should expose its output selection NAME as a UD parameter (so artists can rename it).",
+      "When a capsule has 3× setselection (poly/edge/point modes), each one writes a Selection Tag of the matching geometry-element type.",
+      "This is the user's preferred workflow: 'I drop a Random Selection capsule onto my Cube → my Cube gets a Polygon Selection Tag I can use everywhere.' The graph is invisible after dropdown; the tag is the artifact.",
+      "When generating capsules programmatically, expose the selection-name as floatingio so it appears in Attribute Manager."
+    ],
+    "observed_in": ["Random Selection (3× setselection → 3 element-type tags)", "Modulo (3× setselection)", "Set Selection variants", "any selection_evolution_chain pattern"]
   },
 
   "_design_principle_capsule_first": {
