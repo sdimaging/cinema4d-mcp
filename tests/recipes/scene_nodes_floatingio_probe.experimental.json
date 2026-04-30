@@ -1,0 +1,84 @@
+{
+  "name": "scene_nodes_floatingio_probe.experimental",
+  "description": "EXPERIMENTAL — narrowly-scoped Floating IO probe per GPT 5.5's plan. ONE capsule, ONE Memory, ONE Floating IO, ONE direction, ONE exposed-port attempt. Inspects: (a) graph structure via scene_nodes_walk, (b) wires via GetConnections, (c) host capsule parameters via enumerate_descids, (d) host userdata via enumerate_userdata. Each step is wrapped defensively so a single failing probe doesn't wedge subsequent ones. ALL steps have empty asserts so we can observe behavior without false-positives. KEEP SEPARATE from verified pattern recipes — the PORTLIST contract is not yet understood and probes here may produce contaminated graphs.",
+  "setup": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\ndoc = c4d.documents.GetActiveDocument()\nfor n in ['FIO_Probe']:\n    o = doc.SearchObject(n)\n    if o: o.Remove()\nc4d.EventAdd()\nprint('floatingio probe setup ok')"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "name": "step1_create_capsule_with_mem_and_io",
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\nimport maxon\nfrom maxon.frameworks.nodes import GraphDescription\ndoc = c4d.documents.GetActiveDocument()\ngen = c4d.BaseObject(180420700)\ngen.SetName('FIO_Probe')\ndoc.InsertObject(gen)\nc4d.EventAdd()\ng = GraphDescription.GetGraph(gen)\nresult = GraphDescription.ApplyDescription(g, [\n    {'$type': 'Memory', '$name': 'fio_mem'},\n    {'$type': 'Floating IO', '$name': 'fio_io'},\n])\n# Find resulting instance IDs\nmem_id = io_id = None\nfor c in (g.GetRoot().GetChildren() or []):\n    cid = str(c.GetId())\n    if '@' in cid and '/' not in cid:\n        b = cid.split('@')[0]\n        if b == 'memory': mem_id = cid\n        elif b == 'floatingio': io_id = cid\nprint(f'mem_id={mem_id}, io_id={io_id}')\nif not mem_id or not io_id: raise RuntimeError('failed to add Memory + Floating IO')"
+      },
+      "assert": [{"type": "object_exists", "name": "FIO_Probe"}]
+    },
+    {
+      "name": "step2_walk_graph_structure",
+      "command": "scene_nodes_walk",
+      "args": {"target_object": "FIO_Probe", "max_depth": 4, "include_ports": true},
+      "assert": []
+    },
+    {
+      "name": "step3_inspect_floatingio_attributes_safely",
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\nimport maxon\nfrom maxon.frameworks.nodes import GraphDescription\ndoc = c4d.documents.GetActiveDocument()\ngen = doc.SearchObject('FIO_Probe')\ng = GraphDescription.GetGraph(gen)\nio_node = None\nfor c in (g.GetRoot().GetChildren() or []):\n    cid = str(c.GetId())\n    if '@' in cid and '/' not in cid and cid.split('@')[0] == 'floatingio':\n        io_node = c; break\nif not io_node: raise RuntimeError('floatingio not found')\nprint(f'io_node: {io_node.GetId()}')\n# Defensively probe attributes one at a time\nresults = {}\nfor attr_id in ['net.maxon.attribute.direction', 'net.maxon.node.floatingio.portlist', 'net.maxon.node.floatingio.defaultname.outputs', 'net.maxon.node.floatingio.defaultname.inputs']:\n    try:\n        val = io_node.GetValue(maxon.Id(attr_id))\n        results[attr_id] = repr(val)[:200]\n    except Exception as e:\n        results[attr_id] = f'<ERR: {str(e)[:100]}>'\nprint('Attribute probe results:')\nfor k, v in results.items():\n    print(f'  {k}: {v}')\n# Also try to find PORTLIST input port and inspect it\nfor p in (io_node.GetInputs().GetChildren() or []):\n    pid = str(p.GetId())\n    print(f'  Input port: {pid}')\n    # Don't call GetEffectivePortValue (causes 'expected generic datatype capsule')\n    # but DO list its child ports if any\n    try:\n        sub_count = len(list(p.GetChildren() or []))\n        print(f'    has {sub_count} sub-children')\n    except Exception as e:\n        print(f'    children err: {str(e)[:80]}')"
+      },
+      "assert": []
+    },
+    {
+      "name": "step4_connect_memory_to_floatingio",
+      "command": "scene_nodes_connect_ports",
+      "args": {
+        "from_node": "memory",
+        "from_port": "nextout._0",
+        "to_node": "floatingio",
+        "to_port": "net.maxon.node.floatingio.portlist",
+        "graph_target": "FIO_Probe"
+      },
+      "assert": []
+    },
+    {
+      "name": "step5_verify_wire_landed",
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\nimport maxon\nfrom maxon.frameworks.nodes import GraphDescription\ndoc = c4d.documents.GetActiveDocument()\ngen = doc.SearchObject('FIO_Probe')\ng = GraphDescription.GetGraph(gen)\nmem_node = None\nfor c in (g.GetRoot().GetChildren() or []):\n    cid = str(c.GetId())\n    if '@' in cid and '/' not in cid and cid.split('@')[0] == 'memory':\n        mem_node = c; break\nif not mem_node: raise RuntimeError('memory not found')\nnextout = next((p for p in (mem_node.GetOutputs().GetChildren() or []) if str(p.GetId()).endswith('nextout._0')), None)\nconns = list(nextout.GetConnections(1))\nprint(f'memory.nextout._0 outgoing connections: {len(conns)}')\nfor (target_port, wires) in conns:\n    print(f'  -> {str(target_port.GetId())}')"
+      },
+      "assert": []
+    },
+    {
+      "name": "step6_enumerate_host_descids",
+      "command": "enumerate_descids",
+      "args": {"object_name": "FIO_Probe", "include_userdata": true},
+      "assert": []
+    },
+    {
+      "name": "step7_enumerate_host_userdata",
+      "command": "enumerate_userdata",
+      "args": {"object_name": "FIO_Probe"},
+      "assert": []
+    },
+    {
+      "name": "step8_inspect_capsule_basecontainer_for_floating_params",
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\ndoc = c4d.documents.GetActiveDocument()\ngen = doc.SearchObject('FIO_Probe')\nbc = gen.GetData()\nprint(f'BaseContainer entries on FIO_Probe:')\nentries_seen = 0\nfor i in range(min(bc.GetIndexId(0) + 1, 1) if hasattr(bc, 'GetIndexId') else 0, 0):\n    pass  # legacy iteration\n# Modern iteration\ntry:\n    for desc_id, value in bc:\n        entries_seen += 1\n        if entries_seen > 50: break\n        try:\n            print(f'  [{entries_seen}] desc_id={desc_id}, type={type(value).__name__}, val={repr(value)[:80]}')\n        except Exception as e:\n            print(f'  [{entries_seen}] err: {e}')\nexcept Exception as e:\n    print(f'BC iter err: {e}')\nprint(f'\\nTotal entries: {entries_seen}')"
+      },
+      "assert": []
+    }
+  ],
+  "teardown": [
+    {
+      "command": "execute_python",
+      "args": {
+        "script": "import c4d\ndoc = c4d.documents.GetActiveDocument()\nfor n in ['FIO_Probe']:\n    o = doc.SearchObject(n)\n    if o: o.Remove()\nc4d.EventAdd()\nprint('floatingio probe teardown ok')"
+      }
+    }
+  ]
+}

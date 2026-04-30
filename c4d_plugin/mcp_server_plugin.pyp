@@ -7964,41 +7964,98 @@ class C4DSocketServer(threading.Thread):
                         pass
                     return None
 
+                # Per-FIELD error tolerance — never replace the whole row
+                # with "<error>" just because one read failed. Each field
+                # gets its own try block so we surface partial data.
+                entry = {"path": [], "name": "", "short_name": "",
+                         "dtype": None, "group_path": [],
+                         "_field_errors": {}}
+
                 try:
-                    name = bc.GetString(c4d.DESC_NAME) or bc.GetString(c4d.DESC_SHORTNAME) or ""
-                    short_name = bc.GetString(c4d.DESC_SHORTNAME) or ""
-
-                    # Filtering (do BEFORE expensive value reads)
-                    if name_filter and name_filter not in name.lower():
-                        continue
-                    if name_pattern and not fnmatch.fnmatch(name, name_pattern):
-                        continue
-
-                    path = _tuple_or_descid_path(paramid)
-                    if top_level_only and len(path) > 1:
-                        continue
-
-                    entry = {
-                        "path": path,
-                        "name": name,
-                        "short_name": short_name,
-                        "dtype": _tuple_or_descid_dtype(paramid),
-                        "group_path": _tuple_or_descid_path(groupid),
-                    }
-
-                    if include_values:
-                        try:
-                            current = obj[paramid]
-                            entry["current_value"] = self._value_to_jsonable(current)
-                        except Exception as e:
-                            entry["current_value_error"] = str(e)
-
-                    params.append(entry)
-                    if len(params) >= max_results:
-                        truncated = True
-                        break
+                    entry["name"] = bc.GetString(c4d.DESC_NAME) or ""
                 except Exception as e:
-                    params.append({"name": "<error>", "error": str(e), "traceback": traceback.format_exc()[-300:]})
+                    entry["_field_errors"]["name"] = str(e)
+                try:
+                    entry["short_name"] = bc.GetString(c4d.DESC_SHORTNAME) or ""
+                except Exception as e:
+                    entry["_field_errors"]["short_name"] = str(e)
+                if not entry["name"]:
+                    entry["name"] = entry["short_name"] or "<unnamed>"
+
+                # Filtering (do BEFORE expensive value reads)
+                name_lower = entry["name"].lower()
+                if name_filter and name_filter not in name_lower:
+                    continue
+                if name_pattern and not fnmatch.fnmatch(entry["name"], name_pattern):
+                    continue
+
+                try:
+                    entry["path"] = _tuple_or_descid_path(paramid)
+                except Exception as e:
+                    entry["_field_errors"]["path"] = str(e)
+                if top_level_only and len(entry["path"]) > 1:
+                    continue
+                try:
+                    entry["dtype"] = _tuple_or_descid_dtype(paramid)
+                except Exception as e:
+                    entry["_field_errors"]["dtype"] = str(e)
+                try:
+                    entry["group_path"] = _tuple_or_descid_path(groupid)
+                except Exception as e:
+                    entry["_field_errors"]["group_path"] = str(e)
+
+                # Rich metadata (per GPT 5.5 review 2026-04-30):
+                # custom GUI, default, min/max/step, unit, creator
+                for field, desc_const_name in [
+                    ("custom_gui", "DESC_CUSTOMGUI"),
+                    ("default", "DESC_DEFAULT"),
+                    ("min", "DESC_MIN"),
+                    ("max", "DESC_MAX"),
+                    ("step", "DESC_STEP"),
+                    ("unit", "DESC_UNIT"),
+                    ("hidden", "DESC_HIDE"),
+                    ("animate", "DESC_ANIMATE"),
+                ]:
+                    desc_const = getattr(c4d, desc_const_name, None)
+                    if desc_const is None: continue
+                    try:
+                        v = bc.GetData(desc_const)
+                        if v is not None and v != 0 and v != "":
+                            entry[field] = self._value_to_jsonable(v)
+                    except Exception:
+                        # Try as int (some constants return int directly)
+                        try:
+                            v = bc.GetInt32(desc_const)
+                            if v != 0:
+                                entry[field] = v
+                        except Exception:
+                            pass
+
+                # Creator (last DescLevel's `creator` field — useful for plugin attribution)
+                try:
+                    if hasattr(paramid, "GetDepth"):
+                        d = paramid.GetDepth()
+                        if d > 0:
+                            entry["creator"] = int(paramid[d-1].creator)
+                except Exception:
+                    pass
+
+                # Value read — if it fails, preserve the row + note the error
+                if include_values:
+                    try:
+                        current = obj[paramid]
+                        entry["current_value"] = self._value_to_jsonable(current)
+                    except Exception as e:
+                        entry["current_value_error"] = str(e)
+
+                # Strip _field_errors if empty (most rows succeed)
+                if not entry["_field_errors"]:
+                    del entry["_field_errors"]
+
+                params.append(entry)
+                if len(params) >= max_results:
+                    truncated = True
+                    break
         except Exception as e:
             return {
                 "error": f"Description iteration failed: {e}",
@@ -12425,10 +12482,59 @@ class C4DSocketServer(threading.Thread):
             if perr:
                 return {"error": perr}
 
+            # Multi-style read with fallback — per GPT 5.5 review 2026-04-30.
+            # Some Scene Nodes Generator params fail obj[descid] but succeed
+            # via GetParameter() or BaseContainer. Try each in order; report
+            # which path worked so the user knows the read mode.
+            read_attempts = []
+            raw = None
+            read_via = None
+
+            # Style 1: subscript
             try:
                 raw = obj[pid]
+                read_via = "obj[descid]"
             except Exception as e:
-                return {"error": f"read failed: {e}", "parameter_resolved": str(pid)}
+                read_attempts.append({"style": "obj[descid]", "error": str(e)})
+
+            # Style 2: GetParameter() with various flag combos
+            if read_via is None:
+                for flag_name, flag_val in [
+                    ("DESCFLAGS_GET_NONE", getattr(c4d, "DESCFLAGS_GET_NONE", 0)),
+                    ("DESCFLAGS_GET_PARAM_GET", getattr(c4d, "DESCFLAGS_GET_PARAM_GET", None)),
+                    ("DESCFLAGS_GET_NO_DEFAULTVALUE", getattr(c4d, "DESCFLAGS_GET_NO_DEFAULTVALUE", None)),
+                ]:
+                    if flag_val is None:
+                        continue
+                    try:
+                        raw = obj.GetParameter(pid, flag_val)
+                        read_via = f"GetParameter({flag_name})"
+                        break
+                    except Exception as e:
+                        read_attempts.append({"style": f"GetParameter({flag_name})", "error": str(e)})
+
+            # Style 3: BaseContainer lookup (only useful for some object types)
+            if read_via is None:
+                try:
+                    bc = obj.GetData() if hasattr(obj, "GetData") else None
+                    if bc is not None:
+                        # Use the first level's id as a fallback
+                        try:
+                            level_id = pid[0].id if hasattr(pid, "GetDepth") and pid.GetDepth() > 0 else None
+                        except Exception:
+                            level_id = None
+                        if level_id is not None:
+                            raw = bc.GetData(level_id)
+                            read_via = f"BaseContainer.GetData({level_id})"
+                except Exception as e:
+                    read_attempts.append({"style": "BaseContainer", "error": str(e)})
+
+            if read_via is None:
+                return {
+                    "error": "all read styles failed",
+                    "parameter_resolved": str(pid),
+                    "read_attempts": read_attempts,
+                }
 
             return {
                 "ok": True,
@@ -12437,6 +12543,8 @@ class C4DSocketServer(threading.Thread):
                 "parameter_resolved": str(pid),
                 "value": self._serialize_value(raw),
                 "value_type": type(raw).__name__,
+                "read_via": read_via,
+                "read_attempts": read_attempts if read_attempts else None,
             }
         except Exception as e:
             return {"error": f"get_parameter failed: {e}", "traceback": traceback.format_exc()}

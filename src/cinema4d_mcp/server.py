@@ -463,23 +463,39 @@ def format_c4d_response(response: Dict[str, Any], command_type: str) -> str:
         if not params:
             lines.append("  - (no parameters matched)")
         else:
-            # Show up to 50 inline; full data is in the JSON response anyway
+            # Show up to 50 inline; full data is in the JSON response.
+            # Per GPT 5.5 review 2026-04-30: always show name + path, only
+            # flag the VALUE column as <err> when value-read failed (don't
+            # claim the whole row failed).
             preview = params[:50]
             lines.append("")
-            lines.append("| Path | Name | dtype | Current value |")
-            lines.append("|------|------|-------|---------------|")
+            lines.append("| Path | Name | dtype | GUI | Current value |")
+            lines.append("|------|------|-------|-----|---------------|")
             for p in preview:
                 path_str = ".".join(str(x) for x in p.get("path", []))
-                name = p.get("name", "")[:40]
+                name = (p.get("name") or "")[:40]
                 dtype = p.get("dtype", "")
-                val = p.get("current_value", p.get("current_value_error", ""))
-                if isinstance(val, (dict, list)):
-                    val = str(val)[:60] + ("…" if len(str(val)) > 60 else "")
+                gui = p.get("custom_gui", "")
+                if "current_value" in p:
+                    val = p["current_value"]
+                    if isinstance(val, (dict, list)):
+                        val = str(val)[:60] + ("…" if len(str(val)) > 60 else "")
+                    else:
+                        val = str(val)[:60]
+                elif "current_value_error" in p:
+                    val = f"⚠ {p['current_value_error'][:50]}"
                 else:
-                    val = str(val)[:60]
-                lines.append(f"| `{path_str}` | {name} | {dtype} | {val} |")
+                    val = "—"
+                lines.append(f"| `{path_str}` | {name} | {dtype} | {gui} | {val} |")
             if len(params) > 50:
                 lines.append(f"\n_…showing first 50 of {len(params)} parameters._")
+            # Surface min/default/max metadata when requested via name_filter
+            # (the JSON response always carries it)
+            metadata_count = sum(1 for p in params if any(k in p for k in
+                ("default", "min", "max", "step", "creator")))
+            if metadata_count > 0:
+                lines.append(f"\n_(rich metadata available on {metadata_count} params: "
+                             f"default/min/max/step/creator — see JSON response)_")
         return "\n".join(lines)
 
     elif command_type == "enumerate_userdata":
