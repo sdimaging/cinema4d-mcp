@@ -3425,6 +3425,37 @@ async def scene_nodes_create_capsule_with_pattern(
 
 
 @mcp.tool()
+async def scene_nodes_helper_ping(
+    ctx: Context = None,
+) -> str:
+    """Probe whether the cinema4d_mcp_helper C++ companion plugin is loaded
+    and discoverable.
+
+    The C++ shim adds two Scene Nodes primitives that aren't exposed in
+    Python: GraphModelInterface::AddPort (named-port creation on Floating
+    IO nodes) and NodeTemplate-typed asset publishing (.c4dnodes format
+    that surfaces FIO routing as Attribute Manager parameters). This
+    tool reports whether the shim has been built + installed.
+
+    Phase A.0 (2026-04-30): Verifies the .cdl64 plugin loaded; subsequent
+    phases wrap the actual primitives. Build via scripts/build_cpp_shim.sh
+    and the C4D 2026 SDK Visual Studio solution.
+
+    Returns: {ok, helper_loaded, helper_id, helper_name, hint?}
+
+    SAFE — read-only plugin discovery.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {"command": "scene_nodes_helper_ping"}
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
 async def scene_nodes_save_as_asset(
     object_name: str,
     asset_name: Optional[str] = None,

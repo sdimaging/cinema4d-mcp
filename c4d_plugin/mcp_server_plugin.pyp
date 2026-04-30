@@ -910,6 +910,8 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_scene_nodes_save_as_asset(command)
                         elif command_type == "scene_nodes_load_asset":
                             response = self.handle_scene_nodes_load_asset(command)
+                        elif command_type == "scene_nodes_helper_ping":
+                            response = self.handle_scene_nodes_helper_ping(command)
                         elif command_type == "paint_vertex_map_from_formula":
                             response = self.handle_paint_vertex_map_from_formula(command)
                         elif command_type == "paint_vertex_map_radial":
@@ -11427,6 +11429,7 @@ class C4DSocketServer(threading.Thread):
         "scene_nodes_describe_node_template",
         "scene_nodes_create_capsule_with_pattern",
         "scene_nodes_save_as_asset", "scene_nodes_load_asset",
+        "scene_nodes_helper_ping",
         "paint_vertex_map_from_formula", "paint_vertex_map_radial",
         "list_deformer_types", "apply_deformer",
         "list_field_types", "add_field_to_scene", "bake_field_to_vmap",
@@ -11468,6 +11471,7 @@ class C4DSocketServer(threading.Thread):
         "scene_nodes_list_assets",      # read-only — enumerates registered/discovered assets
         "scene_nodes_atlas_lookup",     # read-only — atlas search
         "scene_nodes_classify_graph",   # read-only — graph classification
+        "scene_nodes_helper_ping",      # read-only — C++ shim discovery probe
         "list_deformer_types",  # discovery only, no scene mutation
         "list_field_types",     # discovery only, no scene mutation
         "list_osl_snippets",    # constants only, no mutation
@@ -14558,6 +14562,84 @@ class C4DSocketServer(threading.Thread):
             return result
         except Exception as e:
             return {"error": f"scene_nodes_list_assets failed: {e}", "traceback": traceback.format_exc()}
+
+    def handle_scene_nodes_helper_ping(self, command):
+        """Probe the cinema4d_mcp_helper C++ companion plugin.
+
+        Phase A.0 contract (2026-04-30): verifies the C++ shim plugin
+        (.cdl64) is loaded by C4D and discoverable from Python via
+        c4d.plugins.FindPlugin(1057845, PLUGINTYPE_MESSAGEDATA). Returns
+        the plugin's reported name + ID + type if found, or a clear
+        diagnostic if not.
+
+        Use this AFTER building + installing the C++ shim per
+        scripts/build_cpp_shim.sh. If this returns ok=true with the
+        expected name 'cinema4d-mcp helper', the bridge is real and the
+        AddPort / NodeTemplate-publishing primitives can be wired in
+        Phase A.1 / B.
+
+        Returns:
+          {ok, helper_loaded: bool, helper_id, helper_name, helper_type,
+           shim_protocol_version, hint?: str}
+        """
+        try:
+            HELPER_ID = 1057845
+
+            def _probe():
+                plug = c4d.plugins.FindPlugin(HELPER_ID, c4d.PLUGINTYPE_COREMESSAGE)
+                if plug is None:
+                    # Could also be registered as a different plugin type;
+                    # check COMMAND / NODE / TAG just to surface a
+                    # better error.
+                    other_types = []
+                    for t in (c4d.PLUGINTYPE_COMMAND, c4d.PLUGINTYPE_NODE,
+                              c4d.PLUGINTYPE_TAG, c4d.PLUGINTYPE_ANY):
+                        try:
+                            p2 = c4d.plugins.FindPlugin(HELPER_ID, t)
+                            if p2 is not None:
+                                other_types.append((t, p2.GetName()))
+                        except Exception:
+                            pass
+                    return {
+                        "_loaded": False,
+                        "_other_type_hits": other_types,
+                    }
+                return {
+                    "_loaded": True,
+                    "_id": plug.GetID(),
+                    "_name": plug.GetName(),
+                    "_type": "PLUGINTYPE_COREMESSAGE",
+                }
+
+            outcome = self.execute_on_main_thread(_probe, _timeout=5)
+            if isinstance(outcome, dict) and "_error" in outcome:
+                return {"error": outcome["_error"]}
+
+            loaded = outcome.get("_loaded", False)
+            result = {
+                "ok": True,
+                "helper_loaded": loaded,
+                "shim_protocol_version": 1,
+            }
+            if loaded:
+                result["helper_id"] = outcome.get("_id")
+                result["helper_name"] = outcome.get("_name")
+                result["helper_type"] = outcome.get("_type")
+            else:
+                result["hint"] = (
+                    "C++ shim plugin not found at ID 1057845. Steps to install:"
+                    " (1) cd cinema4d-mcp; (2) ./scripts/build_cpp_shim.sh all;"
+                    " (3) build the cinema4d_mcp_helper project in the C4D 2026 SDK"
+                    " Visual Studio solution (x64 Release); (4) ./scripts/"
+                    "build_cpp_shim.sh install; (5) restart C4D. See"
+                    " cpp_shim/README.md."
+                )
+                if outcome.get("_other_type_hits"):
+                    result["other_plugin_type_hits"] = outcome["_other_type_hits"]
+            return result
+        except Exception as e:
+            return {"error": f"scene_nodes_helper_ping failed: {e}",
+                    "traceback": traceback.format_exc()}
 
     def handle_scene_nodes_save_as_asset(self, command):
         """Save an SN Generator (or any BaseObject) + its embedded graph as

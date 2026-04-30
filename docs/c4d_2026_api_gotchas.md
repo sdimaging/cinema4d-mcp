@@ -295,6 +295,183 @@ main thread" (same constraint as undo / maxon.frameworks.* APIs).
 
 ---
 
+## 20. `node.GetValue()` requires `maxon.InternedId`, not `maxon.Id`
+
+`GraphNode.GetValue(attribute_id)` reads a node attribute (e.g. a Floating
+IO's `attribute.direction`). Passing `maxon.Id("net.maxon.node.floatingio.attribute.direction")`
+fails with `unable to convert builtins.NativePyData to @net.maxon.datatype.internedid`.
+The fix is `maxon.InternedId(...)`.
+
+```python
+# WRONG:
+v = node.GetValue(maxon.Id("net.maxon.node.floatingio.attribute.direction"))
+
+# RIGHT:
+v = node.GetValue(maxon.InternedId("net.maxon.node.floatingio.attribute.direction"))
+```
+
+`InternedId` is the canonical attribute-key type. `Id` is for asset/object
+identifiers. Different namespaces internally — they don't auto-coerce.
+
+---
+
+## 21. `port.Connect()` can SILENTLY NO-OP on void-template ports
+
+The Scene Nodes imperative API (`graph.BeginTransaction() → src.Connect(dst) → txn.Commit()`)
+works for typed-port-to-typed-port wires. But for **void-template ports** —
+notably `net.maxon.node.floatingio.portlist` — `Connect()` returns no error
+*and* the transaction commits cleanly, but **no wire actually lands**. The
+C4D editor uses a higher-level auto-port-specialization on drag-wire that
+isn't exposed in the Python imperative API.
+
+**Always verify after commit:**
+
+```python
+src_port_obj.Connect(dst_port_obj)
+txn.Commit()
+
+dst_id = str(dst_port_obj.GetId())
+landed = any(str(p.GetId()) == dst_id
+             for (p, _wires) in src_port_obj.GetConnections(1))
+if not landed:
+    # Connect silently no-oped — likely a void-template port.
+    raise RuntimeError("wire did not land after commit")
+```
+
+The `cinema4d-mcp` `scene_nodes_connect_ports` handler does this verification
+post-commit and returns `ok=false` with a diagnostic if the wire didn't land.
+
+---
+
+## 22. `graph.AddPorts(parent, idx, count)` needs VARIADIC_TEMPLATE on the parent
+
+Python wraps the plural form `AddPorts(parent, index, count)` (count-based,
+adds N numbered slots). It fails with `Illegal argument: Condition variadic &
+PORT_FLAGS::VARIADIC_TEMPLATE not fulfilled` when the parent port doesn't
+have the variadic-template flag. Floating IO nodes and PORTLIST ports do
+NOT satisfy this.
+
+The C++ singular form at `frameworks/graph.framework/source/maxon/graph.h:891`:
+```cpp
+MAXON_METHOD Result<GraphNode> AddPort(const GraphNode& parent, const Id& name);
+```
+is the API the C4D editor actually uses for named-port creation — but it's
+**not exposed in Python**. Wrap it in a C++ shim plugin if needed.
+
+---
+
+## 23. `AssetCreationInterface.CreateObjectAsset` works programmatically
+
+`maxon.AssetCreationInterface.CreateObjectAsset` is fully exposed in Python
+in C4D 2026 (verified 2026-04-30). Saves a `BaseObject` + its embedded graph
+as a `net.maxon.assettype.file` asset (`.c4d` format). Bit-identical
+round-trip via `AssetManagerInterface.LoadAssets`.
+
+Signature (from docstring):
+```python
+desc = maxon.AssetCreationInterface.CreateObjectAsset(
+    op,                              # BaseObject
+    activeDoc,                       # BaseDocument
+    storeAssetStruct,                # maxon.StoreAssetStruct
+    assetId,                         # maxon.Id (empty -> auto)
+    assetName,                       # str
+    assetVersion,                    # str
+    copyMetaData,                    # maxon.AssetMetaData
+    addAssetsIfNotInThisRepository,  # bool
+)
+# returns maxon.AssetDescription
+```
+
+`StoreAssetStruct` constructor takes 3 args: `parentCategory` (must be
+`maxon.Id` or string-convertible to Id, NOT `InternedId`), `lookupRepo`,
+`saveRepo`. Get the user prefs repo via
+`maxon.AssetInterface.GetUserPrefsRepository()`.
+
+```python
+repo = maxon.AssetInterface.GetUserPrefsRepository()
+sas  = maxon.StoreAssetStruct(
+    maxon.Id("net.maxon.assetcategory.uncategorized"),
+    repo, repo)
+desc = maxon.AssetCreationInterface.CreateObjectAsset(
+    obj, doc, sas, maxon.Id(), "MyAsset", "1.0",
+    maxon.AssetMetaData(), True)
+```
+
+To reload: `maxon.AssetManagerInterface.LoadAssets(repo, [(asset_id, "")], None, None)`
+returns True on success and inserts the asset's content into the active doc.
+
+**Caveat:** `CreateObjectAsset` produces `net.maxon.assettype.file`, NOT
+`net.maxon.node.assettype.nodetemplate`. Maxon's shipped capsules
+(Edge to Spline, Random Selection, etc.) are NodeTemplate-typed (`.c4dnodes`
+format) — and that asset type is NOT exposed in Python. NodeTemplate
+publishing requires C++.
+
+---
+
+## 24. Asset type registry — `maxon.AssetTypes` enumeration
+
+`maxon.AssetTypes` is a registry exposing 50+ asset type declarations. The
+ones relevant for graph/capsule work:
+
+| `AssetTypes.X()` returns | Type ID |
+|---|---|
+| `File` | `net.maxon.assettype.file` (generic .c4d wrapper) |
+| `NodeTemplate` | `net.maxon.node.assettype.nodetemplate` (Scene Nodes capsule .c4dnodes) |
+| `NodeContext` | `net.maxon.assettype.nodecontext` |
+| `NodeSpace` | `net.maxon.class.datalessassettype` |
+| `NodeDescription` | `net.maxon.node.assettype.nodedescription` |
+| `NodeDefaultsPreset` | `net.maxon.assettype.preset.defaults.node` |
+| `DocumentPreset` | `net.maxon.assettype.preset.document` |
+| `UserDataPreset` | `net.maxon.assettype.preset.userdata` |
+
+Use these as the type filter for `repo.FindAssets(type_id, asset_id, version, mode)`.
+637 NodeTemplate assets ship in a vanilla install of C4D 2026.
+
+---
+
+## 26. `PLUGINTYPE_MESSAGEDATA` doesn't exist — use `PLUGINTYPE_COREMESSAGE`
+
+C++ plugins registered via `RegisterMessagePlugin(...)` (with a
+`MessageData`-derived dispatcher class) are looked up from Python via
+`c4d.plugins.FindPlugin(plugin_id, c4d.PLUGINTYPE_COREMESSAGE)` — value
+`17`. There is **no** `c4d.PLUGINTYPE_MESSAGEDATA` constant despite the
+C++-side class being called `MessageData`. The naming mismatch is a
+classic Maxon trap.
+
+Available `PLUGINTYPE_*` constants (verified C4D 2026.2):
+```
+ANY=0  SHADER=1  MATERIAL=2  COMMAND=4  OBJECT=5  TAG=6  BITMAPFILTER=7
+VIDEOPOST=8  TOOL=9  SCENEHOOK=10  NODE=11  LIBRARY=12  BITMAPLOADER=13
+BITMAPSAVER=14  SCENELOADER=15  SCENESAVER=16  COREMESSAGE=17
+CUSTOMGUI=18  CUSTOMDATATYPE=19  RESOURCEDATATYPE=20
+MANAGERINFORMATION=21  CTRACK=32  FALLOFF=33  VMAPTRANSFER=34  PREFS=35
+SNAP=36  FIELDLAYER=37  DESCRIPTION=38
+```
+
+If you're discovering a C++ plugin you registered yourself, use
+`PLUGINTYPE_COREMESSAGE` for MessageData-style registrations and
+`PLUGINTYPE_COMMAND` for `RegisterCommandPlugin` registrations.
+
+---
+
+## 25. Scene Nodes 777 DescID root is editor metadata, NOT user AM params
+
+The cinema4d-mcp project initially treated DescIDs under root 777 as the
+"Scene Nodes Attribute Manager namespace." This is wrong. After 3 rounds
+of probing across different inner graph configurations (bare empty, Memory
++ FloatingIO, Edge to Spline with 5 inner FIOs), the 777 tree was always
+the **same 12 entries** — Scene Nodes editor metadata (group folders +
+filter tags + node category + a fixed Maxon placeholder hash). The hash
+`BrM5f_dgHBXvK6gQuZ3cQA` LOOKS per-instance but is identical across all
+SN Generators.
+
+User-facing AM params live under capsule-asset-specific roots (e.g. spline
+generators surface params at roots 1000-1005, 4000 from the SplineObject
+base class). FIO-routed params surface as AM params **only when the inner
+graph is registered as a NodeTemplate-typed asset** — see gotcha #23.
+
+---
+
 ## Discovery process
 
 This list grows organically. Whenever runtime contradicts an API

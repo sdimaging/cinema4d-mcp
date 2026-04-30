@@ -1,0 +1,26 @@
+// cinema4d_mcp_helper — C++ companion plugin for the cinema4d-mcp Python plugin.
+// Closes the two Python-API gaps in Scene Nodes capsule authoring:
+//   1. GraphModelInterface::AddPort(parent, Id name) for named FIO ports
+//   2. NodeTemplate-typed asset publishing (.c4dnodes format)
+//
+// PHASE A.0: this file currently builds the minimum skeleton needed to prove
+// the Python <-> C++ bridge round-trips a Message() call. Scene Nodes logic
+// arrives in subsequent phases.
+
+Platform=Win64;OSX
+
+Type=DLL
+
+APIS=\
+    asset.framework;\
+    cinema.framework;\
+    cinema_hybrid.framework;\
+    core.framework;\
+    graph.framework;\
+    nodes.framework;\
+    nodespace.framework
+
+C4D=true
+stylecheck.level=3
+
+ModuleId=net.sdimaging.cinema4d_mcp_helper
