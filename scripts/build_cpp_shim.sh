@@ -59,47 +59,58 @@ regen_project() {
     echo "(if this repo gets a ProjectTool wrapper, plug it in here)"
 }
 
-install_built_cdl64() {
+install_built_plugin() {
     if [ -z "$C4D_DIR" ]; then
         echo "❌ Could not locate Maxon Cinema 4D 2026 install dir under $APPDATA"
         exit 1
     fi
-    # Common Maxon SDK output paths — try each
-    BUILD_OUTPUTS=(
-        "$SDK/_build_v143/Win64/Release"
-        "$SDK/_build_v143/Win64/Debug"
-        "$SDK/plugins/$SHIM_NAME/_build_v143/Win64/Release"
-    )
+    # The C4D 2026 SDK on Windows produces .xdl64, not .cdl64 (verified
+    # 2026-04-30 from the user's first successful build). Find both.
+    # Recursive search anywhere under _build_v143 or under plugin's own
+    # _build_v143 subdir — the SDK output path varies by build config.
     OUTPUT_FILE=""
-    for d in "${BUILD_OUTPUTS[@]}"; do
-        candidate="$d/$SHIM_NAME.cdl64"
-        if [ -f "$candidate" ]; then
+    for ext in xdl64 cdl64; do
+        # Use find with -type f to traverse the unknown subdir structure
+        candidate=$(find "$SDK/_build_v143" -type f -name "$SHIM_NAME.$ext" 2>/dev/null \
+                    | grep -i "release" | head -1)
+        if [ -z "$candidate" ]; then
+            # fallback: any subdir named release/Release
+            candidate=$(find "$SDK/_build_v143" -type f -name "$SHIM_NAME.$ext" 2>/dev/null | head -1)
+        fi
+        if [ -n "$candidate" ]; then
             OUTPUT_FILE="$candidate"
             break
         fi
     done
     if [ -z "$OUTPUT_FILE" ]; then
-        echo "❌ no .cdl64 output found. Checked:"
-        for d in "${BUILD_OUTPUTS[@]}"; do echo "   $d/$SHIM_NAME.cdl64"; done
-        echo "   Build via Visual Studio first, then re-run 'install'."
+        echo "❌ no $SHIM_NAME.{xdl64,cdl64} output found under $SDK/_build_v143"
+        echo "   Build via Visual Studio (or cmake --build) first, then re-run 'install'."
+        echo "   (Note: Windows builds produce .xdl64; .cdl64 is macOS/Linux convention.)"
         exit 1
     fi
     mkdir -p "$INSTALL_DIR"
     cp -v "$OUTPUT_FILE" "$INSTALL_DIR/"
-    echo "✅ installed. Restart C4D (or Stop+Start the MCP socket-server plugin"
-    echo "   then C4D restart for full reload) and verify via:"
-    echo "      c4d.plugins.FindPlugin(1057845, c4d.PLUGINTYPE_MESSAGEDATA)"
+    EXT="${OUTPUT_FILE##*.}"
+    echo ""
+    echo "✅ Installed: $INSTALL_DIR/$SHIM_NAME.$EXT"
+    echo "   Now FULLY RESTART Cinema 4D (Reload Python Plugins is NOT enough)."
+    echo "   Verify via:"
+    echo "      c4d.plugins.FindPlugin(1057845, c4d.PLUGINTYPE_COREMESSAGE)"
+    echo "   or via the MCP tool: scene_nodes_helper_ping"
 }
 
 case "$cmd" in
     sync)    sync_to_sdk ;;
     project) sync_to_sdk; regen_project ;;
-    install) install_built_cdl64 ;;
+    install) install_built_plugin ;;
     all)     sync_to_sdk; regen_project
              echo ""
-             echo "Next steps:"
-             echo "  1. Open the C4D 2026 SDK Visual Studio solution"
-             echo "  2. Build the '$SHIM_NAME' project (x64 Release)"
-             echo "  3. Run: $0 install" ;;
+             echo "Next steps (verified working 2026-04-30):"
+             echo "  1. Open the C4D 2026 SDK Visual Studio solution OR run cmake:"
+             echo "       cd \"\$SDK/_build_v143\""
+             echo "       cmake --build . --config Release --target $SHIM_NAME"
+             echo "  2. Run: $0 install"
+             echo "  3. FULLY RESTART Cinema 4D (Reload Python Plugins is not enough)"
+             echo "  4. Run scene_nodes_helper_ping (MCP tool) — expect helper_loaded=True" ;;
     *)       echo "Usage: $0 {sync|project|install|all}"; exit 1 ;;
 esac

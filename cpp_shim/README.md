@@ -1,6 +1,6 @@
 # cinema4d-mcp C++ Helper Plugin
 
-**Status (2026-04-30):** Phase A.0 — minimal Python ↔ C++ bridge skeleton. Builds, loads, registers a stable plugin ID. Subsequent phases wrap `GraphModelInterface::AddPort` (Phase A.1) and NodeTemplate publishing (Phase B). Full design at [`docs/cpp_shim_design.md`](../docs/cpp_shim_design.md).
+**Status (2026-04-30):** Phase A.0 ✅ **PROVEN LIVE** — built, installed, loaded, discoverable from Python. `c4d.plugins.FindPlugin(1057845, c4d.PLUGINTYPE_COREMESSAGE)` returns a non-None plugin instance with name `"cinema4d-mcp helper"`. Bridge is real. Subsequent phases wrap `GraphModelInterface::AddPort` (Phase A.1) and NodeTemplate publishing (Phase B). Full design at [`docs/cpp_shim_design.md`](../docs/cpp_shim_design.md).
 
 ## Why this exists
 
@@ -38,17 +38,36 @@ cpp_shim/
     └── source/main.cpp                          everything for Phase A.0
 ```
 
-## Building
+## Building (verified working 2026-04-30)
 
-The Maxon SDK ships a `ProjectTool` that generates Visual Studio solutions from `projectdefinition.txt`. The user has a working build environment for C4D 2026 plugins (Luminary, MechFlow, Spikr2, SplatFlow all live builds). Reuse that toolchain.
+End-to-end verified path:
 
-Build script `scripts/build_cpp_shim.sh`:
-1. Symlinks (or copies) `cpp_shim/cinema4d_mcp_helper/` → `<C4D_SDK>/plugins/cinema4d_mcp_helper/`
-2. Re-runs ProjectTool to refresh the VS solution
-3. (Manual step) open VS solution + build x64 Release target
-4. Copies output `.cdl64` → `%APPDATA%/Maxon/Maxon Cinema 4D 2026_<HASH>/plugins/`
+```bash
+# 1. Sync source into the SDK plugins tree
+./scripts/build_cpp_shim.sh sync
 
-For Phase A.0 the build script handles steps 1+4. Step 2+3 stay manual until automation pays for itself.
+# 2. Build via cmake (Visual Studio backend)
+cd "/mnt/c/Users/Spenser Dickerson/Documents/C4D_2026_SDK/_build_v143"
+cmake --build . --config Release --target cinema4d_mcp_helper
+# (or open the generated VS solution and build manually)
+
+# 3. Install — finds the .xdl64 (yes, .xdl64 on Windows; gotcha #27)
+#    and copies it to %APPDATA%/Maxon/Maxon Cinema 4D 2026_<HASH>/plugins/cinema4d-mcp/
+./scripts/build_cpp_shim.sh install
+
+# 4. FULLY RESTART Cinema 4D (Reload Python Plugins is not enough)
+
+# 5. Verify
+#    From Python: c4d.plugins.FindPlugin(1057845, c4d.PLUGINTYPE_COREMESSAGE)
+#    Or via MCP:  scene_nodes_helper_ping
+```
+
+The actual build output path on Windows was:
+`<SDK>/_build_v143/bin/Release/plugins/cinema4d_mcp_helper/cinema4d_mcp_helper.xdl64`
+
+Note `.xdl64` not `.cdl64` — this is correct for the C4D 2026 Windows SDK
+(see `docs/c4d_2026_api_gotchas.md` #27). The install script handles both
+extensions automatically.
 
 ## Phase A.0 contract — what to verify after install
 

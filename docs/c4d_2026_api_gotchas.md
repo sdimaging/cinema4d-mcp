@@ -429,6 +429,39 @@ Use these as the type filter for `repo.FindAssets(type_id, asset_id, version, mo
 
 ---
 
+## 27. C4D 2026 Windows SDK produces `.xdl64`, not `.cdl64`
+
+The Maxon SDK convention has historically used `.cdl64` for Windows
+plugin extensions and `.xdl64` for macOS. **In C4D 2026's Windows SDK
+this is reversed**: Visual Studio builds produce `.xdl64` files (verified
+2026-04-30 with the cinema4d-mcp helper plugin built via
+`cmake --build . --config Release`).
+
+C4D 2026 loads `.xdl64` files from the Windows plugins directory just
+fine — install pattern is:
+```
+%APPDATA%/Maxon/Maxon Cinema 4D 2026_<HASH>/plugins/<plugin_name>/<plugin_name>.xdl64
+```
+
+When writing build/install scripts, search for both extensions and pick
+whichever the build produced — don't hardcode `.cdl64`. Example
+(`scripts/build_cpp_shim.sh`):
+```bash
+for ext in xdl64 cdl64; do
+    candidate=$(find "$SDK/_build_v143" -type f -name "$plugin.$ext" 2>/dev/null | head -1)
+    if [ -n "$candidate" ]; then break; fi
+done
+```
+
+The exact build output path under the user's setup was:
+```
+C4D_2026_SDK/_build_v143/bin/Release/plugins/<plugin_name>/<plugin_name>.xdl64
+```
+(`bin/Release/plugins/<name>/` is deeper than expected — must use
+recursive `find`, not a hardcoded path).
+
+---
+
 ## 26. `PLUGINTYPE_MESSAGEDATA` doesn't exist — use `PLUGINTYPE_COREMESSAGE`
 
 C++ plugins registered via `RegisterMessagePlugin(...)` (with a
