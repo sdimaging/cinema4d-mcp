@@ -460,6 +460,26 @@ But cannot (with the API surface we've mapped):
 - Register the inner graph as a typed asset class
 - Surface inner FIOs as AM parameters on a generic SN Generator wrapper
 
+### Phase A.1 finding (2026-04-30 evening) — runtime AddPort on FIO is fundamentally unsupported
+
+We built and shipped a C++ companion plugin (`cinema4d_mcp_helper`) to wrap `GraphModelInterface::AddPort`. The bridge works (Python ↔ C++ round-trip via `SpecialEventAdd` proven live with PING returning `pong`). But the actual `AddPort` operation on a FloatingIO is rejected by the C++ runtime through every variant we tried:
+
+| Variant | Rejection |
+|---|---|
+| `fio.AddPort(name)` | "You can't add a port directly to node Root" |
+| `fio.GetInputs().AddPort(name)` | "PrivateIsNodeAFloatingIo not fulfilled" |
+| `graph.AddPorts(fio, idx, count)` | "VARIADIC_TEMPLATE not fulfilled" |
+
+The SDK marks FloatingIO `/// INTERNAL.` and the only `AddPort` pattern that works in plugin examples is in `example.nodes/source/space/dynamic_node_impl.cpp`, where ports are added to a `maxon::nodes::MutableRoot` during **NodeTemplate definition** (template-build-time, not runtime).
+
+**Conclusion:** runtime port-mutation on FIOs is a fundamental restriction, not a Python wrapping gap. The C++ shim doesn't unlock it; the actual path is Phase B (NodeTemplate publishing). Full details in [`docs/c4d_2026_api_gotchas.md`](c4d_2026_api_gotchas.md) gotcha #36.
+
+**What the shim DID prove:**
+- Python ↔ C++ bridge architecture works (gotcha #34 — `SpecialEventAdd` + `BFM_CORE_ID` filter)
+- Worker-thread poll for async dispatch works (gotcha #35)
+- `cmake.exe` builds plugins from WSL just like `gh.exe` does git pushes
+- The infrastructure is reusable for Phase B (NodeTemplate publishing) and other future C++ primitives
+
 ### Path forward — what we've added 2026-04-30 (post-CreateObjectAsset session)
 
 **Confirmed Python entry points that DO work:**

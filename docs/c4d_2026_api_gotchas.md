@@ -552,6 +552,51 @@ implementation forwarded to the graph internally.
 
 ---
 
+## 36. Runtime `AddPort` on a FloatingIO is NOT supported — must define at NodeTemplate-build-time
+
+After 4 attempts (2026-04-30 cinema4d-mcp Phase A.1), all runtime
+`AddPort` variants targeting a FloatingIO instance fail:
+
+| Attempt | Error |
+|---|---|
+| `fio.AddPort(portId)` (FIO node directly) | `"You can't add a port directly to node Root."` |
+| `fio.GetInputs().AddPort(portId)` | `"PrivateIsNodeAFloatingIo(trueNode) not fulfilled."` |
+| `graph.AddPorts(fio, idx, count)` | `"VARIADIC_TEMPLATE not fulfilled."` |
+| `graph.AddPorts(portlist_port, idx, count)` | `"VARIADIC_TEMPLATE not fulfilled."` |
+
+The walker DID find the correct FIO node (debug-trail confirmed via
+`BC_KEY_DEBUG`: `candidates=[floatingio@HASH(MATCH), context_externaltimeinput, context_notime]`).
+The runtime C++ AddPort implementation rejects FloatingIO targets.
+
+**FloatingIO is marked `/// INTERNAL.`** in
+`frameworks/nodes.framework/source/maxon/definitions/nodes_utility.h`.
+Adding ports to a FIO is a NodeTemplate-build-time operation, NOT a
+runtime graph-edit operation.
+
+**The SDK pattern that DOES work for adding named ports** lives in
+`plugins/example.nodes/source/space/dynamic_node_impl.cpp`:
+```cpp
+// During NodeTemplate definition (template-build-time):
+maxon::nodes::MutableRoot root = parent.CreateNodeSystem() iferr_return;
+maxon::nodes::MutablePort outPort = root.GetOutputs().AddPort(NODE::DYNAMIC::RESULT) iferr_return;
+outPort.SetType<maxon::Color>() iferr_return;
+```
+
+Note `MutableRoot` / `MutablePort` are different types from runtime
+`GraphNode`. They're for asset-creation, not graph-mutation.
+
+**Implication for "user-tunable capsule with AM params" workflows:** the
+actual path is `Phase B` — build a complete NodeTemplate definition with
+FIOs+ports baked in via `MutableRoot`, save as a NodeTemplate-typed
+`.c4dnodes` asset (not `.c4d` File asset — see gotcha #23). The asset's
+FIOs surface as AM params when an instance is dragged in.
+
+The C4D editor's drag-wire UX likely reaches this via an even
+higher-level operation (instantiate a new NodeTemplate from the existing
+FIO's definition + the new desired port; replace the in-place FIO).
+
+---
+
 ## 35. `SpecialEventAdd` is ASYNC — handler fires after caller returns
 
 Continuation of gotcha #34. `SpecialEventAdd` queues a CoreMessage to be
