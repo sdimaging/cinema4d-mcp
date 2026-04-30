@@ -407,27 +407,73 @@ The cinema4d-mcp plugin ships **9 scene-nodes-specific tools**. Use them in this
 
 ---
 
-## 8. The Floating IO / capsule Attribute Manager bridge (partial map)
+## 8. The Floating IO / capsule Attribute Manager bridge
 
-**Discovered 2026-04-30** via GPT 5.5 review + live probing. The bridge between Scene Nodes graphs and the Attribute Manager is **partly mapped** but has a known gap.
+**Cracked 2026-04-30** through three rounds of live probing + GPT 5.5 review + dissection of Edge to Spline (the gold-standard reference because Maxon's engineers shipped it with 5 working FIOs inside).
 
-### What's confirmed
+### Layer separation: 777 ≠ AM-params
 
-**Path 777 is the SN-derived AM namespace.** Every Scene Nodes Generator (plugin id 180420700) has a built-in `Description` with 77 DescIDs, of which 12 sit under root 777. The path levels under 777 are **4-byte char-ID-encoded ASCII** spelling out canonical asset IDs:
+Earlier we conflated "DescIDs under root 777" with "what artists see in the Attribute Manager." Three rounds of probing proved they are different things:
 
-```
-[777, 1852142638, 1835104367, 1848536687, 1684352610, 1634952494,
- 1735552885, 1882089838, 1886745715, 1]
-   ↓ decode each level via struct.pack(">I", n).decode("ascii")
-"<777>/net./maxo/n.no/de.b/ase./grou/p.in/puts/<1>"
-   = "777 / net.maxon.node.base.group.inputs / 1"
-```
+- **Root 777 is Scene Nodes editor metadata.** Always 12 entries, layout fixed across every SN Generator regardless of inner graph contents. The hash `BrM5f_dgHBXvK6gQuZ3cQA` is a Maxon-shipped placeholder, NOT per-instance.
+- **AM-params live under capsule-asset-specific roots** (e.g. spline params at 1000–1005, 4000 for SplineObject-derived capsules; transform at 800–933 for BaseObject-derived; etc.).
+- **AM-param visibility is governed by the host capsule's REGISTERED CLASS, not by the inner graph.** A generic SN Generator wrapper (180420700) does NOT auto-surface its inner FIOs as AM params — that requires the capsule to be saved as a registered asset.
 
-**The 12 standard groups under root 777:**
+### Floating IO node — what it actually is
+
+A FIO is a **routing node** with three semantic slots:
+- 1× input port `net.maxon.node.floatingio.portlist` — a `void` template port (always present, even on bare FIOs, never has children at the FIO root)
+- N× input port `hiddenin1.<canonical.attribute.path>` — picks up a value from outside-scope (the host node's input)
+- N× output port `in1.<canonical.attribute.path>` — distributes that value to inside-scope consumers
+
+The N pairs of `hiddenin1` / `in1` ports are **named after the canonical attribute path** they route. For Edge to Spline's `reverse` parameter:
+- `hiddenin1.net.maxon.nodes.scene.geo.spline.generator.edgetospline.reverse`
+- `in1.net.maxon.nodes.scene.geo.spline.generator.edgetospline.reverse`
+
+Plus three node-attribute fields readable via `node.GetValue(maxon.InternedId(...))`:
+- `net.maxon.node.floatingio.attribute.direction` (Bool: `false` = input direction, `true` = output direction)
+- `net.maxon.node.floatingio.defaultname.inputs` (String, optional UI override)
+- `net.maxon.node.floatingio.defaultname.outputs` (String, optional UI override)
+
+### What the imperative API CAN'T do (verified 2026-04-30)
+
+- **`graph.AddPorts(parent, index, count)`** fails with `Illegal argument: Condition variadic & PORT_FLAGS::VARIADIC_TEMPLATE not fulfilled` on both the FIO node AND its PORTLIST port. PORTLIST is `void`-typed, not flagged variadic-template at this layer.
+- **`port.Connect(other_port)` to/from PORTLIST** silently no-ops (returns no error but no wire is created and PORTLIST stays empty). The auto-specialization that the C4D UI does on drag-wire is NOT exposed in the imperative API.
+- **The C++ singular `AddPort(parent, Id name)`** at `graph.framework/source/maxon/graph.h:891` would in theory let us add named ports directly; only the plural `AddPorts` is wrapped in the Python frameworks module.
+- **No Python entry point** to "save inner graph as capsule asset" was found in `c4d.modules` or `maxon.frameworks.{nodes,graph,nodespace,asset}`.
+
+### Bottom line
+
+Building a user-tunable Capsule generator with custom AM parameters is **a UI-driven workflow**, not a Python-imperative one. The Python path can:
+- Build inner graphs via `GraphDescription.ApplyDescription`
+- Connect existing typed ports via `BeginTransaction` + `port.Connect()` + `Commit`
+- Read static metadata via `GetDescription` / `enumerate_descids`
+
+But cannot (with the API surface we've mapped):
+- Auto-emit `hiddenin1.<canonical>` + `in1.<canonical>` named ports on a FIO
+- Register the inner graph as a typed asset class
+- Surface inner FIOs as AM parameters on a generic SN Generator wrapper
+
+### Path forward (when this becomes blocking)
+
+1. Drive the C4D UI to "Save as Capsule Asset" via `c4d.CallCommand` (need to discover the command ID — `find_command_by_name` candidates: "Save Asset", "Create Capsule").
+2. After save, the asset registers with its own object ID and FIOs auto-surface.
+3. Programmatic instantiation then uses the new asset ID directly (not generic SN Generator).
+
+### How `enumerate_descids` surfaces 777 entries
+
+Every entry under root 777 returns:
+- `path`: the raw level-id list (e.g. `[777, 1852142638, ...]`)
+- `decoded_path`: the human-readable form (e.g. `"<777>/net./maxo/n.no/..."`)
+- `instance_hash`: extracted hash segment when present (4-char tokens not in canonical vocab)
+- `semantic_guess`: heuristic classification (`group_inputs`, `group_outputs`, `instance_hash_leaf`, etc.)
+- `current_value` OR `current_value_error` per-row (whole row preserved on read failure)
+
+### The 12 standard groups under root 777
 | Decoded path | Dtype | Semantic |
 |---|---|---|
 | `net.maxon.datadescription.editor.1` | 1 | editor metadata |
-| `net.maxon.node.base.<HASH>/<1>` | 11 | instance-hash leaf (see caveat below) |
+| `net.maxon.node.base.<HASH>/<1>` | 11 | static placeholder (NOT per-instance) |
 | `net.maxon.node.base.filtertags/<1>` | 130 | filter tags string |
 | `net.maxon.node.base.category/<1>` | 15 | node category int |
 | `<777>/<1>` | 12 | (anonymous) |
@@ -438,29 +484,6 @@ The cinema4d-mcp plugin ships **9 scene-nodes-specific tools**. Use them in this
 | `geom/etry/out` | 12 | geometry output |
 | `net.maxon.node.base.group.object/<1>` | 1 | **Object** group folder |
 | `net.maxon.render.node.base.group.context/<1>` | 1 | **Context** group folder |
-
-**Reads**: leaf dtypes (130/15/12) READ via `obj[descid]`. Group dtype=1 entries return "object unknown in Python" — they're folder containers, not values.
-
-### The caveat (gap GPT 5.5 flagged)
-
-**The DescID tree is STATIC.** Empirical comparison (3 probes — Vector via Memory, Float via Range.count, Geometry via Sphere — each with Memory+FloatingIO+wire) showed **identical 12-DescID layouts every time**. The hash `BrM5f_dgHBXvK6gQuZ3cQA` that LOOKS per-instance is actually **fixed Maxon-shipped placeholder**, identical across all probes.
-
-**Conclusion:** Adding a Floating IO node and wiring it does NOT auto-emit a new DescID. Floating IO requires explicit `PORTLIST` configuration (typed port-descriptor input — not just a wire) for the bridge to populate. The bridge mechanism beyond the static schema is not yet mapped.
-
-### What this unlocks
-
-- **You can read static SN Generator metadata** (Filter Tags, Node Category) via `enumerate_descids` + `get_parameter`.
-- **You can navigate the Inputs/Outputs/Basic/Coord/Object/Context group containers** by decoded path.
-- **You CAN'T (yet) round-trip "add a Floating IO → see a UD param appear in Attribute Manager"** programmatically — the PORTLIST config step is the missing piece.
-
-### How `enumerate_descids` exposes this
-
-After 2026-04-30, every entry under root 777 returns:
-- `path`: the raw level-id list (e.g. `[777, 1852142638, ...]`)
-- `decoded_path`: the human-readable form (e.g. `"<777>/net./maxo/n.no/..."`)
-- `instance_hash`: extracted hash segment when present (4-char tokens not in canonical vocab)
-- `semantic_guess`: heuristic classification (`group_inputs`, `group_outputs`, `instance_hash_leaf`, etc.)
-- `current_value` OR `current_value_error` per-row (whole row preserved on read failure)
 
 ---
 
