@@ -69,9 +69,10 @@ static Bool MatchesNodeIdSegment(const maxon::GraphNode& node, const maxon::Stri
 	}
 	if (lastSeg == target)
 		return true;
-	// also match basename (before '@') against the target
+	// also match basename (before '@') against the target. Use Find (not
+	// FindFirst — that name doesn't exist on maxon::String, see gotcha #28).
 	maxon::Int atPos;
-	if (lastSeg.FindFirst("@"_s, &atPos))
+	if (lastSeg.Find("@"_s, &atPos))
 	{
 		const maxon::String base = lastSeg.GetPart(0, atPos);
 		if (base == target)
@@ -130,7 +131,10 @@ static maxon::Result<void> DoAddFloatingIOPort_Impl(BaseContainer* wc,
 	if (!root.IsValid())
 		return maxon::UnexpectedError(MAXON_SOURCE_LOCATION, "graph view root is invalid"_s);
 
-	graph.GetInnerNodes(root, maxon::NODE_KIND::NODE, false,
+	// GetInnerNodes is on the GraphNode, NOT on the graph reference (gotcha
+	// #30). Recurses through node-kind children; the receiver is invoked for
+	// each. Return true to continue, false to stop.
+	root.GetInnerNodes(maxon::NODE_KIND::NODE, false,
 		[&foundFio, &fioTargetMaxon](const maxon::GraphNode& candidate) -> maxon::Result<maxon::Bool>
 		{
 			if (foundFio.IsValid())
@@ -157,7 +161,13 @@ static maxon::Result<void> DoAddFloatingIOPort_Impl(BaseContainer* wc,
 	maxon::Id portId;
 	portId.Init(portNameMaxon) iferr_return;
 
-	maxon::GraphNode newPort = container.AddPort(portId) iferr_return;
+	// container.AddPort returns Result<GraphNode>. Use the explicit unwrap
+	// pattern — `iferr_return` doesn't extract the value cleanly when the
+	// caller-site type is the deduced template form (gotcha #29 caveat).
+	maxon::Result<maxon::GraphNode> portResult = container.AddPort(portId);
+	if (portResult.IsError())
+		return portResult.GetError();
+	maxon::GraphNode newPort = portResult.GetValue();
 	if (!newPort.IsValid())
 		return maxon::UnexpectedError(MAXON_SOURCE_LOCATION,
 			"AddPort returned invalid GraphNode"_s);

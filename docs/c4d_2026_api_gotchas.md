@@ -519,6 +519,65 @@ that header AND list `neutron.framework` in the project's APIS.
 
 ---
 
+## 32. `maxon::String` has `Find` not `FindFirst`; `GetInnerNodes` is on `GraphNode` not on the graph
+
+Two API-shape traps in one. Both bit me on the second compile attempt of
+the cinema4d-mcp helper plugin (2026-04-30):
+
+**(a) `maxon::String::FindFirst` doesn't exist.** The available methods
+(c4d 2026 SDK):
+```
+Bool Find(const REFTYPE& str, Int* pos, StringPosition start = 0)
+Bool Find(CHARTYPE ch, Int* pos, StringPosition start = 0)
+Bool FindLast(const REFTYPE& str, Int* pos, StringPosition start = StringEnd())
+Bool FindLast(CHARTYPE ch, Int* pos, StringPosition start = StringEnd())
+Int  FindIndex(...)        // returns -1 if not found, vs Bool result
+Int  FindLastIndex(...)
+```
+Use `Find` (no "First"). All methods take an output position pointer or
+return an Int index.
+
+**(b) `GetInnerNodes` is a method on `GraphNode`, not on `NodesGraphModelRef`.**
+The pattern is:
+```cpp
+maxon::GraphNode root = graph.GetViewRoot();
+root.GetInnerNodes(maxon::NODE_KIND::NODE, /*includeThis=*/false,
+    [&](const maxon::GraphNode& candidate) -> maxon::Result<maxon::Bool> {
+        // process candidate
+        return maxon::Bool(true); // continue
+    }) iferr_return;
+```
+Same applies to `GetChildren` — both are on the GraphNode, with the underlying
+implementation forwarded to the graph internally.
+
+---
+
+## 33. `Result<GraphNode>` from `AddPort` may need explicit unwrap (not just `iferr_return`)
+
+`container.AddPort(portId)` returns a templated `Result<GraphNode>`. The
+chained `iferr_return` pattern that works for most other Maxon APIs:
+```cpp
+maxon::GraphNode newPort = container.AddPort(portId) iferr_return;  // FAILS
+```
+sometimes fails to compile with:
+```
+error C2440: 'initializing': cannot convert from 'maxon::Result<maxon::GraphNode>' to 'maxon::GraphNode'
+```
+This appears to depend on the inferred type of the `container` (the
+SFINAEHelper template that drives `AddPort`'s return type may resolve to
+something `iferr_return` doesn't unwrap cleanly).
+
+**Bulletproof workaround — explicit Result unwrap:**
+```cpp
+maxon::Result<maxon::GraphNode> portResult = container.AddPort(portId);
+if (portResult.IsError())
+    return portResult.GetError();
+maxon::GraphNode newPort = portResult.GetValue();
+```
+Verbose but always compiles. Use this pattern when `iferr_return` fights you.
+
+---
+
 ## 31. `GraphNode.AddPort(name)` lives on the PORT (not the graph)
 
 The C++ surface for adding a named port to an existing port-container has
