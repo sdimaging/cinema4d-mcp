@@ -12373,7 +12373,6 @@ class C4DSocketServer(threading.Thread):
                 from c4d.modules import mograph as _mg
                 FieldLayer = _mg.FieldLayer
                 FieldInput = _mg.FieldInput
-                FieldOutput = _mg.FieldOutput
             except Exception as e:
                 return {"error": f"FieldList API not available: {e}"}
 
@@ -12387,13 +12386,12 @@ class C4DSocketServer(threading.Thread):
             mg = dest.GetMg() if space == "world" else c4d.Matrix()
             positions = [mg.Mul(dest.GetPoint(i)) for i in range(n)]
 
-            # Minimal sample pattern. The previous impl built a dead
-            # FieldInfo via flist.GetSampleFlags() which doesn't exist —
-            # fields_smoke recipe caught it. SampleListSimple takes:
-            #   (caller, FieldInput, FieldOutput) → fills the output.
+            # Correct C4D 2026 signature, discovered via runtime probe:
+            #   field_output = flist.SampleListSimple(host, FieldInput, flags_int)
+            # Returns a NEW FieldOutput; don't pre-create. Earlier impls
+            # tried (host, in, out) and (host, in, out, flags) — all wrong.
             field_input = FieldInput(positions, n)
-            field_output = FieldOutput.Create(n, c4d.FIELDSAMPLE_FLAG_VALUE)
-            flist.SampleListSimple(dest, field_input, field_output)
+            field_output = flist.SampleListSimple(dest, field_input, c4d.FIELDSAMPLE_FLAG_VALUE)
 
             weights = [field_output.GetValue(i) for i in range(n)]
 

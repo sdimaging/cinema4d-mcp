@@ -197,6 +197,24 @@ doc.InsertObject(poly)  # REQUIRED — result is orphan otherwise
 
 **Fix (server.py side):** Auto-translate `/mnt/<drive>/...` to `<DRIVE>:\\...` before sending the command. Already implemented in `_normalize_paths_in_command` — applied to known path-arg keys (`file_path`, `save_path`, `save_dir`, `bitmap_path`, `path`, etc.).
 
+## 18. `FieldList.SampleListSimple` returns FieldOutput (don't pre-create)
+
+**Wrong:** `flist.SampleListSimple(host, FieldInput, pre_built_FieldOutput)` — errors with `'FieldOutput' object cannot be interpreted as an integer`.
+
+**Actual (2026):** `field_output = flist.SampleListSimple(host, FieldInput, flags_int)` — returns a NEW FieldOutput. The 3rd arg is a `FIELDSAMPLE_FLAG_*` int, NOT a pre-built FieldOutput. Don't construct one yourself.
+
+```python
+flist = c4d.FieldList()
+layer = c4d.modules.mograph.FieldLayer(c4d.FLfield)
+layer.SetLinkedObject(field_obj)
+flist.InsertLayer(layer)
+inputs = c4d.modules.mograph.FieldInput(positions, n)
+output = flist.SampleListSimple(host_obj, inputs, c4d.FIELDSAMPLE_FLAG_VALUE)
+weights = [output.GetValue(i) for i in range(n)]
+```
+
+The signature is `(BaseList2D, FieldInput, int) -> FieldOutput`. Took several probe iterations to land on this — the docstring just says "Sample a FieldList with simpler parameters" with no signature hint.
+
 ## 17. DescriptionResource IDs vs Shader Plugin IDs (don't confuse)
 
 **Wrong:** `c4d.BaseShader(c4d.DESCRIPTIONRESOURCE_OSLTEXTURE)` to instantiate Octane's OSL texture (804752314 — description resource id, NOT a plugin id).
