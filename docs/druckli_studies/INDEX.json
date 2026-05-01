@@ -130,5 +130,62 @@
       "Redshift integration (RS Camera + RS Materials) not yet exposed via cinema4d-mcp",
       "Recipe-composition primitive needed: combine simulation + render layers"
     ]
+  },
+  {
+    "study_index": 9,
+    "slug": "crystal_cutter_basic_geosolver",
+    "scene_name": "Crystal_Cutter_Basic_GeoSolver",
+    "patterns": ["feedback_loop", "simulation_bridge", "volume_pipeline", "time_animation", "modifier_stack", "om_orchestrated_feedback", "swappable_deformer_slot", "externalized_memory_host"],
+    "minimal_recipe_id": "R28_perpetual_reactionary_growth",
+    "minimal_recipe_node_count": "5 OM + 5-node Nodes Mesh",
+    "secondary_recipes": ["R26_externalized_memory_buffer", "R27_om_feedback_via_instance"],
+    "host_plugin_id": 180420600,
+    "nodespace": "net.maxon.neutron.nodespace",
+    "graph_node_count": 5,
+    "complexity": "medium",
+    "folder": "scenes/09_crystal_cutter_basic_geosolver/"
+  },
+  {
+    "study_index": 10,
+    "slug": "crystal_cutter_tutorial",
+    "scene_name": "Crystal_Cutter_Tutorial",
+    "built_on": 9,
+    "patterns": ["feedback_loop", "simulation_bridge", "om_orchestrated_feedback", "swappable_deformer_slot", "externalized_memory_host", "chained_solvers", "cube_as_plane_cutter", "mograph_bridge"],
+    "minimal_recipe_id": "R29_chained_solver_stacks",
+    "secondary_recipes": ["R28b_boolean_deformer_slot", "R30_spinning_cutter_primitive", "R31_iteration_count_via_fps", "R32_mograph_dynamics_wrap", "R33_cube_as_plane_cutter"],
+    "host_plugin_id": 180420600,
+    "nodespace": "net.maxon.neutron.nodespace",
+    "graph_node_count": 10,
+    "complexity": "hard",
+    "folder": "scenes/10_crystal_cutter_tutorial/"
+  },
+  {
+    "study_index": 11,
+    "slug": "crystal_cutter_preview",
+    "scene_name": "Crystal_Cutter_Preview",
+    "twin_of": 10,
+    "patterns": ["feedback_loop", "om_orchestrated_feedback", "swappable_deformer_slot", "externalized_memory_host", "chained_solvers", "cube_as_plane_cutter"],
+    "minimal_recipe_id": "R34_minimum_scene_nodes_footprint",
+    "secondary_recipes": ["R35_compound_motion_null_hierarchy", "R36_decorrelated_random_fields"],
+    "host_plugin_id": 180420600,
+    "nodespace": "net.maxon.neutron.nodespace",
+    "graph_node_count": 10,
+    "complexity": "medium-easy",
+    "folder": "scenes/11_crystal_cutter_preview/"
+  },
+  {
+    "study_index": 12,
+    "slug": "crystal_cutter_final_render",
+    "scene_name": "Crystal_Cutter_Final_Render",
+    "twin_of": [10, 11],
+    "patterns": ["feedback_loop", "om_orchestrated_feedback", "swappable_deformer_slot", "externalized_memory_host", "chained_solvers", "multi_seed_variants", "baked_procedural_archive", "production_lighting", "render_engine_specific"],
+    "minimal_recipe_id": "R38_bake_procedural_variants",
+    "secondary_recipes": ["R37_multi_seed_init_state", "R39_compound_motion_null_chain_arbitrary_depth", "R40_n_decorrelated_random_fields"],
+    "host_plugin_id": 180420600,
+    "nodespace": "net.maxon.neutron.nodespace",
+    "graph_node_count": 10,
+    "complexity": "hard",
+    "folder": "scenes/12_crystal_cutter_final_render/",
+    "delta_only": true
   }
 ]
