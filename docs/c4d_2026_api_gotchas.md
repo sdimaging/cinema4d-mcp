@@ -9,6 +9,288 @@ anyone building agent integrations against C4D 2026.
 
 ---
 
+## 47. THE BIG ONE — for Scene Nodes ports, the CONNECTION provides type binding (not the description attributes)
+
+**Wrong:** to make an AM-exposed port draggable in a Scene Nodes Generator,
+you must construct a 9-attribute schema (`fixedtype`, `portDescriptionData`,
+`portDescriptionUi`, `portDescriptionStringLazy`, etc.) matching what the
+Resource Editor stores. Set `classification`, `datatype`, `unit`, `guitypeid`,
+build a `LazyLanguageDictionary` for the label, etc. — the more attributes
+you replicate, the more it should look like an editor-created port.
+
+**Actual:** none of those attributes drive the widget binding. Setting them
+explicitly *blocks* C4D's runtime type inference and produces locked text
+widgets in the AM. The widget binding comes from the **port connection**:
+C4D infers the port's type from the connected downstream port at runtime.
+
+The minimal recipe (4 lines) produces a fully draggable AM-exposed
+parameter:
+```python
+with graph.BeginTransaction() as txn:
+    port = inputs.AddPort(name)
+    port.SetPortValue(maxon.Float64(0.0))               # initial value
+    port.SetValue("net.maxon.node.base.name", label)    # display name
+    port.Connect(target_typed_inner_port)               # ← THIS binds the widget
+    txn.Commit()
+```
+
+Type-morphing also works — disconnect + reconnect to a different-typed port
+and the widget adapts. No `fixedtype`, no description dicts, no template
+cloning needed.
+
+**Discovered:** spent ~6 hours over-specifying the schema and producing
+locked widgets. User suggested "just create blank, connect to typed port,
+adjust from there" — and that worked. The overspecified schema was
+*overriding* the type inference. See `docs/gesture_differ_findings.md` for
+full reverse-engineering history.
+
+---
+
+## 46. `idata`, `value_flags`, and `fixedtype:NativePyDataType` are derived attributes — Python can't write them
+
+**Wrong:** `port.SetValue("idata", ...)` should work like any other
+attribute write.
+
+**Actual:** these three attributes are *derived* — only writable during
+C++ "attribute derivation" triggered by editor-internal commands. Python
+SetValue calls error with:
+```
+"The derived attribute idata may only be set during an attribute derivation"
+"The derived attribute value_flags may only be set during an attribute derivation"
+```
+
+`fixedtype` is even trickier — the editor stores it as a `NativePyDataType`
+(a special Python wrapper bound to C++ derivation state). Constructing one
+from Python via `maxon.DataType.Get(...)` produces a regular `maxon.DataType`
+that doesn't trigger widget binding. There's no public Python API to create
+a `NativePyDataType`.
+
+**Workarounds (in order of preference):**
+1. **Don't write them.** Use the connection-based recipe in gotcha #47 —
+   the connection provides everything these attributes would.
+2. **`port.CopyValuesFrom(template_port, includeInner=True)`** — clones
+   ALL attributes including derived ones from an existing typed port. The
+   docstring says it "excludes derived attributes" but with `includeInner=True`
+   it actually transfers them.
+3. C++ shim that calls the editor's command-framework path (this is what
+   Phase A.1 was originally targeting — see strategic docs).
+
+---
+
+## 45. `dir(graph_node_instance)` triggers "expected generic datatype capsule" error
+
+**Wrong:** `dir(my_port)` lists available methods like any Python object.
+
+**Actual:** for freshly-allocated maxon GraphNode instances,
+`dir(instance)` triggers a binding-internal type-resolution error:
+```
+TypeError: expected generic datatype capsule
+```
+
+Probably a maxon Python binding bug — `dir` walks the instance and
+something in the proxy resolution fails on certain freshly-created
+objects.
+
+**Workaround:** walk the class instead of the instance:
+```python
+methods = set()
+for cls in type(my_port).__mro__:
+    for name in dir(cls):
+        if not name.startswith("_"):
+            methods.add(name)
+```
+
+This bypasses the instance-level binding and gets the full method list.
+
+---
+
+## 44. Variadic ports — Connect() to the parent creates metadata slots but NO data flow; must Connect to a child slot
+
+**Wrong:** `connect_node.GetInputs().FindChild("geometryin").Connect(...)`
+multiple times will create N variadic input slots that all carry the data
+properly.
+
+**Actual:** the parent variadic port (e.g. `connect_geometries.geometryin`)
+has type `GenericInstantiation<Array<Tuple<Id, DataDictionary>>>` — it
+accepts a STRUCTURED ARRAY of geometry+insertindex tuples, not direct
+geometry. When you Connect to the parent, C4D dutifully records metadata
+(`{_0/insertindex:1, _1/insertindex:2}`) but no actual data flows because
+the path needs an orange CHILD slot.
+
+**Correct pattern:**
+```python
+parent_variadic = find_port(connect_node, "geometryin", "in")
+slot0 = parent_variadic.AddPort(maxon.Id("_0"))   # creates slot
+slot1 = parent_variadic.AddPort(maxon.Id("_1"))   # next slot
+clone_output.Connect(slot0)                         # data actually flows
+setsel_output.Connect(slot1)
+```
+
+Slot identifiers go `_0, _1, _2, ...` — created on demand. Calling
+`AddPort("_0")` twice errors with "already has a child port named _0".
+Always check existing children first if you might re-run.
+
+**Discovered:** built a Scene Nodes capsule with 2 wires into Connect's
+variadic, all "succeeded" but the graph was red because data never flowed.
+User pointed out the white-vs-orange port distinction in the editor view.
+
+---
+
+## 43. `graph.AddChild(child_id, node_id, args)` accepts long Maxon canonical IDs; `ApplyDescription` `$type` does NOT
+
+**Wrong:** `GraphDescription.ApplyDescription(graph, {"$type": "net.maxon.neutron.node.primitive.cube"})`
+adds a Cube node — same id you'd find via `AssetInterface.FindAssets`.
+
+**Actual:** ApplyDescription's `$type` requires SHORT-FORM type labels
+that aren't the same as the canonical asset registry IDs. Long-form IDs
+like `net.maxon.neutron.node.primitive.cube` produce:
+```
+"The node type reference 'net.maxon.neutron.node.primitive.cube' is not associated with any IDs"
+```
+
+The lower-level `graph.AddChild(child_id, node_id, args)` DOES accept the
+long-form canonical IDs:
+```python
+new_node = graph.AddChild("my_cube",
+                           "net.maxon.neutron.node.primitive.cube",
+                           maxon.DataDictionary())
+```
+
+Use `AddChild` for programmatic construction; reserve `ApplyDescription`
+for cases where you have a verified `$type` label (see
+`docs/scene_nodes_guide.md` and `data/verified_labels.json`).
+
+ALSO: `ApplyDescription` is fundamentally a node-creation DSL — the top
+level requires `$type`. It cannot mutate root's port list (you'll get
+"Missing node type declaration" if you try to put port keys at the top
+level).
+
+---
+
+## 42. `obj.Message(maxon.neutron.MSG_CREATE_IF_REQUIRED)` is required before `obj.GetNimbusRef()` for fresh SN Generators
+
+**Wrong:** `obj.GetNimbusRef(maxon.NodeSpaceIdentifiers.SceneNodes)` on a
+freshly-created Scene Nodes Generator returns a usable handler.
+
+**Actual:** on a freshly-inserted SN Generator, `GetNimbusRef` returns
+`None` until you "wake up" the Nimbus subsystem with:
+```python
+obj.Message(maxon.neutron.MSG_CREATE_IF_REQUIRED)
+handler = obj.GetNimbusRef(maxon.NodeSpaceIdentifiers.SceneNodes)
+```
+
+Required ritual for any code path that creates an SN Generator + immediately
+operates on its embedded graph. Maxon's own example
+`associate_nodes_2026_2.py` shows this pattern.
+
+---
+
+## 41. `handler.GetDescID(port.GetPath())` is the canonical AM-exposure verifier
+
+**Wrong:** to verify that a Scene Nodes port is exposed in the Attribute
+Manager, walk the AM's parameter list looking for a matching name.
+
+**Actual:** the Nimbus handler exposes a direct check:
+```python
+handler = obj.GetNimbusRef(maxon.NodeSpaceIdentifiers.SceneNodes)
+try:
+    did = handler.GetDescID(port.GetPath())
+    print(f"port is AM-exposed with DescID: {did}")
+except Exception:
+    print("port is internal/hidden — not in AM")
+```
+
+Built-in graph-context ports (`time`, `frame`, `nimbus`, `searchpaths`)
+correctly throw — they're not user-facing. User-added or programmatically-
+synthesized root ports return a valid 6-level DescID.
+
+This pattern comes from Maxon's `associate_nodes_2026_2.py` example —
+also shows `handler.FindOrCreateCorrespondingBaseList(node.GetPath())`
+which returns the cinema-side `BaseList2D` surrogate.
+
+---
+
+## 40. Enumerate ALL attributes on a maxon GraphNode via `GetValues(0xFFFFFFFF)`
+
+**Wrong:** `node.GetValue("some.attribute.id")` on string keys you guess
+returns the value if present.
+
+**Actual:** `GetValue(string_key)` returns `None` for almost every key on
+a node, even keys that ARE set internally. Reason: most internal attributes
+are keyed by `maxon.InternedId`, not string, and the binding lookup is
+type-strict.
+
+To enumerate ALL attributes set on a node:
+```python
+for (key, value) in port.GetValues(0xFFFFFFFF):  # uint32 mask, not Id!
+    print(f"{key}: {value}")
+```
+
+The mask argument is a **uint32 bitflag** (use `0xFFFFFFFF` for all),
+NOT a `maxon.Id` despite docstring suggesting so.
+
+To read a specific attribute by its known key, use:
+```python
+v = port.GetStoredValue(maxon.InternedId("net.maxon.attribute.foo"))
+```
+
+Note `GetStoredValue` requires `InternedId` (not `Id` — different type).
+
+If you want a DataDictionary's contents fully:
+```python
+ddata = port.GetStoredValue(maxon.InternedId("portDescriptionData"))
+for (subkey, subval) in ddata:
+    print(f"  {subkey}: {subval}")
+```
+
+---
+
+## 39. `maxon.DataType.Get(<type>)` accepts `str`, NOT `Id` or `InternedId`
+
+**Wrong:** `maxon.DataType.Get(maxon.Id("float64"))` to get the Float64
+DataType.
+
+**Actual:** errors with `"id must be str not <class 'maxon.data.Id'>"`.
+This is unusual — most maxon getters accept `Id` or `InternedId`.
+
+**Correct:**
+```python
+float_dt = maxon.DataType.Get("float64")        # plain str
+int_dt   = maxon.DataType.Get("int64")
+vec_dt   = maxon.DataType.Get("vector64")
+bool_dt  = maxon.DataType.Get("bool")
+str_dt   = maxon.DataType.Get("net.maxon.interface.string-C")
+```
+
+Note: even when you write `fixedtype` correctly via this path, it produces
+a `maxon.DataType` (not the `NativePyDataType` the editor uses) — see
+gotcha #46 for the implications.
+
+---
+
+## 38. Port description `unit` belongs in `portDescriptionData`, NOT `portDescriptionUi`
+
+**Wrong:** "unit" is a UI concept (what unit to display), so it belongs
+in `portDescriptionUi`.
+
+**Actual:** the `net.maxon.description.ui.base.unit` Id key is stored
+inside the `portDescriptionData` DataDictionary, not `portDescriptionUi`.
+Despite "ui.base" being in the key name itself.
+
+```python
+ddata = maxon.DataDictionary()
+ddata.Set(maxon.InternedId("net.maxon.description.ui.base.unit"),
+          maxon.InternedId("meter"))
+port.SetValue(maxon.InternedId("portDescriptionData"), ddata)  # NOT portDescriptionUi
+```
+
+Caveat: per gotcha #47, you usually don't need to set this at all — the
+connection-based recipe handles type binding without explicit unit specs.
+But if you DO write description metadata explicitly (e.g. for a port
+without a downstream connection), the unit goes in the data dict.
+
+---
+
 ## 1. `doc.GetNimbusRef()` is single-arg only
 
 **Wrong:** `doc.GetNimbusRef(maxon.Id(sid), True)` with `create=True` to fetch-or-create.
