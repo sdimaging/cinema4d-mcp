@@ -1,0 +1,244 @@
+{
+  "scene_name": "Coral_Structures_Tutorial",
+  "source_file": "Coral-Structures_Tutorial_01.c4d",
+  "source_folder": "Coral-Structures_Tutorial-Files",
+  "studied_date": "2026-05-01",
+  "study_index": 7,
+  "patterns": [
+    "simulation_bridge",
+    "volume_pipeline",
+    "field_weighting",
+    "legacy_object_bridge",
+    "parameter_exposure",
+    "modifier_stack",
+    "classic_generator_input",
+    "time_animation"
+  ],
+  "purpose": "Particle-driven coral/barnacle growth on a mesh surface. Mesh Emitter spawns particles on the head bust; Field Condition gates by Random Field overlap; survivors voxelize via Volume Builder + Volume Mesher producing polygonal coral protrusions seamlessly fused with the head.",
+  "visual_result": "Head bust with vertex-color heat map (blue → green → yellow) marking field intensity, plus bumpy yellow/green coral clusters growing from the surface where particles survived the field gate. Ear, nose, top-of-head all covered with coral protrusions.",
+  "input_geometry": "Generic Head Bust (5100, polygon mesh) wrapped in Subdivision Surface, preprocessed by a Geometry Axis Nodes Modifier.",
+  "hosts": [
+    {
+      "om_name": "Geometry Axis",
+      "plugin_id": 180420400,
+      "plugin_name": "Nodes Modifier (Deformer)",
+      "nodespace": "net.maxon.neutron.nodespace",
+      "graph_node_count": 20,
+      "role": "preprocesses input mesh axis alignment via bounding-box of selected points"
+    },
+    {
+      "om_name": "Mask Y",
+      "plugin_id": 180420400,
+      "plugin_name": "Nodes Modifier (Deformer)",
+      "nodespace": "net.maxon.neutron.nodespace",
+      "graph_node_count": 5,
+      "role": "Y-axis range mask on volume output (post-process). MINIMAL Nodes Modifier — only pointsmodifier@ + framework."
+    }
+  ],
+  "doc_level_objects": [
+    {"name": "Random Field", "plugin_id": 440000281, "type": "FieldObject", "role": "drives Field Condition particle gating + per-vertex heat map on head"}
+  ],
+  "om_classic_generators": [
+    {"name": "Mesh Emitter", "plugin_id": 1062577, "role": "emits particles from head bust surface"},
+    {"name": "Particle Group init", "plugin_id": 1060887, "role": "initial particle group"},
+    {"name": "Field Condition", "plugin_id": 1062533, "role": "particle modifier — tests overlap with Random Field"},
+    {"name": "Kill", "plugin_id": 1061199, "role": "particle modifier — kills failed Field Condition particles"},
+    {"name": "Switch Group", "plugin_id": 1062045, "role": "particle modifier — transfers survivors to Particle Group Grow"},
+    {"name": "Particle Group Grow", "plugin_id": 1060887, "role": "destination group — fed into Volume Builder"},
+    {"name": "Connect", "plugin_id": 1011010, "role": "OM-level Connect generator — combines Volume Mesher + Mask Y outputs"},
+    {"name": "Volume Mesher", "plugin_id": 1039861, "role": "polygonizes Volume Builder SDF"},
+    {"name": "Volume Builder", "plugin_id": 1039859, "role": "unions Particle Group Grow + Subdivision Surface into SDF"},
+    {"name": "Subdivision Surface", "plugin_id": 1007455, "role": "smooths Generic Head Bust before voxelization"},
+    {"name": "Smoothing", "plugin_id": 1024529, "role": "post-Volume-Mesher smoothing layer"},
+    {"name": "Generic Head Bust", "plugin_id": 5100, "role": "input polygon mesh"}
+  ],
+  "annotations": [],
+  "annotation_storage_pattern": "No OM-tag annotations; no scaffold@ section labels in Nodes Modifier graphs (their tiny size doesn't need them).",
+  "am_sliders_geometry_axis": [
+    {"name": "Inputs", "type": "?", "exposure_pattern": "floatingio", "controls": "input geometry params"},
+    {"name": "Inputs", "type": "?", "exposure_pattern": "floatingio (×2 — duplicate names)"},
+    {"name": "Relative Position", "type": "Vector", "exposure_pattern": "floatingio", "controls": "axis offset relative to bounding box"},
+    {"name": "Axis Enable", "type": "Bool", "exposure_pattern": "floatingio", "controls": "toggle axis re-alignment"}
+  ],
+  "am_sliders_mask_y": [],
+  "am_exposure_pattern_note": "Geometry Axis uses floatingio wrappers (4 params). Mask Y has zero AM exposure — entirely self-contained. Both extremes possible in the Nodes Modifier family.",
+  "key_connections": [
+    {
+      "from": "Mesh Emitter (OM)",
+      "to": "Particle Group init",
+      "purpose": "Emit new particles into the initial group."
+    },
+    {
+      "from": "Random Field (doc-level)",
+      "to": "Field Condition (particle modifier)",
+      "purpose": "Field overlap drives particle pass/fail test."
+    },
+    {
+      "from": "Field Condition.fail",
+      "to": "Kill",
+      "purpose": "Particles failing Field Condition get killed."
+    },
+    {
+      "from": "Field Condition.pass",
+      "to": "Switch Group",
+      "purpose": "Particles passing get switched into Particle Group Grow."
+    },
+    {
+      "from": "Particle Group Grow",
+      "to": "Volume Builder.input",
+      "purpose": "Surviving particles feed into the Volume Builder for SDF unioning."
+    },
+    {
+      "from": "Subdivision Surface (head)",
+      "to": "Volume Builder.input",
+      "purpose": "Subdivided head fed into the SAME Volume Builder, unioned with particles."
+    },
+    {
+      "from": "Volume Builder.SDF",
+      "to": "Volume Mesher.in",
+      "purpose": "Polygonize the unioned SDF."
+    },
+    {
+      "from": "Volume Mesher.out + Smoothing",
+      "to": "Connect (1011010)",
+      "purpose": "Smoothed polygonal output goes into the OM-level Connect."
+    },
+    {
+      "from": "Connect output",
+      "to": "Mask Y (Nodes Modifier).in",
+      "purpose": "Final post-process Y-range clip via the 5-node Nodes Modifier."
+    },
+    {
+      "from": "Generic Head Bust",
+      "to": "Geometry Axis (Nodes Modifier).in (parent)",
+      "purpose": "Pre-process axis re-alignment of the input mesh."
+    }
+  ],
+  "output_routing": {
+    "final_node": "Connect (OM-level) wrapping the whole stack; Mask Y Nodes Modifier as final post-process",
+    "via": "Mask Y output → Connect → visible polygon mesh in OM",
+    "host_visibility_path": "Connect renders as classic mesh; the SDF math + Nodes Modifier deformations all baked into its child caches.",
+    "notes": "Distinct from previous scenes — output isn't a single Nodes host's emit; it's a CHAIN of OM generators with embedded Nodes Modifiers."
+  },
+  "interesting_types": [
+    "Particle Group membership as selection mechanism (alternative to Scene Nodes setselection@)",
+    "Volume Builder unioning two stream types (particles + mesh) into one SDF",
+    "5-node Nodes Modifier (just pointsmodifier@ + framework) — proves tiny shippable units exist",
+    "20-node Nodes Modifier with bounding-box-of-selected-points for axis re-alignment",
+    "Mesh Emitter + Particle Group + Field Condition + Kill + Switch Group = full particle filter chain"
+  ],
+  "core_idea_nodes": [
+    {
+      "name": "Field Condition + Kill + Switch Group (particle modifier chain)",
+      "type": "particle_modifiers (1062533, 1061199, 1062045)",
+      "why_it_matters": "Field-gated particle filtering. Field Condition tests overlap; Kill removes failures; Switch Group transfers survivors. The canonical particle-side equivalent of Scene Nodes' selection-by-field workflow."
+    },
+    {
+      "name": "Volume Builder (1039859)",
+      "type": "classic_volume_builder",
+      "why_it_matters": "Unions BOTH particle stream AND mesh stream into one SDF. Demonstrates that volume builders are stream-type-agnostic — feed it anything point-like, get a fused SDF."
+    },
+    {
+      "name": "Mask Y (5-node Nodes Modifier)",
+      "type": "180420400_minimal",
+      "why_it_matters": "Proves a useful Nodes Modifier can be just pointsmodifier@ + framework. No floatingio, no multi-node logic — single-purpose deformer in 5 nodes total."
+    },
+    {
+      "name": "Geometry Axis (20-node Nodes Modifier)",
+      "type": "180420400_axis_realignment",
+      "why_it_matters": "Bounding-box-of-selected-points → re-aligned axis system. Useful preprocessing for any scene needing consistent up/forward direction."
+    }
+  ],
+  "scaffolding_nodes": [
+    "context_externaltimeinput / context_notime / framework groups in both Nodes Modifiers"
+  ],
+  "what_is_clever": [
+    "Two Nodes Modifiers at different pipeline stages — Geometry Axis preprocesses input, Mask Y postprocesses output. Demonstrates Nodes Modifier composition.",
+    "Particle Group membership as selection mechanism — equivalent to setselection@ but in particle-space. Field Condition + Kill + Switch Group is the canonical particle filter chain.",
+    "5-node Nodes Modifier (Mask Y) proves tiny shippable units exist. Single-purpose deformers don't need elaborate AM exposure.",
+    "Volume Builder unions multiple stream types (particles + mesh) into one fused SDF — output looks seamless.",
+    "Vertex-color heat map on the head (visible at f0) shows the Random Field intensity directly on the input mesh BEFORE any particle simulation runs."
+  ],
+  "gotchas": [
+    {
+      "issue": "Particle scenes timeout when scrubbed via SetTime per-frame. Each call triggers full particle recompute → wedges main thread.",
+      "evidence": "Sequential 0..50 stepping plus screenshots → 30s execute_python timeout at f50. Confirmed by Spenser's correction: 'with something like particles you may want to PLAY rather than scrub'.",
+      "workaround": "For particle/dynamics scenes: trust mid-state captures, use playback, or pre-cook the simulation. Detect via Mesh Emitter / Particle Group / Field Condition presence."
+    },
+    {
+      "issue": "Nodes Modifier (180420400) hosts ALSO use Neutron in this scene — confirms gotcha #56 covers the whole 180420400/500/600/700 family.",
+      "evidence": "Both Geometry Axis and Mask Y returned net.maxon.neutron.nodespace from GetAllNimbusRefs().",
+      "workaround": "Always probe GetAllNimbusRefs() for any 1804204XX host."
+    },
+    {
+      "issue": "C4D 2026's new particle system (Mesh Emitter, Particle Group, Field Condition, etc.) doesn't surface parameters cleanly via host.GetDescription() walk.",
+      "evidence": "Description walk returned no usable parameter names for any of the 6 particle objects.",
+      "workaround": "Use param-specific descid lookups (or wait for cinema4d-mcp to expose particle-aware introspection helpers)."
+    }
+  ],
+  "rebuild_recipe": [
+    "1. Create top-level Connect (1011010) generator.",
+    "2. Inside Connect: Volume Mesher (1039861) + Mask Y Nodes Modifier (180420400, 5-node minimal: pointsmodifier@).",
+    "3. Inside Volume Mesher: Volume Builder (1039859) + Smoothing (1024529).",
+    "4. Inside Volume Builder: Particle Group Grow (1060887) + Subdivision Surface wrapping Generic Head Bust + Geometry Axis Nodes Modifier (180420400, 20-node).",
+    "5. As siblings of Connect: Mesh Emitter (1062577), Particle Group init (1060887) with Field Condition (1062533) → Kill (1061199), Switch Group (1062045).",
+    "6. Doc-level: Random Field (440000281).",
+    "7. Wire Field Condition's field reference to Random Field.",
+    "8. Wire Switch Group's destination to Particle Group Grow.",
+    "9. Set Mesh Emitter's Source to the head mesh.",
+    "10. Tune: Field Condition.Tolerance, Volume Builder.Voxel Size, Mask Y range, Mesh Emitter.Rate."
+  ],
+  "minimal_reproducible_subgraph": {
+    "name": "particle_to_volume_growth",
+    "purpose": "Spawn particles on a mesh surface, gate by field overlap, voxelize survivors + input mesh together → polygonal coral-style growth.",
+    "node_count": "7 host objects (5 OM + 2 Nodes Modifiers)",
+    "nodes": [
+      "Connect (top-level OM Connect generator)",
+      "Volume Mesher → Volume Builder → Particle Group Grow + Subdivision Surface > input mesh > Geometry Axis Nodes Modifier",
+      "Mask Y Nodes Modifier (post-process)",
+      "Mesh Emitter (sibling)",
+      "Particle Group init > Field Condition > Kill, Switch Group (sibling chain)",
+      "Random Field (doc-level)",
+      "(generic input mesh — bust, hull, rock, etc.)"
+    ],
+    "exposed_params": [
+      "Field Condition.Tolerance — overlap threshold % gating particles",
+      "Mesh Emitter.Rate — particles/sec",
+      "Volume Builder.Voxel Size — SDF resolution",
+      "Random Field.Strength — driving spatial selection",
+      "Mask Y output range"
+    ],
+    "value_proposition": "The canonical 'particles seed volumetric growth on a host mesh' archetype. Generalizes to: barnacles on hulls, moss on rocks, mushrooms on logs, alien protrusions on characters, crystal clusters on terrain.",
+    "candidate_for_mcp_recipe": true,
+    "recipe_id_proposed": "R17_particle_to_volume_growth",
+    "secondary_recipes": [
+      "R18_field_gated_particle_filter — Mesh Emitter + Particle Group + Field Condition + Kill + Switch Group (5-object particle filter chain)",
+      "R19_minimal_nodes_modifier — 5-node pointsmodifier-only deformer (Mask Y as pattern)",
+      "R20_axis_realignment_modifier — 20-node Geometry Axis pattern for bounding-box pivot re-alignment"
+    ],
+    "blockers_to_recipe_implementation": [
+      "C4D 2026 particle system (Mesh Emitter, Particle Groups, particle modifiers) not yet exposed via cinema4d-mcp",
+      "Particle-aware viewport_screenshot needed (current scrub-pattern times out)",
+      "Recipe composition system needed — combine R17 from sub-recipes R18+R19+R20"
+    ]
+  },
+  "lessons_for_cinema4d_mcp": [
+    "Plugin 180420400 (Nodes Modifier) ALSO uses Neutron in modern scenes. Gotcha #56 covers the whole 180420400/500/600/700 family.",
+    "Tiny Nodes Modifiers are shippable (5-node Mask Y). Recipe library should include minimal templates for single-purpose deformers.",
+    "Particle-Group-as-Selection is a documentable pattern alongside Scene Nodes setselection@.",
+    "viewport_screenshot needs a particle-aware variant. Detect via Mesh Emitter/Particle Group/Field Condition presence; trust mid-state or use playback.",
+    "Recipe composition is essential for multi-subsystem scenes — R17 = R18 + R19 + R20 + glue, not 50 individual operations."
+  ],
+  "artifacts": {
+    "study_md": "study.md",
+    "frames": [
+      "frames/default_f000.png (head + heat map, no bumps)",
+      "frames/default_f025.png (full coral coverage, all bumps grown)"
+    ],
+    "sliders": [],
+    "raw_graph_dump": null,
+    "captures_skipped": "f50, f100 timed out due to particle compute exceeding 30s; methodology note added"
+  },
+  "complexity": "hard",
+  "estimated_tool_calls_to_recreate_from_recipe": 50
+}

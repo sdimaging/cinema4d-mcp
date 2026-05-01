@@ -9,6 +9,76 @@ anyone building agent integrations against C4D 2026.
 
 ---
 
+## 59. Particle scenes need PLAY mode, not SCRUB — `SetTime(N)` per-frame triggers full recomputes that timeout
+
+**Discovered 2026-05-01** while studying the Coral Structures Tutorial
+scene. Spenser's correction: *"with something like particles you may
+want to PLAY rather than scrub 0,30,60, etc"*.
+
+### The failure mode
+
+For scenes containing C4D 2026's new particle system (Mesh Emitter +
+Particle Group + Field Condition + Kill / Switch Group, etc.) or
+classic dynamics (Cloth, Soft Body, Pyro), the scrub pattern that
+works for Memory@-only scenes:
+
+```python
+# Times out on particle scenes:
+for f in range(0, 100):
+    doc.SetTime(c4d.BaseTime(f, fps))
+    doc.ExecutePasses(...)
+```
+
+…wedges C4D's main thread because each `SetTime` + `ExecutePasses`
+forces the particle solver to **re-evaluate from its previous-recorded
+state**. If the target frame isn't cached, C4D recomputes from frame 0.
+Result: 30s execute_python_script timeouts.
+
+### Detection
+
+A scene is particle-heavy if any of these object types are present:
+
+| Plugin ID | Object | Notes |
+|---|---|---|
+| 1062577 | Mesh Emitter | C4D 2026 particle system |
+| 1060887 | Particle Group | C4D 2026 particle system |
+| 1062533 | Field Condition | particle modifier |
+| 1061199 | Kill | particle modifier |
+| 1062045 | Switch Group | particle modifier |
+| 5126 | Connect Instance | with Tracer/Fracture |
+| 1018655 | Tracer | trajectory tracer |
+| 1018791 | Fracture | particle fracture |
+| 1024529 | Cloth/Soft Body / Pyro | classic dynamics |
+
+### Working alternatives
+
+1. **Trust mid-state captures.** If f25 already shows the developed
+   simulation state (full particle distribution), that's
+   architecturally sufficient. Don't force f50/100 captures of
+   nearly-identical-looking coverage.
+
+2. **Use playback** if available. Once a scene has been played in C4D
+   the cache is warm; capture from cached state.
+
+3. **Single-frame stepping with longer timeouts** between calls. Step
+   one frame at a time, ping in between. Slow but stable.
+
+4. **Pre-cook the particle simulation** in the scene file (Bake to
+   PSR / Memory Cache) before MCP study, then capture from cache.
+
+### Why it matters for cinema4d-mcp
+
+`viewport_screenshot(frame=N)` should DETECT particle-presence and
+either:
+- Warn the agent ("scene has particles; mid-state capture only")
+- Use playback under the hood
+- Increase the timeout dynamically
+
+Currently the agent has to know to capture early frames + accept
+mid-state-as-architecture-proof.
+
+---
+
 ## 58. Use TOP-DOWN camera for flat 2D Scene-Nodes output (splines on plane, vertex maps, ornaments)
 
 **Discovered 2026-05-01** while studying the DRuckli `Spline_Grower_Ornament`
