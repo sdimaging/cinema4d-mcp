@@ -1,0 +1,97 @@
+{
+  "version": "1.0.0",
+  "generated_at": "2026-05-01",
+  "description": "Curated cinema4d-mcp knowledge layer. Production-grade C4D 2026 reference material that's not in any LLM's training data. Query via cinema4d_knowledge_index / get / search.",
+  "size_budget_bytes": 5242880,
+  "categories": [
+    {
+      "id": "scene_nodes",
+      "title": "Scene Nodes",
+      "entries": [
+        {
+          "path": "docs/scene_nodes_guide.md",
+          "title": "Scene Nodes — practical guide (6-layer architecture)",
+          "type": "markdown",
+          "topics": ["6-layer architecture", "GraphDescription DSL", "capsule plugin IDs", "selection capsules", "FloatingIO"]
+        },
+        {
+          "path": "docs/scene_nodes_nodebase_study.md",
+          "title": "Scene Nodes — Nodebase study (16 articles → 5 canonical recipes R1-R5)",
+          "type": "markdown",
+          "topics": ["node+port inventory", "R1 circle from Range", "R2 noise displacement", "R3 noise extrude LCV", "R4 weight Poke", "R5 MoGraph Voronoi bridge", "performance heuristics", "verbatim Nodebase quotes"]
+        },
+        {
+          "path": "data/scene_nodes_atlas.json",
+          "title": "Scene Nodes atlas (patterns, port types, anti-patterns, design principles)",
+          "type": "json"
+        },
+        {
+          "path": "data/node_template_index.json",
+          "title": "802 NodeTemplate canonical asset IDs (categorized)",
+          "type": "json"
+        },
+        {
+          "path": "data/node_port_schema.json",
+          "title": "Input/output port names per template",
+          "type": "json"
+        },
+        {
+          "path": "data/verified_labels.json",
+          "title": "ApplyDescription $type labels confirmed working",
+          "type": "json"
+        }
+      ]
+    },
+    {
+      "id": "c4d_2026_api",
+      "title": "C4D 2026 API runtime gotchas",
+      "entries": [
+        {
+          "path": "docs/c4d_2026_api_gotchas.md",
+          "title": "47 runtime gotchas (each contradicting older docs / training data)",
+          "type": "markdown",
+          "topics": ["GetNimbusRef 1-arg", "GraphDescription.GetGraph", "DescID runtime vs compile-time", "scope wires", "synthesize_port connection-based recipe", "BaseDraw constants", "vmap Float32 quantization"]
+        }
+      ]
+    },
+    {
+      "id": "research",
+      "title": "Active research lanes (handoff bundles)",
+      "entries": [
+        {
+          "path": "docs/scene_nodes_gpt_handoff.md",
+          "title": "Scene Nodes — GPT handoff (initial context)",
+          "type": "markdown"
+        },
+        {
+          "path": "docs/strategy_two_lanes.md",
+          "title": "Two-lane strategy: research vs product",
+          "type": "markdown"
+        },
+        {
+          "path": "docs/gesture_differ_findings.md",
+          "title": "Gesture differ findings (cracked the AM-exposed port recipe)",
+          "type": "markdown"
+        }
+      ]
+    },
+    {
+      "id": "recipes",
+      "title": "Production Scene Nodes recipes (runnable via recipe_run)",
+      "entries": [
+        {
+          "path": "data/recipes/README.md",
+          "title": "Recipe library overview + live-probe workflow",
+          "type": "markdown"
+        },
+        {
+          "path": "data/recipes/r1_circle_from_range.json",
+          "title": "R1 — Circle from Range (scaffold; pending live-probe pinning)",
+          "type": "recipe",
+          "status": "scaffold-pending-live-probe",
+          "source": "Nodebase: Iterations for Geometry Generation"
+        }
+      ]
+    }
+  ]
+}

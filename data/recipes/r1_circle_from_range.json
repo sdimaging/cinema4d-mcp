@@ -1,0 +1,136 @@
+{
+  "name": "scene_nodes_r1_circle_from_range",
+  "description": "R1 from scene_nodes_nodebase_study.md — generates spline points around a circle using Range → Range Mapper → Transform Vector → Spline Assembler. Source: Nodebase 'Iterations for Geometry Generation'. Pre-battle-test scaffold; live probe required for Transform Vector port names + Spline Assembler input port.",
+  "_source": "docs/scene_nodes_nodebase_study.md §Recipe R1",
+  "_status": "scaffold-pending-live-probe",
+  "_battle_test_notes": [
+    "1) After scene_nodes_create_graph + add_node calls, run scene_nodes_walk to confirm actual port names of Transform Vector and Spline Assembler.",
+    "2) Pin connect step args with confirmed port names.",
+    "3) Synthesize 'count' (int) and 'radius' (float) parameters via connection-based recipe.",
+    "4) Verify circle renders in viewport."
+  ],
+  "setup": [
+    {
+      "command": "scene_nodes_create_graph",
+      "args": {
+        "host_kind": "scene_nodes_generator",
+        "host_name": "Recipe R1 — Circle from Range"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "name": "add_range_iterator",
+      "command": "scene_nodes_add_node",
+      "args": {
+        "graph_target": "Recipe R1 — Circle from Range",
+        "asset_id": "TODO_ATLAS_LOOKUP_range_iterator",
+        "node_name": "range",
+        "_hint": "Range iterator outputs sequence 0..count-1; ports start/end/domain in, count/out/innerdomain/outerdomain out. Need atlas_lookup with kind='template' query='range' to find the canonical iterator (NOT fitrange/inrange which are math)."
+      }
+    },
+    {
+      "name": "add_range_mapper",
+      "command": "scene_nodes_add_node",
+      "args": {
+        "graph_target": "Recipe R1 — Circle from Range",
+        "asset_id": "net.maxon.asset.math.fitrange",
+        "node_name": "range_mapper",
+        "_hint": "fitrange remaps domain (e.g. 0..count-1 → 0..2π)."
+      }
+    },
+    {
+      "name": "add_transform_vector",
+      "command": "scene_nodes_add_node",
+      "args": {
+        "graph_target": "Recipe R1 — Circle from Range",
+        "asset_id": "net.maxon.node.transformvector",
+        "node_name": "transform_vec",
+        "_hint": "Apply matrix-from-angle to base position vector to rotate around origin."
+      }
+    },
+    {
+      "name": "add_spline_assembler",
+      "command": "scene_nodes_add_node",
+      "args": {
+        "graph_target": "Recipe R1 — Circle from Range",
+        "asset_id": "net.maxon.neutron.geometry.spline.assembler",
+        "node_name": "spline_assembler",
+        "_hint": "Generic spline assembler — bezier/bspline/linear/nurbs variants exist as separate IDs."
+      }
+    },
+    {
+      "name": "wire_range_to_mapper",
+      "command": "scene_nodes_connect_ports",
+      "args": {
+        "graph_target": "Recipe R1 — Circle from Range",
+        "from_node": "range",
+        "from_port": "out",
+        "to_node": "range_mapper",
+        "to_port": "TODO_LIVE_PROBE_fitrange_input"
+      }
+    },
+    {
+      "name": "wire_mapper_to_transform",
+      "command": "scene_nodes_connect_ports",
+      "args": {
+        "graph_target": "Recipe R1 — Circle from Range",
+        "from_node": "range_mapper",
+        "from_port": "TODO_LIVE_PROBE_fitrange_output",
+        "to_node": "transform_vec",
+        "to_port": "TODO_LIVE_PROBE_transform_angle_input"
+      }
+    },
+    {
+      "name": "wire_transform_to_assembler",
+      "command": "scene_nodes_connect_ports",
+      "args": {
+        "graph_target": "Recipe R1 — Circle from Range",
+        "from_node": "transform_vec",
+        "from_port": "TODO_LIVE_PROBE_transform_position_output",
+        "to_node": "spline_assembler",
+        "to_port": "TODO_LIVE_PROBE_assembler_positions_input"
+      }
+    },
+    {
+      "name": "wire_scope_range_to_assembler",
+      "command": "scene_nodes_connect_ports",
+      "args": {
+        "graph_target": "Recipe R1 — Circle from Range",
+        "from_node": "range",
+        "from_port": "outerdomain",
+        "to_node": "spline_assembler",
+        "to_port": "TODO_LIVE_PROBE_assembler_scope_end"
+      }
+    },
+    {
+      "name": "expose_count_param",
+      "command": "scene_nodes_synthesize_port",
+      "args": {
+        "target_object": "Recipe R1 — Circle from Range",
+        "name": "count",
+        "target_node_id": "range",
+        "target_port_id": "end",
+        "direction": "in",
+        "data_type": "int",
+        "default_value": 24,
+        "display_label": "Point Count"
+      }
+    },
+    {
+      "name": "expose_radius_param",
+      "command": "scene_nodes_synthesize_port",
+      "args": {
+        "target_object": "Recipe R1 — Circle from Range",
+        "name": "radius",
+        "target_node_id": "transform_vec",
+        "target_port_id": "TODO_LIVE_PROBE_transform_scale_or_translation_input",
+        "direction": "in",
+        "data_type": "float",
+        "default_value": 100.0,
+        "display_label": "Radius"
+      }
+    }
+  ],
+  "teardown": []
+}

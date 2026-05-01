@@ -920,6 +920,12 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_scene_nodes_helper_logger(command)
                         elif command_type == "scene_nodes_add_floating_io_port":
                             response = self.handle_scene_nodes_add_floating_io_port(command)
+                        elif command_type == "cinema4d_knowledge_index":
+                            response = self.handle_cinema4d_knowledge_index(command)
+                        elif command_type == "cinema4d_knowledge_get":
+                            response = self.handle_cinema4d_knowledge_get(command)
+                        elif command_type == "cinema4d_knowledge_search":
+                            response = self.handle_cinema4d_knowledge_search(command)
                         elif command_type == "paint_vertex_map_from_formula":
                             response = self.handle_paint_vertex_map_from_formula(command)
                         elif command_type == "paint_vertex_map_radial":
@@ -11439,6 +11445,8 @@ class C4DSocketServer(threading.Thread):
         "scene_nodes_save_as_asset", "scene_nodes_load_asset",
         "scene_nodes_helper_ping", "scene_nodes_helper_logger",
         "scene_nodes_add_floating_io_port",
+        "cinema4d_knowledge_index", "cinema4d_knowledge_get",
+        "cinema4d_knowledge_search",
         "paint_vertex_map_from_formula", "paint_vertex_map_radial",
         "list_deformer_types", "apply_deformer",
         "list_field_types", "add_field_to_scene", "bake_field_to_vmap",
@@ -11483,6 +11491,9 @@ class C4DSocketServer(threading.Thread):
         "scene_nodes_classify_graph",   # read-only — graph classification
         "scene_nodes_helper_ping",      # read-only — C++ shim discovery probe
         "scene_nodes_helper_logger",    # read-only — Phase A.2 diagnostic
+        "cinema4d_knowledge_index",     # read-only — manifest of curated docs/data
+        "cinema4d_knowledge_get",       # read-only — fetch curated file/section
+        "cinema4d_knowledge_search",    # read-only — grep curated tree
         "list_deformer_types",  # discovery only, no scene mutation
         "list_field_types",     # discovery only, no scene mutation
         "list_osl_snippets",    # constants only, no mutation
@@ -15068,6 +15079,222 @@ class C4DSocketServer(threading.Thread):
             }
         except Exception as e:
             return {"error": f"scene_nodes_synthesize_port failed: {e}",
+                    "traceback": traceback.format_exc()}
+
+    # === Curated knowledge layer ============================================
+    # data/knowledge_manifest.json indexes the curated content. Handlers walk
+    # plugin_dir/data and plugin_dir/docs to find files. Sync script copies
+    # both alongside the .pyp at install time.
+
+    def _knowledge_roots(self):
+        """Return ordered candidates for the curated knowledge tree root."""
+        try:
+            plugin_path = os.path.dirname(os.path.abspath(__file__))
+        except Exception:
+            plugin_path = None
+        roots = []
+        if plugin_path:
+            roots.append(plugin_path)
+            roots.append(os.path.dirname(plugin_path))
+        roots.append(os.path.join(os.path.expanduser("~"),
+                                  "AppData", "Roaming", "Maxon",
+                                  "Maxon Cinema 4D 2026_1ABCDC12",
+                                  "plugins"))
+        return roots
+
+    def _knowledge_resolve(self, rel_path):
+        """Resolve `docs/...` or `data/...` to absolute path, or return None."""
+        if not rel_path or ".." in rel_path or rel_path.startswith("/"):
+            return None
+        # Whitelist subdirs
+        if not (rel_path.startswith("docs/") or
+                rel_path.startswith("data/")):
+            return None
+        for root in self._knowledge_roots():
+            candidate = os.path.join(root, rel_path.replace("/", os.sep))
+            if os.path.isfile(candidate):
+                return candidate
+        return None
+
+    def handle_cinema4d_knowledge_index(self, command):
+        """Return the curated knowledge manifest with live-augmented sizes."""
+        try:
+            manifest_path = self._knowledge_resolve("data/knowledge_manifest.json")
+            if not manifest_path:
+                return {"error": "knowledge_manifest.json not found in any "
+                                  "candidate plugin root",
+                        "candidates": self._knowledge_roots()}
+            with open(manifest_path, "r", encoding="utf-8") as f:
+                manifest = json.load(f)
+            # Augment each entry with live size + existence
+            total_bytes = 0
+            for cat in manifest.get("categories", []):
+                for entry in cat.get("entries", []):
+                    path_abs = self._knowledge_resolve(entry.get("path") or "")
+                    if path_abs:
+                        try:
+                            size = os.path.getsize(path_abs)
+                            entry["size_bytes"] = size
+                            entry["exists"] = True
+                            total_bytes += size
+                        except OSError:
+                            entry["exists"] = False
+                    else:
+                        entry["exists"] = False
+            manifest["total_bytes_present"] = total_bytes
+            return {"ok": True, "manifest": manifest}
+        except Exception as e:
+            return {"error": f"cinema4d_knowledge_index failed: {e}",
+                    "traceback": traceback.format_exc()}
+
+    def handle_cinema4d_knowledge_get(self, command):
+        """Return the content of a curated file (optionally a markdown section).
+
+        Args:
+          path: relative path under docs/ or data/ (e.g. "docs/scene_nodes_nodebase_study.md")
+          section: optional markdown heading text to extract only that section
+          max_bytes: optional cap on returned content (default 200000)
+        """
+        try:
+            rel = command.get("path") or ""
+            section = command.get("section")
+            max_bytes = int(command.get("max_bytes") or 200000)
+            full = self._knowledge_resolve(rel)
+            if not full:
+                return {"error": f"path not found or denied: {rel}",
+                        "hint": "must start with docs/ or data/; no .. allowed"}
+            with open(full, "r", encoding="utf-8") as f:
+                content = f.read()
+            extracted_section = None
+            if section and rel.endswith(".md"):
+                extracted = self._extract_md_section(content, section)
+                if extracted is not None:
+                    content = extracted
+                    extracted_section = section
+            truncated = False
+            if len(content) > max_bytes:
+                content = content[:max_bytes]
+                truncated = True
+            return {
+                "ok": True,
+                "path": rel,
+                "size_bytes": len(content),
+                "section": extracted_section,
+                "truncated": truncated,
+                "content": content,
+            }
+        except Exception as e:
+            return {"error": f"cinema4d_knowledge_get failed: {e}",
+                    "traceback": traceback.format_exc()}
+
+    def _extract_md_section(self, content, heading):
+        """Return the body of a markdown section by heading text (case-insensitive
+        substring match), including all subheadings until the next same-level
+        heading. Returns None if no match."""
+        lines = content.splitlines(keepends=True)
+        target = heading.strip().lower()
+        start_idx = -1
+        start_level = 0
+        for i, line in enumerate(lines):
+            stripped = line.lstrip()
+            if not stripped.startswith("#"):
+                continue
+            # Count leading hashes
+            level = 0
+            for c in stripped:
+                if c == "#":
+                    level += 1
+                else:
+                    break
+            if level == 0:
+                continue
+            heading_text = stripped[level:].strip()
+            if target in heading_text.lower():
+                start_idx = i
+                start_level = level
+                break
+        if start_idx < 0:
+            return None
+        end_idx = len(lines)
+        for j in range(start_idx + 1, len(lines)):
+            stripped = lines[j].lstrip()
+            if not stripped.startswith("#"):
+                continue
+            level = 0
+            for c in stripped:
+                if c == "#":
+                    level += 1
+                else:
+                    break
+            if 0 < level <= start_level:
+                end_idx = j
+                break
+        return "".join(lines[start_idx:end_idx])
+
+    def handle_cinema4d_knowledge_search(self, command):
+        """Grep across the curated knowledge tree for a query string.
+
+        Args:
+          query: substring (case-insensitive) — min 2 chars
+          max_matches: optional cap (default 100)
+          extensions: optional list ["md", "json"] — defaults to both
+        """
+        try:
+            query = (command.get("query") or "").strip()
+            if len(query) < 2:
+                return {"error": "query must be at least 2 chars"}
+            max_matches = int(command.get("max_matches") or 100)
+            exts_in = command.get("extensions") or ["md", "json"]
+            exts = tuple("." + e.lstrip(".").lower() for e in exts_in)
+            q_lower = query.lower()
+            matches = []
+            seen_roots = set()
+            for root in self._knowledge_roots():
+                for sub in ("docs", "data"):
+                    scan = os.path.join(root, sub)
+                    if not os.path.isdir(scan) or scan in seen_roots:
+                        continue
+                    seen_roots.add(scan)
+                    for dirpath, _, filenames in os.walk(scan):
+                        for fn in filenames:
+                            if not fn.lower().endswith(exts):
+                                continue
+                            full = os.path.join(dirpath, fn)
+                            try:
+                                with open(full, "r", encoding="utf-8",
+                                          errors="ignore") as f:
+                                    for lineno, line in enumerate(f, 1):
+                                        if q_lower in line.lower():
+                                            try:
+                                                rel = os.path.relpath(full, root)
+                                            except ValueError:
+                                                rel = full
+                                            matches.append({
+                                                "path": rel.replace(os.sep, "/"),
+                                                "line": lineno,
+                                                "snippet": line.rstrip()[:240],
+                                            })
+                                            if len(matches) >= max_matches:
+                                                break
+                            except (OSError, UnicodeDecodeError):
+                                continue
+                            if len(matches) >= max_matches:
+                                break
+                        if len(matches) >= max_matches:
+                            break
+                    if len(matches) >= max_matches:
+                        break
+                if len(matches) >= max_matches:
+                    break
+            return {
+                "ok": True,
+                "query": query,
+                "match_count": len(matches),
+                "matches": matches,
+                "capped_at": max_matches if len(matches) >= max_matches else None,
+            }
+        except Exception as e:
+            return {"error": f"cinema4d_knowledge_search failed: {e}",
                     "traceback": traceback.format_exc()}
 
     def handle_scene_nodes_open_editor(self, command):

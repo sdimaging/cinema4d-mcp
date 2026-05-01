@@ -9,6 +9,171 @@ anyone building agent integrations against C4D 2026.
 
 ---
 
+## 53. SweepNurbs child order matters — profile FIRST, path SECOND. `InsertUnder` puts NEW child at TOP, so naive ordering swaps them
+
+**Wrong:** to build a Sweep, insert the profile (cross-section) under the
+sweep first, then the path (the spline being swept):
+
+```python
+profile.InsertUnder(sweep)
+path.InsertUnder(sweep)   # WRONG — InsertUnder puts new child at index 0
+```
+
+This results in path-at-index-0 + profile-at-index-1, the opposite of
+what Sweep expects. Visually you'll get a giant disc (the profile being
+swept along the profile itself) instead of a thin tube.
+
+**Actual:** `BaseObject.InsertUnder` always places the new object at the
+**first child** position, shifting prior children down. So calling
+`InsertUnder` on profile then on path leaves the path at index 0 (wrong)
+and profile at index 1.
+
+**Fix:** use `InsertUnderLast` for the second child, or insert in reverse
+order:
+
+```python
+profile.InsertUnder(sweep)        # profile at index 0 ✓
+path.InsertUnderLast(sweep)       # path appended after profile ✓
+```
+
+**Discovered:** 2026-05-01 building the M5 capstone (spline growth on
+RD surface) — the sweep rendered as a flat pink disc until the order
+was corrected.
+
+## 52. Python-created BaseObjects sometimes ship with visibility set to `2` (UNDEF) — geometry won't render
+
+**Wrong:** after `c4d.BaseObject(...)` + `doc.InsertObject(...)`, the
+object should be visible by default.
+
+**Actual:** in some scene contexts the new object lands with
+`ID_BASEOBJECT_VISIBILITY_EDITOR = 2` and `ID_BASEOBJECT_VISIBILITY_RENDER
+= 2` — the "undefined / inherit from parent" state. Whether that
+inheritance resolves to visible depends on parent state and the cache
+pipeline. Empirically: Volume Builder + Volume Mesher created via the
+MCP `create_volume_builder` / `create_volume_mesher` handlers landed
+with vis=2 and **did not render in viewport** until forced to
+`vis_editor=0` + `vis_render=0`. Same for newly-created sweep nurbs
+during the M5 capstone.
+
+**Fix:** explicitly set both visibility flags after creation:
+
+```python
+obj = c4d.BaseObject(c4d.Osomething)
+obj[c4d.ID_BASEOBJECT_VISIBILITY_EDITOR] = 0   # default visible
+obj[c4d.ID_BASEOBJECT_VISIBILITY_RENDER] = 0
+doc.InsertObject(obj)
+```
+
+**Implication for cinema4d-mcp:** the
+`create_volume_builder` / `create_volume_mesher` / future
+`create_sweep_nurbs` handlers should auto-set visibility=0 on the new
+generators (and probably also on every object the user creates via
+helper handlers) so the result actually renders.
+
+**Discovered:** 2026-05-01 during the M4 RD battle test — Volume
+Mesher cache had 14080 polys but viewport stayed empty until visibility
+was forced to 0. Recurred in M5 with sweep nurbs — same fix.
+
+## 51. SN Generator's `root.objectinput` does NOT have a `geometry` subport — bare `geometryout → objectinput` produces empty Null cache
+
+**Wrong:** wiring `last_modeling_node.geometryout → root.objectinput` on a
+fresh Scene Nodes Generator should make the geometry render.
+
+**Actual:** the connection commits successfully (verified via
+`GetConnections(2)` showing 2 incoming wires on `objectinput`), but
+`host.GetCache()` returns an empty `Null` (type 5140) and `host.GetRad()`
+is `Vector(0,0,0)`. `objectinput` has subports `color / domain /
+parentmatrix / translation / sqrmatrix / matrix` but **no `geometry`
+subport** — it accepts the wire but doesn't route bare polygon data into
+a renderable cache.
+
+**Implication:** SN Generator output requires either an object-composer
+node (e.g. wrapping geometry in `net.maxon.neutron.op.objectbase` or via
+the dissect-known capsule output pattern) OR the existing
+`scene_nodes_apply_pattern` handler that knows the proven wiring. The
+direct approach (just connect the last `geometryout`) is incomplete.
+
+**Discovered:** 2026-05-01 attempting to build a Cube → Random Selection
+→ Extrude → Subdivide chain end-to-end. Gotcha #50, #49, #48 also
+surfaced in the same session. Tracker: SN Generator output composition
+needs follow-up research lane (sister of the synthesize_port "connection
+IS the type" breakthrough — output side may have a similar discoverable
+recipe).
+
+## 50. `net.maxon.node.transformvector` is vector ARITHMETIC, not matrix×vector
+
+**Wrong:** by name, `transformvector` should apply a matrix transform to
+a vector (e.g. rotate a position by an angle-derived matrix).
+
+**Actual:** it's a 3-input arithmetic node — `operation` (enum) +
+`in1` + `in2` → `out`. Same shape as `Arithmetic` but for vectors. To
+actually transform a vector by a matrix you need a **separate** matrix
+construction (`Compose Matrix` from rotation/translation) followed by a
+matrix-vector multiply node — not a single "Transform Vector".
+
+**Implication:** the Nodebase R1 (Iterations for Geometry Generation)
+recipe scaffold in `scene_nodes_nodebase_study.md` was wrong on this
+node. Fix: use `Compose Matrix` to build the rotation, multiply, then
+extract the position. Or use `Cos` + `Sin` + `Compose Vector 3` directly
+to skip the matrix.
+
+**Discovered:** 2026-05-01 walking the freshly-added node's ports:
+`in1 / in2 / operation / out` — no matrix input visible.
+
+## 49. ApplyDescription `$type` rejects bare canonical IDs — needs UI label OR `#`-prefixed canonical
+
+**Wrong:** `scene_nodes_add_node(asset_id="net.maxon.neutron.node.range")`
+should work since that's the canonical asset ID.
+
+**Actual:** fails with
+`The node type reference 'net.maxon.neutron.node.range' (lang: 'en-US',
+space: 'net.maxon.neutron.nodespace') is not associated with any IDs.`
+
+Three valid forms for `$type` (already documented in
+`data/verified_labels.json` but easy to miss):
+
+```
+"Range"                              # English UI label, case-sensitive
+"#net.maxon.neutron.node.range"      # canonical ID with leading #
+"#~.range"                           # lazy-form shorthand
+```
+
+The bare canonical ID (no `#`) silently fails. Discovery credit:
+GPT 5.5 (2026-04-30) — the `#` convention comes from Maxon's
+GraphDescription docs.
+
+**Implication:** add input validation to `scene_nodes_add_node` to detect
+a bare `net.maxon.*` ID and either auto-prepend `#` or return a
+descriptive error pointing to the three valid forms.
+
+**Discovered:** 2026-05-01 first add_node attempt with `net.maxon.neutron.node.range` failed; retry with `Range` succeeded.
+
+## 48. Scene Nodes node-template index (802 entries) misses some live-registry assets — repository scan is authoritative
+
+**Wrong:** `scene_nodes_atlas_lookup` against the bundled
+`node_template_index.json` (802 entries) is the canonical source for
+asset IDs.
+
+**Actual:** the bundled index was built from prior dissection sessions
+and misses several common nodes. Examples missed:
+- `net.maxon.node.containeriteration` (Iterate Collection)
+- `net.maxon.neutron.geometry.polygoninfo` (Polygons Info — note
+  singular, not "polygonsinfo")
+- `net.maxon.neutron.geometry.get_property` / `set_property` (note
+  underscore)
+
+The live `scene_nodes_list_assets(source="repository")` call against
+`maxon.AssetInterface.GetUserPrefsRepository().FindAssets()` is the
+authoritative discovery path.
+
+**Implication:** when `atlas_lookup` returns no matches for a substring,
+fall back to `scene_nodes_list_assets(source="repository")` before
+concluding the asset doesn't exist. Or schedule a periodic atlas
+refresh that union-merges the live repository into the bundled index.
+
+**Discovered:** 2026-05-01 — atlas had no matches for "iterate" but
+repository scan found `net.maxon.node.containeriteration`.
+
 ## 47. THE BIG ONE — for Scene Nodes ports, the CONNECTION provides type binding (not the description attributes)
 
 **Wrong:** to make an AM-exposed port draggable in a Scene Nodes Generator,

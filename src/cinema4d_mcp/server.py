@@ -3224,6 +3224,96 @@ async def scene_nodes_open_editor(ctx: Context = None) -> str:
 
 
 @mcp.tool()
+async def cinema4d_knowledge_index(ctx: Context = None) -> str:
+    """Return the curated cinema4d-mcp knowledge manifest.
+
+    The MCP ships with a small set of carefully curated reference material
+    (Scene Nodes recipes, C4D 2026 API gotchas, asset indexes, etc.) that
+    captures production-grade C4D knowledge not in any LLM's training data.
+    Call this first to discover what topics are available, then use
+    cinema4d_knowledge_get to fetch a specific doc or section, or
+    cinema4d_knowledge_search to grep across the tree. Read-only.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        response = send_to_c4d(connection,
+                                {"command": "cinema4d_knowledge_index"})
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
+async def cinema4d_knowledge_get(
+    path: str,
+    section: Optional[str] = None,
+    max_bytes: int = 200000,
+    ctx: Context = None,
+) -> str:
+    """Fetch a curated knowledge file (or a specific markdown section).
+
+    Args:
+      path: relative path under docs/ or data/, e.g.
+            "docs/scene_nodes_nodebase_study.md" or "data/scene_nodes_atlas.json"
+      section: optional markdown heading text (case-insensitive substring match);
+               returns only that section's body. Ignored for non-markdown.
+      max_bytes: cap on returned content (default 200000 ≈ 200 KB).
+
+    Use cinema4d_knowledge_index first to discover available paths.
+    Read-only.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {
+            "command": "cinema4d_knowledge_get",
+            "path": path,
+            "max_bytes": max_bytes,
+        }
+        if section is not None:
+            cmd["section"] = section
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
+async def cinema4d_knowledge_search(
+    query: str,
+    max_matches: int = 100,
+    extensions: Optional[List[str]] = None,
+    ctx: Context = None,
+) -> str:
+    """Grep across the curated knowledge tree (docs/ + data/).
+
+    Args:
+      query: substring to match (case-insensitive, min 2 chars).
+      max_matches: cap on returned matches (default 100).
+      extensions: file extensions to search, e.g. ["md", "json"].
+                  Defaults to both.
+
+    Returns matches with path + line number + snippet. Use
+    cinema4d_knowledge_get to fetch the surrounding context. Read-only.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {
+            "command": "cinema4d_knowledge_search",
+            "query": query,
+            "max_matches": max_matches,
+        }
+        if extensions:
+            cmd["extensions"] = extensions
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
 async def scene_nodes_dissect_capsule(
     target_object: Optional[str] = None,
     max_depth: int = 8,

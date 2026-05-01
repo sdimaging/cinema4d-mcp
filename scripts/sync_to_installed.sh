@@ -53,6 +53,20 @@ if [ -d "$DATA_SRC_DIR" ]; then
     mkdir -p "$PLUGINS_DIR/data"
     cp "$DATA_SRC_DIR"/*.json "$PLUGINS_DIR/data/" 2>/dev/null || true
     echo "  also synced: data/*.json -> plugins/data/"
+    # Recipes subdir for production Scene Nodes recipes (R1-R5 + scatter etc.)
+    if [ -d "$DATA_SRC_DIR/recipes" ]; then
+        mkdir -p "$PLUGINS_DIR/data/recipes"
+        cp "$DATA_SRC_DIR/recipes"/*.json "$PLUGINS_DIR/data/recipes/" 2>/dev/null || true
+        echo "  also synced: data/recipes/*.json -> plugins/data/recipes/"
+    fi
+fi
+
+# --- Curated knowledge layer: also sync docs/*.md ---------------------------
+DOCS_SRC_DIR="$REPO_ROOT/docs"
+if [ -d "$DOCS_SRC_DIR" ]; then
+    mkdir -p "$PLUGINS_DIR/docs"
+    cp "$DOCS_SRC_DIR"/*.md "$PLUGINS_DIR/docs/" 2>/dev/null || true
+    echo "  also synced: docs/*.md -> plugins/docs/"
 fi
 
 echo ""
