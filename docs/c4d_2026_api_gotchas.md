@@ -9,6 +9,80 @@ anyone building agent integrations against C4D 2026.
 
 ---
 
+## 57. `memory@` Neutron primitive only updates on SEQUENTIAL frame stepping — direct `SetTime(N)` jumps produce stale state
+
+**Discovered 2026-05-01** while studying the DRuckli `Volume_Infection`
+scene. The Neutron `memory@` primitive carries per-frame state via a
+self-feedback wire (`out._0 → in._0`). State only propagates when frames
+advance contiguously — jumping in time bypasses the per-frame update.
+
+### Reproduction
+
+In a scene with a `memory@` primitive driving e.g. a Volume Builder:
+
+```python
+# WRONG — produces 0 evolution:
+doc.SetTime(c4d.BaseTime(120, fps))
+doc.ExecutePasses(None, True, True, True, c4d.BUILDFLAGS.NONE)
+mesher_cache_points = mesher.GetCache().GetPointCount()  # 0
+
+# RIGHT — sequentially steps, Memory accumulates each frame:
+for f in range(0, 121):
+    doc.SetTime(c4d.BaseTime(f, fps))
+    doc.ExecutePasses(None, True, True, True, c4d.BUILDFLAGS.NONE)
+mesher_cache_points = mesher.GetCache().GetPointCount()  # > 0, fully evolved
+```
+
+### Concrete numbers from Volume_Infection
+
+| Method | Frame | Mesher cache points |
+|---|---|---|
+| Direct `SetTime(120)` | 120 | **0** |
+| Sequential 0..5 | 5 | 18 |
+| Sequential 0..15 | 15 | 1432 |
+| Sequential 0..30 | 30 | 3858 |
+
+### Implication for cinema4d-mcp
+
+Any simulation scene (RD, infection, fire, growth, cellular-automaton)
+that uses `memory@` requires **contiguous frame stepping** in MCP
+operations. Affected handlers:
+
+- `viewport_screenshot(frame=N)` — currently jumps; needs sequential
+  step-up option for simulation scenes.
+- `render_frame` — same.
+- `scene_assert` over time — same.
+- Any test loop that wants to validate per-frame state.
+
+### How to detect "this scene uses memory@"
+
+After loading, walk the host's Neutron graph and check for any
+`memory@<hash>` node:
+
+```python
+NEUTRON = "net.maxon.neutron.nodespace"
+nbr = host.GetNimbusRef(NEUTRON)
+if nbr:
+    ng = nbr.GetGraph(maxon.NODE_KIND.NODE)
+    has_memory = any(
+        "memory@" in str(n.GetId())
+        for n in ng.GetViewRoot().GetChildren()
+    )
+```
+
+If `has_memory`, schedule a sequential warm-up loop before any
+frame-jump operation.
+
+### Why it matters architecturally
+
+This isn't a bug — it's the framework's signature for "this is a
+real time-dependent simulation, not a pure procedural evaluation."
+Pure procedural graphs (recursive subdivision, scene 02) evaluate
+the same regardless of frame-arrival order. Simulations gate on
+sequential time. The presence of `memory@` is the marker.
+
+---
+
 ## 56. Plugin ID 180420500 (Scene Nodes Generator) uses the **Neutron** nodespace, NOT `net.maxon.nodespace.scene`
 
 **Discovered 2026-05-01** while studying the DRuckli `Reaction_Diffusion`
