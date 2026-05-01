@@ -3127,49 +3127,63 @@ async def scene_nodes_record_gesture(
 async def scene_nodes_synthesize_port(
     target_object: str,
     name: str,
+    target_node_id: str,
+    target_port_id: str,
     direction: str = "in",
     data_type: str = "float",
     default_value: Optional[Any] = None,
     display_label: Optional[str] = None,
     ctx: Context = None,
 ) -> str:
-    """Synthesize a typed AM-exposed port on a Scene Nodes Generator's root.
+    """Add an AM-exposed user parameter to a Scene Nodes Generator's root,
+    wired through to a specific inner-node port.
 
-    The output of the gesture-differ research: this single call reproduces
-    what right-click "Add Input/Output" + Resource Editor type-pick does.
-    The result is a port that:
-      - shows in the Scene Nodes Generator's Attribute Manager
-      - renders the correct widget (slider for Float, checkbox for Bool, etc.)
-      - has a valid Attribute Manager DescID
-      - is recognized by the Resource Editor
+    One call replaces the manual workflow: right-click "Add Input" → pick
+    Type in Resource Editor → drag wire to inner node port. The result is a
+    port that:
+      - Appears in the Scene Nodes Generator's Attribute Manager
+      - Renders the correct widget (slider for Float, integer field for Int,
+        Vector XYZ field, checkbox for Bool, etc.)
+      - Drives the inner node's parameter when the user drags it
 
-    Implements the 9-attribute editor-equivalent schema:
-      AddPort + SetPortValue + portDescriptionData + portDescriptionUi
-      + fixedtype + portDescriptionStringLazy.
+    Recipe (the breakthrough — connection IS the type system):
+        AddPort(name)
+        SetPortValue(typed_default)            # initial value
+        SetValue("net.maxon.node.base.name", display_label)
+        Connect(target_typed_inner_port)       # provides widget type binding
+
+    The `Connect` call is REQUIRED — that's where the widget binding comes
+    from. C4D's runtime infers the port's type from the connected downstream
+    port. Calling AddPort + SetPortValue alone produces a locked text widget
+    in the AM; the connection is what makes it draggable.
 
     Args:
-      target_object: name of the Scene Nodes Generator object
-      name: port identifier (the GraphNode Id)
-      direction: 'in' (default) or 'out'
-      data_type: 'float' (default) | 'int' | 'string' | 'bool' | 'vector'
-      default_value: Python primitive matching data_type. Number for
-        float/int, string for string, bool for bool, 3-tuple/list for
-        vector. If None, type-appropriate zero.
-      display_label: optional user-facing label. Implementation note: the
-        Python LazyLanguageDictionary needs an Alloc path we haven't found,
-        so labels are currently propagated by COPYING the lazy dict from an
-        existing same-typed port in the same container. If no template port
-        exists, the AM falls back to the classification ("Input"/"Output").
+      target_object: name of the Scene Nodes Generator (e.g. 'My Generator')
+      name: port identifier — becomes the GraphNode Id
+      target_node_id: id of the inner node to wire to (e.g. 'cylinder' or a
+        custom-named node like 'claudes_cylinder'). Must be at the root
+        level of the SN Generator's graph.
+      target_port_id: port id on target_node_id (e.g.
+        'net.maxon.command.modeling.primitive.cylinder.radius').
+        Use scene_nodes_walk(target_object=..., include_ports=True) to list
+        available port ids.
+      direction: 'in' (default) or 'out' — port direction on the root
+      data_type: 'float' (default) | 'int' | 'vector' | 'bool' | 'string' —
+        used to construct the typed default value. Actual runtime type comes
+        from the connected target.
+      default_value: optional Python primitive matching data_type
+      display_label: optional user-facing label for the AM (defaults to
+        identifier)
 
     Returns JSON:
-      {ok, target_object, name, direction, data_type, port_id, port_path,
-       descid, attribute_count, label_source, method}
+      {ok, target_object, name, port_id, port_path, descid, wired_to,
+       direction, data_type, method}
 
-    UNSAFE — mutates the graph. Pair with scene_nodes_record_gesture if you
-    want to verify the structural delta matches a manual gesture.
+    UNSAFE — mutates the graph.
 
     See docs/gesture_differ_findings.md for the full reverse-engineering
-    history and known limitations.
+    history (the wall we hit on C++ attribute derivation, and how the
+    connection-based type inference path bypasses it).
     """
     async with c4d_connection_context() as connection:
         if not connection.connected:
@@ -3178,6 +3192,8 @@ async def scene_nodes_synthesize_port(
             "command": "scene_nodes_synthesize_port",
             "target_object": target_object,
             "name": name,
+            "target_node_id": target_node_id,
+            "target_port_id": target_port_id,
             "direction": direction,
             "data_type": data_type,
         }

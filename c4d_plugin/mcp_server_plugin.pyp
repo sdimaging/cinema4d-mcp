@@ -14830,36 +14830,53 @@ class C4DSocketServer(threading.Thread):
     }
 
     def handle_scene_nodes_synthesize_port(self, command):
-        """Synthesize a typed AM-exposed port on a Scene Nodes Generator's root.
+        """Synthesize an AM-exposed user parameter on a Scene Nodes Generator's
+        root, wired through to a specific inner-node port. The widget binding
+        comes from the connection (C4D infers type at runtime from the
+        connected downstream port).
 
-        Implements the full editor-equivalent recipe for "right-click Add Input
-        + pick Float type". The result is a port that:
-          - shows in the Scene Nodes Generator's Attribute Manager
-          - renders the correct widget (slider for Float, checkbox for Bool, etc.)
-          - has handler.GetDescID() returning a valid 6-level DescID
-          - is recognized by the Resource Editor (correct Data Type, UI fields)
+        This is the production recipe for programmatic Scene Nodes capsule
+        parameter exposure. One call replaces the manual "right-click Add
+        Input → pick Type → wire to inner port" workflow. Result:
+          - Port appears in the Scene Nodes Generator's Attribute Manager
+          - Renders the correct widget (slider for Float, integer field for
+            Int, etc.) — inferred at runtime from the connected target's type
+          - Drives the inner node's parameter when dragged
+
+        How it works (the breakthrough):
+          AddPort(name) creates a kind-agnostic port. The widget binding
+          (Default Value/Step/Min/Max controls in Resource Editor; draggable
+          slider in AM) does NOT come from explicit attributes like fixedtype,
+          portDescriptionData, or portDescriptionUi — earlier attempts to
+          construct those from scratch produced locked text widgets. The
+          binding comes from the Connect() call: C4D's runtime infers the
+          port's type from the connected downstream port and binds the
+          appropriate widget. No description dictionaries, no template
+          cloning, no C++ derivation needed.
 
         Args:
           target_object (required): name of the Scene Nodes Generator object
           name (required): port identifier (becomes the GraphNode Id)
-          direction: 'in' (default) or 'out'
-          data_type: 'float' (default) | 'int' | 'string' | 'bool' | 'vector'
+          target_node_id (required): the inner node's id (e.g. "claudes_cube")
+            — its container's port will be wired to provide type binding
+          target_port_id (required): the port id on target_node_id to wire to
+            (e.g. "net.maxon.command.modeling.primitive.cylinder.radius").
+            Use scene_nodes_walk(include_ports=True) to discover port ids.
+          direction: 'in' (default) or 'out' — port direction on the root
+          data_type: 'float' (default) | 'int' | 'vector' | 'bool' | 'string'
+            — used to construct the typed default value. The actual runtime
+            type comes from the connected target.
           default_value (optional): Python primitive matching data_type
-            (number for float/int, string for string, bool for bool,
-             3-tuple/list for vector). If None, uses type-appropriate zero.
-          display_label (optional): user-facing label for the AM. Implemented
-            via copy-from-template-port pattern: searches the same graph for
-            an existing port of the same data_type and clones its
-            portDescriptionStringLazy. If no template port exists, the AM
-            displays the classification ("Input"/"Output") as fallback.
-            (LazyLanguageDictionary fresh-construction in the Python binding
-            requires an Alloc path we haven't found yet — see findings doc.)
+            (float/int for number, list/tuple of 3 for vector, etc.)
+          display_label (optional): user-facing label for the AM
 
         Returns:
-          {ok, port_id, port_path, descid, attribute_count, label_source}
+          {ok, port_id, port_path, descid, wired_to, target_node_id,
+           target_port_id}
 
-        UNSAFE — mutates the graph. Pair with scene_nodes_record_gesture
-        if you need to verify the structural delta matches a manual gesture.
+        UNSAFE — mutates the graph. Idempotent on port name within a single
+        call; calling twice with the same name will fail (port already
+        exists).
         """
         try:
             doc = c4d.documents.GetActiveDocument()
@@ -14877,6 +14894,12 @@ class C4DSocketServer(threading.Thread):
             if not name:
                 return {"error": "name is required"}
 
+            tgt_node_id = command.get("target_node_id")
+            tgt_port_id = command.get("target_port_id")
+            if not tgt_node_id or not tgt_port_id:
+                return {"error": "target_node_id and target_port_id are required — the "
+                                  "port connection provides the widget type binding"}
+
             direction = (command.get("direction") or "in").lower()
             if direction not in ("in", "out"):
                 return {"error": "direction must be 'in' or 'out'"}
@@ -14892,9 +14915,7 @@ class C4DSocketServer(threading.Thread):
 
             def _do_synth():
                 import maxon
-                from maxon.frameworks.nodes import GraphDescription
 
-                # Use the Nimbus handler path (provides AM bridge methods).
                 obj.Message(maxon.neutron.MSG_CREATE_IF_REQUIRED)
                 handler = obj.GetNimbusRef(maxon.NodeSpaceIdentifiers.SceneNodes)
                 if handler is None:
@@ -14902,100 +14923,60 @@ class C4DSocketServer(threading.Thread):
                 graph = handler.GetGraph()
                 root = graph.GetViewRoot()
                 container = root.GetInputs() if direction == "in" else root.GetOutputs()
-                groupid_str = ("net.maxon.node.base.group.inputs" if direction == "in"
-                                else "net.maxon.node.base.group.outputs")
 
-                # Hunt for a template port (same data_type) in the same container
-                # to get a known-good portDescriptionStringLazy.
-                template_lazy = None
-                template_searched = False
-                if display_label is not None:
-                    template_searched = True
-                    for c in (container.GetChildren() or []):
-                        try:
-                            ft = c.GetStoredValue(maxon.InternedId("fixedtype"))
-                            if ft is not None and str(ft.GetId()) == type_spec["fixedtype_id"]:
-                                template_lazy = c.GetStoredValue(
-                                    maxon.InternedId("portDescriptionStringLazy"))
-                                if template_lazy is not None:
-                                    break
-                        except Exception:
-                            continue
+                # Find the target inner node + port for the connection.
+                target_node = None
+                for c in (root.GetChildren() or []):
+                    try:
+                        if str(c.GetId()) == tgt_node_id:
+                            target_node = c
+                            break
+                    except Exception:
+                        continue
+                if target_node is None:
+                    return {"_error": f"target_node_id '{tgt_node_id}' not found at "
+                                       f"root level of graph"}
+                tgt_container = (target_node.GetInputs() if direction == "in"
+                                  else target_node.GetOutputs())
+                target_port = None
+                for p in (tgt_container.GetChildren() or []):
+                    try:
+                        if str(p.GetId()) == tgt_port_id:
+                            target_port = p
+                            break
+                    except Exception:
+                        continue
+                if target_port is None:
+                    return {"_error": f"target_port_id '{tgt_port_id}' not found on "
+                                       f"target node"}
 
                 with graph.BeginTransaction() as txn:
                     new_port = container.AddPort(name)
-
-                    # 1. Default value (also the implicit type signal)
+                    # 1. Default value (provides initial value for the widget)
                     default_obj = type_spec["default_factory"](default_value)
                     new_port.SetPortValue(default_obj)
-
-                    # 2. fixedtype — explicit type registration
-                    try:
-                        dt = maxon.DataType.Get(type_spec["fixedtype_id"])
-                        new_port.SetValue(maxon.InternedId("fixedtype"), dt)
-                    except Exception as e:
-                        return {"_error": f"fixedtype write failed: {e}"}
-
-                    # 3. portDescriptionData — classification + datatype + comment
-                    ddata = maxon.DataDictionary()
-                    ddata.Set(
-                        maxon.InternedId("net.maxon.description.data.base.classification"),
-                        maxon.InternedId("input" if direction == "in" else "output"))
-                    ddata.Set(
-                        maxon.InternedId("net.maxon.description.data.base.datatype"),
-                        maxon.InternedId(type_spec["datatype_label"]))
-                    ddata.Set(
-                        maxon.InternedId("net.maxon.description.data.base.comment"),
-                        maxon.String(f"Synthesized via scene_nodes_synthesize_port ({data_type})"))
-                    new_port.SetValue(maxon.InternedId("portDescriptionData"), ddata)
-
-                    # 4. portDescriptionUi — guitypeid + groupid + step
-                    udata = maxon.DataDictionary()
-                    udata.Set(
-                        maxon.InternedId("net.maxon.description.ui.base.guitypeid"),
-                        maxon.InternedId(type_spec["guitypeid"]))
-                    udata.Set(
-                        maxon.InternedId("net.maxon.description.ui.base.groupid"),
-                        maxon.InternedId(groupid_str))
-                    udata.Set(
-                        maxon.InternedId("net.maxon.description.ui.base.addminmax.stepvalue"),
-                        maxon.Int64(1))
-                    new_port.SetValue(maxon.InternedId("portDescriptionUi"), udata)
-
-                    # 5. portDescriptionStringLazy — display label (copy-from-template)
-                    label_source = "none (no display_label requested)"
-                    if template_lazy is not None:
-                        new_port.SetValue(
-                            maxon.InternedId("portDescriptionStringLazy"), template_lazy)
-                        label_source = "copied from existing same-type port (custom labels in template will leak through)"
-                    elif display_label is not None and template_searched:
-                        label_source = "no template port of same type found — AM will fall back to classification label"
-
+                    # 2. Display label (optional; falls back to identifier)
+                    if display_label is not None:
+                        new_port.SetValue(maxon.InternedId("net.maxon.node.base.name"),
+                                           maxon.String(display_label))
+                    # 3. Connection — THIS provides the widget type binding via
+                    #    runtime type inference from the connected downstream port.
+                    new_port.Connect(target_port)
                     txn.Commit()
 
                 # Verify AM bridge
                 descid_str = None
-                descid_err = None
                 try:
                     did = handler.GetDescID(new_port.GetPath())
                     descid_str = str(did)
-                except Exception as e:
-                    descid_err = str(e)[:200]
-
-                # Final attribute count proves we hit 9/9 schema parity
-                try:
-                    vals = list(new_port.GetValues(0xFFFFFFFF))
-                    attr_count = len(vals)
                 except Exception:
-                    attr_count = -1
+                    pass
 
                 return {
                     "port_id": str(new_port.GetId()),
                     "port_path": repr(new_port.GetPath())[:200],
                     "descid": descid_str,
-                    "descid_error": descid_err,
-                    "attribute_count": attr_count,
-                    "label_source": label_source,
+                    "wired_to": f"{tgt_node_id}.{tgt_port_id}",
                 }
 
             result = self.execute_on_main_thread(_do_synth, _timeout=20)
@@ -15014,7 +14995,8 @@ class C4DSocketServer(threading.Thread):
                 "direction": direction,
                 "data_type": data_type,
                 **result,
-                "method": "AddPort + SetPortValue + portDescriptionData + portDescriptionUi + fixedtype + portDescriptionStringLazy (copy-from-template)",
+                "method": ("AddPort + SetPortValue + Connect to typed inner port. "
+                            "Widget binding via runtime type inference from connection."),
             }
         except Exception as e:
             return {"error": f"scene_nodes_synthesize_port failed: {e}",

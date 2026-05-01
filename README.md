@@ -4,8 +4,9 @@ Production-grade Cinema 4D ↔ Claude bridge over [Model Context Protocol](https
 
 This is a **substantially extended fork** of [`ttiimmaacc/cinema4d-mcp`](https://github.com/ttiimmaacc/cinema4d-mcp) hardened for daily-driver and public-deployment use:
 
-- **+68 new tools** beyond upstream (93 total) — capability discovery, scene snapshot/diff, UV ops, viewport perception, undo grouping, doctor, ping, **Scene Nodes authoring + dissection + classification**, Octane OSL, fields, deformers, volume builders
+- **+70 new tools** beyond upstream (95 total) — capability discovery, scene snapshot/diff, UV ops, viewport perception, undo grouping, doctor, ping, **Scene Nodes authoring + dissection + classification + gesture differ + typed-port synthesis**, Octane OSL, fields, deformers, volume builders
 - **Scene Nodes knowledge layer** — a comprehensive [practical guide](docs/scene_nodes_guide.md) + 22 codified patterns + 802 categorized template asset IDs + 40 verified `$type` labels + port-type taxonomy. The MCP can now dissect any capsule, classify any graph, and synthesize artist-ready capsules with one call (`create_capsule_with_pattern`).
+- **Scene Nodes gesture differ + typed-port synthesizer** ([findings](docs/gesture_differ_findings.md)) — `scene_nodes_record_gesture` snapshots graph state before/after a manual editor gesture and returns the precise structural diff. `scene_nodes_synthesize_port` then packages the recipe into a single call: `AddPort + SetPortValue + Connect to typed inner port` — produces a fully draggable AM-exposed parameter wired through to the inner node, with widget binding inferred at runtime from the connection. End-to-end programmatic Scene Nodes capsule parameter exposure, no manual Resource Editor pass needed.
 - **Auth-token gate** + **safe-mode env gate** + **constant-time token compare** — exposes the bridge to less-trusted contexts safely
 - **Standardized response envelope** — every response carries `ok`, `duration_ms`, `request_id`, `warnings`
 - **Bounded payload check** + **request correlation** — production-grade transport
@@ -127,7 +128,7 @@ Run before every commit. Currently: **93 tools / 93 branches / 93 advertised**, 
 
 ---
 
-## Tool inventory (93 total)
+## Tool inventory (95 total)
 
 ### Scene Nodes (the C4D 2026 node-graph authoring surface)
 
@@ -140,6 +141,10 @@ Authoring tools:
 - `scene_nodes_connect_ports` — wire two nodes by port name
 - `scene_nodes_create_graph` — bootstrap a graph on the doc or an object
 - `scene_nodes_open_editor` — open the Scene Nodes editor
+- `scene_nodes_synthesize_port` — **programmatically add an AM-exposed user parameter to a Scene Nodes Generator, wired through to a specific inner-node port**. Single call: `(target_object, name, target_node_id, target_port_id, data_type, default_value, display_label)` → port appears in AM with the correct widget (slider for Float, integer field for Int, Vector XYZ field, etc.), drives the inner node's parameter when dragged. The widget binding comes from the connection (C4D infers type at runtime from the connected downstream port) — no description-dict construction needed. Replaces right-click "Add Input" + Resource Editor type pick + manual wire. See [findings doc](docs/gesture_differ_findings.md) for the full reverse-engineering history.
+
+Reverse-engineering tool:
+- `scene_nodes_record_gesture` — snapshot the graph state before/after a manual editor gesture, returns the precise structural diff (added/removed nodes, ports, connections, and parameter values). Enables "show me, then I'll script it" workflows. Used to crack the right-click "Add Input" gesture down to its public-API recipe — see [findings](docs/gesture_differ_findings.md)
 
 Inspection tools:
 - `scene_nodes_status` — survey doc + per-object embedded graphs

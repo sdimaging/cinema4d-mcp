@@ -197,7 +197,48 @@ Untested:
 
 These are the next checks before declaring the primitive production-ready.
 
-# Full editor-equivalent port schema (decoded via GetValues(0xFFFFFFFF))
+# ⚠️ CORRECTION (2026-04-30 evening): the connection IS the type system
+
+The schema reverse-engineering below was technically accurate but **strategically
+wrong**. Reconstructing the editor's full 9-attribute schema from scratch
+(`fixedtype` / `portDescriptionData` / `portDescriptionUi` / `portDescriptionStringLazy`)
+**produces a locked text widget** in the AM — not a draggable slider. The widget
+binding doesn't come from those attributes; it comes from C++ attribute derivation
+that's only triggered when:
+- The user picks a type via Resource Editor (editor-internal C++ path), OR
+- The port is **connected to a typed downstream port** (runtime type inference)
+
+The Python API can't trigger derivation directly — `idata`, `value_flags`, and
+`fixedtype:NativePyDataType` are derived attributes that error with
+*"may only be set during attribute derivation"* when written via `SetValue`.
+
+**The correct minimal recipe is just 4 lines:**
+
+```python
+with graph.BeginTransaction() as txn:
+    port = inputs.AddPort(name)
+    port.SetPortValue(typed_default_value)            # initial value
+    port.SetValue("net.maxon.node.base.name", label)  # display name
+    port.Connect(target_typed_inner_port)             # type-binds via runtime inference
+    txn.Commit()
+```
+
+That's it. **No description dictionaries. No fixedtype. No lazy dict construction.
+No template cloning.** The connection itself is what makes the port a fully
+typed, draggable, AM-exposed parameter — C4D infers the type from the connected
+downstream port at runtime. Type-morphing also works: disconnect + reconnect to
+a different-typed port → the widget adapts.
+
+The over-specified attribute construction in the schema breakdown below was
+*overriding* the type inference, which is why it produced locked widgets. Setting
+fewer attributes works better.
+
+The full schema breakdown is preserved below for context — if you ever need to
+construct a port standalone (no downstream wire), this is what the editor
+populates. But for any practical use case (parameter exposure on a Generator),
+the connection-based recipe above is correct.
+
+# Original investigation: Full editor-equivalent port schema (decoded via GetValues(0xFFFFFFFF))
 
 The right-click → Add Input → pick Float type gesture writes **9 attributes**
 on the port GraphNode. We can read them via `port.GetValues(0xFFFFFFFF)`
