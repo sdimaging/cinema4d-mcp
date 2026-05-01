@@ -1,0 +1,82 @@
+{
+  "scene_name": "Voxelizer_Tutorial",
+  "source_file": "Voxelizer_Tutorial_01.c4d",
+  "source_folder": "Voxelizer_Tutorial_Files",
+  "studied_date": "2026-05-01",
+  "study_index": 15,
+  "co_scene": 16,
+  "recipe_style": "capsule",
+  "patterns": [
+    "geometry_generation", "volume_pipeline", "field_weighting",
+    "legacy_object_bridge", "parameter_exposure", "array_processing",
+    "capsule_form"
+  ],
+  "purpose": "Convert any input mesh into a voxel-grid representation — replaces smooth surface with regular 3D grid of voxel blocks. Two variants: Simple (default Cube) + Lego (artist-supplied Lego brick). Stateless (no memory@). The inverse of R10 (volume_pipeline_bridge — points to SDF), this goes mesh-to-voxel-blocks.",
+  "spenser_confirmation": [
+    "'this one is cool voxelizer it turns any object into voxel blocks - or legos here since its using custom geo'",
+    "'pulls color from the object into the blocks'"
+  ],
+  "visual_result": "Cache None at fresh load (LCV-rewire-on-load). Architecture confirmed via graph probe and Spenser's verbal description. UI Play would show Banana mesh replaced by grid of yellow Cubes (or yellow Lego bricks in V2), inheriting per-block color from the nearest banana surface point.",
+  "input_geometry": "Banana (5100 PolygonObject) — any input mesh; user can drag custom geo into Source slot.",
+  "hosts": [
+    {"om_name": "Voxelizer_Simple", "plugin_id": 180420500, "nodespace": "net.maxon.neutron.nodespace", "graph_node_count": 22, "role": "voxelize input mesh into Cube blocks (default)"},
+    {"om_name": "Voxelizer_Lego", "plugin_id": 180420500, "nodespace": "net.maxon.neutron.nodespace", "graph_node_count": "~22 (similar to Simple)", "role": "voxelize input mesh into Lego brick blocks (artist-supplied alt block shape)"}
+  ],
+  "om_classic_generators": [
+    {"name": "Connect", "plugin_id": 1011010, "role": "wraps Banana + Shader Field as host's input"},
+    {"name": "Banana", "plugin_id": 5100, "role": "input mesh — any custom geo can replace"},
+    {"name": "Shader Field", "plugin_id": 440000282, "role": "drives per-voxel color/visibility modulation"},
+    {"name": "Lego (Voxelizer_Lego only)", "plugin_id": 5100, "role": "artist-supplied alt voxel block shape (the Lego brick)"}
+  ],
+  "annotations": [],
+  "key_nodes_in_graph": {
+    "children@": "OM children enumeration — reads Connect's children (Banana + Shader Field)",
+    "fillgeometry@ Volume Voxel Fill": "voxelizes input mesh into regular grid of cell positions — SAME PRIMITIVE as scene 04 Volume Infection. Universal voxelization primitive.",
+    "getvertexselectiondata@ Points Info": "reads Shader Field's per-vertex selection",
+    "nearestneighbor@ Closest Points": "for each voxel center, find nearest input-mesh vertex (color sampling)",
+    "containeriteration@ Iterate Collection": "iterates over voxel positions",
+    "cube@ Cube": "default voxel block primitive (replaced with Lego mesh in V2)",
+    "matrix@ + decomposematrix@": "places each voxel block at its computed position",
+    "color@ Color Op": "per-voxel color emission (sampled from nearest mesh vertex × Shader Field)",
+    "readvalueatindex@ × 2": "array indexing"
+  },
+  "am_params_named": [
+    {"name": "X, Y, Z", "type": "Vector (likely)", "controls": "voxel grid resolution per axis"},
+    {"name": "Interior Filter", "type": "Float/Bool", "controls": "which voxels count as 'inside' the input mesh"},
+    {"name": "Children", "type": "Children/Array", "controls": "OM children reference for input mesh"}
+  ],
+  "what_is_clever": [
+    "fillgeometry@ as universal voxelization primitive — same node serves point-cloud-to-SDF (scene 04) AND mesh-to-voxel-grid (scene 15). Dual-purpose.",
+    "Cube vs Lego variant via swappable block primitive — two side-by-side hosts demonstrate 'swap voxel shape' pattern. Generalizes to pebbles, hex tiles, custom shapes.",
+    "Shader Field + getvertexselectiondata + Color Op chain pulls per-voxel color from nearest input-mesh point. Texture-mapped meshes give texture-correct voxel colors automatically.",
+    "Stateless — same input + params = same output. No simulation, no memory@, no UI Play complexity (in theory; LCV-rewire-on-load issue is a separate framework gotcha).",
+    "Capsule-light form — 3-5 AM params is enough for clear single-purpose tools. Not every capsule needs Mycelium V3's 21 params."
+  ],
+  "minimal_reproducible_subgraph": {
+    "name": "mesh_to_voxel_blocks",
+    "purpose": "Convert any mesh into a voxel-grid representation. Spawn N copies of a chosen block primitive at occupied voxel cells.",
+    "node_count": 22,
+    "minimal_core_nodes": 8,
+    "candidate_for_mcp_recipe": true,
+    "recipe_id_proposed": "R49_mesh_to_voxel_blocks",
+    "secondary_recipes": [
+      "R50_swappable_voxel_block_shape — Lego/custom block via second OM-bound mesh",
+      "R51_per_voxel_color_from_nearest_mesh_vertex — nearestneighbor + Color Op pattern"
+    ],
+    "value_proposition": "Minecraft / Lego / pixel-art / retro voxel-style look from any 3D mesh. Production technique for stylized animation. Generalizes to voxel-art games, blocky character variants, LEGO Movie aesthetic.",
+    "blockers_to_recipe_implementation": [
+      "fillgeometry@ creation needs API surface (same blocker as R10/R17)",
+      "Swappable block-shape mesh binding needs Object-typed AM port",
+      "Per-voxel color sampling via nearestneighbor needs documenting"
+    ]
+  },
+  "lessons_for_cinema4d_mcp": [
+    "fillgeometry@ is the universal voxelization primitive — used across volume scenes 04, 14, 15, 16+.",
+    "Swappable-block-shape pattern (Cube → Lego → custom) is recipe-worthy.",
+    "Capsule-light style (3-5 AM params) is valid alongside capsule-rich (Mycelium V3's 21 params). Match exposure to scope.",
+    "Stateless capsule = drag-and-drop deterministic. No UI Play warmup needed once LCV-rewire-on-load is solved."
+  ],
+  "artifacts": {"study_md": "study.md", "frames": ["frames/default.png — Banana visible via Connect, voxelization not engaged on fresh load"]},
+  "complexity": "medium",
+  "estimated_tool_calls_to_recreate_from_recipe": 25
+}

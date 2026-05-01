@@ -174,6 +174,33 @@
     "folder": "scenes/11_crystal_cutter_preview/"
   },
   {
+    "study_index": 15,
+    "slug": "voxelizer_tutorial",
+    "scene_name": "Voxelizer_Tutorial",
+    "co_scene": 16,
+    "recipe_style": "capsule",
+    "patterns": ["geometry_generation", "volume_pipeline", "field_weighting", "legacy_object_bridge", "parameter_exposure", "array_processing", "capsule_form"],
+    "minimal_recipe_id": "R49_mesh_to_voxel_blocks",
+    "secondary_recipes": ["R50_swappable_voxel_block_shape", "R51_per_voxel_color_from_nearest_mesh_vertex"],
+    "host_plugin_id": 180420500,
+    "nodespace": "net.maxon.neutron.nodespace",
+    "graph_node_count": 22,
+    "complexity": "medium",
+    "folder": "scenes/15_voxelizer_tutorial/"
+  },
+  {
+    "study_index": 16,
+    "slug": "voxelizer_pyro_sim",
+    "scene_name": "Voxelizer_Pyro_Sim",
+    "status": "SKIPPED — broken scene (Spenser flagged missing links). R52 architectural pattern documented only.",
+    "co_scene": 15,
+    "patterns": ["geometry_generation", "volume_pipeline", "simulation_bridge", "field_weighting", "legacy_object_bridge", "time_animation"],
+    "minimal_recipe_id": "R52_pyro_to_voxelizer_pipeline",
+    "host_plugin_id": 180420500,
+    "complexity": "skipped",
+    "folder": "scenes/16_voxelizer_pyro_sim/"
+  },
+  {
     "study_index": 13,
     "slug": "mycelium_tutorial",
     "scene_name": "Mycelium_Tutorial",
