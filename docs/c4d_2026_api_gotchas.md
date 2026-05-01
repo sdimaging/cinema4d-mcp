@@ -108,12 +108,21 @@ Confirmed via `host.GetAllNimbusRefs()` which returned a single tuple
 
 ### Updated nodespace-by-plugin-ID table
 
-| Plugin ID | Plugin Name | Nodespace |
-|---|---|---|
-| 180420400 | Nodes Modifier (Deformer) | `net.maxon.nodespace.scene` |
-| 180420500 | **Scene Nodes Generator** | **`net.maxon.neutron.nodespace`** |
-| 180420600 | Nodes Mesh simple | `net.maxon.nodespace.scene` |
-| 180420700 | Nodes Spline | `net.maxon.nodespace.scene` |
+⚠️ **UPDATED 2026-05-01 (scene 05 Spiderweb):** plugin ID alone is **not
+authoritative**. The same plugin ID can host EITHER nodespace depending on
+when/how the scene was authored. Scene 05's Nodes Spline (180420700) uses
+Neutron, but scene 02's same-ID host uses the older `nodespace.scene`.
+
+The table below is the **common case** observed across DRuckli scenes —
+always probe `host.GetAllNimbusRefs()` for the actual nodespace before
+accessing the graph.
+
+| Plugin ID | Plugin Name | Common Case | Possible |
+|---|---|---|---|
+| 180420400 | Nodes Modifier (Deformer) | `net.maxon.nodespace.scene` | Neutron (verify per-scene) |
+| 180420500 | **Scene Nodes Generator** | **`net.maxon.neutron.nodespace`** | scene (verify per-scene) |
+| 180420600 | Nodes Mesh simple | `net.maxon.nodespace.scene` | Neutron (verify per-scene) |
+| 180420700 | Nodes Spline | `net.maxon.nodespace.scene` OR Neutron | both observed in DRuckli |
 
 ### Why this matters
 

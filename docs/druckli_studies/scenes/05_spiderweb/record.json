@@ -1,0 +1,198 @@
+{
+  "scene_name": "Spiderweb",
+  "source_file": "Spiderweb_Tutorial_01.c4d",
+  "source_folder": "Spiderweb_Tuturial-Files_01",
+  "studied_date": "2026-05-01",
+  "study_index": 5,
+  "patterns": [
+    "geometry_generation",
+    "spline_pipeline",
+    "array_processing",
+    "legacy_object_bridge",
+    "parameter_exposure",
+    "parametric_primitive_chain",
+    "noise_driven"
+  ],
+  "purpose": "Generates a procedural spider web spline from N anchor points read from an OM Null's children. Output: single multi-segment Nodes Spline containing radial threads + concentric spiral rings.",
+  "visual_result": "Top-down: 6 radial threads from boundary anchors converging at a center, with concentric spiral rings between them. Classic spider-web silhouette.",
+  "input_geometry": "OM Null whose children are the boundary anchor positions (variable count, data-driven).",
+  "hosts": [
+    {
+      "om_name": "Nodes Spline",
+      "plugin_id": 180420700,
+      "plugin_name": "Scene Nodes Generator (Neutron)",
+      "nodespace": "net.maxon.neutron.nodespace",
+      "graph_node_count": 42,
+      "role": "procedural multi-segment spline generator"
+    }
+  ],
+  "doc_level_objects": [
+    {"name": "Spline", "type": "5101 SplineObject", "role": "boundary spline reference (possibly visual aid only)"},
+    {"name": "Center Point", "type": "5140 Null", "role": "center anchor"}
+  ],
+  "annotations": [],
+  "annotation_storage_pattern": "scaffold@ section labels (Spiral Thread / Single Thread calculation / All Threads / Randomize) — same pattern as scene 03.",
+  "am_sliders": [
+    {"name": "Use Null Obj", "type": "Bool", "exposure_pattern": "root_direct", "controls": "toggle whether to use bound Null's children as anchors"},
+    {"name": "Null Obj", "type": "Object", "exposure_pattern": "root_direct", "controls": "OM-bound Null whose children are the anchor positions"},
+    {"name": "Loop Count", "type": "Int32", "exposure_pattern": "root_direct", "controls": "spiral ring count"},
+    {"name": "Loop Start", "type": "Float", "exposure_pattern": "root_direct", "controls": "start parameter for spiral (inner radius/angle)"},
+    {"name": "Loop End", "type": "Float", "exposure_pattern": "root_direct", "controls": "end parameter for spiral (outer radius/angle)"},
+    {"name": "random", "type": "Float", "exposure_pattern": "root_direct", "controls": "randomization seed for jitter"},
+    {"name": "Children", "type": "Int32", "exposure_pattern": "root_direct", "controls": "child-count target"},
+    {"name": "Input × 9", "type": "Float (likely)", "exposure_pattern": "root_direct (generic, unlabeled)", "controls": "per-section tunable params consumed inside the 4 scaffold groups"}
+  ],
+  "am_exposure_pattern_note": "ALL parameters surface as root.in@<hash> direct ports — ZERO floatingio wrappers. The 9 generic 'Input' entries make the AM less ergonomic; modern scenes should add floatingio for labels. This is the same root-direct pattern observed in scene 04.",
+  "key_connections": [
+    {
+      "from": "children(Children Op).Array",
+      "to": "Group.children",
+      "purpose": "Variable-count anchor array — replaces N separate legacyobjectaccess nodes."
+    },
+    {
+      "from": "Append Elements.arrayout",
+      "to": "assembler(Assemble Spline).Segments",
+      "purpose": "Per-segment point-count array — defines spline topology."
+    },
+    {
+      "from": "Concatenate.arrayout",
+      "to": "assembler(Assemble Spline).Points",
+      "purpose": "Flat list of all points across all segments — concatenated radials + spiral."
+    },
+    {
+      "from": "assembler(Assemble Spline).Geometry",
+      "to": "Bezier Spline Assembler.geometryout",
+      "purpose": "Final spline geometry → root spline output template."
+    },
+    {
+      "from": "Divide.out",
+      "to": "spline(Spline Mapper).Input",
+      "purpose": "Normalized [0,1] parameter for curve-falloff lookup along thread."
+    },
+    {
+      "from": "legacyobjectaccess(Null).Object",
+      "to": "Root.in@<hash>",
+      "purpose": "OM-bound Null parameter (Null Obj root input)."
+    }
+  ],
+  "output_routing": {
+    "final_node": "assembler(Assemble Spline)",
+    "via": "assembler.Geometry → Bezier Spline Assembler.geometryout → host spline output",
+    "host_visibility_path": "Nodes Spline (180420700) renders root spline output as classic LineObject in OM",
+    "notes": "Multi-segment spline output via Points + Segments parallel arrays. THE canonical Nodes-Spline output pattern."
+  },
+  "interesting_types": [
+    "Variable-count anchor array via children@ (vs hardcoded legacyobjectaccess per anchor)",
+    "Multi-segment spline topology via Points[] + Segments[] parallel arrays",
+    "Spline-typed AM port (Spline Mapper) for per-thread shape curve",
+    "9 generic root-direct AM Inputs — exposure without floatingio labels"
+  ],
+  "core_idea_nodes": [
+    {
+      "name": "Children Op",
+      "type": "children",
+      "why_it_matters": "OM-children enumeration primitive. Reads N children of an OM-bound Null as an array — replaces N separate legacyobjectaccess nodes for data-driven variable-count input."
+    },
+    {
+      "name": "Assemble Spline",
+      "type": "assembler",
+      "why_it_matters": "THE multi-segment spline output primitive. Takes parallel Points + Segments arrays and reconstructs spline topology. Without this you'd need N separate Nodes Spline hosts for N segments."
+    },
+    {
+      "name": "Spline Mapper",
+      "type": "spline",
+      "why_it_matters": "Spline-typed AM curve editor — artist authors per-thread shape curve. Same pattern as scene 03's Bevel Profil. Demonstrates the Spline-typed AM port surface."
+    },
+    {
+      "name": "Append Elements (×3)",
+      "type": "append",
+      "why_it_matters": "Three parallel growth points: per-thread points, per-segment count, cross-segment combine. Demonstrates the multi-array bookkeeping pattern for assembler input."
+    },
+    {
+      "name": "Iterate Collection (×4)",
+      "type": "containeriteration",
+      "why_it_matters": "Multi-level nested iteration: anchor pairs × points-per-thread × spiral rings × points-per-ring. Complete topology for the radial+spiral structure."
+    }
+  ],
+  "scaffolding_nodes": [
+    "scaffold × 4 (section labels: Spiral Thread / Single Thread calculation / All Threads / Randomize)",
+    "container × 2 (Single Thred, Array — passive value-holders)",
+    "context_externaltimeinput / context_notime (framework)"
+  ],
+  "what_is_clever": [
+    "Multi-segment spline assembly via Points + Segments parallel arrays — packs N independent threads into ONE artist-friendly Nodes-Spline output.",
+    "children@ for variable-count input — anchor count is data-driven by OM children, no hardcoded legacyobjectaccess fan-out.",
+    "Concatenate + parallel Append for topology bookkeeping — radials + spiral stay synchronized in two parallel arrays.",
+    "Spline Mapper for per-thread shape modulation — artist-authored curve drives thread shape without graph changes.",
+    "No memory@ — pure procedural. Rebuilds entirely each frame from inputs; no state, no sequential-stepping requirement."
+  ],
+  "gotchas": [
+    {
+      "issue": "Plugin ID 180420700 ('Nodes Spline') uses Neutron nodespace HERE but used the older nodespace.scene in scene 02. Plugin ID alone is NOT sufficient to determine nodespace.",
+      "evidence": "host.GetAllNimbusRefs() on this scene's Nodes Spline returns net.maxon.neutron.nodespace (NOT scene). Different from scene 02's same-ID host.",
+      "workaround": "ALWAYS probe host.GetAllNimbusRefs() for actual nodespace. Update gotcha #56 wording — table is 'common case' not authoritative."
+    },
+    {
+      "issue": "9 root-direct AM ports labeled 'Input' (generic) — reduces AM UX clarity.",
+      "evidence": "root.GetInputs() walked: Op, Use Null Obj, Null Obj, Loop Count, Loop Start, Loop End, random, Children, Input × 9.",
+      "workaround": "When recreating, prefer floatingio wrappers with semantic effectivename labels."
+    }
+  ],
+  "rebuild_recipe": [
+    "1. Create Nodes Spline (180420700) host. Add OM-bound Null parameter.",
+    "2. Inside the Neutron graph: add children@ node, bind Children Op input to root's Null Obj parameter.",
+    "3. Use getcount@ to determine N (anchor count).",
+    "4. Build a range@ with end ← N to drive radials iteration.",
+    "5. containeriteration over the children Array — for each anchor pair (i, i+1):",
+    "   a. Lerp between anchor[i] and anchor[i+1] (or anchor[i] and center) for thread interpolation.",
+    "   b. Apply Spline Mapper for shape modulation.",
+    "   c. Append each interpolated position to global Points array.",
+    "   d. Append the thread's point-count to Segments array.",
+    "6. Build a separate spiral generator: nested containeriteration over [0..LoopCount] rings × [0..points_per_ring] points.",
+    "   - Each ring at radius lerp(LoopStart, LoopEnd, ring_idx/LoopCount).",
+    "   - Each point at angle θ = 2π * pt_idx / N.",
+    "7. Concatenate radials + spiral into a single flat Points array.",
+    "8. Assembler (Assemble Spline) consumes Segments + Points → emits Geometry → root spline output.",
+    "9. Optional: hash@ of point-index + 'random' slider drives per-vertex jitter.",
+    "10. Expose 9 root-direct AM ports: Use Null Obj, Null Obj, Loop Count/Start/End, random, Children + 3 generic Inputs."
+  ],
+  "minimal_reproducible_subgraph": {
+    "name": "multi_segment_spline_assembler",
+    "purpose": "Pack N independent spline segments into a single artist-friendly Nodes-Spline output via parallel Points + Segments arrays.",
+    "node_count": 5,
+    "nodes": [
+      "(upstream point generator — buildfromsinglevalue or containeriteration)",
+      "append (Points array — accumulates all points across all segments)",
+      "append (Segments array — accumulates per-segment point-counts)",
+      "concat (optional — combines multiple Points arrays from different generators)",
+      "assembler (Segments + Points in → Geometry out → root spline)"
+    ],
+    "exposed_params": [],
+    "value_proposition": "Generalizes far beyond spider webs: ivy across surfaces, network diagrams as one spline, mesh-edge skeleton, path bundles, light streaks, hair tufts. ANY scene where N independent splines need to be packed into ONE Nodes-Spline output instead of N separate hosts.",
+    "candidate_for_mcp_recipe": true,
+    "recipe_id_proposed": "R12_multi_segment_spline_assembler",
+    "secondary_recipes": [
+      "R13_om_children_enumeration — children@ for variable-count OM input"
+    ],
+    "blockers_to_recipe_implementation": [
+      "children@ node creation not yet exposed via cinema4d-mcp scene_nodes_add_node",
+      "assembler@ Points+Segments parallel-array wiring needs documentation",
+      "Spline-typed AM port surface not yet synthesizable"
+    ]
+  },
+  "lessons_for_cinema4d_mcp": [
+    "Plugin ID 180420700 can host EITHER nodespace. Update gotcha #56 — IDs are 'common case' not authoritative.",
+    "children@ is the canonical OM-children-iteration primitive. Recipe-worthy.",
+    "assembler@ is THE multi-segment spline output primitive. Points + Segments parallel-array pattern is load-bearing.",
+    "Generic 'Input' root-direct ports are a UX anti-pattern; prefer floatingio with effectivename labels.",
+    "No memory@ = no sequential-stepping requirement. Detect pure-procedural vs simulation by checking for memory@ presence."
+  ],
+  "artifacts": {
+    "study_md": "study.md",
+    "frames": ["frames/default.png"],
+    "sliders": [],
+    "raw_graph_dump": null
+  },
+  "complexity": "medium",
+  "estimated_tool_calls_to_recreate_from_recipe": 25
+}

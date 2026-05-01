@@ -52,5 +52,24 @@
       "Exclude Index port mapping on nearestneighbor not yet documented",
       "Sequential-step evaluation in MCP test loops needed for any simulation scene (gotcha #57)"
     ]
+  },
+  {
+    "study_index": 5,
+    "slug": "spiderweb",
+    "scene_name": "Spiderweb",
+    "patterns": ["geometry_generation", "spline_pipeline", "array_processing", "legacy_object_bridge", "parameter_exposure", "parametric_primitive_chain", "noise_driven"],
+    "minimal_recipe_id": "R12_multi_segment_spline_assembler",
+    "minimal_recipe_node_count": 5,
+    "secondary_recipes": ["R13_om_children_enumeration"],
+    "host_plugin_id": 180420700,
+    "nodespace": "net.maxon.neutron.nodespace",
+    "graph_node_count": 42,
+    "complexity": "medium",
+    "folder": "scenes/05_spiderweb/",
+    "blockers": [
+      "children@ node creation not yet exposed via cinema4d-mcp scene_nodes_add_node",
+      "assembler@ Points+Segments parallel-array wiring needs documentation",
+      "Spline-typed AM port surface not yet synthesizable"
+    ]
   }
 ]
