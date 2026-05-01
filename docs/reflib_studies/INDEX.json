@@ -71,5 +71,25 @@
       "assembler@ Points+Segments parallel-array wiring needs documentation",
       "Spline-typed AM port surface not yet synthesizable"
     ]
+  },
+  {
+    "study_index": 6,
+    "slug": "spline_grower_ornament",
+    "scene_name": "Spline_Grower_Ornament",
+    "patterns": ["geometry_generation", "spline_pipeline", "field_weighting", "legacy_object_bridge", "parameter_exposure", "array_processing", "om_driven_animation", "classic_generator_input"],
+    "minimal_recipe_id": "R14_field_driven_spline_growth",
+    "minimal_recipe_node_count": 7,
+    "secondary_recipes": ["R15_splitspline_per_segment", "R16_om_driven_animation"],
+    "host_plugin_id": 180420500,
+    "nodespace": "net.maxon.neutron.nodespace",
+    "graph_node_count": 36,
+    "complexity": "medium",
+    "folder": "scenes/06_spline_grower_ornament/",
+    "blockers": [
+      "children@, splitspline@, lineget@, assembler@ not yet exposed via add_node",
+      "Field→graph vertex-selection bridge (getvertexselectiondata@) needs documentation",
+      "Per-vertex color emission via gradient@ + color@ pattern needs recipe",
+      "Methodology gotcha #58: top-down camera for flat-2D output scenes"
+    ]
   }
 ]
