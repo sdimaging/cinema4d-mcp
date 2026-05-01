@@ -1,0 +1,35 @@
+[
+  {
+    "study_index": 2,
+    "slug": "recursive_subdivision",
+    "scene_name": "Recursive_Subdivision",
+    "patterns": ["loop_carried_value", "geometry_generation", "twin_graph", "per_island_fanout", "spline_pipeline", "parameter_exposure", "array_processing", "noise_driven", "time_animation"],
+    "minimal_recipe_id": "R6_extrude_inset_lcv",
+    "minimal_recipe_node_count": 7,
+    "host_plugin_id": 180420600,
+    "nodespace": "net.maxon.nodespace.scene",
+    "graph_node_count": 20,
+    "complexity": "medium-hard",
+    "folder": "scenes/02_recursive_subdivision/",
+    "blockers": []
+  },
+  {
+    "study_index": 3,
+    "slug": "reaction_diffusion",
+    "scene_name": "Reaction_Diffusion",
+    "patterns": ["feedback_loop", "simulation_bridge", "point_stream_iteration", "parameter_exposure", "legacy_object_bridge", "noise_driven", "spline_pipeline", "field_weighting", "array_processing", "time_animation"],
+    "minimal_recipe_id": "R7_memory_feedback_pde",
+    "minimal_recipe_node_count": 9,
+    "host_plugin_id": 180420500,
+    "nodespace": "net.maxon.neutron.nodespace",
+    "graph_node_count": 91,
+    "complexity": "hard",
+    "folder": "scenes/03_reaction_diffusion/",
+    "blockers": [
+      "scene_nodes_synthesize_port doesn't yet support net.maxon.neutron.nodespace",
+      "Memory primitive's bidirectional self-feedback wiring needs dedicated helper",
+      "Spline-typed AM ports not yet synthesizable",
+      "C4D Field-to-graph bridge via getvertexselectiondata not yet documented"
+    ]
+  }
+]

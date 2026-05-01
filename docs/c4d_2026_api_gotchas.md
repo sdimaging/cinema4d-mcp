@@ -9,6 +9,75 @@ anyone building agent integrations against C4D 2026.
 
 ---
 
+## 56. Plugin ID 180420500 (Scene Nodes Generator) uses the **Neutron** nodespace, NOT `net.maxon.nodespace.scene`
+
+**Discovered 2026-05-01** while studying the DRuckli `Reaction_Diffusion`
+scene. Both hosts in that scene are type `180420500` ("Scene Nodes
+Generator"). The expected access path:
+
+```python
+nbr = host.GetNimbusRef("net.maxon.nodespace.scene")
+# returns None — wrong nodespace for this plugin
+```
+
+The actual access path:
+
+```python
+NEUTRON = "net.maxon.neutron.nodespace"
+nbr = host.GetNimbusRef(NEUTRON)
+ng = nbr.GetGraph(maxon.NODE_KIND.NODE)
+root = ng.GetViewRoot()
+```
+
+Confirmed via `host.GetAllNimbusRefs()` which returned a single tuple
+`(maxon.Id "net.maxon.neutron.nodespace", NimbusBaseRef ...)`.
+
+### Updated nodespace-by-plugin-ID table
+
+| Plugin ID | Plugin Name | Nodespace |
+|---|---|---|
+| 180420400 | Nodes Modifier (Deformer) | `net.maxon.nodespace.scene` |
+| 180420500 | **Scene Nodes Generator** | **`net.maxon.neutron.nodespace`** |
+| 180420600 | Nodes Mesh simple | `net.maxon.nodespace.scene` |
+| 180420700 | Nodes Spline | `net.maxon.nodespace.scene` |
+
+### Why this matters
+
+The two nodespaces share UI conventions (graph editor, AM-exposed sliders,
+floatingio ports) but have **different node libraries and different
+canonical output sinks**. In `nodespace.scene`, the output emit is
+`set_property → root.geometryout`. In `neutron.nodespace`, it's
+`geometry@ → root's geometry input port`.
+
+Other Neutron-specific quirks observed in the same scene:
+
+- `memory@` primitive (per-frame state retention via self-feedback wire
+  `out._0 → in._0`) — unique to Neutron.
+- `nearestneighbor@` for K-NN spatial queries (also exists in scene
+  nodespace but the surrounding port idioms differ).
+- `getvertexselectiondata@` reads C4D Field-painted vertex selections
+  from the input geometry — the Field-to-graph bridge.
+- `containeriteration@` per-vertex iterator pattern.
+- AM-slider names come back as `(unnamed)` from `host.GetDescription()`
+  because Neutron's descid encoding doesn't surface DESC_NAME at leaf
+  level; read from `floatingio` nodes' `effectivename` instead.
+- Annotations are **not** OM-tag-based; they're encoded as
+  `effectivename` on `scaffold@` nodes inside the graph (acting as
+  graph-internal section headers).
+
+### How to discover
+
+```python
+all_refs = host.GetAllNimbusRefs()
+for nodespace_id, nbr in all_refs:
+    print(nodespace_id, "->", nbr)
+```
+
+This returns the actual nodespace this host uses. **Always probe
+GetAllNimbusRefs() before assuming a nodespace ID.**
+
+---
+
 ## 55. THE NODES-FAMILY OUTPUT BRIDGE — Object Manager-bridged Scene Nodes containers come in 4 plugin variants, each with its own root-output recipe
 
 **SUPERSEDES gotcha #54** (which incorrectly declared a "wall"). The "wall"
