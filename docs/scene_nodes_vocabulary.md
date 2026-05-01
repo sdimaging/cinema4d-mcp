@@ -57,7 +57,7 @@ metadata. Materials downstream read by name.
 
 | Node | $type | What it does |
 |---|---|---|
-| Store Selection | `Store Selection` (= setselection) | Names a subset of polys/edges/points. Inputs: `selectionname` (str), `selectionstring` (str — keywords: `default` / `active` / `all` / `"named"` / indices), `mode` (polygons/edges/points), `indices` (optional) |
+| Store Selection | `Store Selection` (= setselection) | Names a subset of polys/edges/points. Inputs: `selectionname` (str = output name), `selectionstring` (str — see Selection String semantics below), `mode` (polygons/edges/points), `indices` (optional explicit array) |
 | Random Selection | `Random Selection` | hash-based random subset. Variadic hash-named inputs control mode/seed/threshold/invert |
 | Grow Selection | `Grow Selection` | expand selection to neighbors |
 | Modulo Selection | `#net.maxon.neutron.asset.geo.modulo` | every Nth element |
@@ -149,6 +149,38 @@ For object-tree-bridged containers, the graph's output goes to typed
 | Nodes Modifier | 180420400 | `geometryout` (modified mesh replaces parent's) — and `root.GetInputs().geometryin` provides parent's geometry |
 | Nodes Spline | (probe needed) | `splineout` (spline to host) |
 | Doc-level scene.root graph | n/a (doc graph) | `scene.root.op.objectbase.children._0` (variadic) — viewport-only, no Object Manager |
+
+## Selection String semantics — the keywords
+
+Anywhere a `selectionstring` input appears (setselection, extrude,
+subdivide, delete, etc.), it accepts these forms:
+
+| Value | Meaning | When to use |
+|---|---|---|
+| `default` | the **currently-active selection** at this point in the stream | Use this 90% of the time. Many ops auto-set "default" to their natural output (sweepline → swept polys; extrude → caps; etc.). It's **context-aware** and stays correct if you re-route the node elsewhere. |
+| `active` | synonym for `default` | |
+| `all` | every element of the geometry | Use only when you really want everything regardless of upstream tagging. Less reusable than `default`. |
+| `"name"` | a specific named selection (case-sensitive, **must be wrapped in literal quotes inside the string**) | Use when you need a SPECIFIC selection by name — e.g., `"top"` to operate on the facingselection2 output |
+| index ranges | e.g. `0-15, 20, 25-30` | Use for explicit poly index lists |
+| **`*` (or other wildcards)** | **NOT VALID — silently empties the selection** | Common mistake: wildcards aren't supported. Use `default` or `all` instead. |
+
+### Why `default` beats `all` in most cases
+
+`default` is **semantically correct** — it picks up "whatever the
+upstream chain considered the active result." If you build a sub-pipeline
+like `extrude → facingselection2 → setselection(name="top", string="default")`,
+the setselection is naming "the current selection (= the up-facing polys
+from facingselection2)" as "top". Reusable, robust to chain changes.
+
+`all` would always select every poly at that point — fine if the
+upstream chain hasn't narrowed anything, but breaks the moment your
+upstream gets more specific.
+
+**Real bug from this session (2026-05-01)**: setselection_2 in the
+extended Geo Feedback Loop had `selectionstring="*"`. Wildcards aren't
+supported → empty selection → texture-tag "all" restriction had 0 polys
+→ green material didn't render. Fix: `"*"` → `"default"`. Green now paints
+the swept tubes (which sweepline naturally tags as default).
 
 ## The Selection→Material bridge
 
