@@ -1,0 +1,186 @@
+{
+  "scene": "SeneNodes_Plexus_01.c4d",
+  "objects": [
+    {
+      "name": "Matrix",
+      "type": 1018545,
+      "type_name": "Matrix",
+      "depth": 0,
+      "parent": null,
+      "tags": [
+        {
+          "name": "Info",
+          "type": 1018625
+        }
+      ],
+      "selection_tags": [],
+      "is_sn": false
+    },
+    {
+      "name": "Random",
+      "type": 1018643,
+      "type_name": "Random",
+      "depth": 0,
+      "parent": null,
+      "tags": [],
+      "selection_tags": [],
+      "is_sn": false
+    },
+    {
+      "name": "Plexus_with_Loop",
+      "type": 180420700,
+      "type_name": "Scene Nodes Generator",
+      "depth": 0,
+      "parent": null,
+      "tags": [
+        {
+          "name": "Vertex Color",
+          "type": 431000045
+        },
+        {
+          "name": "Phong",
+          "type": 5612
+        }
+      ],
+      "selection_tags": [],
+      "is_sn": true,
+      "graph": {
+        "node_types": {
+          "legacyobjectaccess": 1,
+          "loopcarriedvalue": 1,
+          "assembler": 1,
+          "getcount": 1,
+          "buildfromsinglevalue": 1,
+          "containeriteration": 1,
+          "range": 1,
+          "arithmetic": 1
+        },
+        "node_count": 8,
+        "connections": [
+          "legacyobjectaccess.net.maxon.nbo.legacyobjec-><.in",
+          "legacyobjectaccess.net.maxon.nbo.legacyobjec-><.in@ME$ZUeaPB50n71J_YvnbYa",
+          "legacyobjectaccess.matrixout-><.net.maxon.neutron.op.inpu",
+          "loopcarriedvalue.out@R6ggPzwfLh7olSQ5lj8c0-><.controlpointsin",
+          "loopcarriedvalue.out@R6ggPzwfLh7olSQ5lj8c0-><.arrayin",
+          "assembler.geometryout->>.geometryout",
+          "getcount.countout-><.in1",
+          "buildfromsinglevalue.arrayout-><.segments",
+          "containeriteration.count-><.end",
+          "containeriteration.index-><.in@aOsk5B85ItDgozmvsP9Asb",
+          "containeriteration.out-><.in@Rc$Qe_h9NZAvhy7Waq8L$Z",
+          "range.out-><.innerdomain",
+          "arithmetic.out-><.arraylengthin"
+        ],
+        "root_inputs_typed": [
+          "in@eMoE_cp0Ilbu0_W6Ui7nJ4",
+          "in@f0yOLUKLIlIvXIDzrO9qY4",
+          "in@ZXBLQ4qeDVFsW9sraF4OD5"
+        ],
+        "root_outputs": [
+          "geometryout"
+        ]
+      }
+    },
+    {
+      "name": "Plexus_without_Loop",
+      "type": 180420700,
+      "type_name": "Scene Nodes Generator",
+      "depth": 0,
+      "parent": null,
+      "tags": [
+        {
+          "name": "Vertex Color",
+          "type": 431000045
+        },
+        {
+          "name": "Phong",
+          "type": 5612
+        }
+      ],
+      "selection_tags": [],
+      "is_sn": true,
+      "graph": {
+        "node_types": {
+          "legacyobjectaccess": 1,
+          "assembler": 1,
+          "getcount": 2,
+          "buildfromsinglevalue": 1,
+          "arithmetic": 3,
+          "cmdlinearg": 6,
+          "compare": 3,
+          "booleanoperator": 2,
+          "modulo": 1,
+          "buildfromvalue": 2,
+          "append": 1,
+          "containeriteration": 1,
+          "readvalueatindex": 2,
+          "distance": 1,
+          "range": 1
+        },
+        "node_count": 28,
+        "connections": [
+          "legacyobjectaccess.net.maxon.nbo.legacyobjec-><.arrayin",
+          "legacyobjectaccess.net.maxon.nbo.legacyobjec-><.arrayin",
+          "legacyobjectaccess.net.maxon.nbo.legacyobjec-><.arrayin",
+          "legacyobjectaccess.matrixout-><.net.maxon.neutron.op.inpu",
+          "assembler.geometryout->>.geometryout",
+          "getcount.countout-><.in1",
+          "buildfromsinglevalue.arrayout-><.segments",
+          "arithmetic.out-><.arraylengthin",
+          "compare.out-><.in2",
+          "booleanoperator.out-><.in2",
+          "compare.out-><.in1",
+          "getcount.countout-><.in2",
+          "getcount.countout-><.in1",
+          "getcount.countout-><.in2",
+          "getcount.countout-><.in2",
+          "arithmetic.out-><.in1",
+          "arithmetic.out-><.indexin",
+          "arithmetic.out-><.end",
+          "modulo.out-><.in2",
+          "modulo.out-><.indexin",
+          "buildfromvalue.arrayout-><.arrayin",
+          "append.arrayout-><.controlpointsin",
+          "append.arrayout-><.arrayin",
+          "booleanoperator.out-><.countin",
+          "containeriteration.out-><._0",
+          "readvalueatindex._0->in._1",
+          "readvalueatindex._0-><.in2",
+          "buildfromvalue.arrayout-><.in",
+          "distance.out-><.in1",
+          "distance.out-><.in1",
+          "compare.out-><.in1",
+          "readvalueatindex._0->in._0",
+          "readvalueatindex._0-><.in1",
+          "range.out-><.in1",
+          "range.out-><.in1"
+        ],
+        "root_inputs_typed": [
+          "in@eMoE_cp0Ilbu0_W6Ui7nJ4",
+          "in@f0yOLUKLIlIvXIDzrO9qY4",
+          "in@ZXBLQ4qeDVFsW9sraF4OD5"
+        ],
+        "root_outputs": [
+          "geometryout"
+        ]
+      }
+    }
+  ],
+  "materials": [],
+  "doc_graph": {
+    "node_types": {
+      "net.maxon.neutron.scene.root": 1,
+      "builder": 1
+    },
+    "node_count": 2,
+    "connections": [
+      "net.maxon.neutron.scene.root.net.maxon.neutron.op.outp->>.net.maxon.neutron.op.outp",
+      "builder.out->>.scene"
+    ],
+    "root_inputs_typed": [],
+    "root_outputs": [
+      "net.maxon.neutron.op.output",
+      "scene"
+    ]
+  }
+}
