@@ -174,6 +174,37 @@
     "folder": "scenes/11_crystal_cutter_preview/"
   },
   {
+    "study_index": 13,
+    "slug": "mycelium_tutorial",
+    "scene_name": "Mycelium_Tutorial",
+    "co_scene": 14,
+    "recipe_style": "bare_graph",
+    "patterns": ["geometry_generation", "spline_pipeline", "legacy_object_bridge", "parameter_exposure", "parametric_primitive_chain", "noise_driven"],
+    "minimal_recipe_id": "R41_blue_noise_seeded_spline_growth",
+    "secondary_recipes": ["R42_time_driven_procedural_growth"],
+    "host_plugin_id": 180420700,
+    "nodespace": "net.maxon.neutron.nodespace",
+    "graph_node_count": 17,
+    "complexity": "medium",
+    "folder": "scenes/13_mycelium_tutorial/"
+  },
+  {
+    "study_index": 14,
+    "slug": "mycelium_generator_v3",
+    "scene_name": "Mycelium_Generator_V3",
+    "co_scene": 13,
+    "recipe_style": "capsule",
+    "patterns": ["feedback_loop", "simulation_bridge", "volume_pipeline", "field_weighting", "legacy_object_bridge", "parameter_exposure", "array_processing", "time_animation", "om_orchestrated_feedback", "externalized_memory_host", "defensive_graph_programming", "internal_spline_sweep", "noise_driven", "lifecycle_pruning", "capsule_form"],
+    "minimal_recipe_id": "R46_artist_grade_growth_tool",
+    "secondary_recipes": ["R43_internal_spline_sweep", "R44_lifecycle_pruning", "R45_defensive_input_validation"],
+    "host_plugin_id": 180420500,
+    "nodespace": "net.maxon.neutron.nodespace",
+    "graph_node_count": 48,
+    "named_am_params": 21,
+    "complexity": "very_hard",
+    "folder": "scenes/14_mycelium_generator_v3/"
+  },
+  {
     "study_index": 12,
     "slug": "crystal_cutter_final_render",
     "scene_name": "Crystal_Cutter_Final_Render",
