@@ -9,6 +9,74 @@ anyone building agent integrations against C4D 2026.
 
 ---
 
+## 58. Use TOP-DOWN camera for flat 2D Scene-Nodes output (splines on plane, vertex maps, ornaments)
+
+**Discovered 2026-05-01** while studying the DRuckli `Spline_Grower_Ornament`
+scene. Spenser's correction: *"your camera view was just level with the
+ground plane so you couldnt see it from that view — i rotated to the top
+(in perspective still) and it shows up nicely"*.
+
+### The failure mode
+
+For scenes that output **flat 2D content** (procedural splines lying
+on the y=0 plane, vertex maps, painted-on-mesh patterns), a side-view
+camera at y=0 looking horizontally sees the geometry **edge-on** — the
+output appears as zero-thickness lines or a single pixel wide. Easy to
+mis-conclude "scene is broken" or "geometry isn't generating."
+
+### The fix
+
+For procedural-spline / 2D-pattern scenes, use top-down framing:
+
+```python
+def frame_top_down(doc, host):
+    cam = c4d.BaseObject(c4d.Ocamera)
+    center = host.GetMg().off + host.GetMp()
+    rad = host.GetRad()
+    size = max(rad.x, rad.y, rad.z) * 2.5
+    cam.SetAbsPos(center + c4d.Vector(0, size, 0))
+    cam.SetRelRot(c4d.Vector(0, c4d.utils.DegToRad(-90), 0))
+    doc.InsertObject(cam)
+    doc.GetActiveBaseDraw().SetSceneCamera(cam)
+```
+
+### Decision rule
+
+Default to **top-down** when the host produces:
+- Spline output (Nodes Spline, ornament/curl/branch generators, paths)
+- Vertex maps on a flat input mesh
+- Voronoi tessellation / 2D pattern generation
+- Anything intended to be viewed from above
+
+Default to **side perspective** when the host produces:
+- 3D volumetric output (Volume Mesher, Cloth, Hair, displacement on Sphere)
+- Generators with explicit Z-axis structure (towers, recursive subdivision)
+- Any scene with a SceneCamera authored by the artist
+
+### Related: field positioning is a separate sanity check
+
+Field-driven scenes (containing `getvertexselectiondata@`) can still
+appear empty even with correct camera angle if the C4D Fields don't
+overlap the input geometry. Repositioning fields into the input volume
+is a useful behavioral test:
+
+```python
+host_center = host.GetMg().off + host.GetMp()
+field.SetAbsPos(host_center)
+```
+
+But **camera framing is the FIRST thing to check** — don't move fields
+before confirming the camera isn't edge-on to flat output.
+
+### Why it matters for cinema4d-mcp
+
+`viewport_screenshot` should auto-detect "this scene's host outputs flat
+geometry" and prefer top-down framing. Heuristic: if `host.GetCache()`
+is a SplineObject / LineObject, or if the cache bbox has near-zero
+y-radius, default to top-down.
+
+---
+
 ## 57. `memory@` Neutron primitive only updates on SEQUENTIAL frame stepping — direct `SetTime(N)` jumps produce stale state
 
 **Discovered 2026-05-01** while studying the DRuckli `Volume_Infection`

@@ -1,0 +1,227 @@
+{
+  "scene_name": "Spline_Grower_Ornament",
+  "source_file": "Spline_Grower_Setup_01_Ornament.c4d",
+  "source_folder": "Spline_Grower_Setups",
+  "studied_date": "2026-05-01",
+  "study_index": 6,
+  "patterns": [
+    "geometry_generation",
+    "spline_pipeline",
+    "field_weighting",
+    "legacy_object_bridge",
+    "parameter_exposure",
+    "array_processing",
+    "om_driven_animation",
+    "classic_generator_input"
+  ],
+  "purpose": "Decorate an input spline (text + boundary spline → Connect Splines stack) with procedural Victorian-style scrollwork curls/ornaments wherever C4D Field falloff overlaps the spline. Field motion (keyframed Linear Fields + Random Field) gates WHERE growth happens.",
+  "visual_result": "Beautiful filigree ornaments — curls, leaves, flourishes — appear along the input spline path WHERE fields overlap. As fields move (animated keyframes), the ornament distribution shifts. Confirmed by manually positioning fields LEFT vs RIGHT vs CENTERED — growth follows.",
+  "input_geometry": "Connect Splines (Text Spline + Spline) feeding into Spline Mask combined with a Tracer/Fracture/Connect Instance pipeline. ALL classic-OM generators feeding the Neutron host as children.",
+  "hosts": [
+    {
+      "om_name": "Spline_Grower",
+      "plugin_id": 180420500,
+      "plugin_name": "Scene Nodes Generator (Neutron)",
+      "nodespace": "net.maxon.neutron.nodespace",
+      "graph_node_count": 36,
+      "role": "procedural ornament generator on input spline"
+    }
+  ],
+  "doc_level_objects": [
+    {"name": "Random Field", "plugin_id": 440000281, "type": "FieldObject", "role": "random per-point weight"},
+    {"name": "Linear Field In", "plugin_id": 440000266, "type": "FieldObject", "role": "linear ingress falloff (keyframed motion)"},
+    {"name": "Linear Field Out", "plugin_id": 440000266, "type": "FieldObject", "role": "linear egress falloff (keyframed motion)"}
+  ],
+  "annotations": [],
+  "annotation_storage_pattern": "No scaffold@ section labels in this graph — naming is on memory/loop/assembler/etc. directly.",
+  "am_sliders": [
+    {"name": "Child 1 / Child 2 / Children", "type": "Object/Array", "exposure_pattern": "root_direct"},
+    {"name": "Input × 8", "type": "Float (likely)", "exposure_pattern": "root_direct (generic, unlabeled)"},
+    {"name": "Matrix", "type": "Matrix", "exposure_pattern": "root_direct"},
+    {"name": "Object", "type": "Object", "exposure_pattern": "root_direct"},
+    {"name": "Bypass", "type": "Bool", "exposure_pattern": "root_direct"},
+    {"name": "Op", "type": "Spline", "exposure_pattern": "root_direct (output)"}
+  ],
+  "am_exposure_pattern_note": "Same root-direct (no floatingio) pattern as scenes 04 and 05. 8 generic 'Input' ports — UX anti-pattern.",
+  "key_connections": [
+    {
+      "from": "children(Children Op).Array",
+      "to": "Group.children",
+      "purpose": "Read OM children (Connect Splines + Spline Mask) — variable-count input."
+    },
+    {
+      "from": "splitspline(Divide Spline).out",
+      "to": "loopcarriedvalue(Loop)",
+      "purpose": "Per-segment iteration — each segment processed independently in the LCV body."
+    },
+    {
+      "from": "getvertexselectiondata(Points Info).out",
+      "to": "distance/maprange chain",
+      "purpose": "Read C4D Field-painted vertex weights — drives per-segment growth amplitude."
+    },
+    {
+      "from": "loopcarriedvalue(Loop) body",
+      "to": "append(Append Elements)",
+      "purpose": "Accumulate per-segment curl points into global Points/Segments arrays."
+    },
+    {
+      "from": "gradient(Basic Gradient) + color(Color Op)",
+      "to": "Set vertex color on output",
+      "purpose": "Per-vertex color along the resulting spline (orange→yellow visible on input)."
+    },
+    {
+      "from": "assembler(Assemble Spline).Geometry",
+      "to": "geometry(Geometry Op).Geometry",
+      "purpose": "Multi-segment spline assembly → final emit."
+    }
+  ],
+  "output_routing": {
+    "final_node": "geometry(Geometry Op)",
+    "via": "assembler.Geometry → geometry.in → root.geometry_input",
+    "host_visibility_path": "Object Group's output is a Null containing dozens of LineObjects — the input plus all curl decorations.",
+    "notes": "Output cache is hierarchical: a Null parent with ~30+ child SplineObjects. Same pattern as scene 05's multi-segment output but with much richer per-segment shape variation."
+  },
+  "interesting_types": [
+    "Multi-LineObject output (Null + many SplineObject children) for multi-curl rendering",
+    "Per-vertex color on output spline (gradient@ + color@) — drives material color procedurally",
+    "splitspline@ for per-segment iteration (parallel to explode_islands@ for meshes)",
+    "lineget@ for spline topology introspection",
+    "Field-painted vertex selection as growth gating mechanism",
+    "Classic-OM generators (Connect/Tracer/Fracture/Spline Mask) as input children — graph composes with rest of C4D"
+  ],
+  "core_idea_nodes": [
+    {
+      "name": "Loop",
+      "type": "loopcarriedvalue",
+      "why_it_matters": "Per-evaluation iteration over spline segments (NOT per-frame state). Produces curl geometry in body."
+    },
+    {
+      "name": "Divide Spline",
+      "type": "splitspline",
+      "why_it_matters": "Splits an input spline into per-segment chunks for independent processing. Like explode_islands@ for meshes — the canonical 'process each piece independently' primitive for splines."
+    },
+    {
+      "name": "Lines Topology Get",
+      "type": "lineget",
+      "why_it_matters": "Reads spline topology (segment counts, per-segment point ranges). Lets the graph dispatch correctly when the input has unknown segment structure."
+    },
+    {
+      "name": "Points Info",
+      "type": "getvertexselectiondata",
+      "why_it_matters": "C4D Field → graph bridge. Reads field-painted vertex weights as scalar data. Same pattern as scene 03."
+    },
+    {
+      "name": "Children Op",
+      "type": "children",
+      "why_it_matters": "OM-children enumeration. Same primitive as scene 05. Reads classic-OM generators (Connect Splines, Spline Mask) as input."
+    },
+    {
+      "name": "Assemble Spline",
+      "type": "assembler",
+      "why_it_matters": "Same multi-segment spline output primitive as scene 05. Confirms R12 is the universal Nodes-Spline output recipe."
+    }
+  ],
+  "scaffolding_nodes": [
+    "reroute (×1)",
+    "context_externaltimeinput / context_notime / builder (framework)",
+    "multransform_5 / combine / mat / sqrpart / sqrtrans / vectrans (root template internals)"
+  ],
+  "what_is_clever": [
+    "OM-driven animation, stateless graph: keyframed Fields + classic Tracer/Fracture animations live in OM; the graph stays pure. No memory@ complexity, no sequential-stepping requirement.",
+    "splitspline@ for per-spline-segment processing — like explode_islands@ for meshes.",
+    "lineget@ topology introspection lets the graph generalize over unknown spline structures.",
+    "Classic OM generators (Connect/Tracer/Fracture/Spline Mask) compose naturally as host input children. Scene Nodes is not an island — it lives alongside the rest of C4D.",
+    "Same assembler@ Points+Segments output pattern as scene 05 — universal Nodes-Spline output.",
+    "Per-vertex color emission (gradient@ + color@) lets the spline carry material data without external textures."
+  ],
+  "gotchas": [
+    {
+      "issue": "Flat 2D output (splines lying on a plane, vertex maps, etc.) is INVISIBLE from a side-view camera at y=0 — the camera sees the geometry edge-on. Default StudyCam at z=-1500, y=0 made my early frame captures appear empty.",
+      "evidence": "Initial captures with side camera showed only field gizmos + input spline. Moving camera to top-down (y=+1500 looking down) revealed the full ornament. Spenser explicitly corrected this — the Linear Fields are keyframed correctly from f0 onward; my side camera was just edge-on to the flat output. Methodology gotcha #58.",
+      "workaround": "For procedural-spline scenes or anything outputting flat 2D content, default to TOP-DOWN viewport framing. Use cam.SetAbsPos(center + Vector(0, max_radius * 2, 0)) + SetRelRot(0, -90deg, 0) before screenshots."
+    },
+    {
+      "issue": "Manually moving fields IS a valid behavioral test for field-driven scenes (and was used to demonstrate field→growth correspondence — left/right shifts produce left/right ornament distribution).",
+      "evidence": "fields_centered_topdown.png shows full coverage; fields_left.png shows growth on left half; fields_right.png shows growth on right half. Independent of the keyframed animation, this proves the architecture.",
+      "workaround": "Use field repositioning as a sanity check for field-driven scenes — but don't conclude the scene is broken just because curls aren't visible from a side camera."
+    },
+    {
+      "issue": "Output is a Null with many SplineObject children, not a single LineObject. cache.GetPointCount() returns None on the parent.",
+      "evidence": "h.GetCache() returned a Null (5140) with ~30 child SplineObjects (5101) of varying point counts (2 to 699).",
+      "workaround": "Walk cache.GetDown() and accumulate point counts across children to assess output size."
+    }
+  ],
+  "rebuild_recipe": [
+    "1. Create Scene Nodes Generator (180420500) host.",
+    "2. Build classic-OM input pipeline as children: Text Spline → Connect Splines → Spline Mask → optional Tracer/Fracture/Connect Instance for animated paths.",
+    "3. Add 1-3 doc-level Field objects. Bind to input spline's vertex selection via FieldList tag.",
+    "4. Inside the Neutron graph:",
+    "   a. children@ reads host children (the input spline tree).",
+    "   b. splitspline@ divides the input into per-segment chunks.",
+    "   c. lineget@ reads topology (segment counts, ranges).",
+    "   d. getvertexselectiondata@ reads field-painted weights per vertex.",
+    "   e. loopcarriedvalue@ iterates per-segment: distance@ → maprange@ → curl-point generation.",
+    "   f. append@ accumulates Points + Segments arrays across all segments.",
+    "   g. gradient@ + color@ apply per-vertex color along the output.",
+    "   h. assembler@ produces multi-segment spline from Points + Segments.",
+    "   i. geometry@ emits to root.",
+    "5. Keyframe Field positions in OM for animated growth — OR position fields statically for an artist-controllable look.",
+    "6. Expose 8-12 root-direct AM ports (with floatingio wrappers ideally for clarity)."
+  ],
+  "minimal_reproducible_subgraph": {
+    "name": "field_driven_spline_growth",
+    "purpose": "Add field-driven decorations (curls, sprouts, branches, ornaments) along an input spline. Grows where Field weight is high, quiet where weight is low. Stateless — animates via OM Field motion (keyframes or interactive).",
+    "node_count": 7,
+    "nodes": [
+      "children (read input spline children from OM)",
+      "splitspline (divide input into per-segment chunks — Divide Spline)",
+      "getvertexselectiondata (read field-painted weights per vertex — Points Info)",
+      "loopcarriedvalue (per-segment iteration; produces curl points in body)",
+      "append (accumulate points + per-segment counts)",
+      "assembler (Points + Segments → multi-segment spline — Assemble Spline)",
+      "geometry (output sink) → root"
+    ],
+    "exposed_params": [
+      "Curl Amplitude (Float) — peak curl size at field max",
+      "Curl Frequency (Int) — curls per segment",
+      "Spline Object (Object) — root-direct binding to input spline tree"
+    ],
+    "value_proposition": "Generalizes far beyond text ornament: ANY 'decorate the path' task. Vine on a winding road, ornamental flourishes on logo splines, sprouting branches on a tree skeleton, ivy along mesh edges, lightning bolt branches. Stateless animation via Field keyframes is artist-friendly: no graph state to debug, no sequential-stepping requirement.",
+    "candidate_for_mcp_recipe": true,
+    "recipe_id_proposed": "R14_field_driven_spline_growth",
+    "secondary_recipes": [
+      "R15_splitspline_per_segment — canonical per-spline-segment iteration pattern",
+      "R16_om_driven_animation — keyframe Fields in OM, let graph stay stateless"
+    ],
+    "blockers_to_recipe_implementation": [
+      "children@, splitspline@, lineget@, assembler@ not yet exposed via cinema4d-mcp scene_nodes_add_node",
+      "Field→graph vertex-selection bridge (getvertexselectiondata@) needs documentation",
+      "Per-vertex color emission via gradient@ + color@ pattern needs recipe",
+      "Methodology gotcha #58: position fields manually to validate field-driven scenes"
+    ]
+  },
+  "lessons_for_cinema4d_mcp": [
+    "splitspline@ is the per-spline-segment primitive — like explode_islands@ for meshes. Recipe-worthy.",
+    "lineget@ reads spline topology — useful for graphs that need to know segment structure.",
+    "OM-driven animation is a stateless pattern — no memory@ needed if all per-frame variation comes from keyframed Fields or classic-generator outputs.",
+    "Classic-OM generators (Connect/Tracer/Spline Mask/Fracture) compose naturally with Scene Nodes hosts. Recipes should make this composition easy.",
+    "Same assembler@ Points+Segments pattern as scene 05 — confirming R12 is universal.",
+    "METHODOLOGY: For Field-driven scenes, manually position fields into the input volume to validate behavior. Don't conclude scene-broken without trying this first."
+  ],
+  "artifacts": {
+    "study_md": "study.md",
+    "frames": [
+      "frames/default_f000.png (as-loaded; fields offset)",
+      "frames/default_f050.png (as-loaded; fields offset)",
+      "frames/default_f100.png (as-loaded; fields offset)",
+      "frames/default_f200.png (as-loaded; fields offset, blank)",
+      "frames/fields_centered_topdown.png (manual: fields centered on spline — full ornament growth)",
+      "frames/fields_left.png (manual: fields shifted left — growth on left half)",
+      "frames/fields_right.png (manual: fields shifted right — growth on right half)"
+    ],
+    "sliders": [],
+    "raw_graph_dump": null
+  },
+  "complexity": "medium",
+  "estimated_tool_calls_to_recreate_from_recipe": 25
+}
