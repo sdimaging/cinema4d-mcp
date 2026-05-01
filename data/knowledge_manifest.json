@@ -21,6 +21,12 @@
           "topics": ["node+port inventory", "R1 circle from Range", "R2 noise displacement", "R3 noise extrude LCV", "R4 weight Poke", "R5 MoGraph Voronoi bridge", "performance heuristics", "verbatim Nodebase quotes"]
         },
         {
+          "path": "docs/scene_nodes_iterative_pattern.md",
+          "title": "Scene Nodes — Iterative procedural-tool pattern (Geo Feedback Loop dissection)",
+          "type": "markdown",
+          "topics": ["LCV iteration", "AM-bridged sliders via root.GetInputs()", "Range+Group(arithmetic) progress", "Node Modifier 180420400", "the canonical artist-facing-tool recipe", "Geo Feedback Loop deconstruction"]
+        },
+        {
           "path": "data/scene_nodes_atlas.json",
           "title": "Scene Nodes atlas (patterns, port types, anti-patterns, design principles)",
           "type": "json"
