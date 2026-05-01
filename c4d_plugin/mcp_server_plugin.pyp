@@ -14792,41 +14792,17 @@ class C4DSocketServer(threading.Thread):
     # See docs/gesture_differ_findings.md for the full reverse-engineering
     # story.
 
-    # Type registry: data_type label -> (maxon constructor, fixedtype Id,
-    # guitypeid, datatype label for portDescriptionData)
-    # Discovered empirically by probing existing typed ports + matching to
-    # the Resource Editor's Data Type dropdown.
+    # Type registry: data_type label -> default_factory.
+    # In v2, only `default_factory` is needed — the connection to a typed
+    # downstream port provides the widget binding via runtime type inference.
+    # The fixedtype_id/guitypeid/datatype_label fields from v1 (when we were
+    # over-specifying the editor schema) have been removed; see gotcha #47.
     _SYNTH_PORT_TYPES = {
-        "float": {
-            "fixedtype_id": "float64",
-            "guitypeid": "net.maxon.ui.number",
-            "datatype_label": "float",
-            "default_factory": lambda v: __import__("maxon").Float64(float(v) if v is not None else 0.0),
-        },
-        "int": {
-            "fixedtype_id": "int64",
-            "guitypeid": "net.maxon.ui.number",
-            "datatype_label": "int",
-            "default_factory": lambda v: __import__("maxon").Int64(int(v) if v is not None else 0),
-        },
-        "string": {
-            "fixedtype_id": "net.maxon.interface.string-C",
-            "guitypeid": "net.maxon.ui.string",
-            "datatype_label": "net.maxon.interface.string-C",
-            "default_factory": lambda v: __import__("maxon").String(str(v) if v is not None else ""),
-        },
-        "bool": {
-            "fixedtype_id": "bool",
-            "guitypeid": "net.maxon.ui.bool",
-            "datatype_label": "bool",
-            "default_factory": lambda v: __import__("maxon").Bool(bool(v) if v is not None else False),
-        },
-        "vector": {
-            "fixedtype_id": "vector64",
-            "guitypeid": "net.maxon.ui.number",
-            "datatype_label": "vector",
-            "default_factory": lambda v: __import__("maxon").Vector64(*(v if isinstance(v, (list, tuple)) and len(v) == 3 else (0.0, 0.0, 0.0))),
-        },
+        "float":  {"default_factory": lambda v: __import__("maxon").Float64(float(v) if v is not None else 0.0)},
+        "int":    {"default_factory": lambda v: __import__("maxon").Int64(int(v) if v is not None else 0)},
+        "string": {"default_factory": lambda v: __import__("maxon").String(str(v) if v is not None else "")},
+        "bool":   {"default_factory": lambda v: __import__("maxon").Bool(bool(v) if v is not None else False)},
+        "vector": {"default_factory": lambda v: __import__("maxon").Vector64(*(v if isinstance(v, (list, tuple)) and len(v) == 3 else (0.0, 0.0, 0.0)))},
     }
 
     def handle_scene_nodes_synthesize_port(self, command):
@@ -14924,31 +14900,81 @@ class C4DSocketServer(threading.Thread):
                 root = graph.GetViewRoot()
                 container = root.GetInputs() if direction == "in" else root.GetOutputs()
 
-                # Find the target inner node + port for the connection.
+                # Find the target inner node — tolerant matching (mirrors
+                # connect_ports handler): exact, basename-before-@hash, or
+                # $id-style names. Skips nested ids (with /).
+                exact = []
+                base_match = []
+                try:
+                    for child in (root.GetChildren() or []):
+                        try:
+                            cid = str(child.GetId())
+                        except Exception:
+                            continue
+                        if "/" in cid:
+                            continue
+                        if cid == tgt_node_id:
+                            exact.append((child, cid))
+                        elif "@" in cid and cid.split("@")[0] == tgt_node_id:
+                            base_match.append((child, cid))
+                except Exception:
+                    pass
                 target_node = None
-                for c in (root.GetChildren() or []):
-                    try:
-                        if str(c.GetId()) == tgt_node_id:
-                            target_node = c
-                            break
-                    except Exception:
-                        continue
+                resolved_node_id = tgt_node_id
+                if exact:
+                    target_node, resolved_node_id = exact[0]
+                elif len(base_match) == 1:
+                    target_node, resolved_node_id = base_match[0]
+                elif len(base_match) > 1:
+                    return {"_error": f"target_node_id '{tgt_node_id}' is AMBIGUOUS — "
+                                       f"{len(base_match)} root-level nodes match basename"}
                 if target_node is None:
+                    available = []
+                    try:
+                        for child in (root.GetChildren() or []):
+                            try:
+                                cid = str(child.GetId())
+                                if "/" not in cid:
+                                    available.append(cid)
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
                     return {"_error": f"target_node_id '{tgt_node_id}' not found at "
-                                       f"root level of graph"}
+                                       f"root level of graph",
+                             "_available_root_nodes": available}
+
+                # Find the target port — for direction='in', wire INTO an
+                # input on the inner node (root_input → inner.input).
+                # For direction='out', wire OUT FROM an output on the inner
+                # node (inner.output → root_output). The port direction we
+                # search MATCHES the root port's direction.
                 tgt_container = (target_node.GetInputs() if direction == "in"
                                   else target_node.GetOutputs())
                 target_port = None
-                for p in (tgt_container.GetChildren() or []):
-                    try:
-                        if str(p.GetId()) == tgt_port_id:
-                            target_port = p
-                            break
-                    except Exception:
-                        continue
+                try:
+                    for p in (tgt_container.GetChildren() or []):
+                        try:
+                            pid = str(p.GetId())
+                            # Tolerant: exact, suffix-after-dot, or basename
+                            if (pid == tgt_port_id or
+                                pid.endswith("." + tgt_port_id) or
+                                pid.split("/")[-1] == tgt_port_id):
+                                target_port = p; break
+                        except Exception:
+                            continue
+                except Exception as e:
+                    return {"_error": f"target_node port lookup failed: {e}"}
                 if target_port is None:
+                    available = []
+                    try:
+                        for p in (tgt_container.GetChildren() or []):
+                            try: available.append(str(p.GetId()))
+                            except: pass
+                    except: pass
                     return {"_error": f"target_port_id '{tgt_port_id}' not found on "
-                                       f"target node"}
+                                       f"target node '{resolved_node_id}'",
+                             "_available_target_ports": available}
 
                 with graph.BeginTransaction() as txn:
                     new_port = container.AddPort(name)
@@ -14961,8 +14987,48 @@ class C4DSocketServer(threading.Thread):
                                            maxon.String(display_label))
                     # 3. Connection — THIS provides the widget type binding via
                     #    runtime type inference from the connected downstream port.
-                    new_port.Connect(target_port)
+                    # Direction matters: data flows source -> destination.
+                    #   direction='in':  new_port (root input) is SOURCE,
+                    #                    target_port (inner input) is DEST.
+                    #   direction='out': target_port (inner output) is SOURCE,
+                    #                    new_port (root output) is DEST.
+                    if direction == "in":
+                        source_port = new_port
+                        dest_port = target_port
+                    else:  # 'out'
+                        source_port = target_port
+                        dest_port = new_port
+                    source_port.Connect(dest_port)
                     txn.Commit()
+
+                # Post-commit verification: Connect can return error AND
+                # silently no-op (per gotcha #21 / connect_ports handler).
+                # Verify the wire actually landed by inspecting source port's
+                # outgoing connections (PORT_DIR=1).
+                wire_landed = False
+                outgoing_after = []
+                try:
+                    dst_pid_str = str(dest_port.GetId())
+                    for (other_port, _wires) in source_port.GetConnections(1):
+                        try:
+                            other_pid_str = str(other_port.GetId())
+                            outgoing_after.append(other_pid_str)
+                            if other_pid_str == dst_pid_str:
+                                wire_landed = True
+                        except Exception:
+                            pass
+                except Exception as e:
+                    return {"_error": f"post-commit verification GetConnections failed: {e}",
+                            "_outgoing_after_commit": outgoing_after}
+                if not wire_landed:
+                    return {"_error": "wire did not land after commit (Connect silently no-oped)",
+                            "_outgoing_after_commit": outgoing_after,
+                            "_direction": direction,
+                            "_target_node_resolved": resolved_node_id,
+                            "_hint": "without the wire, the synthesized port has no widget "
+                                     "binding — AM will show locked text. Check that the "
+                                     "target_port is a real typed leaf port (not a variadic "
+                                     "parent port-list — those need _0/_1 child slots)."}
 
                 # Verify AM bridge
                 descid_str = None
@@ -14976,7 +15042,9 @@ class C4DSocketServer(threading.Thread):
                     "port_id": str(new_port.GetId()),
                     "port_path": repr(new_port.GetPath())[:200],
                     "descid": descid_str,
-                    "wired_to": f"{tgt_node_id}.{tgt_port_id}",
+                    "wired_to": f"{resolved_node_id}.{tgt_port_id}",
+                    "wire_verified": True,
+                    "outgoing_after_commit": outgoing_after,
                 }
 
             result = self.execute_on_main_thread(_do_synth, _timeout=20)
