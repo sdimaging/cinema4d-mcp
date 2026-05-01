@@ -91,5 +91,44 @@
       "Per-vertex color emission via gradient@ + color@ pattern needs recipe",
       "Methodology gotcha #58: top-down camera for flat-2D output scenes"
     ]
+  },
+  {
+    "study_index": 7,
+    "slug": "coral_structures_tutorial",
+    "scene_name": "Coral_Structures_Tutorial",
+    "patterns": ["simulation_bridge", "volume_pipeline", "field_weighting", "legacy_object_bridge", "parameter_exposure", "modifier_stack", "classic_generator_input", "time_animation"],
+    "minimal_recipe_id": "R17_particle_to_volume_growth",
+    "minimal_recipe_node_count": "7 host objects (5 OM + 2 Nodes Modifiers)",
+    "secondary_recipes": ["R18_field_gated_particle_filter", "R19_minimal_nodes_modifier", "R20_axis_realignment_modifier"],
+    "host_plugin_ids": [180420400],
+    "nodespace": "net.maxon.neutron.nodespace",
+    "graph_node_count": "20 (Geometry Axis) + 5 (Mask Y)",
+    "complexity": "hard",
+    "folder": "scenes/07_coral_structures_tutorial/",
+    "blockers": [
+      "C4D 2026 particle system (Mesh Emitter, Particle Groups, particle modifiers) not yet exposed via cinema4d-mcp",
+      "Particle-aware viewport_screenshot needed (gotcha #59 — scrub causes timeouts)",
+      "Recipe composition system needed for multi-subsystem scenes"
+    ]
+  },
+  {
+    "study_index": 8,
+    "slug": "coral_structures_render",
+    "scene_name": "Coral_Structures_Render",
+    "twin_of": 7,
+    "patterns": ["simulation_bridge", "volume_pipeline", "field_weighting", "legacy_object_bridge", "modifier_stack", "classic_generator_input", "production_lighting", "render_engine_specific", "twin_scene", "procedural_backdrop"],
+    "minimal_recipe_id": "R21_production_lighting_rig + R22_rs_material_setup + R23_procedural_backdrop + R24_render_camera_config",
+    "secondary_recipes": ["R17_particle_to_volume_growth (inherited from twin)"],
+    "host_plugin_ids": [180420400, 180420600],
+    "nodespace": "net.maxon.neutron.nodespace",
+    "graph_node_count": "TBD (3 Nodes Modifiers + 1 Backdrop Nodes Mesh)",
+    "complexity": "hard (twin of 7 + render layer)",
+    "folder": "scenes/08_coral_structures_render/",
+    "delta_only": true,
+    "blockers": [
+      "Inherits all blockers from scene 07",
+      "Redshift integration (RS Camera + RS Materials) not yet exposed via cinema4d-mcp",
+      "Recipe-composition primitive needed: combine simulation + render layers"
+    ]
   }
 ]
