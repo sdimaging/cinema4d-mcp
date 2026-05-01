@@ -9,6 +9,59 @@ anyone building agent integrations against C4D 2026.
 
 ---
 
+## 54. SN Generator output-routing wall is THE SAME WALL as the FIO AddPort wall — both gated on NodeTemplate publishing (Phase B C++ shim)
+
+**Wrong:** "find the right root input port to wire `cube.geometryout` to and the SN
+Generator will render the cube as its host output."
+
+**Actual:** brute-forced 15 candidate root input ports (incl. `objectinput` + all 6
+subports, `op.input` + 5 subports, `op.objectbase.matrix`/`children`) with both bare
+geometry AND chained-through-`classicobject`. **0/30 attempts produced visible
+host geometry.** `host.GetCache()` always returned an empty Null (type 5140) with
+`GetRad()=Vector(0,0,0)`. Connections committed and verified — but the inner
+graph's output never surfaced.
+
+**Root cause** (cracked 2026-04-30 in scene_nodes_guide §8 — re-confirmed
+2026-05-01 via output-side probe):
+
+> A generic SN Generator wrapper (180420700) does NOT auto-surface its inner
+> FIOs as AM params — that requires the capsule to be saved as a registered
+> asset. **AM-param visibility is governed by the host capsule's REGISTERED
+> CLASS, not by the inner graph.**
+
+Same applies to **output geometry surfacing**. Maxon-shipped capsules (Edge to
+Spline, Random Selection, Surface Blue-Noise) are all registered as
+`net.maxon.node.assettype.nodetemplate` — confirmed via
+`AssetInterface.GetUserPrefsRepository().FindLatestAsset(AssetTypes.NodeTemplate(), id, ..., LATEST)`.
+
+A generic SN Generator created via `c4d.BaseObject(180420500)` is a SHELL —
+the inner graph runs, but neither its inputs nor outputs are bound to host
+state without NodeTemplate registration. The Python API does not expose
+NodeTemplate registration:
+
+- `CreateObjectAsset` saves File-type assets (round-trippable, no surfacing)
+- No `CreateNodeTemplateAsset` function exists in the Python surface
+- `LoadAssets` on a NodeTemplate-type asset registers it but doesn't insert
+  it as a scene object
+
+**Path forward:** the unfilled work is **Phase B of the C++ shim** —
+wrapping `AssetTypes::NodeTemplate()` + `CreateAsset` in C++ so Python can
+publish the inner graph as a `.c4dnodes` NodeTemplate asset. The shim
+infrastructure (`cinema4d_mcp_helper`, Python↔C++ bridge via `SpecialEventAdd`)
+already works (proven Session 2/3). Phase B adds the NodeTemplate publishing
+calls. Estimated ~8 hours focused C++ session.
+
+**Alternative (no C++ work):** Python-driven scene-level procedurality —
+classic primitives + deformers + MoGraph + Volume Builder + parameterized
+script. The M1-M5 battle test (2026-05-01) demonstrated this works for
+modeling/scatter/RD/spline-growth on surface. Tradeoff: not packageable as a
+single drag-and-drop SN capsule, but still procedural at the scene level.
+
+**Discovered:** 2026-05-01 focused output-routing probe — confirmed the
+output side hits the same architectural wall as the input/AM-param side.
+
+---
+
 ## 53. SweepNurbs child order matters — profile FIRST, path SECOND. `InsertUnder` puts NEW child at TOP, so naive ordering swaps them
 
 **Wrong:** to build a Sweep, insert the profile (cross-section) under the
