@@ -31,5 +31,26 @@
       "Spline-typed AM ports not yet synthesizable",
       "C4D Field-to-graph bridge via getvertexselectiondata not yet documented"
     ]
+  },
+  {
+    "study_index": 4,
+    "slug": "volume_infection",
+    "scene_name": "Volume_Infection",
+    "patterns": ["feedback_loop", "simulation_bridge", "volume_pipeline", "point_stream_iteration", "legacy_object_bridge", "array_processing", "time_animation", "noise_driven", "parameter_exposure"],
+    "minimal_recipe_id": "R9_array_growth_per_frame",
+    "minimal_recipe_node_count": 8,
+    "secondary_recipes": ["R10_volume_pipeline_bridge", "R11_multi_channel_memory"],
+    "host_plugin_id": 180420500,
+    "host_stack": ["Volume Mesher (1039861)", "Volume Builder (1039859)", "Object Group (180420500)"],
+    "nodespace": "net.maxon.neutron.nodespace",
+    "graph_node_count": 47,
+    "complexity": "hard",
+    "folder": "scenes/04_volume_infection/",
+    "blockers": [
+      "Memory multi-channel port wiring (numbered ports _0, _1, ...)",
+      "fillgeometry node not yet exposed via cinema4d-mcp scene_nodes_add_node",
+      "Exclude Index port mapping on nearestneighbor not yet documented",
+      "Sequential-step evaluation in MCP test loops needed for any simulation scene (gotcha #57)"
+    ]
   }
 ]
