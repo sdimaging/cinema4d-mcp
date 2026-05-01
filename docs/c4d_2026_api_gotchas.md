@@ -9,56 +9,141 @@ anyone building agent integrations against C4D 2026.
 
 ---
 
-## 54. SN Generator output-routing wall is THE SAME WALL as the FIO AddPort wall — both gated on NodeTemplate publishing (Phase B C++ shim)
+## 55. THE NODES-FAMILY OUTPUT BRIDGE — Object Manager-bridged Scene Nodes containers come in 4 plugin variants, each with its own root-output recipe
 
-**Wrong:** "find the right root input port to wire `cube.geometryout` to and the SN
-Generator will render the cube as its host output."
+**SUPERSEDES gotcha #54** (which incorrectly declared a "wall"). The "wall"
+was wrong-plugin-ID — sampled 500/700, missed 600. **The output bridge IS
+exposed in Python.** Cracked 2026-05-01 via Spenser's manual-baseline
+diagnostic protocol.
 
-**Actual:** brute-forced 15 candidate root input ports (incl. `objectinput` + all 6
-subports, `op.input` + 5 subports, `op.objectbase.matrix`/`children`) with both bare
-geometry AND chained-through-`classicobject`. **0/30 attempts produced visible
-host geometry.** `host.GetCache()` always returned an empty Null (type 5140) with
-`GetRad()=Vector(0,0,0)`. Connections committed and verified — but the inner
-graph's output never surfaced.
+**The Nodes family** (per C4D 2026 Command Manager — IDs 465002502-465002505):
 
-**Root cause** (cracked 2026-04-30 in scene_nodes_guide §8 — re-confirmed
-2026-05-01 via output-side probe):
+| Container | Plugin ID | Root output port(s) | Bridges geometry kind |
+|---|---|---|---|
+| **Nodes Mesh** | `180420600` | `geometryout` | polygon mesh ↔ Object Manager |
+| **Nodes Modifier** | `180420400` | `geometryout` (+ root.in `geometryin`) | deformer (modifies parent) |
+| **Nodes Spline** | likely `180420500` or sibling | (probe needed) | spline object |
+| **Nodes Selection** | (probe needed) | selection array | selection capsule |
 
-> A generic SN Generator wrapper (180420700) does NOT auto-surface its inner
-> FIOs as AM params — that requires the capsule to be saved as a registered
-> asset. **AM-param visibility is governed by the host capsule's REGISTERED
-> CLASS, not by the inner graph.**
+### Recipe — Nodes Mesh (canonical, proven 2026-05-01)
 
-Same applies to **output geometry surfacing**. Maxon-shipped capsules (Edge to
-Spline, Random Selection, Surface Blue-Noise) are all registered as
-`net.maxon.node.assettype.nodetemplate` — confirmed via
-`AssetInterface.GetUserPrefsRepository().FindLatestAsset(AssetTypes.NodeTemplate(), id, ..., LATEST)`.
+```python
+mesh = c4d.BaseObject(180420600)
+doc.InsertObject(mesh)
+mesh.Message(maxon.neutron.MSG_CREATE_IF_REQUIRED)
+graph = mesh.GetNimbusRef(maxon.NodeSpaceIdentifiers.SceneNodes).GetGraph()
+root = graph.GetViewRoot()
 
-A generic SN Generator created via `c4d.BaseObject(180420500)` is a SHELL —
-the inner graph runs, but neither its inputs nor outputs are bound to host
-state without NodeTemplate registration. The Python API does not expose
-NodeTemplate registration:
+# Add geometry-producing nodes (Cube, Sphere, Tube, modeling chains, etc.)
+maxon.GraphDescription.ApplyDescription(graph, {"$type": "Cube", "$name": "my_cube"})
 
-- `CreateObjectAsset` saves File-type assets (round-trippable, no surfacing)
-- No `CreateNodeTemplateAsset` function exists in the Python surface
-- `LoadAssets` on a NodeTemplate-type asset registers it but doesn't insert
-  it as a scene object
+# Find ports
+cube = <walk root.GetChildren() for cube@*>
+cube_out = <find "geometryout" in cube.GetOutputs()>
+root_geomout = <find "geometryout" in root.GetOutputs()>
 
-**Path forward:** the unfilled work is **Phase B of the C++ shim** —
-wrapping `AssetTypes::NodeTemplate()` + `CreateAsset` in C++ so Python can
-publish the inner graph as a `.c4dnodes` NodeTemplate asset. The shim
-infrastructure (`cinema4d_mcp_helper`, Python↔C++ bridge via `SpecialEventAdd`)
-already works (proven Session 2/3). Phase B adds the NodeTemplate publishing
-calls. Estimated ~8 hours focused C++ session.
+# Wire DIRECTLY — no scene.root, no op.geometry wrapper, no variadic AddPort
+with graph.BeginTransaction() as txn:
+    cube_out.Connect(root_geomout)
+    txn.Commit()
 
-**Alternative (no C++ work):** Python-driven scene-level procedurality —
-classic primitives + deformers + MoGraph + Volume Builder + parameterized
-script. The M1-M5 battle test (2026-05-01) demonstrated this works for
-modeling/scatter/RD/spline-growth on surface. Tradeoff: not packageable as a
-single drag-and-drop SN capsule, but still procedural at the scene level.
+# Visible cube in viewport AND in Object Manager. host.GetCache() returns
+# PolygonObject (type 5100). Done.
+```
 
-**Discovered:** 2026-05-01 focused output-routing probe — confirmed the
-output side hits the same architectural wall as the input/AM-param side.
+### Recipe — Nodes Modifier (acts on parent geometry)
+
+The Nodes Modifier is a CHILD of the geometry it deforms. Its root has both
+`geometryin` (host→graph: parent's geometry flows in) and `geometryout`
+(graph→host: deformed result flows out).
+
+```python
+mod = c4d.BaseObject(180420400)
+parent_cube.InsertUnder()  # mod must be child of target
+# Inside graph:
+# root.geometryin → first_modeling_op.geometryin
+# (chain modeling ops via geometryout→geometryin)
+# last_modeling_op.geometryout → root.geometryout
+```
+
+Verified working in `Untitled 4` reference scene: cube + Nodes Modifier
+child with internal `extrude → root.geometryout` wiring.
+
+### Recipe — doc-level Scene Nodes (no Object Manager bridge)
+
+If you want to build EVERYTHING inside a doc-level SN graph (no OM bridge),
+the recipe is different:
+
+```python
+graph = maxon.GraphDescription.GetGraph(doc)
+# scene.root is auto-present in every doc-level graph (cannot delete)
+# Add Cube + the "geometry" wrapper op + wire to scene.root.children._0
+maxon.GraphDescription.ApplyDescription(graph, {"$type": "Cube", "$name": "c"})
+maxon.GraphDescription.ApplyDescription(graph,
+    {"$type": "#net.maxon.neutron.op.geometry", "$name": "geom"})
+
+# Wire: cube.geometryout → geom.geometry → scene.root.op.objectbase.children._0
+# (variadic _0 slot exists by default — no AddPort needed for first connection)
+```
+
+This renders in viewport but does NOT create an Object Manager entry.
+
+### Why all my prior probes failed (sept 2026-05-01 discovery)
+
+- I tested **180420500** (had complex `objectinput`/`op.input`/`op.objectbase`
+  port set) — it does NOT have a simple geometryout output. Was the wrong
+  plugin variant.
+- I tested **180420700** with the Nodes Mesh recipe — got `cache=None`.
+  Same simple `geometryout` port shape as 600 but doesn't render. Likely
+  a different sibling variant (Nodes Spline?).
+- I never tested **180420600** until Spenser's manual baseline protocol
+  forced me to dissect his working setup.
+- I filtered `net.maxon.neutron.scene.root` as scaffolding when it's the
+  doc-level destination node.
+
+**Lesson learned:** when probing the API surface, always include
+"manual-baseline + dissect" as Step 1 before brute-forcing port hypotheses.
+
+### Discovery process (2026-05-01)
+
+1. Spenser's protocol: "Stop declaring the wall. Make the simplest manual
+   working setup. I'll snapshot. Compare with what you'd build."
+2. He dragged in the cube, it rendered. I snapshotted: doc-level graph
+   had `scene.root` + `geometry@*` wrapper that I'd missed.
+3. He pointed out the distinction: doc-level scene.root vs Nodes Mesh
+   container. Nodes Mesh = OM-bridged.
+4. He showed Command Manager: "Nodes Mesh" (ID 465002502), "Nodes
+   Modifier" (465002504), "Nodes Spline" (465002503), "Nodes Selection".
+5. He opened Maxon's "0100 Nodes Mesh" and "0130 Clone Onto Polygon
+   Centers" reference scenes for ground truth.
+6. Dissected `Mesh Primitive Group` (type 180420600) — annotation tag
+   said *"This project demonstrates how to find different Mesh Primitive
+   nodes (e.g. Cube, Sphere, Cone) and return their Geometry for use in
+   the Objects Manager."*
+7. The wiring inside: `cube.geometryout → root.geometryout`. Direct.
+8. Rebuilt mine with plugin 180420600 — second cube appeared at offset
+   immediately. Recipe proven.
+
+---
+
+## 54. ~~SN Generator output-routing wall~~ — INCORRECT, see gotcha #55
+
+**This entry was wrong.** I claimed the SN Generator output side was
+gated on Phase B C++ shim work (NodeTemplate publishing). It is NOT.
+The "wall" was sampling the wrong plugin variants (180420500/700 instead
+of 180420600 = Nodes Mesh).
+
+The correct recipes — for both doc-level SN graphs AND each Nodes-family
+container (Nodes Mesh / Modifier / Spline / Selection) — are in gotcha #55.
+
+NodeTemplate publishing IS still a separate gap (relevant for surfacing
+custom AM params on user-built capsules). But OM-bridged geometry output
+from a generic Nodes Mesh container does NOT require it.
+
+**Lesson:** declared "wall" without doing the manual-baseline-and-dissect
+diagnostic Spenser explicitly requested. Pivoted to Path B (classic-stack
+procedurality) when Path A was actually accessible. Will not repeat this
+mistake.
 
 ---
 
