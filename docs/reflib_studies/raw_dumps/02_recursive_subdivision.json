@@ -1,0 +1,201 @@
+{
+  "scene": "Recursive_Subdivision_Tut_01.c4d",
+  "objects": [
+    {
+      "name": "INFO",
+      "type": 5140,
+      "type_name": "Null",
+      "depth": 0,
+      "parent": null,
+      "tags": [
+        {
+          "name": "Annotation",
+          "type": 1030659
+        }
+      ],
+      "selection_tags": [],
+      "is_sn": false
+    },
+    {
+      "name": "Plane",
+      "type": 5168,
+      "type_name": "Plane",
+      "depth": 0,
+      "parent": null,
+      "tags": [
+        {
+          "name": "Phong",
+          "type": 5612
+        }
+      ],
+      "selection_tags": [],
+      "is_sn": false
+    },
+    {
+      "name": "RS Dome Light",
+      "type": 1036751,
+      "type_name": "RS Light",
+      "depth": 0,
+      "parent": null,
+      "tags": [],
+      "selection_tags": [],
+      "is_sn": false
+    },
+    {
+      "name": "Nodes Mesh",
+      "type": 180420600,
+      "type_name": "Scene Nodes Generator",
+      "depth": 0,
+      "parent": null,
+      "tags": [
+        {
+          "name": "Phong",
+          "type": 5612
+        },
+        {
+          "name": "Vertex Map",
+          "type": 5682
+        },
+        {
+          "name": "Material",
+          "type": 5616,
+          "material": "Mat",
+          "restriction": ""
+        }
+      ],
+      "selection_tags": [],
+      "is_sn": true,
+      "graph": {
+        "node_types": {
+          "group": 1,
+          "readvalueatindex": 4,
+          "buildfromvalue": 1,
+          "type": 1,
+          "set_property": 1,
+          "assembler": 1,
+          "splinechamfer": 1,
+          "plane": 1,
+          "explode_islands": 1,
+          "tessellation": 1,
+          "extrudeline": 1,
+          "get_property": 1,
+          "containeriteration": 1,
+          "hash": 2,
+          "range": 1,
+          "arithmetic": 1
+        },
+        "node_count": 20,
+        "connections": [
+          "group.next._0-><.next._0",
+          "group.final._0-><.geometryin",
+          "readvalueatindex._0->in._3",
+          "buildfromvalue.arrayout-><.controlpointsin",
+          "type.out-><.fallbackvaluein",
+          "set_property.geometryout->>.geometryout",
+          "assembler.geometryout-><.geometryin",
+          "splinechamfer.geometryout-><.geometryin",
+          "plane.geometryout-><.initial._0",
+          "explode_islands.geometriesout-><.in",
+          "tessellation.geometryout-><.geometryin",
+          "extrudeline.geometryout-><.geometryin",
+          "get_property.array-><.arrayin",
+          "get_property.array-><.arrayin",
+          "get_property.array-><.arrayin",
+          "get_property.array-><.arrayin",
+          "readvalueatindex._0->in._0",
+          "readvalueatindex._0->in._1",
+          "readvalueatindex._0->in._2",
+          "containeriteration.index-><.seed",
+          "containeriteration.index-><.seed",
+          "containeriteration.out-><.geometry",
+          "hash.resultfloat-><.net.maxon.command.modelin",
+          "hash.resultfloat-><.in",
+          "range.out-><.in@bgKgXCHRL9GrSAp4LNfHIy",
+          "range.innerdomain-><.innerdomain",
+          "arithmetic.out-><.salt"
+        ],
+        "root_inputs_typed": [
+          "in@VtIYB3kADltt5hLn6Y49j0",
+          "in@LdkYGjqhNBVm37$SZaELf0",
+          "in@E1kTyxykFh0lMrBHqh$Ul2",
+          "in@Fct6WpJmMZ1pYGAvdEKzZ0",
+          "in@YBvgUSgABJFkST37Xogcu2",
+          "in@DPmCu9XDL9UsuE2LCVU853"
+        ],
+        "root_outputs": [
+          "geometryout"
+        ]
+      }
+    },
+    {
+      "name": "Nodes Spline",
+      "type": 180420700,
+      "type_name": "Scene Nodes Generator",
+      "depth": 0,
+      "parent": null,
+      "tags": [
+        {
+          "name": "Phong",
+          "type": 5612
+        }
+      ],
+      "selection_tags": [],
+      "is_sn": true,
+      "graph": {
+        "node_types": {
+          "readvalueatindex": 4,
+          "splinechamfer": 1,
+          "explode_islands": 1,
+          "buildfromvalue": 1,
+          "legacyobjectaccess": 1,
+          "get_property": 1,
+          "containeriteration": 1,
+          "assembler": 1
+        },
+        "node_count": 11,
+        "connections": [
+          "readvalueatindex._0->in._2",
+          "readvalueatindex._0->in._1",
+          "splinechamfer.geometryout->>.geometryout",
+          "explode_islands.geometriesout-><.in",
+          "buildfromvalue.arrayout-><.controlpointsin",
+          "legacyobjectaccess.matrixout-><.net.maxon.neutron.op.inpu",
+          "get_property.array-><.arrayin",
+          "get_property.array-><.arrayin",
+          "get_property.array-><.arrayin",
+          "get_property.array-><.arrayin",
+          "containeriteration.out-><.geometry",
+          "assembler.geometryout-><.geometryin",
+          "readvalueatindex._0->in._0",
+          "readvalueatindex._0->in._3"
+        ],
+        "root_inputs_typed": [],
+        "root_outputs": [
+          "geometryout"
+        ]
+      }
+    }
+  ],
+  "materials": [
+    {
+      "name": "Mat",
+      "type": 5703
+    }
+  ],
+  "doc_graph": {
+    "node_types": {
+      "net.maxon.neutron.scene.root": 1,
+      "builder": 1
+    },
+    "node_count": 2,
+    "connections": [
+      "net.maxon.neutron.scene.root.net.maxon.neutron.op.outp->>.net.maxon.neutron.op.outp",
+      "builder.out->>.scene"
+    ],
+    "root_inputs_typed": [],
+    "root_outputs": [
+      "net.maxon.neutron.op.output",
+      "scene"
+    ]
+  }
+}

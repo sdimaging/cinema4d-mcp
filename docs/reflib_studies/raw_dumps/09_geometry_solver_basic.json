@@ -1,0 +1,140 @@
+{
+  "scene": "01-Basic-Setup.c4d",
+  "objects": [
+    {
+      "name": "Init State",
+      "type": 1011010,
+      "type_name": "Connect",
+      "depth": 0,
+      "parent": null,
+      "tags": [],
+      "selection_tags": [],
+      "is_sn": false
+    },
+    {
+      "name": "Sphere",
+      "type": 5160,
+      "type_name": "Sphere",
+      "depth": 1,
+      "parent": "Init State",
+      "tags": [
+        {
+          "name": "Phong",
+          "type": 5612
+        }
+      ],
+      "selection_tags": [],
+      "is_sn": false
+    },
+    {
+      "name": "Solved State",
+      "type": 1011010,
+      "type_name": "Connect",
+      "depth": 0,
+      "parent": null,
+      "tags": [],
+      "selection_tags": [],
+      "is_sn": false
+    },
+    {
+      "name": "Volume Mesher",
+      "type": 1039861,
+      "type_name": "Volume Mesher",
+      "depth": 1,
+      "parent": "Solved State",
+      "tags": [
+        {
+          "name": "Phong",
+          "type": 5612
+        }
+      ],
+      "selection_tags": [],
+      "is_sn": false
+    },
+    {
+      "name": "Volume Builder",
+      "type": 1039859,
+      "type_name": "Volume Builder",
+      "depth": 2,
+      "parent": "Volume Mesher",
+      "tags": [
+        {
+          "name": "Store for next Frame Instance settings",
+          "type": 1039860
+        }
+      ],
+      "selection_tags": [],
+      "is_sn": false
+    },
+    {
+      "name": "State from previous Frame",
+      "type": 5126,
+      "type_name": "Instance",
+      "depth": 3,
+      "parent": "Volume Builder",
+      "tags": [],
+      "selection_tags": [],
+      "is_sn": false
+    },
+    {
+      "name": "Displacer",
+      "type": 1018685,
+      "type_name": "Displacer",
+      "depth": 4,
+      "parent": "State from previous Frame",
+      "tags": [],
+      "selection_tags": [],
+      "is_sn": false
+    },
+    {
+      "name": "Store for next Frame",
+      "type": 180420600,
+      "type_name": "Scene Nodes Generator",
+      "depth": 0,
+      "parent": null,
+      "tags": [
+        {
+          "name": "Phong",
+          "type": 5612
+        }
+      ],
+      "selection_tags": [],
+      "is_sn": true,
+      "graph": {
+        "node_types": {
+          "memory": 1
+        },
+        "node_count": 1,
+        "connections": [
+          "memory.currentout._0->>.geometryout",
+          "memory.next._0-><.next._0",
+          "memory.next._0->>.nextout._0"
+        ],
+        "root_inputs_typed": [
+          "object",
+          "object1"
+        ],
+        "root_outputs": [
+          "geometryout"
+        ]
+      }
+    }
+  ],
+  "materials": [],
+  "doc_graph": {
+    "node_types": {
+      "net.maxon.neutron.scene.root": 1,
+      "builder": 1
+    },
+    "node_count": 2,
+    "connections": [
+      "net.maxon.neutron.scene.root.net.maxon.neutron.op.outp->>.net.maxon.neutron.op.outp",
+      "builder.out->>.scene"
+    ],
+    "root_inputs_typed": [],
+    "root_outputs": [
+      "net.maxon.neutron.op.output",
+      "scene"
+    ]
+  }
+}

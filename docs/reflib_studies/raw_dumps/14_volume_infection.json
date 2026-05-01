@@ -1,0 +1,222 @@
+{
+  "scene": "Volume-Infection_Tutorial_File_01.c4d",
+  "objects": [
+    {
+      "name": "Point1",
+      "type": 5140,
+      "type_name": "Null",
+      "depth": 0,
+      "parent": null,
+      "tags": [],
+      "selection_tags": [],
+      "is_sn": false
+    },
+    {
+      "name": "Point2",
+      "type": 5140,
+      "type_name": "Null",
+      "depth": 0,
+      "parent": null,
+      "tags": [],
+      "selection_tags": [],
+      "is_sn": false
+    },
+    {
+      "name": "Torus",
+      "type": 5163,
+      "type_name": "Torus",
+      "depth": 0,
+      "parent": null,
+      "tags": [
+        {
+          "name": "Phong",
+          "type": 5612
+        }
+      ],
+      "selection_tags": [],
+      "is_sn": false
+    },
+    {
+      "name": "Volume Mesher",
+      "type": 1039861,
+      "type_name": "Volume Mesher",
+      "depth": 0,
+      "parent": null,
+      "tags": [
+        {
+          "name": "Phong",
+          "type": 5612
+        }
+      ],
+      "selection_tags": [],
+      "is_sn": false
+    },
+    {
+      "name": "Volume Builder",
+      "type": 1039859,
+      "type_name": "Volume Builder",
+      "depth": 1,
+      "parent": "Volume Mesher",
+      "tags": [
+        {
+          "name": "Voxel Size -> Mesh Point Radius",
+          "type": 1001149
+        },
+        {
+          "name": "Voxel Size -> Voxel Size",
+          "type": 1001149
+        },
+        {
+          "name": "Object Group settings",
+          "type": 1039860
+        }
+      ],
+      "selection_tags": [],
+      "is_sn": false
+    },
+    {
+      "name": "Object Group",
+      "type": 180420500,
+      "type_name": "Scene Nodes Generator",
+      "depth": 2,
+      "parent": "Volume Builder",
+      "tags": [
+        {
+          "name": "Phong",
+          "type": 5612
+        }
+      ],
+      "selection_tags": [],
+      "is_sn": true,
+      "graph": {
+        "node_types": {
+          "readvalueatindex": 1,
+          "append": 1,
+          "legacyobjectaccess": 3,
+          "buildfromvalue": 1,
+          "compare": 2,
+          "container": 4,
+          "memory": 1,
+          "reroute": 8,
+          "nearestneighbor": 1,
+          "containeriteration": 4,
+          "set": 1,
+          "matrix": 1,
+          "noise": 1,
+          "spline": 1,
+          "arithmetic": 1,
+          "color": 1,
+          "geometry": 1,
+          "concat": 1,
+          "fillgeometry": 1,
+          "cube": 1,
+          "builder": 1,
+          "net.maxon.neutron.corenode.multransform_5": 1,
+          "combine": 1,
+          "mat": 1,
+          "sqrpart": 1,
+          "vectrans": 1,
+          "sqrtrans": 1
+        },
+        "node_count": 43,
+        "connections": [
+          "readvalueatindex._0-><._0",
+          "append.arrayout-><.in",
+          "legacyobjectaccess.matrixout-><.net.maxon.neutron.op.inpu",
+          "buildfromvalue.arrayout-><.arraybasein",
+          "buildfromvalue.arraylengthout-><.in2",
+          "compare.out-><.countin",
+          "container.out-><.in@M_fTX0WbJZ2nIw0jqXB1Gv",
+          "memory.nextout._0-><.in",
+          "memory.next._1-><.next._1",
+          "memory.next._1->>.nextout._1",
+          "memory.next._0-><.next._0",
+          "memory.next._0->>.nextout._0",
+          "reroute.out-><.geometryin",
+          "reroute.out-><.in",
+          "nearestneighbor.nearestindices-><.in",
+          "reroute.out-><.in",
+          "containeriteration.out-><.iteration",
+          "set.geometryout-><.geometry",
+          "containeriteration.index-><.in",
+          "containeriteration.out-><.matrix",
+          "containeriteration.out-><.in",
+          "containeriteration.out-><.value",
+          "containeriteration.innerdomain-><.innerdomain",
+          "containeriteration.innerdomain-><.in",
+          "matrix.net.maxon.neutron.op.outp-><.net.maxon.neutron.op.inpu",
+          "noise.result-><.input",
+          "reroute.out-><.queryposition",
+          "reroute.out-><.in",
+          "reroute.out-><.in1",
+          "reroute.out-><.innerdomain",
+          "reroute.out-><.in",
+          "spline.result-><.color",
+          "spline.result-><.in1",
+          "arithmetic.out-><.in",
+          "reroute.out-><.arrayin",
+          "geometry.net.maxon.neutron.op.outp->>.net.maxon.neutron.op.outp",
+          "containeriteration.index-><.indexin",
+          "containeriteration.out-><.in1",
+          "concat.arrayout-><.in",
+          "concat.arrayout-><.in",
+          "compare.out-><.in",
+          "container.out-><.initial._1",
+          "fillgeometry.distdataout-><.in",
+          "containeriteration.innerdomain-><.innerdomain",
+          "container.out->in._0",
+          "cube.matrixout->>.net.maxon.neutron.op.outp",
+          "cube.net.maxon.neutron.op.outp-><.net.maxon.neutron.op.inpu",
+          "reroute.out-><.excludeindex",
+          "legacyobjectaccess.matrixout-><.net.maxon.neutron.op.inpu",
+          "container.out-><.initial._0",
+          "reroute.out-><.innerdomain",
+          "legacyobjectaccess.matrixout-><.net.maxon.neutron.op.inpu",
+          "builder.out->>.scene",
+          "net.maxon.neutron.corenode.multransform_5.out->children.out.parentmatrix",
+          "combine.out->matrixout.domain",
+          "mat.out->matrixout.matrix",
+          "sqrpart.out-><.in2",
+          "vectrans.out->matrixout.translation",
+          "vectrans.out-><.off",
+          "sqrtrans.out->matrixout.sqrmatrix",
+          "sqrtrans.out-><.sqmat"
+        ],
+        "root_inputs_typed": [
+          "in@XURKrapfNZzteAm2Z3DnZq",
+          "in@I0buKLJXJFduLuQwi$jAyu",
+          "in@PbXYDsYnBRqnm9uy99dVav",
+          "in@aCELLo6PDt6hHPndvXBIrr",
+          "net.maxon.neutron.op.objectbase.matrix",
+          "net.maxon.neutron.op.objectbase.children",
+          "objectinput",
+          "net.maxon.node.bypassable.bypass",
+          "net.maxon.neutron.op.input"
+        ],
+        "root_outputs": [
+          "scene",
+          "matrixout",
+          "children.out",
+          "net.maxon.neutron.op.output"
+        ]
+      }
+    }
+  ],
+  "materials": [],
+  "doc_graph": {
+    "node_types": {
+      "net.maxon.neutron.scene.root": 1,
+      "builder": 1
+    },
+    "node_count": 2,
+    "connections": [
+      "net.maxon.neutron.scene.root.net.maxon.neutron.op.outp->>.net.maxon.neutron.op.outp",
+      "builder.out->>.scene"
+    ],
+    "root_inputs_typed": [],
+    "root_outputs": [
+      "net.maxon.neutron.op.output",
+      "scene"
+    ]
+  }
+}

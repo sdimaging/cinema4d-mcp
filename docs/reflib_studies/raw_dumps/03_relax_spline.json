@@ -1,0 +1,162 @@
+{
+  "scene": "Relax-Spline_01_Tutorial.c4d",
+  "objects": [
+    {
+      "name": "Landscape",
+      "type": 5169,
+      "type_name": "Landscape",
+      "depth": 0,
+      "parent": null,
+      "tags": [
+        {
+          "name": "Phong",
+          "type": 5612
+        }
+      ],
+      "selection_tags": [],
+      "is_sn": false
+    },
+    {
+      "name": "Collision",
+      "type": 5116,
+      "type_name": "Extrude",
+      "depth": 0,
+      "parent": null,
+      "tags": [
+        {
+          "name": "Phong",
+          "type": 5612
+        }
+      ],
+      "selection_tags": [],
+      "is_sn": false
+    },
+    {
+      "name": "Text Spline",
+      "type": 5178,
+      "type_name": "Text Spline",
+      "depth": 1,
+      "parent": "Collision",
+      "tags": [],
+      "selection_tags": [],
+      "is_sn": false
+    },
+    {
+      "name": "Geometry Axis",
+      "type": 180420400,
+      "type_name": "Scene Nodes Deformer",
+      "depth": 1,
+      "parent": "Collision",
+      "tags": [],
+      "selection_tags": [],
+      "is_sn": true,
+      "graph": {
+        "node_types": {
+          "composematrix": 2,
+          "bb": 1,
+          "group": 1,
+          "transform_element": 1,
+          "transformvector": 3,
+          "inversematrix": 1
+        },
+        "node_count": 9,
+        "connections": [
+          "composematrix.out-><.transformin",
+          "bb.max-><.in2",
+          "bb.min-><.in2",
+          "bb.center-><.translation",
+          "group.out@HHiqGp4pPZgowgjOdTvc5-><.in2",
+          "transform_element.geometryout->>.geometryout",
+          "composematrix.out-><.in",
+          "transformvector.out-><.out@aufMTk$mPF6kVYqXclpRc",
+          "transformvector.out-><.out@OK6xSb$2Ghlin_J8SbEeo",
+          "inversematrix.out-><.in1",
+          "inversematrix.out-><.in1",
+          "inversematrix.out-><.in1",
+          "transformvector.out-><.translation"
+        ],
+        "root_inputs_typed": [
+          "net.maxon.nbo.classic.assetlink",
+          "inport@NJs9sJ05PdDhJF4DbkhO0$",
+          "inport@btL_ItUVE5WlRBToogL6Y7",
+          "inport@VWhWTiG2N54oEz8Jbvcp_6",
+          "geometryin"
+        ],
+        "root_outputs": [
+          "geometryout"
+        ]
+      }
+    },
+    {
+      "name": "Spline",
+      "type": 5101,
+      "type_name": "Spline",
+      "depth": 0,
+      "parent": null,
+      "tags": [
+        {
+          "name": "",
+          "type": 5617
+        },
+        {
+          "name": "",
+          "type": 5600
+        }
+      ],
+      "selection_tags": [],
+      "is_sn": false
+    }
+  ],
+  "materials": [
+    {
+      "name": "Standart",
+      "type": 5703
+    },
+    {
+      "name": "RS",
+      "type": 5703
+    }
+  ],
+  "doc_graph": {
+    "node_types": {
+      "net.maxon.neutron.scene.root": 1,
+      "memory": 1,
+      "tessellation": 2,
+      "sweepline": 1,
+      "subdivide": 1,
+      "legacyobjectaccess": 1,
+      "smoothgeometry": 1,
+      "geometry": 1,
+      "type": 3,
+      "material": 1,
+      "circle": 1,
+      "builder": 1
+    },
+    "node_count": 15,
+    "connections": [
+      "net.maxon.neutron.scene.root.net.maxon.neutron.op.outp->>.net.maxon.neutron.op.outp",
+      "memory.nextout._0-><.geometryin",
+      "memory.next._0-><.next._0",
+      "memory.next._0->>.nextout._0",
+      "tessellation.geometryout->_1.geometry",
+      "sweepline.geometryout-><.geometryin",
+      "subdivide.geometryout-><.geometryin",
+      "legacyobjectaccess.matrixout-><.net.maxon.neutron.op.inpu",
+      "smoothgeometry.geometryout-><.geometry",
+      "geometry.net.maxon.neutron.op.outp-><.net.maxon.neutron.op.inpu",
+      "type.out-><.in@PZCNe_CdIZik8QPd45CpgN",
+      "tessellation.geometryout->_0.geometry",
+      "material.result-><.in3",
+      "material.net.maxon.neutron.op.outp->net.maxon.neutron.op.objectbase.children._0",
+      "type.out-><.in@N2BxabrJHlenAfqs10CPKM",
+      "type.out-><.in@f7Z3Gg9CAx0qNKmkVrlByP",
+      "circle.geometryout-><.geometryin",
+      "builder.out->>.scene"
+    ],
+    "root_inputs_typed": [],
+    "root_outputs": [
+      "net.maxon.neutron.op.output",
+      "scene"
+    ]
+  }
+}
