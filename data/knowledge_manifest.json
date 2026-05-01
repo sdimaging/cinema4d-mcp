@@ -27,6 +27,12 @@
           "topics": ["LCV iteration", "AM-bridged sliders via root.GetInputs()", "Range+Group(arithmetic) progress", "Node Modifier 180420400", "the canonical artist-facing-tool recipe", "Geo Feedback Loop deconstruction"]
         },
         {
+          "path": "docs/scene_nodes_vocabulary.md",
+          "title": "Scene Nodes — Node vocabulary reference (the engineer's mental model)",
+          "type": "markdown",
+          "topics": ["data type taxonomy (Geometry/Spline/Selection/Container/Domain)", "node taxonomy by purpose (primitives/modifiers/selection-ops/conversion-ops/multi-stream/iteration/math)", "AM bridge contracts", "selection-to-material bridge", "variadic port idioms", "engineering recipe decomposition checklist", "0360 full pipeline annotated", "common mistakes"]
+        },
+        {
           "path": "data/scene_nodes_atlas.json",
           "title": "Scene Nodes atlas (patterns, port types, anti-patterns, design principles)",
           "type": "json"
