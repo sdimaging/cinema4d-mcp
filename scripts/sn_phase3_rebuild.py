@@ -52,6 +52,14 @@ def _find_obj_by_name(start_obj, name):
     return None
 
 
+def _is_redshift_node(node_id):
+    """Filter Redshift-explicit shader nodes — render-engine-specific, not
+    geometry/algorithm-relevant. We rebuild geo + general SN ops; RS pins
+    are skipped silently. Vertex maps & geo attrs are NOT RS, kept."""
+    s = node_id.lower()
+    return ("redshift" in s) or s.startswith("com.redshift") or s.startswith("rs.")
+
+
 def _walk_capsule_recursive(node, path, depth, out_nodes, out_defaults, out_wires, scope_paths):
     """Walk one node + all its capsule-interior descendants. Captures node
     info, port defaults, and outgoing wires (for stitching by path)."""
@@ -60,12 +68,18 @@ def _walk_capsule_recursive(node, path, depth, out_nodes, out_defaults, out_wire
     nid = str(node.GetId())
     full_path = f"{path}/{nid}" if path else nid
 
+    # RS filter — render-engine-specific shader nodes, skip
+    if _is_redshift_node(nid):
+        return
+
     # Detect capsule interior
     inner = []
     try:
         node.GetChildren(lambda c: inner.append(c) or True, maxon.NODE_KIND.NODE)
     except Exception:
         pass
+    # Filter inner: drop RS children before counting
+    inner = [c for c in inner if not _is_redshift_node(str(c.GetId()))]
     is_capsule = len(inner) > 0
 
     out_nodes.append({
@@ -252,7 +266,7 @@ def load_descriptor(path):
 
 
 # Asset-id resolution helpers — extend as new wrapper basenames are confirmed
-# UPDATED 2026-05-02 with atlas-corrected ids from Spiderweb attempt
+# UPDATED 2026-05-02 with atlas + runtime-verified ids from Spiderweb attempt v3
 DEFAULT_ASSET_MAP = {
     # Math + control
     "arithmetic": "net.maxon.node.arithmetic",
@@ -262,7 +276,7 @@ DEFAULT_ASSET_MAP = {
     "clamp": "net.maxon.node.clamp",
     "negate": "net.maxon.node.negate",
     "scale": "net.maxon.node.scale",
-    "range": "net.maxon.node.range",  # unverified — atlas only had Redshift hits
+    "range": "net.maxon.neutron.node.range",  # ATLAS+RUNTIME VERIFIED (was wrong namespace)
     "hash": "net.maxon.pattern.node.generator.hash",  # ATLAS-VERIFIED
     "inversematrix": "net.maxon.node.inversematrix",
     "transformmatrix": "net.maxon.node.transformmatrix",
@@ -293,12 +307,39 @@ DEFAULT_ASSET_MAP = {
     "invertselection": "net.maxon.neutron.modeling.selection.invertselection",
     "active": "net.maxon.neutron.modeling.selection.active",
     "cube": "net.maxon.neutron.node.primitive.cube",
-    "spline": "net.maxon.neutron.geometry.spline",  # unverified
     "assembler": "net.maxon.neutron.geometry.spline.assembler",  # ATLAS-VERIFIED
     "children": "net.maxon.neutron.op.children",  # unverified
-    "get": "net.maxon.neutron.op.get",  # unverified
-    # Object access
+    "get": "net.maxon.neutron.geometry.get",  # ATLAS-VERIFIED (geometry/get not op/get)
+    # Object access (NBO = neutron base object)
     "legacyobjectaccess": "net.maxon.nbo.node.legacyobjectaccess",
+    "legacyobjectimport": "net.maxon.nbo.node.legacyobjectimport",  # label "Object Import"
+    "objectimport": "net.maxon.nbo.node.legacyobjectimport",  # alias
+}
+
+# Nodes that are SCENE-LOCAL CUSTOM CAPSULES — i.e. defined inline in the .c4d
+# rather than from the maxon asset DB. These cannot be AddChild'd from an
+# asset id; they need to be cloned from the source graph or marked unreachable.
+# Detected when AddChild fails AND the basename has no shipped asset.
+SCENE_LOCAL_CAPSULE_BASES = {
+    "spline",        # Spiderweb's custom spline-builder capsule
+    "matrixop",      # interior of legacyobjectaccess (auto-spawned by parent)
+    "multransform_5",
+    "objectimport",  # interior auto-spawn — but legacyobjectimport works at top
+}
+
+# Body-interior nodes that are AUTO-PRESENT inside a parent capsule's body.
+# These should be skipped (they'll be harvested into path_to_node by the
+# parent-capsule-add). Used as a hint, not a hard filter — the harvest logic
+# is the actual gate.
+AUTO_PRESENT_BODY_NODES = {
+    "start", "end",     # capsule interface markers
+    "combine", "mat", "sqrpart", "vectrans", "sqrtrans",  # legacyobjectaccess body
+    "coreNode",          # assembler body
+    "rot",               # children sub-capsule body
+    "_0", "_1", "_2", "_3",  # typed slot sub-capsules (LCV, children, spline)
+    "get",               # auto-spawn inside top-level Get
+    "baselistparameter", # legacyobjectaccess body
+    "net.maxon.neutron.corenode.multransform_5",  # legacyobjectaccess body
 }
 
 
@@ -380,15 +421,40 @@ def rebuild_scene(desc, target_name="REBUILT", parent_obj=None,
         nodes_by_depth.setdefault(n["depth"], []).append(n)
 
     addchild_ok = 0
-    addchild_skip = 0
+    addchild_skip_framework = 0
+    addchild_skip_autospawn = 0
+    addchild_skip_rs = 0
     addchild_err = []
 
-    # Pre-existing context_* nodes
-    existing_top = set()
-    graph.GetRoot().GetChildren(
-        lambda n: existing_top.add(str(n.GetId())) or True,
-        maxon.NODE_KIND.NODE
-    )
+    # Helper: harvest live children of a container into path_to_node,
+    # so any auto-present body nodes (start/end + template-spawned) are
+    # known BEFORE we attempt to AddChild any descriptor-listed child.
+    def _harvest_children_into_index(parent_node, parent_path):
+        if parent_node is None:
+            # Root harvest
+            kids = []
+            graph.GetRoot().GetChildren(
+                lambda n: kids.append(n) or True, maxon.NODE_KIND.NODE
+            )
+            for c in kids:
+                cid = str(c.GetId())
+                cpath = cid  # depth-0 path is just the id
+                path_to_node.setdefault(cpath, c)
+            return
+        try:
+            kids = []
+            parent_node.GetChildren(
+                lambda c: kids.append(c) or True, maxon.NODE_KIND.NODE
+            )
+            for c in kids:
+                cid = str(c.GetId())
+                cpath = f"{parent_path}/{cid}"
+                path_to_node.setdefault(cpath, c)
+        except Exception:
+            pass
+
+    # Initial harvest: top-level (context_externaltimeinput, context_notime, etc.)
+    _harvest_children_into_index(None, "")
 
     for depth in sorted(nodes_by_depth.keys()):
         with graph.BeginTransaction() as txn:
@@ -396,20 +462,35 @@ def rebuild_scene(desc, target_name="REBUILT", parent_obj=None,
                 full_path = n["path"]
                 nid = n["id"]
 
-                # Skip framework nodes that are auto-present
+                # RS shader nodes — skip silently
+                if _is_redshift_node(nid):
+                    addchild_skip_rs += 1
+                    continue
+
+                # Identify parent scope and harvest its live children FIRST,
+                # so auto-present nodes (start/end + template-spawned body) are
+                # registered in path_to_node before we try to AddChild this id.
+                if depth == 0:
+                    target_parent_node = None
+                    parent_path = ""
+                    _harvest_children_into_index(None, "")
+                else:
+                    parent_path = full_path.rsplit("/", 1)[0]
+                    target_parent_node = path_to_node.get(parent_path)
+                    if target_parent_node is None:
+                        addchild_err.append({"path": full_path, "reason": "parent_capsule_missing"})
+                        continue
+                    _harvest_children_into_index(target_parent_node, parent_path)
+
+                # If this node is now ALREADY in path_to_node (auto-spawned by
+                # the capsule template), skip AddChild — it's there for free.
+                if full_path in path_to_node:
+                    addchild_skip_autospawn += 1
+                    continue
+
+                # Framework nodes that should never be AddChild'd
                 if nid.startswith("context_") or nid in ("start", "end"):
-                    addchild_skip += 1
-                    # Still need to track them for wiring — find the live handle
-                    if depth == 0 and nid in existing_top:
-                        # Find the live node
-                        live = []
-                        graph.GetRoot().GetChildren(
-                            lambda n: live.append(n) or True if str(n.GetId()) == nid else True,
-                            maxon.NODE_KIND.NODE
-                        )
-                        # Simpler: just walk + match
-                        for c in []:  # placeholder — real lookup below
-                            pass
+                    addchild_skip_framework += 1
                     continue
 
                 base = basename_of(nid)
@@ -418,57 +499,43 @@ def rebuild_scene(desc, target_name="REBUILT", parent_obj=None,
                     addchild_err.append({"path": full_path, "reason": "unknown_asset", "base": base})
                     continue
 
-                # AddChild — but where? For depth 0, on root graph.
-                # For depth >0, INSIDE the parent capsule (path's parent).
-                if depth == 0:
-                    target_parent_node = None  # graph root
-                else:
-                    parent_path = full_path.rsplit("/", 1)[0]
-                    target_parent_node = path_to_node.get(parent_path)
-                    if target_parent_node is None:
-                        addchild_err.append({"path": full_path, "reason": "parent_capsule_missing"})
-                        continue
-
                 try:
                     if target_parent_node is None:
-                        # Top-level
                         added = graph.AddChild(maxon.Id(nid), maxon.Id(asset))
                     else:
-                        # Inside a capsule — same API, scoped to the capsule
-                        # NOTE: this may or may not work depending on maxon API;
-                        # if it fails we report it as a gap to investigate
                         added = target_parent_node.AddChild(maxon.Id(nid), maxon.Id(asset))
                     addchild_ok += 1
                     path_to_node[full_path] = added
+                    # If this newly-added node is itself a capsule, harvest its
+                    # auto-present interior immediately so deeper-depth passes
+                    # can find auto-spawn nodes inside it.
+                    _harvest_children_into_index(added, full_path)
                 except Exception as e:
                     addchild_err.append({"path": full_path, "reason": str(e)[:120]})
             txn.Commit()
 
-    # Populate path_to_node for top-level nodes that were added
-    # Re-walk to capture handles for context_/start/end (auto-present)
-    def repop_handles():
-        # Walk top-level
-        graph.GetRoot().GetChildren(
-            lambda n: path_to_node.update({str(n.GetId()): n}) or True,
-            maxon.NODE_KIND.NODE
-        )
-        # Recurse: for each capsule we've populated, walk its interior
-        for path, nd in list(path_to_node.items()):
-            try:
-                inner = []
-                nd.GetChildren(lambda c: inner.append(c) or True, maxon.NODE_KIND.NODE)
-                for c in inner:
-                    cpath = f"{path}/{str(c.GetId())}"
-                    path_to_node[cpath] = c
-                    # Recurse one more level
-                    inner2 = []
-                    c.GetChildren(lambda cc: inner2.append(cc) or True, maxon.NODE_KIND.NODE)
-                    for cc in inner2:
-                        ccpath = f"{cpath}/{str(cc.GetId())}"
-                        path_to_node[ccpath] = cc
-            except Exception:
-                pass
-    repop_handles()
+    # Final harvest: walk every populated capsule interior recursively to
+    # ensure path_to_node has handles for every nested auto-present node.
+    def _final_harvest_recursive(node, path, depth=0):
+        if depth > 8:
+            return
+        try:
+            kids = []
+            node.GetChildren(lambda c: kids.append(c) or True, maxon.NODE_KIND.NODE)
+            for c in kids:
+                cid = str(c.GetId())
+                cpath = f"{path}/{cid}" if path else cid
+                path_to_node.setdefault(cpath, c)
+                _final_harvest_recursive(c, cpath, depth + 1)
+        except Exception:
+            pass
+
+    top = []
+    graph.GetRoot().GetChildren(lambda n: top.append(n) or True, maxon.NODE_KIND.NODE)
+    for n in top:
+        nid = str(n.GetId())
+        path_to_node.setdefault(nid, n)
+        _final_harvest_recursive(n, nid)
 
     # PHASE B — set port defaults (especially type-determinants like types._0)
     defaults_set = 0
@@ -580,10 +647,15 @@ def rebuild_scene(desc, target_name="REBUILT", parent_obj=None,
     c4d.EventAdd(c4d.EVENT_FORCEREDRAW)
     doc.ExecutePasses(None, True, True, True, c4d.BUILDFLAGS_NONE)
 
+    # Compute fidelity: count desc nodes that have a live handle in path_to_node
+    matched_paths = sum(1 for n in desc["nodes"] if n["path"] in path_to_node)
+
     report = {
         "source_node_count": desc["node_count"],
         "addchild_ok": addchild_ok,
-        "addchild_skip_framework": addchild_skip,
+        "addchild_skip_framework": addchild_skip_framework,
+        "addchild_skip_autospawn": addchild_skip_autospawn,
+        "addchild_skip_redshift": addchild_skip_rs,
         "addchild_err_count": len(addchild_err),
         "addchild_err_sample": addchild_err[:10],
         "defaults_set": defaults_set,
@@ -591,8 +663,9 @@ def rebuild_scene(desc, target_name="REBUILT", parent_obj=None,
         "wires_total": desc.get("wire_count", 0),
         "connect_ok": connect_ok,
         "connect_skip": connect_skip,
+        "matched_node_paths": matched_paths,
         "node_fidelity_pct": (
-            100.0 * len(path_to_node) / desc["node_count"]
+            100.0 * matched_paths / desc["node_count"]
             if desc["node_count"] else 0
         ),
         "wire_fidelity_pct": (

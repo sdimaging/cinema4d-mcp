@@ -1,0 +1,1021 @@
+{
+  "source_host": "Nodes Spline",
+  "source_host_type": 180420700,
+  "node_count": 31,
+  "capsule_count": 5,
+  "wire_count": 71,
+  "defaults_count": 52,
+  "nodes": [
+    {
+      "path": "readvalueatindex@V9166JMyLt$nM8TUfkiOvx",
+      "id": "readvalueatindex@V9166JMyLt$nM8TUfkiOvx",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "explode_islands@XlE9SnCUIltrr1gNnREmMy",
+      "id": "explode_islands@XlE9SnCUIltrr1gNnREmMy",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "get_property@S8mSYvbGF5_p5U5G9vmXwx",
+      "id": "get_property@S8mSYvbGF5_p5U5G9vmXwx",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 1
+    },
+    {
+      "path": "get_property@S8mSYvbGF5_p5U5G9vmXwx/get",
+      "id": "get",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "readvalueatindex@XQdyWj3jDx4tY8PIfG4SGw",
+      "id": "readvalueatindex@XQdyWj3jDx4tY8PIfG4SGw",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "readvalueatindex@IEQARUuHKp2p2w4BxOkcSz",
+      "id": "readvalueatindex@IEQARUuHKp2p2w4BxOkcSz",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "buildfromvalue@GVco80y5BBHvKOPL4Y3sw1",
+      "id": "buildfromvalue@GVco80y5BBHvKOPL4Y3sw1",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "containeriteration@ZKxFXhkGMV8oi9RujsoQF3",
+      "id": "containeriteration@ZKxFXhkGMV8oi9RujsoQF3",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "splinechamfer@Fg$$wgMvAJ4m0kR_RzTO00",
+      "id": "splinechamfer@Fg$$wgMvAJ4m0kR_RzTO00",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 2
+    },
+    {
+      "path": "splinechamfer@Fg$$wgMvAJ4m0kR_RzTO00/chamfernode",
+      "id": "chamfernode",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "splinechamfer@Fg$$wgMvAJ4m0kR_RzTO00/selectionstringtoselection",
+      "id": "selectionstringtoselection",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "assembler@VhSgBGH9ExXl8Vwzp3hu1y",
+      "id": "assembler@VhSgBGH9ExXl8Vwzp3hu1y",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 1
+    },
+    {
+      "path": "assembler@VhSgBGH9ExXl8Vwzp3hu1y/coreNode",
+      "id": "coreNode",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "id": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 9
+    },
+    {
+      "path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/matrixop",
+      "id": "matrixop",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 5
+    },
+    {
+      "path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/matrixop/combine",
+      "id": "combine",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/matrixop/mat",
+      "id": "mat",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/matrixop/sqrpart",
+      "id": "sqrpart",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/matrixop/vectrans",
+      "id": "vectrans",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/matrixop/sqrtrans",
+      "id": "sqrtrans",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/objectimport",
+      "id": "objectimport",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/baselistparameter",
+      "id": "baselistparameter",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/net.maxon.neutron.corenode.multransform_5",
+      "id": "net.maxon.neutron.corenode.multransform_5",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/combine",
+      "id": "combine",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/mat",
+      "id": "mat",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/sqrpart",
+      "id": "sqrpart",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/vectrans",
+      "id": "vectrans",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/sqrtrans",
+      "id": "sqrtrans",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "readvalueatindex@GcMDrOMrL9PoDz0iXnXbV1",
+      "id": "readvalueatindex@GcMDrOMrL9PoDz0iXnXbV1",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "context_externaltimeinput",
+      "id": "context_externaltimeinput",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "context_notime",
+      "id": "context_notime",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    }
+  ],
+  "wires": [
+    {
+      "src_path": "readvalueatindex@V9166JMyLt$nM8TUfkiOvx",
+      "src_port": "_0",
+      "dst_path": "buildfromvalue@GVco80y5BBHvKOPL4Y3sw1",
+      "dst_port": "_2"
+    },
+    {
+      "src_path": "explode_islands@XlE9SnCUIltrr1gNnREmMy",
+      "src_port": "geometriesout",
+      "dst_path": "containeriteration@ZKxFXhkGMV8oi9RujsoQF3",
+      "dst_port": "in"
+    },
+    {
+      "src_path": "get_property@S8mSYvbGF5_p5U5G9vmXwx",
+      "src_port": "array",
+      "dst_path": "readvalueatindex@GcMDrOMrL9PoDz0iXnXbV1",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "get_property@S8mSYvbGF5_p5U5G9vmXwx",
+      "src_port": "array",
+      "dst_path": "readvalueatindex@IEQARUuHKp2p2w4BxOkcSz",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "get_property@S8mSYvbGF5_p5U5G9vmXwx",
+      "src_port": "array",
+      "dst_path": "readvalueatindex@V9166JMyLt$nM8TUfkiOvx",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "get_property@S8mSYvbGF5_p5U5G9vmXwx",
+      "src_port": "array",
+      "dst_path": "readvalueatindex@XQdyWj3jDx4tY8PIfG4SGw",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "get_property@S8mSYvbGF5_p5U5G9vmXwx/get",
+      "src_port": "arrayout",
+      "dst_path": "get_property@S8mSYvbGF5_p5U5G9vmXwx",
+      "dst_port": "array"
+    },
+    {
+      "src_path": "get_property@S8mSYvbGF5_p5U5G9vmXwx/get",
+      "src_port": "accessornameout",
+      "dst_path": "get_property@S8mSYvbGF5_p5U5G9vmXwx",
+      "dst_port": "accessornameout"
+    },
+    {
+      "src_path": "get_property@S8mSYvbGF5_p5U5G9vmXwx/get",
+      "src_port": "isaccessorfoundout",
+      "dst_path": "get_property@S8mSYvbGF5_p5U5G9vmXwx",
+      "dst_port": "isattributefoundout"
+    },
+    {
+      "src_path": "get_property@S8mSYvbGF5_p5U5G9vmXwx/get",
+      "src_port": "topologyout",
+      "dst_path": "get_property@S8mSYvbGF5_p5U5G9vmXwx",
+      "dst_port": "topology"
+    },
+    {
+      "src_path": "readvalueatindex@XQdyWj3jDx4tY8PIfG4SGw",
+      "src_port": "_0",
+      "dst_path": "buildfromvalue@GVco80y5BBHvKOPL4Y3sw1",
+      "dst_port": "_0"
+    },
+    {
+      "src_path": "readvalueatindex@IEQARUuHKp2p2w4BxOkcSz",
+      "src_port": "_0",
+      "dst_path": "buildfromvalue@GVco80y5BBHvKOPL4Y3sw1",
+      "dst_port": "_3"
+    },
+    {
+      "src_path": "buildfromvalue@GVco80y5BBHvKOPL4Y3sw1",
+      "src_port": "arrayout",
+      "dst_path": "assembler@VhSgBGH9ExXl8Vwzp3hu1y",
+      "dst_port": "controlpointsin"
+    },
+    {
+      "src_path": "containeriteration@ZKxFXhkGMV8oi9RujsoQF3",
+      "src_port": "out",
+      "dst_path": "get_property@S8mSYvbGF5_p5U5G9vmXwx",
+      "dst_port": "geometry"
+    },
+    {
+      "src_path": "splinechamfer@Fg$$wgMvAJ4m0kR_RzTO00/chamfernode",
+      "src_port": "geometryout",
+      "dst_path": "splinechamfer@Fg$$wgMvAJ4m0kR_RzTO00",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "splinechamfer@Fg$$wgMvAJ4m0kR_RzTO00/selectionstringtoselection",
+      "src_port": "array",
+      "dst_path": "splinechamfer@Fg$$wgMvAJ4m0kR_RzTO00/chamfernode",
+      "dst_port": "selectionindices"
+    },
+    {
+      "src_path": "assembler@VhSgBGH9ExXl8Vwzp3hu1y",
+      "src_port": "geometryout",
+      "dst_path": "splinechamfer@Fg$$wgMvAJ4m0kR_RzTO00",
+      "dst_port": "geometryin"
+    },
+    {
+      "src_path": "assembler@VhSgBGH9ExXl8Vwzp3hu1y/coreNode",
+      "src_port": "geometryout",
+      "dst_path": "assembler@VhSgBGH9ExXl8Vwzp3hu1y",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "src_port": "matrixout",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/matrixop",
+      "dst_port": "net.maxon.neutron.op.input"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "src_port": "matrixout.domain",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "domain"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "src_port": "matrixout.parentmatrix",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/net.maxon.neutron.corenode.multransform_5",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "src_port": "matrixout.matrix",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/net.maxon.neutron.corenode.multransform_5",
+      "dst_port": "in2"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "src_port": "net.maxon.neutron.op.output.geometry",
+      "dst_path": "explode_islands@XlE9SnCUIltrr1gNnREmMy",
+      "dst_port": "geometryin"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/matrixop",
+      "src_port": "net.maxon.neutron.op.output",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "net.maxon.neutron.op.output"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/matrixop/combine",
+      "src_port": "out",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/matrixop",
+      "dst_port": "domain"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/matrixop/mat",
+      "src_port": "out",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/matrixop",
+      "dst_port": "matrix"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/matrixop/sqrpart",
+      "src_port": "out",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/matrixop/sqrtrans",
+      "dst_port": "in2"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/matrixop/vectrans",
+      "src_port": "out",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/matrixop",
+      "dst_port": "translation"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/matrixop/vectrans",
+      "src_port": "out",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/mat",
+      "dst_port": "off"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/matrixop/sqrtrans",
+      "src_port": "out",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/mat",
+      "dst_port": "sqmat"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/matrixop/sqrtrans",
+      "src_port": "out",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/matrixop",
+      "dst_port": "sqrmatrix"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/objectimport",
+      "src_port": "localmatrix",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "net.maxon.nbo.legacyobjectimport.objectimport.localmatrix"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/objectimport",
+      "src_port": "geometry",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "geometry"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/objectimport",
+      "src_port": "matrix",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/matrixop",
+      "dst_port": "matrix"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/objectimport",
+      "src_port": "matrix",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "net.maxon.nbo.legacyobjectimport.objectimport.matrix"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/objectimport",
+      "src_port": "positions",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "net.maxon.nbo.legacyobjectimport.objectimport.positions"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/objectimport",
+      "src_port": "matrices",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "net.maxon.nbo.legacyobjectimport.objectimport.matrices"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/baselistparameter",
+      "src_port": "out.parameter_933",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "parameter_933"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/baselistparameter",
+      "src_port": "out.parameter_932",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "parameter_932"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/baselistparameter",
+      "src_port": "out.parameter_931",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "parameter_931"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/baselistparameter",
+      "src_port": "out.parameter_911",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "parameter_911"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/baselistparameter",
+      "src_port": "out.parameter_925",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "parameter_925"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/baselistparameter",
+      "src_port": "out.parameter_929",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "parameter_929"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/baselistparameter",
+      "src_port": "out.parameter_1041670",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "parameter_1041670"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/baselistparameter",
+      "src_port": "out.parameter_902",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "parameter_902"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/baselistparameter",
+      "src_port": "out.parameter_906",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "parameter_906"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/baselistparameter",
+      "src_port": "out.parameter_928",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "parameter_928"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/baselistparameter",
+      "src_port": "out.parameter_1041671",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "parameter_1041671"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/baselistparameter",
+      "src_port": "out.parameter_907",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "parameter_907"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/baselistparameter",
+      "src_port": "out.parameter_900",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "parameter_900"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/baselistparameter",
+      "src_port": "out.parameter_909",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "parameter_909"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/baselistparameter",
+      "src_port": "out.parameter_901",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "parameter_901"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/baselistparameter",
+      "src_port": "out.parameter_927",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "parameter_927"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/baselistparameter",
+      "src_port": "out.parameter_926",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "parameter_926"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/baselistparameter",
+      "src_port": "out.parameter_919",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "parameter_919"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/baselistparameter",
+      "src_port": "out.parameter_905",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "parameter_905"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/baselistparameter",
+      "src_port": "out.parameter_904",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "parameter_904"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/baselistparameter",
+      "src_port": "out.parameter_918",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "parameter_918"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/baselistparameter",
+      "src_port": "out.parameter_903",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "parameter_903"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/baselistparameter",
+      "src_port": "out.parameter_917",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "parameter_917"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/baselistparameter",
+      "src_port": "out.parameter_908",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "parameter_908"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/baselistparameter",
+      "src_port": "out.parameter_910",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "parameter_910"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/net.maxon.neutron.corenode.multransform_5",
+      "src_port": "out",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "parentmatrix"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/combine",
+      "src_port": "out",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "domain"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/mat",
+      "src_port": "out",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "matrix"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/sqrpart",
+      "src_port": "out",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/matrixop/sqrtrans",
+      "dst_port": "in2"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/vectrans",
+      "src_port": "out",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "translation"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/vectrans",
+      "src_port": "out",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/mat",
+      "dst_port": "off"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/sqrtrans",
+      "src_port": "out",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/mat",
+      "dst_port": "sqmat"
+    },
+    {
+      "src_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/sqrtrans",
+      "src_port": "out",
+      "dst_path": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dst_port": "sqrmatrix"
+    },
+    {
+      "src_path": "readvalueatindex@GcMDrOMrL9PoDz0iXnXbV1",
+      "src_port": "_0",
+      "dst_path": "buildfromvalue@GVco80y5BBHvKOPL4Y3sw1",
+      "dst_port": "_1"
+    }
+  ],
+  "port_defaults": [
+    {
+      "node": "readvalueatindex@V9166JMyLt$nM8TUfkiOvx",
+      "dir": "IN",
+      "port": "indexin",
+      "type": "Int64",
+      "val": "3"
+    },
+    {
+      "node": "readvalueatindex@V9166JMyLt$nM8TUfkiOvx",
+      "dir": "IN",
+      "port": "cyclein",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "get_property@S8mSYvbGF5_p5U5G9vmXwx",
+      "dir": "IN",
+      "port": "accessorname",
+      "type": "String",
+      "val": "pt"
+    },
+    {
+      "node": "get_property@S8mSYvbGF5_p5U5G9vmXwx",
+      "dir": "IN",
+      "port": "fallbackmodein",
+      "type": "Id",
+      "val": "none"
+    },
+    {
+      "node": "get_property@S8mSYvbGF5_p5U5G9vmXwx",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "Id",
+      "val": "net.maxon.geometryabstraction.accessortypes.attributes.data3d"
+    },
+    {
+      "node": "get_property@S8mSYvbGF5_p5U5G9vmXwx",
+      "dir": "IN",
+      "port": "fallbackvaluein",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "get_property@S8mSYvbGF5_p5U5G9vmXwx",
+      "dir": "IN",
+      "port": "componentin",
+      "type": "Id",
+      "val": "points"
+    },
+    {
+      "node": "readvalueatindex@XQdyWj3jDx4tY8PIfG4SGw",
+      "dir": "IN",
+      "port": "cyclein",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "readvalueatindex@IEQARUuHKp2p2w4BxOkcSz",
+      "dir": "IN",
+      "port": "indexin",
+      "type": "Int64",
+      "val": "2"
+    },
+    {
+      "node": "readvalueatindex@IEQARUuHKp2p2w4BxOkcSz",
+      "dir": "IN",
+      "port": "cyclein",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "buildfromvalue@GVco80y5BBHvKOPL4Y3sw1",
+      "dir": "IN",
+      "port": "in",
+      "type": "Array",
+      "val": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=4)"
+    },
+    {
+      "node": "buildfromvalue@GVco80y5BBHvKOPL4Y3sw1",
+      "dir": "IN",
+      "port": "datatypein",
+      "type": "DataType",
+      "val": "net.maxon.parametrictype.vec<3,float>"
+    },
+    {
+      "node": "buildfromvalue@GVco80y5BBHvKOPL4Y3sw1",
+      "dir": "OUT",
+      "port": "arraylengthout",
+      "type": "Int64",
+      "val": "4"
+    },
+    {
+      "node": "splinechamfer@Fg$$wgMvAJ4m0kR_RzTO00",
+      "dir": "IN",
+      "port": "distance",
+      "type": "Float64",
+      "val": "2"
+    },
+    {
+      "node": "splinechamfer@Fg$$wgMvAJ4m0kR_RzTO00",
+      "dir": "IN",
+      "port": "selectionstring",
+      "type": "String",
+      "val": "default"
+    },
+    {
+      "node": "splinechamfer@Fg$$wgMvAJ4m0kR_RzTO00",
+      "dir": "IN",
+      "port": "radius",
+      "type": "Float64",
+      "val": "5"
+    },
+    {
+      "node": "splinechamfer@Fg$$wgMvAJ4m0kR_RzTO00",
+      "dir": "IN",
+      "port": "maxangle",
+      "type": "Float64",
+      "val": "0.087"
+    },
+    {
+      "node": "splinechamfer@Fg$$wgMvAJ4m0kR_RzTO00",
+      "dir": "IN",
+      "port": "style",
+      "type": "InternedId",
+      "val": "fillet"
+    },
+    {
+      "node": "splinechamfer@Fg$$wgMvAJ4m0kR_RzTO00",
+      "dir": "IN",
+      "port": "offset",
+      "type": "InternedId",
+      "val": "fixeddistance"
+    },
+    {
+      "node": "splinechamfer@Fg$$wgMvAJ4m0kR_RzTO00/selectionstringtoselection",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.accessorclas>cR"
+    },
+    {
+      "node": "assembler@VhSgBGH9ExXl8Vwzp3hu1y",
+      "dir": "IN",
+      "port": "splinetypein",
+      "type": "Id",
+      "val": "net.maxon.registry.geometryabstraction.curve.types.linear"
+    },
+    {
+      "node": "assembler@VhSgBGH9ExXl8Vwzp3hu1y",
+      "dir": "IN",
+      "port": "curveclosedin",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dir": "IN",
+      "port": "baselistlink",
+      "type": "Uuid",
+      "val": "244461C5-0508-42C4-9857-28C6E43C960C"
+    },
+    {
+      "node": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dir": "IN",
+      "port": "baselistparameters",
+      "type": "DataDictionary",
+      "val": "DataDictionary{:DataDictionary{:DataDictionary{:5612,:A89EA7B6-87F1-44BC-9296-AE9453842425,:0,:Phon},:DataDictionary{:5604,:22602FF1-1ED9-479F-9793-F296E5F7C633,:1,},:DataDictionary{:5600,:D1D3D1E5-7C8E-4ABC-AE96-551AB1D24062,:2,},:DataDict"
+    },
+    {
+      "node": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.objectbase.matrix",
+      "type": "Matrix64",
+      "val": "((0,0,0),((1,0,0),(0,1,0),(0,0,1)))"
+    },
+    {
+      "node": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.objectbase.matrix.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.objectbase.matrix.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.objectbase.matrix.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.objectbase.children",
+      "type": "Array",
+      "val": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=0)"
+    },
+    {
+      "node": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.translation",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.sqrmatrix",
+      "type": "SqMat3_64",
+      "val": "((1,0,0),(0,1,0),(0,0,1))"
+    },
+    {
+      "node": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dir": "OUT",
+      "port": "matrixout.parentmatrix",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dir": "OUT",
+      "port": "matrixout.translation",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dir": "OUT",
+      "port": "matrixout.sqrmatrix",
+      "type": "SqMat3_64",
+      "val": "((1,0,0),(0,1,0),(0,0,1))"
+    },
+    {
+      "node": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dir": "OUT",
+      "port": "matrixout.matrix",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dir": "OUT",
+      "port": "children.out.translation",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dir": "OUT",
+      "port": "children.out.sqrmatrix",
+      "type": "SqMat3_64",
+      "val": "((1,0,0),(0,1,0),(0,0,1))"
+    },
+    {
+      "node": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1",
+      "dir": "OUT",
+      "port": "children.out.matrix",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/matrixop",
+      "dir": "IN",
+      "port": "matrix",
+      "type": "Matrix64",
+      "val": "((0,0,0),((1,0,0),(0,1,0),(0,0,1)))"
+    },
+    {
+      "node": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/matrixop",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.translation",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/matrixop",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.sqrmatrix",
+      "type": "SqMat3_64",
+      "val": "((1,0,0),(0,1,0),(0,0,1))"
+    },
+    {
+      "node": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/matrixop/mat",
+      "dir": "IN",
+      "port": "in",
+      "type": "Matrix64",
+      "val": "((0,0,0),((1,0,0),(0,1,0),(0,0,1)))"
+    },
+    {
+      "node": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/matrixop/sqrpart",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "auto"
+    },
+    {
+      "node": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/objectimport",
+      "dir": "OUT",
+      "port": "matrix",
+      "type": "Matrix64",
+      "val": "((0,0,0),((1,0,0),(0,1,0),(0,0,1)))"
+    },
+    {
+      "node": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/net.maxon.neutron.corenode.multransform_5",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "auto"
+    },
+    {
+      "node": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/mat",
+      "dir": "IN",
+      "port": "in",
+      "type": "Matrix64",
+      "val": "((0,0,0),((1,0,0),(0,1,0),(0,0,1)))"
+    },
+    {
+      "node": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/mat",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/sqrpart",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "auto"
+    },
+    {
+      "node": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/vectrans",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "legacyobjectaccess@WaFTF0nSDJIlDBJPpeaVD1/sqrtrans",
+      "dir": "OUT",
+      "port": "out",
+      "type": "SqMat3_64",
+      "val": "((1,0,0),(0,1,0),(0,0,1))"
+    },
+    {
+      "node": "readvalueatindex@GcMDrOMrL9PoDz0iXnXbV1",
+      "dir": "IN",
+      "port": "indexin",
+      "type": "Int64",
+      "val": "1"
+    },
+    {
+      "node": "readvalueatindex@GcMDrOMrL9PoDz0iXnXbV1",
+      "dir": "IN",
+      "port": "cyclein",
+      "type": "Bool",
+      "val": "true"
+    }
+  ]
+}
