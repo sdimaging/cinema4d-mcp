@@ -392,12 +392,20 @@ def basename_of(node_id, asset_map=None):
 
 
 def rebuild_scene(desc, target_name="REBUILT", parent_obj=None,
-                  asset_map=None, host_type_id=None):
+                  asset_map=None, host_type_id=None,
+                  source_host=None):
     """Rebuild an SN host + graph from a descriptor. Creates a fresh SN
     host (deformer or generator depending on host_type_id), walks the
     captured nodes recursively, AddChild's each, walks INTO capsule
     interiors to populate bodies, sets port defaults, then connects all
     wires by path matching.
+
+    If `source_host` (a live BaseObject ref to the source SN host) is
+    provided, the script uses CreateCopyOfSelection + Merge to deep-clone
+    artist capsules whose interior body cannot be reproduced via AddChild
+    (e.g. legacyobjectaccess + matrixop body, custom xform/spline/group
+    capsules). This is the v9 hybrid path: AddChild for what's
+    reproducible from primitives + Merge for what isn't.
 
     Returns (new_doc, new_host, report_dict)."""
     import c4d
@@ -562,6 +570,146 @@ def rebuild_scene(desc, target_name="REBUILT", parent_obj=None,
         path_to_node.setdefault(nid, n)
         _final_harvest_recursive(n, nid)
 
+    # PHASE A.5 — deep-clone fallback for unaddable capsules (v9)
+    # For each capsule that failed AddChild (no public asset_id) — and we
+    # have a `source_host` reference to clone from — use
+    # CreateCopyOfSelection + Merge to deep-clone the source's matching
+    # node, including its full interior body subtree. This handles
+    # artist-customized capsules whose body uses internal-only types
+    # (matrixop, multransform_5, transformpoint, etc.) that cannot be
+    # AddChild'd from Python.
+    clone_built = 0
+    clone_failed = 0
+
+    if source_host is not None:
+        try:
+            src_nimbus = source_host.GetNimbusRef(
+                maxon.Id("net.maxon.neutron.nodespace")
+            )
+            src_graph = src_nimbus.GetGraph()
+            src_root = src_graph.GetRoot()
+        except Exception:
+            src_graph = None
+            src_root = None
+
+        # Find all top-level capsules that failed AddChild
+        # (their basename has no public asset_id in our map)
+        failed_top_level_paths = []
+        for e in addchild_err:
+            path = e.get("path", "")
+            if "/" not in path and e.get("reason", "").startswith("unknown_asset"):
+                failed_top_level_paths.append(path)
+        # Also: for capsules whose AddChild succeeded but body didn't
+        # auto-spawn (body listed in addchild_err with a "/" path), the
+        # whole capsule needs clone — REPLACE it with the cloned version
+        capsules_with_failed_body = set()
+        for e in addchild_err:
+            path = e.get("path", "")
+            if "/" in path:
+                top = path.split("/", 1)[0]
+                capsules_with_failed_body.add(top)
+
+        all_to_clone = set(failed_top_level_paths) | capsules_with_failed_body
+
+        if src_graph is not None and all_to_clone:
+            # Collect source GraphNodes matching these descriptor paths
+            for path in all_to_clone:
+                src_node = None
+                def _find(n, target=path):
+                    nonlocal src_node
+                    if str(n.GetId()) == target:
+                        src_node = n
+                        return False  # stop walk
+                    return True
+                src_root.GetChildren(_find, maxon.NODE_KIND.NODE)
+                if src_node is None:
+                    clone_failed += 1
+                    continue
+
+                # If a partial AddChild already created a node at this
+                # path (e.g. legacyobjectaccess shell with auto-spawn body),
+                # we need to remove it first so the cloned full-body
+                # version can take its place under the original id.
+                existing_partial = path_to_node.get(path)
+                if existing_partial is not None:
+                    try:
+                        with graph.BeginTransaction() as txn:
+                            existing_partial.Remove()
+                            txn.Commit()
+                    except Exception:
+                        pass
+                    # Purge ALL path_to_node entries for the partial subtree
+                    stale = [
+                        k for k in path_to_node
+                        if k == path or k.startswith(path + "/")
+                    ]
+                    for k in stale:
+                        path_to_node.pop(k, None)
+
+                try:
+                    sel = maxon.BaseArray(maxon.GraphNode)
+                    sel.Append(src_node)
+                    sub = src_graph.CreateCopyOfSelection(sel)
+                    with graph.BeginTransaction() as txn:
+                        mapping = graph.Merge(sub)
+                        txn.Commit()
+
+                    # mapping[0] is list of (orig_id, new_id) for top-level
+                    # nodes added by Merge. Find the new id for our cloned
+                    # node so we can register it in path_to_node under the
+                    # ORIGINAL descriptor path.
+                    new_top_id = None
+                    for orig_id, new_id in mapping[0]:
+                        if str(orig_id) == path:
+                            new_top_id = str(new_id)
+                            break
+                    if new_top_id is None and mapping[0]:
+                        new_top_id = str(mapping[0][0][1])
+
+                    if new_top_id:
+                        # Find the live cloned node
+                        live = None
+                        def _f2(n, target=new_top_id):
+                            nonlocal live
+                            if str(n.GetId()) == target:
+                                live = n
+                                return False
+                            return True
+                        graph.GetRoot().GetChildren(_f2, maxon.NODE_KIND.NODE)
+                        if live is not None:
+                            path_to_node[path] = live
+                            # Recurse harvest of live's interior into path_to_node
+                            def _h(node, p, depth=0):
+                                if depth > 8:
+                                    return
+                                kids = []
+                                node.GetChildren(
+                                    lambda c: kids.append(c) or True,
+                                    maxon.NODE_KIND.NODE,
+                                )
+                                for c in kids:
+                                    cid = str(c.GetId())
+                                    cpath = f"{p}/{cid}"
+                                    path_to_node.setdefault(cpath, c)
+                                    _h(c, cpath, depth + 1)
+                            _h(live, path)
+                            clone_built += 1
+                            # Remove all error records for this path subtree
+                            addchild_err[:] = [
+                                e for e in addchild_err
+                                if not (e.get("path") == path
+                                        or e.get("path", "").startswith(path + "/"))
+                            ]
+                except Exception as e:
+                    clone_failed += 1
+                    addchild_err.append({
+                        "path": path, "reason": f"clone_err: {str(e)[:80]}"
+                    })
+
+    # Legacy v8 metric (kept for backwards compat — now just zeros)
+    movetogroup_built = 0
+    movetogroup_failed = 0
+
     # PHASE B — set port defaults (especially type-determinants like types._0)
     defaults_set = 0
     defaults_skip = 0
@@ -681,6 +829,10 @@ def rebuild_scene(desc, target_name="REBUILT", parent_obj=None,
         "addchild_skip_framework": addchild_skip_framework,
         "addchild_skip_autospawn": addchild_skip_autospawn,
         "addchild_skip_redshift": addchild_skip_rs,
+        "movetogroup_built": movetogroup_built,
+        "movetogroup_failed": movetogroup_failed,
+        "clone_built": clone_built,
+        "clone_failed": clone_failed,
         "addchild_err_count": len(addchild_err),
         "addchild_err_sample": addchild_err[:10],
         "defaults_set": defaults_set,
