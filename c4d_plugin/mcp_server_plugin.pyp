@@ -660,6 +660,7 @@ class C4DSocketServer(threading.Thread):
             self.running = True
             self.update_status("Online")
             self.log(f"[C4D] Server started on {self.host}:{self.port}")
+            self._write_ready_marker()
             if self.auth_token:
                 self.log(f"[C4D] [auth] MCP_AUTH_TOKEN is set — commands must include auth_token field")
             elif self.host == "0.0.0.0":
@@ -1083,6 +1084,42 @@ class C4DSocketServer(threading.Thread):
             self.socket.close()
         self.update_status("Offline")
         self.log("[C4D] Server stopped")
+        self._delete_ready_marker()
+
+    # Path of the ready-marker flag. Co-located with restart_c4d.flag so
+    # any external watcher (Claude, scripts, the watchdog) can react to
+    # MCP socket lifecycle without polling the TCP port.
+    _READY_MARKER_PATH = r"C:\Users\Spenser Dickerson\Projects\c4d_mcp_ready.flag"
+
+    def _write_ready_marker(self):
+        """Write a flag file when the MCP socket is listening. Content is
+        a small JSON blob with timestamp + bind addr + plugin version, so
+        the consumer can verify which instance is responding."""
+        try:
+            import json as _json
+            import time as _time
+            payload = {
+                "ready_at": _time.time(),
+                "ready_at_iso": _time.strftime("%Y-%m-%dT%H:%M:%S"),
+                "host": str(self.host),
+                "port": int(self.port),
+                "plugin_version": getattr(self, "PLUGIN_VERSION", "unknown"),
+            }
+            with open(self._READY_MARKER_PATH, "w", encoding="utf-8") as fh:
+                fh.write(_json.dumps(payload, indent=2))
+            self.log(f"[C4D] Ready marker written to {self._READY_MARKER_PATH}")
+        except Exception as e:
+            self.log(f"[C4D] Failed to write ready marker: {e}")
+
+    def _delete_ready_marker(self):
+        """Remove the ready-marker flag on clean shutdown."""
+        try:
+            import os as _os
+            if _os.path.exists(self._READY_MARKER_PATH):
+                _os.remove(self._READY_MARKER_PATH)
+                self.log(f"[C4D] Ready marker removed")
+        except Exception as e:
+            self.log(f"[C4D] Failed to remove ready marker: {e}")
 
     # Basic commands
     def handle_get_scene_info(self):
