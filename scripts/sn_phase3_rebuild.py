@@ -729,6 +729,18 @@ def rebuild_scene(desc, target_name="REBUILT", parent_obj=None,
     movetogroup_built = 0
     movetogroup_failed = 0
 
+    # Track cloned-subtree roots so we can skip descriptor wires that
+    # are already preserved internally by the Merge operation. Without
+    # this skip, re-stitching duplicate wires triggers maxon cycle errors.
+    cloned_subtree_roots = set()
+    if source_host is not None:
+        # Re-derive from clone results — populated above. We can simply
+        # reuse `all_to_clone` from this scope.
+        try:
+            cloned_subtree_roots = set(all_to_clone)
+        except Exception:
+            cloned_subtree_roots = set()
+
     # PHASE B — set port defaults (especially type-determinants like types._0)
     defaults_set = 0
     defaults_skip = 0
@@ -795,7 +807,7 @@ def rebuild_scene(desc, target_name="REBUILT", parent_obj=None,
 
     # PHASE C — connect wires
     def find_port_recursive(c, target_id, depth=0):
-        if c is None or depth > 6:
+        if c is None or depth > 8:
             return None
         try:
             for p in c.GetChildren():
@@ -808,27 +820,97 @@ def rebuild_scene(desc, target_name="REBUILT", parent_obj=None,
             return None
         return None
 
+    def find_port_smart(container, port_path):
+        """Resolve a port path against a container.
+
+        Strategies (in order):
+        1. Try the literal port_path as a single port id (handles ports
+           whose id contains dots like "current._0" or
+           "net.maxon.nbo.legacyobjectimport.objectimport.localmatrix.*access*translationout")
+        2. Recursive walk for any port with that exact id at any depth
+        3. Split on "." and descend (for `matrixout.parentmatrix` style
+           dotted hierarchical paths)
+        """
+        if container is None:
+            return None
+        # 1 + 2: recursive find by literal id
+        p = find_port_recursive(container, port_path)
+        if p is not None:
+            return p
+        # 3: dotted descent
+        if "." in port_path:
+            parts = port_path.split(".")
+            cursor = container
+            found = None
+            for part in parts:
+                if cursor is None:
+                    return None
+                # Look for this part as a child of cursor
+                found = None
+                try:
+                    for child in cursor.GetChildren():
+                        if str(child.GetId()) == part:
+                            found = child
+                            break
+                except Exception:
+                    return None
+                if found is None:
+                    return None
+                cursor = found
+            return found
+        return None
+
+    def _in_cloned_subtree(path):
+        """True if descriptor path is within a cloned-capsule subtree."""
+        for root in cloned_subtree_roots:
+            if path == root or path.startswith(root + "/"):
+                return True
+        return False
+
     connect_ok = 0
     connect_skip = 0
+    connect_skip_clone_internal = 0
+    connect_skip_breakdown = {"src_node": 0, "dst_node": 0,
+                               "src_port": 0, "dst_port": 0, "connect_err": 0,
+                               "clone_internal": 0}
     with graph.BeginTransaction() as txn:
         for w in desc.get("wires", []):
+            # Skip wires that are entirely INSIDE a cloned subtree —
+            # Merge already preserved those internal connections, and
+            # re-adding them creates cycle errors.
+            if (_in_cloned_subtree(w["src_path"])
+                    and _in_cloned_subtree(w["dst_path"])):
+                connect_skip_clone_internal += 1
+                connect_skip_breakdown["clone_internal"] += 1
+                continue
             src = path_to_node.get(w["src_path"])
             dst = path_to_node.get(w["dst_path"])
-            if src is None or dst is None:
+            if src is None:
                 connect_skip += 1
+                connect_skip_breakdown["src_node"] += 1
                 continue
-            sp = (find_port_recursive(src.GetOutputs(), w["src_port"]) or
-                  find_port_recursive(src.GetInputs(), w["src_port"]))
-            dp = (find_port_recursive(dst.GetInputs(), w["dst_port"]) or
-                  find_port_recursive(dst.GetOutputs(), w["dst_port"]))
-            if sp is None or dp is None:
+            if dst is None:
                 connect_skip += 1
+                connect_skip_breakdown["dst_node"] += 1
+                continue
+            sp = (find_port_smart(src.GetOutputs(), w["src_port"]) or
+                  find_port_smart(src.GetInputs(), w["src_port"]))
+            dp = (find_port_smart(dst.GetInputs(), w["dst_port"]) or
+                  find_port_smart(dst.GetOutputs(), w["dst_port"]))
+            if sp is None:
+                connect_skip += 1
+                connect_skip_breakdown["src_port"] += 1
+                continue
+            if dp is None:
+                connect_skip += 1
+                connect_skip_breakdown["dst_port"] += 1
                 continue
             try:
                 sp.Connect(dp)
                 connect_ok += 1
             except Exception:
                 connect_skip += 1
+                connect_skip_breakdown["connect_err"] += 1
         txn.Commit()
 
     # Refresh
@@ -841,6 +923,15 @@ def rebuild_scene(desc, target_name="REBUILT", parent_obj=None,
 
     # Compute fidelity: count desc nodes that have a live handle in path_to_node
     matched_paths = sum(1 for n in desc["nodes"] if n["path"] in path_to_node)
+
+    # Wire fidelity excludes the clone-internal wires (which are preserved
+    # by Merge and don't need re-stitching). Effective denominator =
+    # total wires − clone-internal-skips.
+    wires_total = desc.get("wire_count", 0)
+    wires_eligible = max(1, wires_total - connect_skip_clone_internal)
+    wire_pct_effective = 100.0 * connect_ok / wires_eligible
+    # Also report wires-preserved-via-clone count for completeness
+    wires_preserved_by_clone = connect_skip_clone_internal
 
     report = {
         "source_node_count": desc["node_count"],
@@ -857,16 +948,20 @@ def rebuild_scene(desc, target_name="REBUILT", parent_obj=None,
         "defaults_set": defaults_set,
         "defaults_skip": defaults_skip,
         "wires_total": desc.get("wire_count", 0),
+        "wires_preserved_by_clone": wires_preserved_by_clone,
+        "wires_eligible_to_restitch": wires_eligible,
         "connect_ok": connect_ok,
         "connect_skip": connect_skip,
+        "connect_skip_breakdown": connect_skip_breakdown,
         "matched_node_paths": matched_paths,
         "node_fidelity_pct": (
             100.0 * matched_paths / desc["node_count"]
             if desc["node_count"] else 0
         ),
         "wire_fidelity_pct": (
-            100.0 * connect_ok / desc.get("wire_count", 1)
-            if desc.get("wire_count") else 0
+            100.0 * (connect_ok + wires_preserved_by_clone) / wires_total
+            if wires_total else 0
         ),
+        "wire_restitch_pct": wire_pct_effective,
     }
     return doc, new_host, report
