@@ -49,7 +49,7 @@ namespace cinema
 
 const Int32 MCP_HELPER_PLUGIN_ID = 1057845;
 
-const Int32 MCP_HELPER_PROTOCOL_VERSION = 5; // 5 adds bulk-swap preflight (mutation pending).
+const Int32 MCP_HELPER_PROTOCOL_VERSION = 6; // 6 adds bulk-swap mutation v1 (AddChild only).
 
 // Phase A.1 dispatch mechanism: Python calls c4d.SpecialEventAdd(
 //   MCP_HELPER_PLUGIN_ID, op_code, 0) which broadcasts a CoreMessage to
@@ -77,8 +77,10 @@ const Int32 BC_KEY_DEBUG          = 1057845030; // optional debug trail (Phase A
 const Int32 BC_KEY_LOG_DUMP       = 1057845041; // String — read by client
 // Scene Nodes bulk swap scaffold. These are intentionally string-only so the
 // Python bridge can pass/resume audit state without new binary protocol work.
-const Int32 BC_KEY_BULK_SWAP_INPUT  = 1057845060; // String — line-delimited specs
-const Int32 BC_KEY_BULK_SWAP_RESULT = 1057845061; // String — line-delimited audit
+const Int32 BC_KEY_BULK_SWAP_INPUT          = 1057845060; // String — line-delimited specs
+const Int32 BC_KEY_BULK_SWAP_RESULT         = 1057845061; // String — line-delimited audit
+// 1057845062 reserved for BULK_SWAP_SNAPSHOT_PREFIX (future per-spec snapshot save)
+const Int32 BC_KEY_BULK_SWAP_MUTATE         = 1057845063; // Bool — opt-in mutation after preflight
 
 const Int32 OP_PING                   = 0;
 const Int32 OP_ADD_FLOATING_IO_PORT   = 1;
@@ -460,32 +462,34 @@ static Bool SplitBulkSwapLine(const String& line, String& ogId, String& myName, 
 // Bulk swap status codes (returned via BC_KEY_STATUS).
 // Distinct codes per failure class so callers can branch on the int alone;
 // the audit rows carry per-spec detail when one call mixes outcomes.
-//   0  = ok              : all specs swapped successfully (mutation path) — not yet implemented
-//   90 = setup_err       : null world container
-//   91 = empty_input     : no specs supplied
-//   92 = no_doc          : no active document
-//   93 = no_host         : no SN Deformer host (180420400) found
-//   94 = preflight_ok    : every spec passed preflight, mutation path still pending
-//   95 = missing_og      : at least one spec's OG node not found in graph (first-failure rule)
-//   96 = already_swapped : at least one spec's MY name already exists (first-failure rule)
-//   97 = malformed_spec  : at least one spec line failed to parse (first-failure rule)
-//   98 = graph_error     : failed to walk the SN graph (NimbusRef/graph/root invalid)
+//   0  = ok                : all specs mutated successfully (mutate=true path)
+//   90 = setup_err         : null world container
+//   91 = empty_input       : no specs supplied
+//   92 = no_doc            : no active document
+//   93 = no_host           : no SN Deformer host (180420400) found
+//   94 = preflight_ok      : every spec passed preflight, mutate=false (dry run)
+//   95 = missing_og        : at least one spec's OG node not found (first-failure)
+//   96 = already_swapped   : at least one spec's MY name already exists (first-failure)
+//   97 = malformed_spec    : at least one spec line failed to parse (first-failure)
+//   98 = graph_error       : failed to open / walk the SN graph
+//   99 = mutation_partial  : preflight passed but AddChild failed for one or more specs
 //
 // First-failure rule: when multiple specs fail with different reasons in one
 // call, the overall status reflects the FIRST failure encountered. Per-spec
 // detail lives in the audit row's status field.
 //
 // Per audit row status field (always one of these strings):
-//   preflight_ok    : OG present, MY name available, ready to mutate
-//   missing_og      : OG node id not found in graph top-level children
-//   already_swapped : MY node name already exists in graph (collision)
-//   malformed_spec  : line failed to parse as og_id|my_name|asset_id
+//   preflight_ok          : OG present, MY name available, ready to mutate (dry run)
+//   mutated_addchild_only : MY node created via AddChild; mirror+rewire pending (v1 only)
+//   missing_og            : OG node id not found in graph top-level children
+//   already_swapped       : MY node name already exists in graph (collision)
+//   malformed_spec        : line failed to parse as og_id|my_name|asset_id
+//   duplicate_my_in_batch : two specs in one call requested the same MY name
+//   addchild_err          : preflight passed but AddChild transaction failed
 
-// Walk the SN deformer host's neutron graph and append top-level child node
-// ids to `outIds` (one per child). Returns Result<void>; iferr_return
-// surfaces any maxon::Error to the caller.
-static maxon::Result<void> CollectTopLevelChildIds(BaseObject* host,
-                                                    maxon::HashSet<maxon::String>& outIds)
+// Open the SN deformer host's neutron graph. Returns the graph by reference;
+// caller validates the return code before using it.
+static maxon::Result<maxon::nodes::NodesGraphModelRef> OpenSNGraph(BaseObject* host)
 {
 	iferr_scope;
 
@@ -498,6 +502,19 @@ static maxon::Result<void> CollectTopLevelChildIds(BaseObject* host,
 	if (!graph)
 		return maxon::UnexpectedError(MAXON_SOURCE_LOCATION, "graph model is null"_s);
 
+	return graph;
+}
+
+// Walk the SN deformer host's neutron graph and append top-level child node
+// ids to `outIds` (one per child). Returns Result<void>; iferr_return
+// surfaces any maxon::Error to the caller.
+static maxon::Result<void> CollectTopLevelChildIds(BaseObject* host,
+                                                    maxon::HashSet<maxon::String>& outIds)
+{
+	iferr_scope;
+
+	maxon::nodes::NodesGraphModelRef graph = OpenSNGraph(host) iferr_return;
+
 	maxon::GraphNode root = graph.GetViewRoot();
 	if (!root.IsValid())
 		return maxon::UnexpectedError(MAXON_SOURCE_LOCATION, "graph view root is invalid"_s);
@@ -508,6 +525,31 @@ static maxon::Result<void> CollectTopLevelChildIds(BaseObject* host,
 			outIds.Insert(child.GetId().ToString()) iferr_return;
 			return maxon::Bool(true);
 		}, maxon::NODE_KIND::NODE) iferr_return;
+
+	return maxon::OK;
+}
+
+// Mutation v1: AddChild for one spec, in its own transaction. The asset_id
+// must be a registered NodeTemplate Id; AddChild validates this internally
+// and returns an error if unknown. Returns Result<void>; on failure the
+// caller writes the error message into the audit row.
+static maxon::Result<void> AddChildOnly(maxon::nodes::NodesGraphModelRef& graph,
+                                         const maxon::String& myName,
+                                         const maxon::String& assetId)
+{
+	iferr_scope;
+
+	maxon::Id childId;
+	childId.Init(myName) iferr_return;
+	maxon::Id nodeId;
+	nodeId.Init(assetId) iferr_return;
+
+	maxon::GraphTransaction txn = graph.BeginTransaction() iferr_return;
+	maxon::GraphNode added = graph.AddChild(childId, nodeId) iferr_return;
+	if (!added.IsValid())
+		return maxon::UnexpectedError(MAXON_SOURCE_LOCATION,
+			"AddChild returned invalid GraphNode"_s);
+	txn.Commit() iferr_return;
 
 	return maxon::OK;
 }
@@ -540,12 +582,24 @@ static Bool PreflightSpec(const maxon::HashSet<maxon::String>& topLevelIds,
 	return true;
 }
 
+// Per-spec record carried from preflight pass into mutation pass.
+struct SpecRecord
+{
+	String ogId;
+	String myName;
+	String assetId;
+	String status;       // audit-row status field
+	String message;      // audit-row message field
+	Bool   readyToMutate = false;  // true when preflight passed
+};
+
 static Int32 DoBulkSwapNodesPreflight(BaseContainer* wc)
 {
 	if (!wc)
 		return 90;
 
 	const String input = wc->GetString(BC_KEY_BULK_SWAP_INPUT);
+	const Bool   mutate = wc->GetBool(BC_KEY_BULK_SWAP_MUTATE);
 	wc->SetString(BC_KEY_BULK_SWAP_RESULT, ""_s);
 
 	if (input.GetLength() == 0)
@@ -580,13 +634,15 @@ static Int32 DoBulkSwapNodesPreflight(BaseContainer* wc)
 		return 98;
 	}
 
-	String audit;
+	// Pass 1 — parse + preflight. Collect every line into a SpecRecord so
+	// pass 2 (mutation) can iterate the same set without re-parsing.
+	maxon::BaseArray<SpecRecord> specs;
+	maxon::HashSet<maxon::String> myNamesSeenInBatch;
 	Int32 parsed = 0;
 	Int32 malformed = 0;
 	Int32 preflightOk = 0;
 	Int32 preflightFail = 0;
-	// First-failure tracker: 0 = no failure yet, otherwise one of 95/96/97.
-	Int32 firstFailureCode = 0;
+	Int32 firstFailureCode = 0;  // 0 = no failure, otherwise one of 95/96/97
 	maxon::Int pos = 0;
 	const maxon::Int total = input.GetLength();
 
@@ -609,25 +665,58 @@ static Int32 DoBulkSwapNodesPreflight(BaseContainer* wc)
 		if (line.GetLength() == 0)
 			continue;
 
-		String ogId;
-		String myName;
-		String assetId;
-		if (!SplitBulkSwapLine(line, ogId, myName, assetId))
+		SpecRecord rec;
+		if (!SplitBulkSwapLine(line, rec.ogId, rec.myName, rec.assetId))
 		{
 			malformed++;
 			preflightFail++;
 			if (firstFailureCode == 0)
 				firstFailureCode = 97;  // malformed_spec
-			audit += line;
-			audit += "|malformed_spec|0|0|line failed to parse as og_id|my_name|asset_id\n";
+			rec.ogId = line;
+			rec.status = "malformed_spec"_s;
+			rec.message = "line failed to parse as og_id|my_name|asset_id"_s;
+			rec.readyToMutate = false;
+			iferr (specs.Append(rec))
+			{
+				wc->SetString(BC_KEY_STATUS_MSG, "bulk_swap: spec array Append failed"_s);
+				return 98;
+			}
 			continue;
 		}
 
 		parsed++;
 
+		// Per-spec preflight against the graph snapshot.
 		String specStatus;
 		String specMessage;
-		const Bool passed = PreflightSpec(topLevelIds, ogId, myName, specStatus, specMessage);
+		Bool passed = PreflightSpec(topLevelIds, rec.ogId, rec.myName, specStatus, specMessage);
+
+		// Additional check: same MY name appears twice in the batch — would
+		// collide on the second AddChild. Catches it pre-mutation.
+		if (passed)
+		{
+			const maxon::String myNameMaxon = MaxonConvert(rec.myName);
+			if (myNamesSeenInBatch.Contains(myNameMaxon))
+			{
+				passed = false;
+				specStatus = "duplicate_my_in_batch"_s;
+				specMessage = "another spec in this batch already requested this MY name"_s;
+			}
+			else
+			{
+				iferr (myNamesSeenInBatch.Insert(myNameMaxon))
+				{
+					wc->SetString(BC_KEY_STATUS_MSG,
+						"bulk_swap: HashSet Insert failed during MY name dedup"_s);
+					return 98;
+				}
+			}
+		}
+
+		rec.status = specStatus;
+		rec.message = specMessage;
+		rec.readyToMutate = passed;
+
 		if (passed)
 		{
 			preflightOk++;
@@ -641,23 +730,86 @@ static Int32 DoBulkSwapNodesPreflight(BaseContainer* wc)
 					firstFailureCode = 95;
 				else if (specStatus == "already_swapped"_s)
 					firstFailureCode = 96;
+				else if (specStatus == "duplicate_my_in_batch"_s)
+					firstFailureCode = 96;  // bucket under already_swapped
 				else
-					firstFailureCode = 95;  // unknown failure class — fall back to missing_og bucket
+					firstFailureCode = 95;
 			}
 		}
 
-		audit += ogId;
-		audit += "|";
-		audit += specStatus;
-		audit += "|0|0|";
-		audit += specMessage;
-		audit += "\n";
+		iferr (specs.Append(rec))
+		{
+			wc->SetString(BC_KEY_STATUS_MSG, "bulk_swap: spec array Append failed"_s);
+			return 98;
+		}
 	}
 
+	// Pass 2 — mutation, only if all preflight passed AND mutate flag is true.
+	const Bool runMutation = mutate && preflightFail == 0 && preflightOk > 0;
+	Int32 mutated = 0;
+	Int32 mutationErr = 0;
+	if (runMutation)
+	{
+		// Open the graph fresh for the mutation phase. Cheap; reuses Nimbus.
+		maxon::nodes::NodesGraphModelRef graph;
+		iferr (graph = OpenSNGraph(snHost))
+		{
+			String msg;
+			msg += "bulk_swap mutation: failed to open SN graph: ";
+			msg += MaxonConvert(err.GetMessage());
+			wc->SetString(BC_KEY_STATUS_MSG, msg);
+			return 98;
+		}
+
+		for (SpecRecord& rec : specs)
+		{
+			if (!rec.readyToMutate)
+				continue;
+			const maxon::String myNameMaxon  = MaxonConvert(rec.myName);
+			const maxon::String assetIdMaxon = MaxonConvert(rec.assetId);
+			iferr (AddChildOnly(graph, myNameMaxon, assetIdMaxon))
+			{
+				rec.status = "addchild_err"_s;
+				String errMsg = "AddChild failed: "_s;
+				errMsg += MaxonConvert(err.GetMessage());
+				rec.message = errMsg;
+				rec.readyToMutate = false;  // for completeness; not consulted again
+				mutationErr++;
+				continue;
+			}
+			rec.status = "mutated_addchild_only"_s;
+			rec.message = "MY node created via AddChild; mirror+rewire pending"_s;
+			mutated++;
+		}
+
+		// Refresh ritual — same 4 calls Python's swap_one() runs after mutation.
+		// Even though we only added a node (no rewire), the host needs to be
+		// dirtied so the editor + cache reflect the new graph state.
+		snHost->SetDirty(DIRTYFLAGS::DATA | DIRTYFLAGS::CACHE
+		               | DIRTYFLAGS::DESCRIPTION | DIRTYFLAGS::MATRIX);
+		BaseObject* parent = snHost->GetUp();
+		if (parent)
+			parent->SetDirty(DIRTYFLAGS::DATA | DIRTYFLAGS::CACHE | DIRTYFLAGS::MATRIX);
+		EventAdd(EVENT::FORCEREDRAW);
+		doc->ExecutePasses(nullptr, true, true, true, BUILDFLAGS::NONE);
+	}
+
+	// Build the audit string from the collected records.
+	String audit;
+	for (const SpecRecord& rec : specs)
+	{
+		audit += rec.ogId;
+		audit += "|";
+		audit += rec.status;
+		audit += "|0|0|";
+		audit += rec.message;
+		audit += "\n";
+	}
 	wc->SetString(BC_KEY_BULK_SWAP_RESULT, audit);
 
+	// Summary line.
 	String summary;
-	summary += "bulk_swap preflight: parsed=";
+	summary += "bulk_swap: parsed=";
 	summary += String::IntToString((Int64)parsed);
 	summary += " preflight_ok=";
 	summary += String::IntToString((Int64)preflightOk);
@@ -667,14 +819,33 @@ static Int32 DoBulkSwapNodesPreflight(BaseContainer* wc)
 	summary += String::IntToString((Int64)malformed);
 	summary += " host_top_level_nodes=";
 	summary += String::IntToString((Int64)topLevelIds.GetCount());
-	summary += " mutation=not_yet_implemented";
+	if (runMutation)
+	{
+		summary += " mutated=";
+		summary += String::IntToString((Int64)mutated);
+		summary += " mutation_err=";
+		summary += String::IntToString((Int64)mutationErr);
+		summary += " stage=addchild_only";
+	}
+	else
+	{
+		summary += " mutation=";
+		summary += mutate ? "skipped(preflight_failed)" : "not_requested";
+	}
 	wc->SetString(BC_KEY_STATUS_MSG, summary);
 
-	// Distinct codes per first-failure class: 94 if all passed, otherwise the
-	// first failure's class (95/96/97). All non-zero so callers don't mistake
-	// preflight-only for completed mutation. Mutation body lands in the next
-	// iteration; this function will then return 0 on full success.
-	return preflightFail > 0 ? firstFailureCode : 94;
+	// Status code resolution:
+	//   preflight failures → first-failure code (95/96/97), unchanged
+	//   no mutation requested → 94 (preflight_ok)
+	//   mutation requested + all OK → 0
+	//   mutation requested + any AddChild failed → 99 (mutation_partial)
+	if (preflightFail > 0)
+		return firstFailureCode;
+	if (!runMutation)
+		return 94;
+	if (mutationErr > 0)
+		return 99;
+	return 0;
 }
 
 // ============================================================================
