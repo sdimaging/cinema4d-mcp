@@ -15678,6 +15678,7 @@ class C4DSocketServer(threading.Thread):
     _BC_KEY_BULK_SWAP_RESULT  = 1057845061
     # 1057845062 reserved for SNAPSHOT_PREFIX (future per-spec snapshot save)
     _BC_KEY_BULK_SWAP_MUTATE  = 1057845063
+    _BC_KEY_BULK_SWAP_TARGET_HOST = 1057845064
 
     def _mcp_helper_dispatch(self, op_code, args, timeout_s=5.0):
         """Send a request to the cinema4d_mcp_helper C++ plugin via
@@ -15713,6 +15714,7 @@ class C4DSocketServer(threading.Thread):
         is_output = bool(args.get("is_output", False))
         bulk_swap_input = args.get("bulk_swap_input", "") or ""
         bulk_swap_mutate = bool(args.get("bulk_swap_mutate", False))
+        bulk_swap_target_host = args.get("bulk_swap_target_host", "") or ""
 
         def _write_and_fire():
             wc = c4d.GetWorldContainerInstance()
@@ -15723,6 +15725,7 @@ class C4DSocketServer(threading.Thread):
             wc.SetBool(self._BC_KEY_IS_OUTPUT, is_output)
             wc.SetString(self._BC_KEY_BULK_SWAP_INPUT, bulk_swap_input)
             wc.SetBool(self._BC_KEY_BULK_SWAP_MUTATE, bulk_swap_mutate)
+            wc.SetString(self._BC_KEY_BULK_SWAP_TARGET_HOST, bulk_swap_target_host)
             # Reset response slots
             wc.SetInt32(self._BC_KEY_STATUS, -1)
             wc.SetString(self._BC_KEY_STATUS_MSG, "")
@@ -15807,12 +15810,17 @@ class C4DSocketServer(threading.Thread):
 
             timeout_s = float(command.get("timeout_s", 30.0) or 30.0)
             mutate = bool(command.get("mutate", False))
+            target_host = str(command.get("target_host_name", "") or "")
 
             # Call directly from the worker thread. _mcp_helper_dispatch itself
             # performs short main-thread writes/reads around SpecialEventAdd.
             outcome = self._mcp_helper_dispatch(
                 self._OP_BULK_SWAP_NODES,
-                {"bulk_swap_input": specs_text, "bulk_swap_mutate": mutate},
+                {
+                    "bulk_swap_input": specs_text,
+                    "bulk_swap_mutate": mutate,
+                    "bulk_swap_target_host": target_host,
+                },
                 timeout_s=timeout_s,
             )
 
