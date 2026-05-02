@@ -49,7 +49,7 @@ namespace cinema
 
 const Int32 MCP_HELPER_PLUGIN_ID = 1057845;
 
-const Int32 MCP_HELPER_PROTOCOL_VERSION = 8; // 8 adds bulk-swap mutation v3 (atomic remove+rewire).
+const Int32 MCP_HELPER_PROTOCOL_VERSION = 9; // 9 adds optional target_host_name selector for bulk-swap.
 
 // Phase A.1 dispatch mechanism: Python calls c4d.SpecialEventAdd(
 //   MCP_HELPER_PLUGIN_ID, op_code, 0) which broadcasts a CoreMessage to
@@ -81,6 +81,7 @@ const Int32 BC_KEY_BULK_SWAP_INPUT          = 1057845060; // String — line-del
 const Int32 BC_KEY_BULK_SWAP_RESULT         = 1057845061; // String — line-delimited audit
 // 1057845062 reserved for BULK_SWAP_SNAPSHOT_PREFIX (future per-spec snapshot save)
 const Int32 BC_KEY_BULK_SWAP_MUTATE         = 1057845063; // Bool — opt-in mutation after preflight
+const Int32 BC_KEY_BULK_SWAP_TARGET_HOST    = 1057845064; // String — optional: target SN host by name
 
 const Int32 OP_PING                   = 0;
 const Int32 OP_ADD_FLOATING_IO_PORT   = 1;
@@ -436,6 +437,24 @@ static BaseObject* FindFirstObjectOfType(BaseObject* obj, Int32 typeId)
 		if (obj->GetType() == typeId)
 			return obj;
 		if (BaseObject* childHit = FindFirstObjectOfType(obj->GetDown(), typeId))
+			return childHit;
+		obj = obj->GetNext();
+	}
+	return nullptr;
+}
+
+// Find an SN deformer by exact name (case-sensitive) at any depth in the
+// OM tree. Returns nullptr if no match. Used when caller passes a non-empty
+// target_host_name to bulk_swap to disambiguate scenes with multiple SN
+// deformer instances (e.g. Stone Circle has Match Size + Stack Stones +
+// Match Size siblings — by-type would always pick the first).
+static BaseObject* FindSNDeformerByName(BaseObject* obj, const String& name)
+{
+	while (obj)
+	{
+		if (obj->GetType() == SN_DEFORMER_PLUGIN_ID && obj->GetName() == name)
+			return obj;
+		if (BaseObject* childHit = FindSNDeformerByName(obj->GetDown(), name))
 			return childHit;
 		obj = obj->GetNext();
 	}
@@ -893,12 +912,31 @@ static Int32 DoBulkSwapNodesPreflight(BaseContainer* wc)
 		return 92;
 	}
 
-	BaseObject* snHost = FindFirstObjectOfType(doc->GetFirstObject(), SN_DEFORMER_PLUGIN_ID);
-	if (snHost == nullptr)
+	// If caller passed a target host name, use that for selection.
+	// Otherwise fall back to "first SN deformer found" via type scan.
+	const String targetHostName = wc->GetString(BC_KEY_BULK_SWAP_TARGET_HOST);
+	BaseObject* snHost = nullptr;
+	if (targetHostName.GetLength() > 0)
 	{
-		wc->SetString(BC_KEY_STATUS_MSG,
-			"bulk_swap: no SN Deformer host (180420400) found in active document"_s);
-		return 93;
+		snHost = FindSNDeformerByName(doc->GetFirstObject(), targetHostName);
+		if (snHost == nullptr)
+		{
+			String msg = "bulk_swap: target host '"_s;
+			msg += targetHostName;
+			msg += "' (SN Deformer 180420400) not found in active document";
+			wc->SetString(BC_KEY_STATUS_MSG, msg);
+			return 93;
+		}
+	}
+	else
+	{
+		snHost = FindFirstObjectOfType(doc->GetFirstObject(), SN_DEFORMER_PLUGIN_ID);
+		if (snHost == nullptr)
+		{
+			wc->SetString(BC_KEY_STATUS_MSG,
+				"bulk_swap: no SN Deformer host (180420400) found in active document"_s);
+			return 93;
+		}
 	}
 
 	// Build the top-level child id set once. All preflight checks read from it.
