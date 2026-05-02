@@ -278,6 +278,7 @@ Currently includes a UV pipeline for "cut holes via painted UV map" workflows �
 
 In-depth practical guides shipped alongside the code:
 
+- **[`docs/scene_nodes_doctrine.md`](docs/scene_nodes_doctrine.md)** — **Tiny ugly correct graph first.** The methodology that separates productive Scene Nodes work from days lost to debugging blind. 6-step workflow + the failure mode it prevents.
 - **[`docs/scene_nodes_guide.md`](docs/scene_nodes_guide.md)** — comprehensive Scene Nodes guide: 6-layer architecture, 22 codified patterns, 40 verified `$type` labels, port-type taxonomy, anti-patterns, recommended workflows.
 - **[`docs/gesture_differ_findings.md`](docs/gesture_differ_findings.md)** — full reverse-engineering history of the right-click "Add Input" gesture down to its public-API recipe; backs the `scene_nodes_synthesize_port` tool.
 - **[`docs/c4d_2026_api_gotchas.md`](docs/c4d_2026_api_gotchas.md)** — runtime-discovered C4D 2026 Python API gotchas (74+ entries) covering DescID runtime/compile-time, Scene Nodes graph mutation, atomic-swap pattern, SetDirty cache refresh, MCP main-thread deadlocks, etc. The "what would have saved me a day" library.
