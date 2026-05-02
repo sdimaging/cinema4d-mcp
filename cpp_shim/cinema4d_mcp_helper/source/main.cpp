@@ -49,7 +49,7 @@ namespace cinema
 
 const Int32 MCP_HELPER_PLUGIN_ID = 1057845;
 
-const Int32 MCP_HELPER_PROTOCOL_VERSION = 6; // 6 adds bulk-swap mutation v1 (AddChild only).
+const Int32 MCP_HELPER_PROTOCOL_VERSION = 7; // 7 adds bulk-swap mutation v2 (AddChild + mirror inputs).
 
 // Phase A.1 dispatch mechanism: Python calls c4d.SpecialEventAdd(
 //   MCP_HELPER_PLUGIN_ID, op_code, 0) which broadcasts a CoreMessage to
@@ -529,13 +529,37 @@ static maxon::Result<void> CollectTopLevelChildIds(BaseObject* host,
 	return maxon::OK;
 }
 
+// Walk the graph's top-level NODE children to find one by exact Id.
+// Returns an invalid GraphNode if not found (caller checks IsValid()).
+static maxon::Result<maxon::GraphNode> FindTopLevelNodeById(
+    maxon::nodes::NodesGraphModelRef& graph, const maxon::String& targetId)
+{
+	iferr_scope;
+
+	maxon::GraphNode root = graph.GetViewRoot();
+	if (!root.IsValid())
+		return maxon::UnexpectedError(MAXON_SOURCE_LOCATION, "graph view root is invalid"_s);
+
+	maxon::GraphNode found;
+	root.GetChildren([&found, &targetId](const maxon::GraphNode& candidate) -> maxon::Result<maxon::Bool>
+		{
+			if (candidate.GetId().ToString() == targetId)
+			{
+				found = candidate;
+				return maxon::Bool(false);  // stop walk
+			}
+			return maxon::Bool(true);
+		}, maxon::NODE_KIND::NODE) iferr_return;
+	return found;
+}
+
 // Mutation v1: AddChild for one spec, in its own transaction. The asset_id
 // must be a registered NodeTemplate Id; AddChild validates this internally
-// and returns an error if unknown. Returns Result<void>; on failure the
-// caller writes the error message into the audit row.
-static maxon::Result<void> AddChildOnly(maxon::nodes::NodesGraphModelRef& graph,
-                                         const maxon::String& myName,
-                                         const maxon::String& assetId)
+// and returns an error if unknown. Returns Result<GraphNode> (the new MY
+// node); caller can use it to wire after the commit.
+static maxon::Result<maxon::GraphNode> AddChildOnly(maxon::nodes::NodesGraphModelRef& graph,
+                                                     const maxon::String& myName,
+                                                     const maxon::String& assetId)
 {
 	iferr_scope;
 
@@ -551,7 +575,72 @@ static maxon::Result<void> AddChildOnly(maxon::nodes::NodesGraphModelRef& graph,
 			"AddChild returned invalid GraphNode"_s);
 	txn.Commit() iferr_return;
 
-	return maxon::OK;
+	return added;
+}
+
+// Mutation v2: mirror OG's input connections onto MY in a single transaction.
+// Walks each of OG's input ports, captures the source side of every wire,
+// and creates the same wire pointing at MY's matching input port (matched
+// by port id — works because MY is the same asset_id as OG, so port
+// topology is identical). "Parallel reading": original wires stay intact.
+//
+// SDK note: graph.CopyConnectionsFrom() exists on GraphModelInterface but
+// is NOT brought into NodesGraphModelRef via MAXON_USING, so we walk
+// manually. Port-level Connect() (graph.h:1510) handles the actual wire.
+//
+// Returns the number of wires successfully mirrored.
+static maxon::Result<Int32> MirrorInputs(maxon::nodes::NodesGraphModelRef& graph,
+                                          const maxon::GraphNode& myNode,
+                                          const maxon::GraphNode& ogNode)
+{
+	iferr_scope;
+
+	if (!myNode.IsValid() || !ogNode.IsValid())
+		return maxon::IllegalArgumentError(MAXON_SOURCE_LOCATION,
+			"MirrorInputs: invalid GraphNode arg"_s);
+
+	maxon::GraphNode ogInputs = ogNode.GetInputs() iferr_return;
+	maxon::GraphNode myInputs = myNode.GetInputs() iferr_return;
+	if (!ogInputs.IsValid() || !myInputs.IsValid())
+		return Int32(0);  // node has no input port list — nothing to mirror
+
+	maxon::GraphTransaction txn = graph.BeginTransaction() iferr_return;
+
+	Int32 wireCount = 0;
+	ogInputs.GetChildren(
+		[&graph, &myInputs, &wireCount](const maxon::GraphNode& ogPort) -> maxon::Result<maxon::Bool>
+		{
+			iferr_scope;
+			const maxon::String ogPortIdStr = ogPort.GetId().ToString();
+
+			// Find MY's matching input port by id. If not present (asset_id
+			// mismatch), skip silently — caller's responsibility to ensure
+			// port topology compatibility.
+			maxon::Id portId;
+			portId.Init(ogPortIdStr) iferr_return;
+			maxon::GraphNode myPort = myInputs.FindChild(portId) iferr_return;
+			if (!myPort.IsValid())
+				return maxon::Bool(true);
+
+			// For every wire feeding OG's input port, create the same wire
+			// to MY's matching port. conn.first is the source port (GraphNode),
+			// conn.second is Wires metadata (kept as default).
+			ogPort.GetConnections(maxon::PORT_DIR::INPUT,
+				[&graph, &myPort, &wireCount](const maxon::GraphConnection& conn) -> maxon::Result<maxon::Bool>
+				{
+					iferr_scope;
+					const maxon::GraphNode& sourcePort = conn.first;
+					if (!sourcePort.IsValid())
+						return maxon::Bool(true);  // skip phantom-input wires (defensive)
+					sourcePort.Connect(myPort) iferr_return;
+					wireCount++;
+					return maxon::Bool(true);
+				}) iferr_return;
+			return maxon::Bool(true);
+		}, maxon::NODE_KIND::INPORT) iferr_return;
+
+	txn.Commit() iferr_return;
+	return wireCount;
 }
 
 // Preflight a single spec. Sets `outStatus` to one of: "preflight_ok",
@@ -588,9 +677,11 @@ struct SpecRecord
 	String ogId;
 	String myName;
 	String assetId;
-	String status;       // audit-row status field
-	String message;      // audit-row message field
+	String status;            // audit-row status field
+	String message;           // audit-row message field
 	Bool   readyToMutate = false;  // true when preflight passed
+	Int32  wiresMirroredCount = 0; // populated by MirrorInputs
+	Int32  wiresRewiredCount  = 0; // populated by atomic remove+rewire (v3)
 };
 
 static Int32 DoBulkSwapNodesPreflight(BaseContainer* wc)
@@ -767,18 +858,61 @@ static Int32 DoBulkSwapNodesPreflight(BaseContainer* wc)
 				continue;
 			const maxon::String myNameMaxon  = MaxonConvert(rec.myName);
 			const maxon::String assetIdMaxon = MaxonConvert(rec.assetId);
-			iferr (AddChildOnly(graph, myNameMaxon, assetIdMaxon))
+			const maxon::String ogIdMaxon    = MaxonConvert(rec.ogId);
+
+			// Phase 1 — AddChild (separate transaction so MY exists before
+			// mirror tx; matches the Python pattern's tx-1 semantics).
+			maxon::GraphNode myNode;
+			iferr (myNode = AddChildOnly(graph, myNameMaxon, assetIdMaxon))
 			{
 				rec.status = "addchild_err"_s;
 				String errMsg = "AddChild failed: "_s;
 				errMsg += MaxonConvert(err.GetMessage());
 				rec.message = errMsg;
-				rec.readyToMutate = false;  // for completeness; not consulted again
+				rec.readyToMutate = false;
 				mutationErr++;
 				continue;
 			}
-			rec.status = "mutated_addchild_only"_s;
-			rec.message = "MY node created via AddChild; mirror+rewire pending"_s;
+
+			// Phase 2 — re-find OG (must be re-resolved post-commit; the
+			// pre-mutation walk's GraphNode handles may be stale across tx)
+			// then CopyConnectionsFrom(my, og, INPUT). MY's port topology
+			// matches OG's because MY was created from the same asset_id.
+			maxon::GraphNode ogNode;
+			iferr (ogNode = FindTopLevelNodeById(graph, ogIdMaxon))
+			{
+				rec.status = "mirror_err"_s;
+				String errMsg = "post-AddChild OG re-resolve failed: "_s;
+				errMsg += MaxonConvert(err.GetMessage());
+				rec.message = errMsg;
+				mutationErr++;
+				continue;
+			}
+			if (!ogNode.IsValid())
+			{
+				rec.status = "mirror_err"_s;
+				rec.message = "post-AddChild OG no longer in graph (impossible — investigate)"_s;
+				mutationErr++;
+				continue;
+			}
+
+			Int32 wiresMirrored = 0;
+			iferr (wiresMirrored = MirrorInputs(graph, myNode, ogNode))
+			{
+				rec.status = "mirror_err"_s;
+				String errMsg = "MirrorInputs failed: "_s;
+				errMsg += MaxonConvert(err.GetMessage());
+				rec.message = errMsg;
+				mutationErr++;
+				continue;
+			}
+
+			rec.status = "mutated_addchild_mirror"_s;
+			String msg = "MY created + inputs mirrored ("_s;
+			msg += String::IntToString((Int64)wiresMirrored);
+			msg += " wires); atomic remove+rewire pending";
+			rec.message = msg;
+			rec.wiresMirroredCount = wiresMirrored;
 			mutated++;
 		}
 
@@ -801,7 +935,11 @@ static Int32 DoBulkSwapNodesPreflight(BaseContainer* wc)
 		audit += rec.ogId;
 		audit += "|";
 		audit += rec.status;
-		audit += "|0|0|";
+		audit += "|";
+		audit += String::IntToString((Int64)rec.wiresMirroredCount);
+		audit += "|";
+		audit += String::IntToString((Int64)rec.wiresRewiredCount);
+		audit += "|";
 		audit += rec.message;
 		audit += "\n";
 	}
