@@ -49,7 +49,7 @@ namespace cinema
 
 const Int32 MCP_HELPER_PLUGIN_ID = 1057845;
 
-const Int32 MCP_HELPER_PROTOCOL_VERSION = 7; // 7 adds bulk-swap mutation v2 (AddChild + mirror inputs).
+const Int32 MCP_HELPER_PROTOCOL_VERSION = 8; // 8 adds bulk-swap mutation v3 (atomic remove+rewire).
 
 // Phase A.1 dispatch mechanism: Python calls c4d.SpecialEventAdd(
 //   MCP_HELPER_PLUGIN_ID, op_code, 0) which broadcasts a CoreMessage to
@@ -479,13 +479,18 @@ static Bool SplitBulkSwapLine(const String& line, String& ogId, String& myName, 
 // detail lives in the audit row's status field.
 //
 // Per audit row status field (always one of these strings):
-//   preflight_ok          : OG present, MY name available, ready to mutate (dry run)
-//   mutated_addchild_only : MY node created via AddChild; mirror+rewire pending (v1 only)
-//   missing_og            : OG node id not found in graph top-level children
-//   already_swapped       : MY node name already exists in graph (collision)
-//   malformed_spec        : line failed to parse as og_id|my_name|asset_id
-//   duplicate_my_in_batch : two specs in one call requested the same MY name
-//   addchild_err          : preflight passed but AddChild transaction failed
+//   preflight_ok            : OG present, MY name available, ready to mutate (dry run)
+//   mutated_addchild_only   : v1 — MY created via AddChild only
+//   mutated_addchild_mirror : v2 — MY created + inputs mirrored (parallel reading)
+//   swapped                 : v3 — full 1-1 swap (AddChild + mirror + atomic remove+rewire)
+//   missing_og              : OG node id not found in graph top-level children
+//   already_swapped         : MY node name already exists in graph (collision)
+//   malformed_spec          : line failed to parse as og_id|my_name|asset_id
+//   duplicate_my_in_batch   : two specs in one call requested the same MY name
+//   addchild_err            : preflight passed but AddChild transaction failed
+//   mirror_err              : AddChild succeeded but input mirror failed
+//   capture_outputs_err     : output wire walk failed
+//   atomic_err              : atomic remove+rewire transaction failed
 
 // Open the SN deformer host's neutron graph. Returns the graph by reference;
 // caller validates the return code before using it.
@@ -576,6 +581,210 @@ static maxon::Result<maxon::GraphNode> AddChildOnly(maxon::nodes::NodesGraphMode
 	txn.Commit() iferr_return;
 
 	return added;
+}
+
+// Walk the parent chain of a port GraphNode to find the id of the
+// top-level node that owns it. Returns empty string if no matching
+// ancestor (e.g. port is at root level — usually scaffold/group case).
+//
+// Heuristic: a "real node" id contains '@' (UUID-suffixed user nodes
+// like transform_element@XYZ) OR matches known framework prefixes
+// (context_, MY_). The '<' / '>' single-char ids belong to root
+// gateways AND to port-group containers inside every node, so they're
+// ambiguous and skipped. See gotcha #72.
+static String FindOwningNodeId(maxon::GraphNode port)
+{
+	iferr_scope_handler { return String(); };
+	while (port.IsValid())
+	{
+		const maxon::String idMaxon = port.GetId().ToString();
+		const String idStr = MaxonConvert(idMaxon);
+		if (idStr.GetLength() > 1)  // skip "<" and ">"
+		{
+			// Quick scan for '@' character — node Id signature
+			Bool hasAt = false;
+			for (maxon::Int i = 0; i < idStr.GetLength(); ++i)
+			{
+				if (idStr[i] == Utf32Char('@'))
+				{
+					hasAt = true;
+					break;
+				}
+			}
+			if (hasAt)
+				return idStr;
+			// Framework prefixes
+			if (idStr.GetLength() >= 3 && idStr.GetPart(0, 3) == "MY_"_s)
+				return idStr;
+			if (idStr.GetLength() >= 8 && idStr.GetPart(0, 8) == "context_"_s)
+				return idStr;
+		}
+		// GetParent() returns Result<GraphNode>; unwrap via iferr_return.
+		// iferr_scope_handler at function top returns String() on any error.
+		port = port.GetParent() iferr_return;
+	}
+	return String();
+}
+
+// Per-output-wire record: where MY's matching output port should re-connect
+// after we delete OG. Captured pre-mutation; resolved to handles inside the
+// atomic transaction (so dst handles are still valid through the Remove).
+struct OutputWire
+{
+	String ogOutPortId;  // port id on OG's output side (== port id on MY's output side, same asset)
+	String dstNodeId;    // id of the downstream node
+	String dstPortId;    // id of the downstream node's input port
+};
+
+// Read-only walk of OG's output ports + their downstream connections.
+// Captures (og_out_port_id, dst_node_id, dst_port_id) for every wire.
+// Wires whose dst port has no resolvable owning-node id (e.g. root
+// gateway destinations) are skipped — caller handles via audit message.
+static maxon::Result<void> CaptureOutputWires(const maxon::GraphNode& ogNode,
+                                                maxon::BaseArray<OutputWire>& outWires,
+                                                Int32& outSkipped)
+{
+	iferr_scope;
+
+	maxon::GraphNode ogOutputs = ogNode.GetOutputs() iferr_return;
+	if (!ogOutputs.IsValid())
+		return maxon::OK;  // no output port list — nothing to capture
+
+	ogOutputs.GetChildren(
+		[&outWires, &outSkipped](const maxon::GraphNode& ogPort) -> maxon::Result<maxon::Bool>
+		{
+			iferr_scope;
+			const String ogPortIdStr = MaxonConvert(ogPort.GetId().ToString());
+
+			ogPort.GetConnections(maxon::PORT_DIR::OUTPUT,
+				[&outWires, &outSkipped, &ogPortIdStr](const maxon::GraphConnection& conn)
+					-> maxon::Result<maxon::Bool>
+				{
+					iferr_scope;
+					const maxon::GraphNode& dstPort = conn.first;
+					if (!dstPort.IsValid())
+					{
+						outSkipped++;
+						return maxon::Bool(true);
+					}
+					const String dstPortIdStr = MaxonConvert(dstPort.GetId().ToString());
+					const String dstNodeIdStr = FindOwningNodeId(dstPort);
+					if (dstNodeIdStr.GetLength() == 0)
+					{
+						outSkipped++;  // root-gateway destination, skip
+						return maxon::Bool(true);
+					}
+					OutputWire ow;
+					ow.ogOutPortId = ogPortIdStr;
+					ow.dstNodeId = dstNodeIdStr;
+					ow.dstPortId = dstPortIdStr;
+					outWires.Append(ow) iferr_return;
+					return maxon::Bool(true);
+				}) iferr_return;
+			return maxon::Bool(true);
+		}, maxon::NODE_KIND::OUTPORT) iferr_return;
+
+	return maxon::OK;
+}
+
+// Mutation v3 — the load-bearing atomic transition. In ONE transaction:
+//   1. Pre-resolve every dst port handle + MY's matching output port handle
+//      (still valid because OG hasn't been removed yet)
+//   2. ogNode.Remove() — severs OG's wires INSIDE the transaction
+//   3. For each (myOut, dstPort) pair: myOut.Connect(dstPort)
+//   4. Commit — single atomic state transition; graph evaluator never
+//      observes the intermediate broken state
+//
+// This is the load-bearing fix per gotcha #69 — *access* component sub-port
+// destinations crash hard if OG's wire is severed without an immediate
+// reconnect. Doing both in one tx makes them indistinguishable from a
+// "no change" event from the evaluator's perspective.
+//
+// Returns the number of wires successfully rewired.
+static maxon::Result<Int32> AtomicRemoveAndRewire(maxon::nodes::NodesGraphModelRef& graph,
+                                                    maxon::GraphNode ogNode,
+                                                    maxon::GraphNode myNode,
+                                                    const maxon::BaseArray<OutputWire>& outWires)
+{
+	iferr_scope;
+
+	if (!ogNode.IsValid() || !myNode.IsValid())
+		return maxon::IllegalArgumentError(MAXON_SOURCE_LOCATION,
+			"AtomicRemoveAndRewire: invalid GraphNode arg"_s);
+
+	maxon::GraphNode myOutputs = myNode.GetOutputs() iferr_return;
+
+	maxon::GraphTransaction txn = graph.BeginTransaction() iferr_return;
+
+	// Phase A — resolve every dst handle BEFORE the destructive Remove.
+	// Captured tuples reference ports by Id; we look them up live so the
+	// returned GraphNode handles are stable across the remove.
+	struct ResolvedPair { maxon::GraphNode myOut; maxon::GraphNode dstPort; };
+	maxon::BaseArray<ResolvedPair> pairs;
+	Int32 skippedAtResolve = 0;
+	for (const OutputWire& ow : outWires)
+	{
+		const maxon::String dstNodeIdMaxon = MaxonConvert(ow.dstNodeId);
+		maxon::GraphNode dstNode;
+		iferr (dstNode = FindTopLevelNodeById(graph, dstNodeIdMaxon))
+		{
+			skippedAtResolve++;
+			continue;
+		}
+		if (!dstNode.IsValid())
+		{
+			skippedAtResolve++;
+			continue;
+		}
+		maxon::GraphNode dstInputs = dstNode.GetInputs() iferr_return;
+		if (!dstInputs.IsValid())
+		{
+			skippedAtResolve++;
+			continue;
+		}
+		maxon::Id dstPortId;
+		dstPortId.Init(MaxonConvert(ow.dstPortId)) iferr_return;
+		maxon::GraphNode dstPort = dstInputs.FindChild(dstPortId) iferr_return;
+		if (!dstPort.IsValid())
+		{
+			skippedAtResolve++;
+			continue;
+		}
+		maxon::Id myOutPortId;
+		myOutPortId.Init(MaxonConvert(ow.ogOutPortId)) iferr_return;
+		maxon::GraphNode myOut = myOutputs.FindChild(myOutPortId) iferr_return;
+		if (!myOut.IsValid())
+		{
+			skippedAtResolve++;
+			continue;
+		}
+		ResolvedPair rp;
+		rp.myOut = myOut;
+		rp.dstPort = dstPort;
+		pairs.Append(rp) iferr_return;
+	}
+
+	// Phase B — remove OG (severs its wires inside the tx).
+	ogNode.Remove() iferr_return;
+
+	// Phase C — re-fill the dst slots with MY's output. Same tx so the
+	// graph evaluator sees a single atomic transition.
+	Int32 rewired = 0;
+	for (const ResolvedPair& rp : pairs)
+	{
+		iferr (rp.myOut.Connect(rp.dstPort))
+		{
+			// Connect failed — keep going for the rest, surface error count
+			// in audit. Don't roll back the tx; per Python pattern, partial
+			// success is informative.
+			continue;
+		}
+		rewired++;
+	}
+
+	txn.Commit() iferr_return;
+	(void)skippedAtResolve;  // could surface to caller in future
+	return rewired;
 }
 
 // Mutation v2: mirror OG's input connections onto MY in a single transaction.
@@ -906,13 +1115,48 @@ static Int32 DoBulkSwapNodesPreflight(BaseContainer* wc)
 				mutationErr++;
 				continue;
 			}
-
-			rec.status = "mutated_addchild_mirror"_s;
-			String msg = "MY created + inputs mirrored ("_s;
-			msg += String::IntToString((Int64)wiresMirrored);
-			msg += " wires); atomic remove+rewire pending";
-			rec.message = msg;
 			rec.wiresMirroredCount = wiresMirrored;
+
+			// Phase 3 — capture OG's output wires (read-only walk, BEFORE
+			// the atomic transaction) so we know what to rewire.
+			maxon::BaseArray<OutputWire> outWires;
+			Int32 outSkipped = 0;
+			iferr (CaptureOutputWires(ogNode, outWires, outSkipped))
+			{
+				rec.status = "capture_outputs_err"_s;
+				String errMsg = "CaptureOutputWires failed: "_s;
+				errMsg += MaxonConvert(err.GetMessage());
+				rec.message = errMsg;
+				mutationErr++;
+				continue;
+			}
+
+			// Phase 4 — atomic remove+rewire (THE load-bearing pattern).
+			Int32 wiresRewired = 0;
+			iferr (wiresRewired = AtomicRemoveAndRewire(graph, ogNode, myNode, outWires))
+			{
+				rec.status = "atomic_err"_s;
+				String errMsg = "AtomicRemoveAndRewire failed: "_s;
+				errMsg += MaxonConvert(err.GetMessage());
+				rec.message = errMsg;
+				mutationErr++;
+				continue;
+			}
+			rec.wiresRewiredCount = wiresRewired;
+
+			// Full success.
+			rec.status = "swapped"_s;
+			String msg = "1-1 swap complete: mirrored="_s;
+			msg += String::IntToString((Int64)wiresMirrored);
+			msg += " rewired=";
+			msg += String::IntToString((Int64)wiresRewired);
+			if (outSkipped > 0)
+			{
+				msg += " (skipped ";
+				msg += String::IntToString((Int64)outSkipped);
+				msg += " unresolvable dst port(s) in capture)";
+			}
+			rec.message = msg;
 			mutated++;
 		}
 
@@ -963,7 +1207,7 @@ static Int32 DoBulkSwapNodesPreflight(BaseContainer* wc)
 		summary += String::IntToString((Int64)mutated);
 		summary += " mutation_err=";
 		summary += String::IntToString((Int64)mutationErr);
-		summary += " stage=addchild_only";
+		summary += " stage=swapped";
 	}
 	else
 	{
