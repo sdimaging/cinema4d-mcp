@@ -592,24 +592,43 @@ def rebuild_scene(desc, target_name="REBUILT", parent_obj=None,
             src_graph = None
             src_root = None
 
-        # Find all top-level capsules that failed AddChild
-        # (their basename has no public asset_id in our map)
+        # Surgical detection — only clone when truly necessary:
+        # (1) Top-level capsule whose AddChild failed (no public asset_id)
+        # (2) Top-level capsule that succeeded but has body errors AND those
+        #     body errors are for nodes that can't be Python-AddChild'd
+        #     (basename either has no asset OR the GraphNode-no-AddChild)
         failed_top_level_paths = []
         for e in addchild_err:
             path = e.get("path", "")
             if "/" not in path and e.get("reason", "").startswith("unknown_asset"):
                 failed_top_level_paths.append(path)
-        # Also: for capsules whose AddChild succeeded but body didn't
-        # auto-spawn (body listed in addchild_err with a "/" path), the
-        # whole capsule needs clone — REPLACE it with the cloned version
-        capsules_with_failed_body = set()
+
+        # For each top-level capsule with body errors, decide if clone is needed
+        capsules_with_unaddable_body = set()
+        body_errors_by_top = {}
         for e in addchild_err:
             path = e.get("path", "")
             if "/" in path:
                 top = path.split("/", 1)[0]
-                capsules_with_failed_body.add(top)
+                body_errors_by_top.setdefault(top, []).append(e)
 
-        all_to_clone = set(failed_top_level_paths) | capsules_with_failed_body
+        for top, errs in body_errors_by_top.items():
+            # If ANY body error is "no AddChild attribute" or has a base not in
+            # asset_map, this capsule's body genuinely can't be reproduced
+            # via AddChild → needs clone. If errors are something else
+            # (e.g. transient), skip cloning.
+            for e in errs:
+                reason = e.get("reason", "")
+                base = e.get("base", "")
+                if (
+                    "AddChild" in reason
+                    or "unknown_asset" in reason
+                    or (base and base not in asset_map)
+                ):
+                    capsules_with_unaddable_body.add(top)
+                    break
+
+        all_to_clone = set(failed_top_level_paths) | capsules_with_unaddable_body
 
         if src_graph is not None and all_to_clone:
             # Collect source GraphNodes matching these descriptor paths
