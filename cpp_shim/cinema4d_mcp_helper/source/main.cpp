@@ -583,47 +583,25 @@ static maxon::Result<maxon::GraphNode> AddChildOnly(maxon::nodes::NodesGraphMode
 	return added;
 }
 
-// Walk the parent chain of a port GraphNode to find the id of the
-// top-level node that owns it. Returns empty string if no matching
-// ancestor (e.g. port is at root level — usually scaffold/group case).
-//
-// Heuristic: a "real node" id contains '@' (UUID-suffixed user nodes
-// like transform_element@XYZ) OR matches known framework prefixes
-// (context_, MY_). The '<' / '>' single-char ids belong to root
-// gateways AND to port-group containers inside every node, so they're
-// ambiguous and skipped. See gotcha #72.
-static String FindOwningNodeId(maxon::GraphNode port)
+// Find the id of the node that owns a given port, by asking the SDK for
+// the nearest NODE_KIND::NODE ancestor. Works for any node id (no name
+// heuristic — earlier versions failed on synthetic test names that
+// didn't contain '@' or 'MY_' or 'context_'). Returns empty string only
+// if the port has no node ancestor (e.g. wire to root gateway).
+static String FindOwningNodeId(const maxon::GraphNode& port)
 {
 	iferr_scope_handler { return String(); };
-	while (port.IsValid())
-	{
-		const maxon::String idMaxon = port.GetId().ToString();
-		const String idStr = MaxonConvert(idMaxon);
-		if (idStr.GetLength() > 1)  // skip "<" and ">"
-		{
-			// Quick scan for '@' character — node Id signature
-			Bool hasAt = false;
-			for (maxon::Int i = 0; i < idStr.GetLength(); ++i)
-			{
-				if (idStr[i] == Utf32Char('@'))
-				{
-					hasAt = true;
-					break;
-				}
-			}
-			if (hasAt)
-				return idStr;
-			// Framework prefixes
-			if (idStr.GetLength() >= 3 && idStr.GetPart(0, 3) == "MY_"_s)
-				return idStr;
-			if (idStr.GetLength() >= 8 && idStr.GetPart(0, 8) == "context_"_s)
-				return idStr;
-		}
-		// GetParent() returns Result<GraphNode>; unwrap via iferr_return.
-		// iferr_scope_handler at function top returns String() on any error.
-		port = port.GetParent() iferr_return;
-	}
-	return String();
+	if (!port.IsValid())
+		return String();
+	maxon::GraphNode owner = port.GetAncestor(maxon::NODE_KIND::NODE) iferr_return;
+	if (!owner.IsValid())
+		return String();
+	// GetAncestor for a port returns the nearest NODE; if that node is the
+	// graph root itself, treat as "no owner" since rooting up to the graph
+	// root means we walked off the actual graph nodes.
+	if (owner.IsRoot())
+		return String();
+	return MaxonConvert(owner.GetId().ToString());
 }
 
 // Per-output-wire record: where MY's matching output port should re-connect
