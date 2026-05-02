@@ -15833,7 +15833,7 @@ class C4DSocketServer(threading.Thread):
                 "protocol_version": outcome.get("protocol_version"),
                 "bulk_swap_result": raw,
                 "audit_rows": rows,
-                "implementation_stage": "cxx_scaffold_only",
+                "implementation_stage": "cxx_preflight_only",
                 "mutation_enabled": False,
             }
         except Exception as e:

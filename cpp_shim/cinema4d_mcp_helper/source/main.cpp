@@ -49,7 +49,7 @@ namespace cinema
 
 const Int32 MCP_HELPER_PLUGIN_ID = 1057845;
 
-const Int32 MCP_HELPER_PROTOCOL_VERSION = 4; // 4 adds bulk-swap scaffold op.
+const Int32 MCP_HELPER_PROTOCOL_VERSION = 5; // 5 adds bulk-swap preflight (mutation pending).
 
 // Phase A.1 dispatch mechanism: Python calls c4d.SpecialEventAdd(
 //   MCP_HELPER_PLUGIN_ID, op_code, 0) which broadcasts a CoreMessage to
@@ -457,7 +457,90 @@ static Bool SplitBulkSwapLine(const String& line, String& ogId, String& myName, 
 	return ogId.GetLength() > 0 && myName.GetLength() > 0 && assetId.GetLength() > 0;
 }
 
-static Int32 DoBulkSwapNodesScaffold(BaseContainer* wc)
+// Bulk swap status codes (returned via BC_KEY_STATUS).
+// Distinct codes per failure class so callers can branch on the int alone;
+// the audit rows carry per-spec detail when one call mixes outcomes.
+//   0  = ok              : all specs swapped successfully (mutation path) — not yet implemented
+//   90 = setup_err       : null world container
+//   91 = empty_input     : no specs supplied
+//   92 = no_doc          : no active document
+//   93 = no_host         : no SN Deformer host (180420400) found
+//   94 = preflight_ok    : every spec passed preflight, mutation path still pending
+//   95 = missing_og      : at least one spec's OG node not found in graph (first-failure rule)
+//   96 = already_swapped : at least one spec's MY name already exists (first-failure rule)
+//   97 = malformed_spec  : at least one spec line failed to parse (first-failure rule)
+//   98 = graph_error     : failed to walk the SN graph (NimbusRef/graph/root invalid)
+//
+// First-failure rule: when multiple specs fail with different reasons in one
+// call, the overall status reflects the FIRST failure encountered. Per-spec
+// detail lives in the audit row's status field.
+//
+// Per audit row status field (always one of these strings):
+//   preflight_ok    : OG present, MY name available, ready to mutate
+//   missing_og      : OG node id not found in graph top-level children
+//   already_swapped : MY node name already exists in graph (collision)
+//   malformed_spec  : line failed to parse as og_id|my_name|asset_id
+
+// Walk the SN deformer host's neutron graph and append top-level child node
+// ids to `outIds` (one per child). Returns Result<void>; iferr_return
+// surfaces any maxon::Error to the caller.
+static maxon::Result<void> CollectTopLevelChildIds(BaseObject* host,
+                                                    maxon::HashSet<maxon::String>& outIds)
+{
+	iferr_scope;
+
+	maxon::NimbusBaseRef nimbus = host->GetNimbusRef(maxon::neutron::NODESPACE);
+	if (nimbus == nullptr)
+		return maxon::UnexpectedError(MAXON_SOURCE_LOCATION,
+			"host has no Scene Nodes graph (NimbusRef null)"_s);
+
+	const maxon::nodes::NodesGraphModelRef& graph = nimbus.GetGraph();
+	if (!graph)
+		return maxon::UnexpectedError(MAXON_SOURCE_LOCATION, "graph model is null"_s);
+
+	maxon::GraphNode root = graph.GetViewRoot();
+	if (!root.IsValid())
+		return maxon::UnexpectedError(MAXON_SOURCE_LOCATION, "graph view root is invalid"_s);
+
+	root.GetChildren([&outIds](const maxon::GraphNode& child) -> maxon::Result<maxon::Bool>
+		{
+			iferr_scope;
+			outIds.Insert(child.GetId().ToString()) iferr_return;
+			return maxon::Bool(true);
+		}, maxon::NODE_KIND::NODE) iferr_return;
+
+	return maxon::OK;
+}
+
+// Preflight a single spec. Sets `outStatus` to one of: "preflight_ok",
+// "missing_og", "already_swapped". Returns true if the spec passes preflight.
+static Bool PreflightSpec(const maxon::HashSet<maxon::String>& topLevelIds,
+                          const String& ogId,
+                          const String& myName,
+                          String& outStatus,
+                          String& outMessage)
+{
+	const maxon::String ogIdMaxon = MaxonConvert(ogId);
+	const maxon::String myNameMaxon = MaxonConvert(myName);
+
+	if (!topLevelIds.Contains(ogIdMaxon))
+	{
+		outStatus = "missing_og"_s;
+		outMessage = "OG node id not found among top-level graph children"_s;
+		return false;
+	}
+	if (topLevelIds.Contains(myNameMaxon))
+	{
+		outStatus = "already_swapped"_s;
+		outMessage = "MY node name already exists in graph (collision)"_s;
+		return false;
+	}
+	outStatus = "preflight_ok"_s;
+	outMessage = "OG present + MY name available; ready to mutate"_s;
+	return true;
+}
+
+static Int32 DoBulkSwapNodesPreflight(BaseContainer* wc)
 {
 	if (!wc)
 		return 90;
@@ -467,23 +550,43 @@ static Int32 DoBulkSwapNodesScaffold(BaseContainer* wc)
 
 	if (input.GetLength() == 0)
 	{
-		wc->SetString(BC_KEY_STATUS_MSG, "bulk_swap scaffold: empty input"_s);
+		wc->SetString(BC_KEY_STATUS_MSG, "bulk_swap: empty input"_s);
 		return 91;
 	}
 
 	BaseDocument* doc = GetActiveDocument();
 	if (!doc)
 	{
-		wc->SetString(BC_KEY_STATUS_MSG, "bulk_swap scaffold: no active document"_s);
+		wc->SetString(BC_KEY_STATUS_MSG, "bulk_swap: no active document"_s);
 		return 92;
 	}
 
 	BaseObject* snHost = FindFirstObjectOfType(doc->GetFirstObject(), SN_DEFORMER_PLUGIN_ID);
-	const Bool hostFound = snHost != nullptr;
+	if (snHost == nullptr)
+	{
+		wc->SetString(BC_KEY_STATUS_MSG,
+			"bulk_swap: no SN Deformer host (180420400) found in active document"_s);
+		return 93;
+	}
+
+	// Build the top-level child id set once. All preflight checks read from it.
+	maxon::HashSet<maxon::String> topLevelIds;
+	iferr (CollectTopLevelChildIds(snHost, topLevelIds))
+	{
+		String msg;
+		msg += "bulk_swap: failed to walk SN graph: ";
+		msg += MaxonConvert(err.GetMessage());
+		wc->SetString(BC_KEY_STATUS_MSG, msg);
+		return 98;
+	}
 
 	String audit;
 	Int32 parsed = 0;
 	Int32 malformed = 0;
+	Int32 preflightOk = 0;
+	Int32 preflightFail = 0;
+	// First-failure tracker: 0 = no failure yet, otherwise one of 95/96/97.
+	Int32 firstFailureCode = 0;
 	maxon::Int pos = 0;
 	const maxon::Int total = input.GetLength();
 
@@ -512,35 +615,66 @@ static Int32 DoBulkSwapNodesScaffold(BaseContainer* wc)
 		if (!SplitBulkSwapLine(line, ogId, myName, assetId))
 		{
 			malformed++;
+			preflightFail++;
+			if (firstFailureCode == 0)
+				firstFailureCode = 97;  // malformed_spec
 			audit += line;
-			audit += "|preflight_fail|0|0|malformed spec; expected og_id|my_name|asset_id\n";
+			audit += "|malformed_spec|0|0|line failed to parse as og_id|my_name|asset_id\n";
 			continue;
 		}
 
 		parsed++;
+
+		String specStatus;
+		String specMessage;
+		const Bool passed = PreflightSpec(topLevelIds, ogId, myName, specStatus, specMessage);
+		if (passed)
+		{
+			preflightOk++;
+		}
+		else
+		{
+			preflightFail++;
+			if (firstFailureCode == 0)
+			{
+				if (specStatus == "missing_og"_s)
+					firstFailureCode = 95;
+				else if (specStatus == "already_swapped"_s)
+					firstFailureCode = 96;
+				else
+					firstFailureCode = 95;  // unknown failure class — fall back to missing_og bucket
+			}
+		}
+
 		audit += ogId;
-		audit += "|scaffold_only|0|0|";
-		audit += hostFound
-			? "C++ bridge contract reached; mutation intentionally disabled until preflight+atomic swap body lands"
-			: "C++ bridge contract reached, but no SN Deformer host (180420400) found in active document";
+		audit += "|";
+		audit += specStatus;
+		audit += "|0|0|";
+		audit += specMessage;
 		audit += "\n";
 	}
 
 	wc->SetString(BC_KEY_BULK_SWAP_RESULT, audit);
 
 	String summary;
-	summary += "bulk_swap scaffold: parsed=";
+	summary += "bulk_swap preflight: parsed=";
 	summary += String::IntToString((Int64)parsed);
+	summary += " preflight_ok=";
+	summary += String::IntToString((Int64)preflightOk);
+	summary += " preflight_fail=";
+	summary += String::IntToString((Int64)preflightFail);
 	summary += " malformed=";
 	summary += String::IntToString((Int64)malformed);
-	summary += " sn_deformer_found=";
-	summary += hostFound ? "true" : "false";
-	summary += " mutation=disabled";
+	summary += " host_top_level_nodes=";
+	summary += String::IntToString((Int64)topLevelIds.GetCount());
+	summary += " mutation=not_yet_implemented";
 	wc->SetString(BC_KEY_STATUS_MSG, summary);
 
-	// Non-zero by design: callers must not treat this scaffold as a completed
-	// production mutation. It is a compile/bridge/audit foundation only.
-	return 93;
+	// Distinct codes per first-failure class: 94 if all passed, otherwise the
+	// first failure's class (95/96/97). All non-zero so callers don't mistake
+	// preflight-only for completed mutation. Mutation body lands in the next
+	// iteration; this function will then return 0 on full success.
+	return preflightFail > 0 ? firstFailureCode : 94;
 }
 
 // ============================================================================
@@ -715,7 +849,7 @@ public:
 			}
 
 			case OP_BULK_SWAP_NODES:
-				status = DoBulkSwapNodesScaffold(wc);
+				status = DoBulkSwapNodesPreflight(wc);
 				break;
 
 			default:
