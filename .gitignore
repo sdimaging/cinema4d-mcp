@@ -35,3 +35,12 @@ ENV/
 .DS_Store
 Thumbs.db
 
+# Scene Nodes study artifacts (keep docs, drop derivative binaries + renders)
+# Renders of practice scenes show the source's specific composition — exclude.
+# Snapshots are derivative .c4d files — exclude.
+docs/scene_nodes_advanced_studies/scenes/*/_snapshots/
+docs/scene_nodes_advanced_studies/scenes/*/raw_dumps/
+docs/scene_nodes_advanced_studies/scenes/*/frames/
+docs/scene_nodes_advanced_studies/scenes/*/sliders/
+*.c4d
+

@@ -9,6 +9,156 @@ anyone building agent integrations against C4D 2026.
 
 ---
 
+## 74. Bulk SN graph mutation in one Python script triggers `pythonvm.module.xdl64` crash under memory pressure
+
+**Discovered 2026-05-02** while attempting to bulk-swap 92 nodes in one mega-script (in-place parallel replacement methodology on Match Size practice file). C4D crashed with `ACCESS_VIOLATION` in `pythonvm.module.xdl64`. Memory peaked at 36.7 GB across 10-hour session + 5 open scenes.
+
+Confirmed at smaller scale: even 6 batches of 15 in ONE Python script (90 swaps total) crashes the same way. Single batch of 15 in one ping works cleanly.
+
+**Fix:** keep batches to ~15 mutations per ping, restart C4D periodically during long sessions, close stray scenes. The right long-term fix is a C++ MCP-side `scene_nodes_bulk_swap_nodes` tool that handles transaction lifecycle properly.
+
+## 73. Redshift's `redshift4c4d.xdl64` NULL-derefs on scripted SN graph mutations
+
+**Discovered 2026-05-02** during bulk swap work. ANY scripted `BeginTransaction → AddChild → Commit` in an SN graph (no events, no SetDirty, no ExecutePasses needed) crashes C4D with `ACCESS_VIOLATION` in `redshift4c4d.xdl64` callbacks. Manual UI mutations don't trip this. Confirmed across 5 crash reports — same `c4d_base.xdl64 → redshift4c4d.xdl64` call stack pattern, identical instruction address.
+
+Setting `RDATA_RENDERENGINE = 0` does NOT unload Redshift — its plugin loads at startup and registers callbacks regardless of active engine.
+
+**Fix:** disable Redshift plugin via folder-rename + .xdl64 file-rename. **Three load paths** to disable on a typical install:
+- `C:\Program Files\Maxon Cinema 4D 2026\plugins\Redshift\`
+- `C:\Program Files\Maxon Cinema 4D 2026\Redshift\` (outside plugins folder)
+- `C:\Program Files\Maxon Redshift 2026\Plugins\C4D\R2026\Redshift\`
+
+Renaming the folder alone is NOT enough — C4D scans by file extension. Must also rename `redshift4c4d.xdl64` → `redshift4c4d.xdl64.DISABLED`.
+
+## 72. `<` and `>` in graph-node parent chains are AMBIGUOUS — both root gateways AND port-group names inside every node
+
+**Discovered 2026-05-02** while debugging the in-place parallel-replacement bulk-swap. Climbing the parent chain of a port to find its node id, the first `>` or `<` encountered is usually a node's local OutputPortGroup or InputPortGroup, NOT the root output/input gateway. The root gateway also uses `<``>` as its id.
+
+For a wire from `arithmetic.in1 ← reroute.out`, the chain is `[out, >, reroute@xxx, root]`. Naive climb returns `>` and treats it as root.
+
+**Fix:** when climbing parent chain to resolve a port to its owning node, prefer ids containing `@` or starting with `context_` (real nodes). Only return `<``>` if no other match found AND we've climbed all the way to root level.
+
+## 71. `arithmetic` node `operation``datatype` ports cannot be Connect()-mirrored — they're DEFAULT VALUE ports
+
+**Discovered 2026-05-02** during bulk-swap. `port.GetConnections(PORT_DIR.INPUT)` on `operation` or `datatype` ports of an `arithmetic` node returns wires that look real but are internal "default value feeds." Calling `Connect()` to mirror them throws `no target to copy for '<net.maxon.graph.interface.graphmodel>'` and the error fires at `txn.Commit()` time (not at the Connect call), poisoning the whole transaction.
+
+**Fix:** when bulk-swapping arithmetic-like nodes, skip `operation` and `datatype` in the input-mirror loop. Capture them via `GetDefaultValue()` and apply via `SetDefaultValue()` BEFORE wiring (per gotcha #69 — datatype port disappears after first connection).
+
+## 70. Single-source-per-input-port: dual-feeding breaks the visual
+
+**Discovered 2026-05-01** during in-place parallel-replacement swap #2 (`inversematrix@HvjBjO`). Connecting both `OG.out` and `MINE.out` to the same downstream port produced visually-broken output (file size dropped from 136,116 baseline to 93,565 bytes).
+
+Most input ports accept ONE source at a time. The "parallel reading" phase of in-place replacement is fine for inputs (multiple consumers of one source = OK), but you can't dual-feed the same downstream input port.
+
+**Fix in the swap protocol:** delete OG first to free its downstream input ports, THEN wire MINE.out to those now-free targets.
+
+## 69. `arithmetic` node's `datatype` port DISAPPEARS after the first connection — set it BEFORE wiring
+
+**Discovered 2026-05-01** during the bb→arithmetic auto-bbox-read crack. After connecting any input to an `arithmetic` node, the `datatype` port becomes unavailable for `SetDefaultValue()`. The internal type system has resolved the type from the connection, and the explicit datatype slot is gone.
+
+**Fix:** set `datatype` BEFORE making any wire connections to the node. If you need to change datatype, you must re-add the node fresh.
+
+## 68. `arithmetic` operation cycle Ids are SHORT — `sub``div``add``mul`, NOT `subtract``divide`
+
+**Discovered 2026-05-01** via 4-iteration loop debugging the auto-bbox-read chain in Match Size. Wrong cycle Ids silently fall back to scalar mode (no error). The graph "works" but produces wrong values.
+
+Also for `datatype`: the canonical Id is the FULL parametrictype path: `net.maxon.parametrictype.vec<3,float>` — NOT `vector` or `vec3`.
+
+**Fix:** when configuring arithmetic-family nodes, use the short canonical Ids:
+- operation: `add` / `sub` / `mul` / `div`
+- datatype: `net.maxon.parametrictype.vec<3,float>` (or scalar `net.maxon.float64`)
+
+## 67. `bb.bbox` is a composite AABB struct, NOT a vec3 — use `bb.max - bb.min` for source size
+
+**Discovered 2026-05-01** while building auto-bbox-read in Match Size. The `bb` (bounding box) Neutron node has 4 outputs: `max`, `min`, `center`, `bbox`. The `bbox` output is a composite AABB struct (containing both min+max), not a vec3 size. Feeding it directly into a vec3 arithmetic input produces degenerate results.
+
+**Fix:** for the source SIZE in vec3 form, compute it as `bb.max - bb.min` via an arithmetic(sub, vec<3,float>) node.
+
+## 66. `GetPortValue()` returns DESIGN-TIME defaults, not RUNTIME-evaluated values
+
+**Discovered 2026-05-01** during Match Size rebuild debugging. Calling `GetPortValue()` on an output port (e.g. an arithmetic's `out`) returns the cached default, not what the graph actually computes at runtime. This caused hours of false debugging where the math was correct but the API said the wrong number.
+
+**Fix:** trust the visual outcome (screenshot diff), not the `GetPortValue()` query. For verification, render a viewport screenshot and byte-compare to a baseline.
+
+## 65. SN deformer cache refresh requires the FULL 4-step ritual — `EventAdd` alone is NOT enough
+
+**Discovered 2026-05-01** as the single biggest blocker during Match Size rebuild. After mutating an SN deformer's graph, calling only `c4d.EventAdd()` is not enough — the deformer's parent's polygon cache stays stale. The graph evaluates correctly but the viewport shows the un-deformed native geometry.
+
+**Fix — the 4-step ritual:**
+
+```python
+sn_host.SetDirty(c4d.DIRTYFLAGS_DATA | c4d.DIRTYFLAGS_CACHE | c4d.DIRTYFLAGS_DESCRIPTION | c4d.DIRTYFLAGS_MATRIX)
+parent_obj.SetDirty(c4d.DIRTYFLAGS_DATA | c4d.DIRTYFLAGS_CACHE | c4d.DIRTYFLAGS_MATRIX)
+c4d.EventAdd(c4d.EVENT_FORCEREDRAW)
+doc.ExecutePasses(None, True, True, True, c4d.BUILDFLAGS_NONE)
+```
+
+All four are required. The companion gotcha #66 (GetPortValue lies) made this maddening to diagnose — the math was right; it was the cache that lied.
+
+## 64. Asset DB unmounted = empty 2-node graph with NO error
+
+**Discovered 2026-05-01** while loading the reference Match Size practice file. When `scene_nodes_walk` returns only `context_externaltimeinput` + `context_notime` and no real nodes, suspect MISSING ASSET DATABASE (not mounted in Prefs → Library), not an empty graph. C4D doesn't surface an error — the graph just appears stub-empty.
+
+**Fix:** verify the required asset DB is mounted in Prefs → Library before loading scenes that depend on it.
+
+## 63. `scene_nodes_describe_node_template` may LEAK probe nodes into the live graph if cleanup fails
+
+**Discovered 2026-05-01** while iterating on Match Size rebuild. The `describe_node_template` MCP tool adds + removes a temporary instance of the queried node template — but cleanup can silently fail. The leaked node sticks in the graph and pollutes subsequent operations.
+
+**Fix:** always inspect `cleanup_succeeded` in the tool's response. If `false`, manually remove the leaked instance via `graph.BeginTransaction()` + `node.Remove()` before continuing.
+
+## 62. Bare basenames are NOT asset IDs — `transform_element` ≠ asset ID
+
+**Discovered 2026-05-01** during from-scratch Match Size replica work. Asset IDs follow patterns like `net.maxon.neutron.geometry.transform_element`, NOT just `transform_element`. The basename is the BASE of an instance ID (text before `@hash`), not an asset_id.
+
+**Fix:** use `scene_nodes_list_assets(source="repository", filter_substring=basename)` to find canonical IDs.
+
+Verified asset IDs from Match Size work:
+- `transform_element` → `net.maxon.neutron.geometry.transform_element`
+- `bb` → `net.maxon.neutron.geometry.bb`
+- `connect_geometries` → `net.maxon.neutron.geometry.connect_geometries`
+- `arithmetic` → `net.maxon.node.arithmetic`
+- `composematrix` (artist form) → `net.maxon.node.composematrix`
+- `floatingio` → `net.maxon.node.floatingio`
+- `inversematrix` → `net.maxon.node.inversematrix`
+- `reroute` → `net.maxon.node.reroute`
+- `if` → `net.maxon.node.if`
+- `switch` → `net.maxon.node.switch`
+- `compare` → `net.maxon.node.compare`
+- `transformmatrix` → `net.maxon.node.transformmatrix`
+- `type` → `net.maxon.node.type`
+- `scale` → `net.maxon.node.scale`
+- `legacyobjectaccess` → `net.maxon.nbo.node.legacyobjectaccess`
+
+`invertselection`, `getcount`, and `cube` are NOT under `net.maxon.neutron.geometry.*` — their canonical IDs need separate lookup.
+
+## 61. composematrix has TWO forms with DIFFERENT port schemas — verify before assuming
+
+**Discovered 2026-05-01** during Match Size rebuild. Two distinct asset IDs share the basename `composematrix`:
+
+- `net.maxon.node.composematrix` — artist form: `scale` (vec3), `translation` (vec3), `rotation` (vec3), `rotationorder` (int). Output: `out`.
+- `net.maxon.node.access.composematrix*` — basis-vector form: `off`, `v1`, `v2`, `v3`. Common in tooling/access-namespace builds.
+
+the reference Match Size uses the basis-vector form (with `_0``_1` floatingio routing children); my MVP rebuild used the simpler artist form. Both work for normalization but they're different node templates.
+
+**Fix:** when two graphs use the "same" node basename, verify they're the SAME asset_id by checking the namespace path. Don't assume.
+
+## 60. `scene_nodes_connect_ports` MCP tool can't address root `<``>` gateways — use Python directly
+
+**Discovered 2026-05-01** during Match Size MVP build. The MCP tool's name resolver doesn't recognize `<``>` as valid node names — it errors with `dest GetInputs failed: no target to copy for '<net.maxon.graph.interface.graphmodel>'`.
+
+**Fix:** for connections that involve the root input/output gateways, drop into Python:
+
+```python
+nodes = {str(c.GetId()): c for c in root.GetChildren()}
+root_in, root_out = nodes["<"], nodes[">"]
+# Then iterate root_in.GetChildren() / root_out.GetChildren() to find specific gateway ports
+```
+
+The Connect direction convention is `source_port.Connect(target_port)` — the OUTPUT side calls `.Connect(input_side)`.
+
+---
+
 ## 59. Particle scenes need PLAY mode, not SCRUB — `SetTime(N)` per-frame triggers full recomputes that timeout
 
 **Discovered 2026-05-01** while studying the Coral Structures Tutorial
@@ -81,7 +231,7 @@ mid-state-as-architecture-proof.
 
 ## 58. Use TOP-DOWN camera for flat 2D Scene-Nodes output (splines on plane, vertex maps, ornaments)
 
-**Discovered 2026-05-01** while studying the RefLib `Spline_Grower_Ornament`
+**Discovered 2026-05-01** while studying the the reference build `Spline_Grower_Ornament`
 scene. Spenser's correction: *"your camera view was just level with the
 ground plane so you couldnt see it from that view — i rotated to the top
 (in perspective still) and it shows up nicely"*.
@@ -149,7 +299,7 @@ y-radius, default to top-down.
 
 ## 57. `memory@` Neutron primitive only updates on SEQUENTIAL frame stepping — direct `SetTime(N)` jumps produce stale state
 
-**Discovered 2026-05-01** while studying the RefLib `Volume_Infection`
+**Discovered 2026-05-01** while studying the the reference build `Volume_Infection`
 scene. The Neutron `memory@` primitive carries per-frame state via a
 self-feedback wire (`out._0 → in._0`). State only propagates when frames
 advance contiguously — jumping in time bypasses the per-frame update.
@@ -223,7 +373,7 @@ sequential time. The presence of `memory@` is the marker.
 
 ## 56. Plugin ID 180420500 (Scene Nodes Generator) uses the **Neutron** nodespace, NOT `net.maxon.nodespace.scene`
 
-**Discovered 2026-05-01** while studying the RefLib `Reaction_Diffusion`
+**Discovered 2026-05-01** while studying the the reference build `Reaction_Diffusion`
 scene. Both hosts in that scene are type `180420500` ("Scene Nodes
 Generator"). The expected access path:
 
@@ -251,7 +401,7 @@ authoritative**. The same plugin ID can host EITHER nodespace depending on
 when/how the scene was authored. Scene 05's Nodes Spline (180420700) uses
 Neutron, but scene 02's same-ID host uses the older `nodespace.scene`.
 
-The table below is the **common case** observed across RefLib scenes —
+The table below is the **common case** observed across the reference build scenes —
 always probe `host.GetAllNimbusRefs()` for the actual nodespace before
 accessing the graph.
 
@@ -260,7 +410,7 @@ accessing the graph.
 | 180420400 | Nodes Modifier (Deformer) | `net.maxon.nodespace.scene` | Neutron (verify per-scene) |
 | 180420500 | **Scene Nodes Generator** | **`net.maxon.neutron.nodespace`** | scene (verify per-scene) |
 | 180420600 | Nodes Mesh simple | `net.maxon.nodespace.scene` | Neutron (verify per-scene) |
-| 180420700 | Nodes Spline | `net.maxon.nodespace.scene` OR Neutron | both observed in RefLib |
+| 180420700 | Nodes Spline | `net.maxon.nodespace.scene` OR Neutron | both observed in the reference build |
 
 ### Why this matters
 
@@ -380,7 +530,7 @@ This renders in viewport but does NOT create an Object Manager entry.
 
 ### Why all my prior probes failed (sept 2026-05-01 discovery)
 
-- I tested **180420500** (had complex `objectinput`/`op.input`/`op.objectbase`
+- I tested **180420500** (had complex `objectinput``op.input``op.objectbase`
   port set) — it does NOT have a simple geometryout output. Was the wrong
   plugin variant.
 - I tested **180420700** with the Nodes Mesh recipe — got `cache=None`.
@@ -1066,11 +1216,11 @@ doc.InsertObject(poly)  # REQUIRED — result is orphan otherwise
 
 ## 14. WSL paths must be Windows-converted before sending to C4D
 
-**Wrong:** Sending `/mnt/c/Users/.../foo.png` as a `save_path` argument from WSL.
+**Wrong:** Sending `mnt/c/Users/.../foo.png` as a `save_path` argument from WSL.
 
-**Actual:** C4D's Python interpreter runs on Windows. `/mnt/c/...` is a WSL-mount path that Windows Python's `open()` can't resolve.
+**Actual:** C4D's Python interpreter runs on Windows. `mnt/c/...` is a WSL-mount path that Windows Python's `open()` can't resolve.
 
-**Fix (server.py side):** Auto-translate `/mnt/<drive>/...` to `<DRIVE>:\\...` before sending the command. Already implemented in `_normalize_paths_in_command` — applied to known path-arg keys (`file_path`, `save_path`, `save_dir`, `bitmap_path`, `path`, etc.).
+**Fix (server.py side):** Auto-translate `mnt/<drive>/...` to `<DRIVE>:\\...` before sending the command. Already implemented in `_normalize_paths_in_command` — applied to known path-arg keys (`file_path`, `save_path`, `save_dir`, `bitmap_path`, `path`, etc.).
 
 ## 18. `FieldList.SampleListSimple` returns FieldOutput (don't pre-create)
 
@@ -1322,9 +1472,9 @@ header include).
 
 **Conversion functions** (in `c4d_string.h`):
 ```cpp
-inline const String& MaxonConvert(const maxon::String& val);  // maxon -> cinema
+inline const String& MaxonConvert(const maxon::String& val);  / maxon -> cinema
 inline String MaxonConvert(maxon::String&& val);
-inline const maxon::String& MaxonConvert(const String& val);  // cinema -> maxon
+inline const maxon::String& MaxonConvert(const String& val);  / cinema -> maxon
 inline maxon::String MaxonConvert(String&& val);
 ```
 
@@ -1349,7 +1499,7 @@ what every Maxon SDK example does:
 
 ```cpp
 static maxon::Result<void> DoWork_Impl(BaseContainer* wc) {
-    iferr_scope;  // Scope marker — required for iferr_return to work.
+    iferr_scope;  / Scope marker — required for iferr_return to work.
     SomeMaxonCall() iferr_return;
     return maxon::OK;
 }
@@ -1375,7 +1525,7 @@ For walking an existing Scene Nodes graph in C++:
 ```cpp
 maxon::NimbusBaseRef nimbus = host->GetNimbusRef(maxon::neutron::NODESPACE);
 const maxon::nodes::NodesGraphModelRef& graph = nimbus.GetGraph();
-maxon::GraphNode root = graph.GetViewRoot();  // NOT GetRoot()
+maxon::GraphNode root = graph.GetViewRoot();  / NOT GetRoot()
 ```
 
 `graph.GetViewRoot()` returns the root GraphNode at `GetViewRootPath()`. If
@@ -1384,7 +1534,7 @@ you need recursive traversal, use `GetInnerNodes`:
 graph.GetInnerNodes(root, maxon::NODE_KIND::NODE, false,
     [&](const maxon::GraphNode& candidate) -> maxon::Result<maxon::Bool>
     {
-        // process candidate; return true to continue iteration
+        / process candidate; return true to continue iteration
         return maxon::Bool(true);
     }) iferr_return;
 ```
@@ -1406,7 +1556,7 @@ Bool Find(const REFTYPE& str, Int* pos, StringPosition start = 0)
 Bool Find(CHARTYPE ch, Int* pos, StringPosition start = 0)
 Bool FindLast(const REFTYPE& str, Int* pos, StringPosition start = StringEnd())
 Bool FindLast(CHARTYPE ch, Int* pos, StringPosition start = StringEnd())
-Int  FindIndex(...)        // returns -1 if not found, vs Bool result
+Int  FindIndex(...)        / returns -1 if not found, vs Bool result
 Int  FindLastIndex(...)
 ```
 Use `Find` (no "First"). All methods take an output position pointer or
@@ -1418,8 +1568,8 @@ The pattern is:
 maxon::GraphNode root = graph.GetViewRoot();
 root.GetInnerNodes(maxon::NODE_KIND::NODE, /*includeThis=*/false,
     [&](const maxon::GraphNode& candidate) -> maxon::Result<maxon::Bool> {
-        // process candidate
-        return maxon::Bool(true); // continue
+        / process candidate
+        return maxon::Bool(true); / continue
     }) iferr_return;
 ```
 Same applies to `GetChildren` — both are on the GraphNode, with the underlying
@@ -1515,7 +1665,7 @@ The walker DID find the correct FIO node (debug-trail confirmed via
 `BC_KEY_DEBUG`: `candidates=[floatingio@HASH(MATCH), context_externaltimeinput, context_notime]`).
 The runtime C++ AddPort implementation rejects FloatingIO targets.
 
-**FloatingIO is marked `/// INTERNAL.`** in
+**FloatingIO is marked ` INTERNAL.`** in
 `frameworks/nodes.framework/source/maxon/definitions/nodes_utility.h`.
 Adding ports to a FIO is a NodeTemplate-build-time operation, NOT a
 runtime graph-edit operation.
@@ -1523,7 +1673,7 @@ runtime graph-edit operation.
 **The SDK pattern that DOES work for adding named ports** lives in
 `plugins/example.nodes/source/space/dynamic_node_impl.cpp`:
 ```cpp
-// During NodeTemplate definition (template-build-time):
+/ During NodeTemplate definition (template-build-time):
 maxon::nodes::MutableRoot root = parent.CreateNodeSystem() iferr_return;
 maxon::nodes::MutablePort outPort = root.GetOutputs().AddPort(NODE::DYNAMIC::RESULT) iferr_return;
 outPort.SetType<maxon::Color>() iferr_return;
@@ -1614,9 +1764,9 @@ C++ filters by checking the BC, NOT by the `id` parameter:
 virtual Bool CoreMessage(Int32 id, const BaseContainer& bc) override
 {
     if (bc.GetInt32(BFM_CORE_ID) != MY_PLUGIN_ID)
-        return true;  // not addressed to us
+        return true;  / not addressed to us
     Int32 op = bc.GetInt32(BFM_CORE_PAR1);
-    // ... process op ...
+    / ... process op ...
 }
 ```
 
@@ -1658,24 +1808,24 @@ plugins/example.nodes/source/space/nodesystem_presethandler.cpp:81):**
 ```cpp
 iferr (maxon::nodes::Port port = maxon::nodes::ToPort(node))
 {
-    return err;  // 'err' auto-bound by the iferr macro to the maxon::Error
+    return err;  / 'err' auto-bound by the iferr macro to the maxon::Error
 }
-// 'port' is in scope here as the unwrapped Port value
+/ 'port' is in scope here as the unwrapped Port value
 ```
 
 **Applied to GraphNode-returning template methods:**
 ```cpp
-// Get a port container — won't unwrap with iferr_return chain
+/ Get a port container — won't unwrap with iferr_return chain
 maxon::GraphNode container;
 {
-    iferr (maxon::GraphNode tmp = fio.GetInputs())  // or GetOutputs()
+    iferr (maxon::GraphNode tmp = fio.GetInputs())  / or GetOutputs()
     {
         return err;
     }
-    container = tmp;  // 'tmp' is the unwrapped value here
+    container = tmp;  / 'tmp' is the unwrapped value here
 }
 
-// AddPort same shape:
+/ AddPort same shape:
 maxon::GraphNode newPort;
 {
     iferr (maxon::GraphNode added = container.AddPort(portId))
@@ -1717,7 +1867,7 @@ maxon::GraphTransaction txn = graph.BeginTransaction() iferr_return;
 maxon::Id portId;
 portId.Init(MaxonConvert(portName)) iferr_return;
 
-// Call AddPort ON THE FIO NODE (not on GetInputs()):
+/ Call AddPort ON THE FIO NODE (not on GetInputs()):
 maxon::GraphNode newPort;
 {
     iferr (maxon::GraphNode added = fio.AddPort(portId))

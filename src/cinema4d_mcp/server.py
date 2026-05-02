@@ -3710,6 +3710,42 @@ async def scene_nodes_add_floating_io_port(
 
 
 @mcp.tool()
+async def scene_nodes_bulk_swap_nodes(
+    swap_specs: str,
+    timeout_s: float = 30.0,
+    ctx: Context = None,
+) -> str:
+    """Route Scene Nodes bulk node-replacement specs through the C++ helper.
+
+    Current state: C++ scaffold only. This proves the MCP -> C4D Python ->
+    C++ helper contract and returns audit rows, but intentionally refuses
+    mutation until the preflight + atomic-swap body is implemented.
+
+    Args:
+      swap_specs: line-separated specs in the format
+        og_id|my_name|asset_id
+      timeout_s: helper timeout in seconds.
+
+    Returns:
+      {ok, status, status_msg, implementation_stage, audit_rows}
+
+    UNSAFE once mutation is enabled. For now mutation_enabled=false.
+    """
+    async with c4d_connection_context() as connection:
+        if not connection.connected:
+            return "❌ Not connected to Cinema 4D"
+        cmd: Dict[str, Any] = {
+            "command": "scene_nodes_bulk_swap_nodes",
+            "swap_specs": swap_specs,
+            "timeout_s": timeout_s,
+        }
+        response = send_to_c4d(connection, cmd)
+        if "error" in response:
+            return f"❌ Error: {response['error']}"
+        return json.dumps(response, indent=2)
+
+
+@mcp.tool()
 async def scene_nodes_helper_logger(
     action: str,
     ctx: Context = None,

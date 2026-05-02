@@ -1,0 +1,151 @@
+{
+  "scene_name": "Crystal_Cutter_Tutorial",
+  "studied_date": "2026-05-01",
+  "study_index": 10,
+  "built_on": 9,
+  "patterns": [
+    "feedback_loop",
+    "simulation_bridge",
+    "time_animation",
+    "om_orchestrated_feedback",
+    "swappable_deformer_slot",
+    "externalized_memory_host",
+    "chained_solvers",
+    "mograph_bridge",
+    "production_lighting",
+    "render_engine_specific"
+  ],
+  "purpose": "Procedural faceted crystal generation by chaining TWO R28 solver stacks with Legacy Boole as the deformer slot. First pass cuts vertical tips; second pass cuts horizontal bands; final result wrapped in Fracture+Random+Force MoGraph dynamics.",
+  "visual_result": "Cylinder evolves into a faceted crystal shape over the 130-frame timeline (FPS=250 = iteration counter). Each frame is one Boolean cut from a spinning cube; cuts accumulate into crystal-like topology.",
+  "input_geometry": "Cylinder (Init State of first solver) → cut and re-cut to produce the crystal.",
+  "hosts": [
+    {
+      "om_name": "Store for next Frame (×2 — one per solver)",
+      "plugin_id": 180420600,
+      "nodespace": "net.maxon.neutron.nodespace",
+      "graph_node_count": 5,
+      "role": "memory@ container, identical to scene 09's pattern"
+    }
+  ],
+  "om_classic_generators": [
+    {
+      "name": "Tip Cutting / Horizontal Cutting Cutting Cube",
+      "type": "Connect (1011010) wrapping Spin/Angel/Cube/Move-Down nulls",
+      "role": "the spinning Boolean B (cutter)"
+    },
+    {
+      "name": "Random Angle (×2)",
+      "plugin_id": 440000281,
+      "type": "Random Field",
+      "role": "randomizes Spin rotation per frame for non-uniform faceting"
+    },
+    {
+      "name": "Init State (×2)",
+      "plugin_id": 1011010,
+      "role": "frame-0 seed (Cylinder for first; Solved State Instance for second — CHAINING)"
+    },
+    {
+      "name": "Solved State (×2)",
+      "plugin_id": 1011010,
+      "role": "per-frame solver wrap, contains Legacy Boole"
+    },
+    {
+      "name": "Legacy Boole (×2)",
+      "plugin_id": 1010865,
+      "role": "THE DEFORMER SLOT — Boolean A∖B subtraction; A=previous-frame state, B=Cutting Cube"
+    },
+    {
+      "name": "Solved State Instance (Init State of second solver)",
+      "plugin_id": 5126,
+      "role": "Connect Instance linking Horizontal Cutting's input to Tip Cutting's output — THE CHAINING MECHANISM"
+    },
+    {
+      "name": "Connect (top-level)",
+      "plugin_id": 1011010,
+      "role": "wraps final output for MoGraph dynamics"
+    },
+    {
+      "name": "Fracture",
+      "plugin_id": 1018791,
+      "role": "MoGraph fracture splits crystal into pieces"
+    },
+    {
+      "name": "Random",
+      "plugin_id": 1018643,
+      "role": "Random effector"
+    },
+    {
+      "name": "Force",
+      "plugin_id": 180000103,
+      "role": "physics force"
+    }
+  ],
+  "doc_level_objects": [
+    {
+      "name": "RS Camera",
+      "plugin_id": 1057516,
+      "role": "Redshift camera"
+    },
+    {
+      "name": "RS Area Light + BG plane + Bouncecard",
+      "role": "production lighting rig"
+    }
+  ],
+  "annotations": [],
+  "key_connections": [
+    {
+      "from": "Tip Cutting Solved State.output",
+      "to": "Horizontal Cutting Init State (via Connect Instance INSTANCEOBJECT_LINK)",
+      "purpose": "R28 SOLVER CHAINING — output of first solver becomes seed of second.",
+      "criticality": "load_bearing"
+    },
+    {
+      "from": "Legacy Boole.A",
+      "to": "Store for next Frame Instance (previous frame state)",
+      "purpose": "A in A∖B — the geometry to subtract from."
+    },
+    {
+      "from": "Legacy Boole.B",
+      "to": "Cutting Cube Instance (spinning cube)",
+      "purpose": "B in A∖B — the shape to subtract."
+    }
+  ],
+  "what_is_clever": [
+    "Boolean as the swappable deformer slot — proves R28 universality extends to Boolean operations.",
+    "R28 solvers CHAIN via Connect Instance INSTANCEOBJECT_LINK — output of one feeds input of next. Recipe candidate R29.",
+    "FPS=250 with max=130 = high iteration count packed into short timeline. Frame number = iteration index.",
+    "Spinning cutter primitive (Cube nested in Spin/Angel/Move-Down nulls) generates rotational Boolean cuts → faceted geometry.",
+    "Three compositional layers (R28 foundation + R29 chaining + MoGraph wrap) — recipes stack cleanly without monolithic megagraphs."
+  ],
+  "rebuild_recipe": [
+    "See study.md for full prose recipe — too long for record.json field."
+  ],
+  "minimal_reproducible_subgraph": {
+    "name": "chained_solver_stacks",
+    "purpose": "Chain N R28 solver stacks where each stack's seed is the previous stack's solved output. Multi-stage iterative geometry pipeline.",
+    "node_count": "~12 OM objects per solver × N solvers + 5-node Nodes Mesh × N",
+    "value_proposition": "THE pattern for multi-stage procedural geometry pipelines. Stage 1 = Boolean cuts; Stage 2 = Smoothing; Stage 3 = Displacement; etc. Each stage's solver runs independently; final result is composition.",
+    "candidate_for_mcp_recipe": true,
+    "recipe_id_proposed": "R29_chained_solver_stacks",
+    "secondary_recipes": [
+      "R28b_boolean_deformer_slot — R28 with Legacy Boole as slot deformer",
+      "R30_spinning_cutter_primitive — Cube + Spin/Angel/Move-Down nulls for rotational Boolean cutting",
+      "R31_iteration_count_via_fps — high FPS + short timeline as iteration counter",
+      "R32_mograph_dynamics_wrap — Fracture + Random + Force wrap for any procedural mesh"
+    ],
+    "blockers_to_recipe_implementation": [
+      "Connect Instance INSTANCEOBJECT_LINK programmatic setting needed",
+      "Recipe meta-language for declaring 'stack N copies of recipe X with chained inputs'",
+      "Legacy Boole node creation + bidirectional A/B child setup"
+    ]
+  },
+  "artifacts": {
+    "study_md": "study.md",
+    "frames": [
+      "frames/default_f030.png",
+      "frames/default_f099.png"
+    ]
+  },
+  "complexity": "hard",
+  "estimated_tool_calls_to_recreate_from_recipe": 80
+}

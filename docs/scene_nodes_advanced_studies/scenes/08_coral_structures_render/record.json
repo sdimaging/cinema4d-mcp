@@ -1,0 +1,212 @@
+{
+  "scene_name": "Coral_Structures_Render",
+  "studied_date": "2026-05-01",
+  "study_index": 8,
+  "twin_of": 7,
+  "twin_relationship": "Production-render variant of scene 07 (Coral Structures Tutorial). Core particle→volume architecture identical; this scene adds lighting + RS camera + 2 RS materials + procedural backdrop + region-specific Spherical Fields + a 3rd Nodes Modifier (Normal Masking instead of Mask Y).",
+  "patterns": [
+    "simulation_bridge",
+    "volume_pipeline",
+    "field_weighting",
+    "legacy_object_bridge",
+    "modifier_stack",
+    "classic_generator_input",
+    "production_lighting",
+    "render_engine_specific",
+    "twin_scene",
+    "procedural_backdrop"
+  ],
+  "purpose": "Production-render-ready coral growth scene. Same particle→volume core as scene 07, wrapped with 4-light rig + Redshift Camera + 2 RS materials + procedural Nodes-Mesh backdrop + 2 Spherical Fields for face/shoulder localized coral patches.",
+  "visual_result": "Head bust framed by RS Camera against a procedural backdrop, with 4-light rig setup. Coral grows in two localized patches (Face + Shoulder regions) gated by the two Spherical Fields. Renders via Redshift.",
+  "delta_vs_tutorial": [
+    "ADDED: 4-light rig (BG Light + Key Light + Rim Light + Bouncecard)",
+    "ADDED: Backdrop (180420600 — Nodes Mesh as procedural background plane)",
+    "ADDED: RS Camera (1057516 — Redshift Camera)",
+    "CHANGED: Random Field → 2× Spherical Field (Face + Shoulder) for region-specific gating",
+    "ADDED: Plain falloff field as direct child of head (extra layered selection)",
+    "CHANGED: Mask Y Nodes Modifier → Normal Masking Nodes Modifier (filters by surface normal direction instead of Y range)",
+    "ADDED: Generic Head Bust appears TWICE (once at OM level for rendering reference, once inside Volume Builder for SDF unioning)",
+    "ADDED: 2 Redshift Materials (BG + Corals)",
+    "RENAMED: Particle Group Grow → Particle Group Meshing (semantic equivalent)"
+  ],
+  "core_architecture_unchanged": "Mesh Emitter → Particle Group Init → Field Condition → Kill / Switch Group → Particle Group Meshing → Volume Builder + Subdivision Surface (head + Geometry Axis Nodes Mod) → Volume Mesher → Smoothing → Connect → final mesh. Same R17_particle_to_volume_growth recipe applies.",
+  "hosts": [
+    {
+      "om_name": "Geometry Axis (×2 instances — head OM-level + Volume-Builder-internal)",
+      "plugin_id": 180420400,
+      "nodespace": "net.maxon.neutron.nodespace",
+      "graph_node_count": 20,
+      "role": "axis re-alignment of head"
+    },
+    {
+      "om_name": "Normal Masking",
+      "plugin_id": 180420400,
+      "nodespace": "net.maxon.neutron.nodespace",
+      "graph_node_count": "TBD (similar 5-node minimal pattern likely)",
+      "role": "post-process: filter output points by surface normal direction"
+    },
+    {
+      "om_name": "Backdrop",
+      "plugin_id": 180420600,
+      "plugin_name": "Nodes Mesh simple",
+      "nodespace": "TBD",
+      "role": "procedural background plane"
+    }
+  ],
+  "doc_level_objects": [
+    {
+      "name": "Spherical Field Face",
+      "plugin_id": 440000243,
+      "type": "FieldObject",
+      "role": "localized field at face position"
+    },
+    {
+      "name": "Spherical Field Shoulder",
+      "plugin_id": 440000243,
+      "type": "FieldObject",
+      "role": "localized field at shoulder position"
+    },
+    {
+      "name": "Random Field",
+      "plugin_id": 440000281,
+      "type": "FieldObject",
+      "role": "additional random falloff layer"
+    },
+    {
+      "name": "Plain",
+      "plugin_id": 1021337,
+      "type": "Plain falloff field",
+      "role": "child of head — vertex selection painter"
+    }
+  ],
+  "om_classic_generators_unchanged_from_07": [
+    "Mesh Emitter (1062577)",
+    "Particle Group Init / Particle Group Meshing (1060887 ×2)",
+    "Field Condition (1062533) + Kill (1061199) + Switch Group (1062045)",
+    "Connect (1011010)",
+    "Volume Mesher (1039861) + Volume Builder (1039859) + Smoothing (1024529)",
+    "Subdivision Surface (1007455 ×2)",
+    "Generic Head Bust (5100)"
+  ],
+  "om_classic_generators_added": [
+    "BG Light (1036751)",
+    "Key Light (1036751)",
+    "Rim Light (1036751)",
+    "Bouncecard (5168 — plane primitive)",
+    "RS Camera (1057516)",
+    "LIGHTS Null (5140 — wrapper)"
+  ],
+  "materials": [
+    {
+      "name": "BG",
+      "type": 5703,
+      "engine": "Redshift",
+      "role": "backdrop material"
+    },
+    {
+      "name": "Corals",
+      "type": 5703,
+      "engine": "Redshift",
+      "role": "main coral mesh material"
+    }
+  ],
+  "annotations": [],
+  "key_connections_added_vs_07": [
+    {
+      "from": "Spherical Field Face + Spherical Field Shoulder (doc-level)",
+      "to": "Field Condition particle modifier",
+      "purpose": "Two localized fields combine (probably OR) to produce face+shoulder coral patches — vs Tutorial's single Random Field for distributed coverage."
+    },
+    {
+      "from": "Plain falloff field (child of head)",
+      "to": "head's vertex selection",
+      "purpose": "Additional layered selection painted directly on the head — adds another control for which surface points participate."
+    },
+    {
+      "from": "RS Camera",
+      "to": "Active Scene Camera",
+      "purpose": "Production camera framing for Redshift render."
+    }
+  ],
+  "output_routing": "Identical to scene 07 — output is the Connect generator wrapping Volume Mesher (with Smoothing) + Normal Masking Nodes Modifier.",
+  "what_is_clever": [
+    "Twin scene pattern: Tutorial = bare architecture, Render = production-ready wrap of same architecture. Recipe (R17) is shared; render-specific scaffolding (R21+R22+R23+R24) layered on top.",
+    "Two Spherical Fields at anatomical positions (Face + Shoulder) replace single Random Field — produces TWO localized coral patches instead of distributed coverage. Demonstrates field combination patterns.",
+    "Three Nodes Modifiers stacked at different pipeline stages: Geometry Axis (×2 — preprocesses head twice), Normal Masking (post-processes output by surface normal). Same plugin ID, completely different graph internals.",
+    "Generic Head Bust + Geometry Axis stack appears twice — once at OM level, once inside Volume Builder. Twin-instance for cache/perf reasons.",
+    "Procedural Nodes-Mesh backdrop demonstrates that even render scaffolding can be Scene Nodes — not just the simulation logic."
+  ],
+  "gotchas": [
+    {
+      "issue": "Same particle-compute timeout as scene 07. f20 stepping caused viewport_screenshot timeout.",
+      "evidence": "Trying f0 + sequential 1..20 → screenshot at f20 timed out.",
+      "workaround": "Per gotcha #59 (play-don't-scrub): trust f0 for production-render visualization (architecture is clear), use playback for animated state."
+    },
+    {
+      "issue": "Backdrop is plugin 180420600 (Nodes Mesh simple) — could use either nodespace. Didn't probe in this study.",
+      "evidence": "Object tree shows type=180420600.",
+      "workaround": "Probe GetAllNimbusRefs() if studying the backdrop's graph internals."
+    },
+    {
+      "issue": "Generic Head Bust appears TWICE in OM tree — could be confused for same instance but probably duplicate copies for separate rendering / volume-input purposes.",
+      "evidence": "Tree walk showed 'Generic Head Bust' under both Subdivision Surface (top-level) and Subdivision Surface (inside Volume Builder).",
+      "workaround": "Treat as separate instances; check if changes in one propagate to the other before assuming linkage."
+    }
+  ],
+  "rebuild_recipe": [
+    "1. Apply R17_particle_to_volume_growth recipe from scene 07 (same particle → volume core).",
+    "2. Layer the production render setup (parallel to step 1):",
+    "   a. Add 4-light rig: BG Light + Key Light + Rim Light + Bouncecard plane.",
+    "   b. Add RS Camera (1057516) and set as active scene camera.",
+    "   c. Replace single Random Field with 2× Spherical Field (Face + Shoulder) at anatomical positions; wire Field Condition to combine them.",
+    "   d. Add Plain falloff field as child of head for extra vertex-selection painting.",
+    "   e. Replace Mask Y Nodes Modifier with Normal Masking Nodes Modifier (180420400).",
+    "   f. Add Backdrop (180420600 Nodes Mesh) for procedural background plane.",
+    "   g. Create 2 Redshift materials (BG for backdrop, Corals for coral mesh).",
+    "   h. Optional: instance Generic Head Bust + Geometry Axis at both OM-level and Volume-Builder-internal positions."
+  ],
+  "minimal_reproducible_subgraph": {
+    "name": "production_render_wrap",
+    "purpose": "Wrap any procedural simulation scene with a production-render layer (lighting + camera + materials + procedural backdrop) without changing the simulation core.",
+    "node_count": "12 OM objects + 2 materials + 1 Nodes Mesh backdrop",
+    "nodes": [
+      "LIGHTS Null wrapping {BG Light, Key Light, Rim Light, Bouncecard}",
+      "RS Camera (or any render-engine camera)",
+      "Backdrop (180420600 Nodes Mesh) for procedural background",
+      "2× material (one for backdrop, one for main mesh)",
+      "Optional: localized Spherical Fields for region-specific control"
+    ],
+    "exposed_params": [
+      "Light intensities (per-light)",
+      "Camera framing (focal length, position)",
+      "Material parameters (per-material; surface, roughness, etc.)",
+      "Backdrop noise/pattern (procedural)"
+    ],
+    "value_proposition": "Decouples production-render scaffolding from simulation logic. Same R21+R22+R23+R24 recipe wraps ANY simulation scene (R17 coral, R7 RD, R9 infection, R14 ornaments, etc.) for render-ready output without re-authoring the lighting/camera/materials each time.",
+    "candidate_for_mcp_recipe": true,
+    "recipe_id_proposed": "R21_production_lighting_rig + R22_rs_material_setup + R23_procedural_backdrop + R24_render_camera_config",
+    "blockers_to_recipe_implementation": [
+      "Redshift integration via cinema4d-mcp (for RS Camera + RS Material)",
+      "Recipe-composition primitive needed: 'wrap simulation scene S with render layer L'",
+      "Multi-Spherical-Field combination pattern in Field Condition needs documentation"
+    ]
+  },
+  "lessons_for_cinema4d_mcp": [
+    "Twin-scene pattern (tutorial / render) confirms recipes — same architecture proven in two contexts.",
+    "Recipe composition is essential: simulation recipe + render recipe = production scene. Don't bake them together.",
+    "Procedural Nodes-Mesh backdrops are a lightweight pattern — single host for background plane.",
+    "Three Nodes Modifiers in one scene proves stacking is universal: pre-input, mid-pipeline, post-output.",
+    "Localized Spherical Fields at anatomical positions = region-specific control. More artist-friendly than single Random Field for character work."
+  ],
+  "artifacts": {
+    "study_md": "study.md",
+    "frames": [
+      "frames/default_f000.png (RS Camera framing, no coral yet — particle sim not advanced)"
+    ],
+    "sliders": [],
+    "raw_graph_dump": null,
+    "captures_skipped": "f20+ timed out per gotcha #59"
+  },
+  "complexity": "hard (same as scene 07 + render layer)",
+  "estimated_tool_calls_to_recreate_from_recipe": 70
+}

@@ -1,0 +1,199 @@
+{
+  "scene_name": "Oct-Tree_Distribution_Tutorial-Version",
+  "studied_date": "2026-05-01",
+  "study_index": 19,
+  "patterns": [
+    "scene_nodes_distribution_host",
+    "cloner_distribution_advanced_mode",
+    "octree_spatial_subdivision",
+    "loop_with_carried_state",
+    "closest_point_on_surface",
+    "compose_distribution_container",
+    "custom_distribution_authoring"
+  ],
+  "purpose": "the reference hand-built Oct Tree Distribution — a CUSTOM artist-authored Scene Nodes graph that ships as a Distribution generator (plugin 190000011) and feeds the new C4D 2026 advanced Cloner mode. Demonstrates the WHOLE PIPELINE of authoring custom procedural scatter algorithms for the new Distribution → Cloner workflow.",
+  "user_quotes": [
+    "this one is brand new - i havent seen it but excited to learn it and for you to learn it",
+    "this uses the NEW c4d distribution too so thats something you probably dont have documented in 2026 c4d added a new advanced cloner distribution",
+    "it allows for scene node distribution",
+    "ya the current MCP probably has no idea about the new distribution types there are cannon ball distribution and many others",
+    "i actually just added them to the scene you can see cannonball partition projection 2d grid etc",
+    "octree is just a custom scene node distribution built by this artist so let study all the distributions the new advanced cloner ops and obviously the oct tree set up itself and ins and outs",
+    "now swapped out the cannonball for the partition distribution",
+    "toggle the distribution type yourself dive into the workings of it adjust things and understand it please"
+  ],
+  "c4d_2026_new_capability": {
+    "name": "Distribution generator + Advanced Cloner mode",
+    "plugin_id": 190000011,
+    "plugin_type_name": "Distribution",
+    "stock_built_ins": [
+      "Cannonball",
+      "Partition",
+      "Projected 2D Grid",
+      "Smart Hex",
+      "Spline Bead"
+    ],
+    "custom_examples_in_this_scene": [
+      "Oct Tree"
+    ],
+    "cloner_param_changes": {
+      "[2107]": {
+        "name": "Distribution Type",
+        "cycle": {
+          "0": "Basic",
+          "1": "Advanced"
+        }
+      },
+      "[1028]": {
+        "name": "Clones from Distribution",
+        "purpose": "Toggle whether Cloner reads from a Distribution generator at all"
+      },
+      "[2115]": {
+        "name": "Distribution",
+        "dtype": "link 133",
+        "purpose": "BaseObject link to a Distribution generator"
+      },
+      "[5511]": {
+        "name": "Display",
+        "cycle": {
+          "0": "None",
+          "1": "Weight",
+          "2": "UV",
+          "3": "Color",
+          "4": "Index"
+        },
+        "purpose": "Viewport debug overlay for distribution data"
+      },
+      "[1500]": {
+        "name": "Color",
+        "purpose": "Per-instance color override (when Display=Color)"
+      },
+      "[1025]": {
+        "name": "Instance Mode",
+        "newly_labeled": true
+      },
+      "[1026]": {
+        "name": "Viewport Mode",
+        "newly_labeled": true
+      },
+      "[1501]": {
+        "name": "(hidden conditional)"
+      },
+      "[1204]": {
+        "name": "(hidden conditional)"
+      }
+    }
+  },
+  "stock_distribution_internals_finding": "Stock distributions ship as VERSIONED SCENE NODES ASSETS (Asset Version 1002, descid path '777.1852142638.1835104367.1848536687.1684352610.1634952494.1634956133.1953916274.1936289646.1') with ~190 AM-exposed descids each. The exposed params are deeply-nested floatingio paths (e.g. Cannonball 'Selected Objects' at '777.1768833104.1901617015.1194414149.1748332115.1500673399.1732659790.1946157056') and are NOT Python-settable per the FIO/PORTLIST gotcha — they require UI interaction to wire input geometry.",
+  "octree_custom_internals": {
+    "graph_node_count": 23,
+    "loop_carried_state_count": 1,
+    "key_nodes": [
+      "bb (bounding box - octree partition)",
+      "closestpointonsurface",
+      "loopcarriedvalue (start/end/scaffold)",
+      "transform_element x2",
+      "selectionstringparser",
+      "composedistributioncontainer (output)",
+      "context_externaltimeinput"
+    ],
+    "am_exposure": "Minimal — only 1 'Distribution' descid; the artist did not add FloatingIO exposure for parameter control. Input geometry hardcoded in graph rather than exposed as AM link.",
+    "complexity_vs_stocks": "65 nodes (smallest in the family). Smart Hex 210, Projected 2D Grid 221, Cannonball 251, Spline Bead 653, Partition 1268. Oct Tree is the IDEAL study size for understanding the pattern."
+  },
+  "experiments_run": [
+    {
+      "id": "A1",
+      "state": "Distribution OFF (legacy mode)",
+      "result": "Cloner shows 7 child shapes scattered randomly (Object mode, no target)",
+      "screenshot": "frames/exp_A1_distribution_OFF.png"
+    },
+    {
+      "id": "A2",
+      "state": "Distribution ON, [2115]=Oct Tree",
+      "result": "Beautiful HIERARCHICAL OCTREE PATTERN of clustered spheres with finer subdivisions in denser regions",
+      "screenshot": "frames/exp_A2_distribution_ON_OctTree.png"
+    },
+    {
+      "id": "B1",
+      "state": "[2115]=Cannonball",
+      "result": "EMPTY VIEWPORT — Cannonball has 'Selected Objects' link unset (not Python-settable due to deep floatingio path)",
+      "screenshot": "frames/exp_B1_Cannonball.png"
+    },
+    {
+      "id": "B2",
+      "state": "[2115]=Partition",
+      "result": "KITBASH/MECHA effect — partitioned regions, each region gets a different child shape (Sphere/Tube/Atom Array/Cube)",
+      "screenshot": "frames/exp_B2_Partition.png",
+      "key_insight": "Partition is the 'kitbash distribution' — perfect for greebles, instrument panels, mechanical assemblages"
+    },
+    {
+      "id": "B3",
+      "state": "[2115]=Projected 2D Grid",
+      "result": "EMPTY (same input-link issue)",
+      "screenshot": "frames/exp_B3_Projected2DGrid.png"
+    },
+    {
+      "id": "B4",
+      "state": "[2115]=Smart Hex",
+      "result": "DENSE HEX GRID of varied shapes — zoomed massively (camera framing inadequate)",
+      "screenshot": "frames/exp_B4_SmartHex.png"
+    },
+    {
+      "id": "B5",
+      "state": "[2115]=Spline Bead",
+      "result": "EMPTY (needs spline input wired)",
+      "screenshot": "frames/exp_B5_SplineBead.png"
+    }
+  ],
+  "blockers_observed": [
+    "Stock distributions (Cannonball, Projected 2D Grid, Spline Bead) all rendered EMPTY because their 'Selected Objects' / source-input links are deeply-nested floatingio params (root 777.<long-path>) that cannot be set via Python — UI interaction required",
+    "Partition + Smart Hex worked because they have valid defaults that don't require explicit input wiring",
+    "Smart Hex camera framing was wildly inadequate — generates clones at scale that engulfs StudyCam"
+  ],
+  "recipe_candidates": [
+    {
+      "id": "R30_custom_distribution_authoring",
+      "title": "Author a custom Distribution generator (artist-shippable scatter algorithm)",
+      "priority": "HIGH — unblocks shipping any procedural scatter as a Cloner-compatible tool",
+      "ingredients": [
+        "Scene Nodes graph hosted in plugin 190000011 (Distribution)",
+        "Standard Cloner-facing input ports: clonerchildrenin, globalclonermatrixin, localclonermatrixin",
+        "Standard time inputs: time, frame, fps, nimbus, globalmatin",
+        "Custom algorithm core (octree / blue-noise / curvature-driven / RD / whatever)",
+        "Output: composedistributioncontainer node terminating in distdataout port"
+      ],
+      "reference_implementation": "Oct Tree Distribution by the reference build — 65 nodes, demonstrates octree spatial subdivision + closestpointonsurface for surface-aware scatter. Bare-graph style (no AM exposure).",
+      "next_step_for_artist_ship": "Add FloatingIO ports to surface controls (count, density, scale, seed, source-object) for AM exposure — follow the stock distributions' versioned-asset pattern (Asset Version 1002 at 777.<path>)"
+    }
+  ],
+  "tooling_action_items_for_cinema4d_mcp": [
+    "Add plugin 190000011 to dissect_capsule scan + asset registry",
+    "Document new Cloner descids: [2107], [1028], [2115], [5511], [1500], [1025], [1026]",
+    "Crawl scene_nodes_list_assets(source='repository', filter_substring='distribution') to identify the 5 stock asset IDs",
+    "Add a deep-floatingio setter helper that knows how to traverse 777.<long-path> paths via UI commands rather than Python (likely needs a CallCommand or scripted UI action)",
+    "Consider adding a 'Distribution sandbox' helper to cinema4d-mcp: create N distributions, plug in a torus, screenshot each — useful for visual reference",
+    "Update c4d_2026_api_gotchas.md with the Distribution + Advanced Cloner section"
+  ],
+  "memories_saved": [
+    "reference_c4d_2026_distribution_generator_190000011.md — plugin overview + Cloner wiring",
+    "reference_c4d_2026_distribution_family_inventory.md — 5 stock + Oct Tree custom inventory",
+    "reference_c4d_2026_cloner_advanced_distribution_descids.md — new Cloner param IDs"
+  ],
+  "evidence_screenshots": [
+    "frames/exp_A1_distribution_OFF.png — baseline (no distribution mode)",
+    "frames/exp_A2_distribution_ON_OctTree.png — Oct Tree hierarchical octree pattern (THE PRIMARY FINDING)",
+    "frames/exp_B1_Cannonball.png — empty (input not wired)",
+    "frames/exp_B2_Partition.png — kitbash/mecha (THE KILLER STOCK USE CASE)",
+    "frames/exp_B3_Projected2DGrid.png — empty (input not wired)",
+    "frames/exp_B4_SmartHex.png — dense hex grid (camera too tight, but signature visible)",
+    "frames/exp_B5_SplineBead.png — empty (needs spline input)",
+    "frames/swap_partition.png + live_state_now.png — user-driven swap captures",
+    "frames/state_1_distribution_OFF.png — mid-experiment baseline",
+    "frames/final_state.png — final state after experiments"
+  ],
+  "operational_notes": [
+    "DBG_Cloner_Empty + DBG_Cloner_ObjectMode + DBG_Cloner_Distribution + DBG_Sphere_Child{,2} + StudyCam left in scene as experiment artifacts — to be cleaned up before save",
+    "RS Dome Light removed (clutter strip)",
+    "Doc CLOSED via KillDocument at end of session per Spenser's RAM-hygiene reminder"
+  ]
+}

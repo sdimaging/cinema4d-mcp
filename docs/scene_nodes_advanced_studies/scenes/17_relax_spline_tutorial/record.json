@@ -1,0 +1,268 @@
+{
+  "scene_name": "Relax-Spline_01_Tutorial",
+  "studied_date": "2026-05-01",
+  "study_index": 17,
+  "patterns": [
+    "spline_growth_in_volume",
+    "containment_via_extrude_collision",
+    "axis_remap_deformer",
+    "bbox_to_target_frame",
+    "selection_scoped_deform",
+    "time_driven_via_context_externaltimeinput",
+    "geometry_generation",
+    "spline_pipeline"
+  ],
+  "purpose": "Demonstrate reaction-diffusion-style spline GROWTH that is constrained inside a CONTAINMENT VOLUME (an extruded text shape, here the digit '3'). The grown spline accumulates over time and visually fills the interior of the extruded letter while never escaping its boundary. Spenser flagged this scene as a TARGET TEMPLATE for a future build: 'spline-based reaction diffusion ON the surface of an object, contained within an extruded logo'.",
+  "visual_result": "Top-down view of a procedural Landscape (101x101 grid) shows the extruded '3' as a halftone-dotted alpha cutout on the surface. Inside the 3-shaped boundary, a colored ribbon-like spline (pink/violet/blue/cyan gradient) GROWS from a small segment at f0 into a convoluted, filling curve by f83 — a textbook RD growth confined to the interior. The 'colored spline' is a shaded SplineObject with thickness, not a vertex color overlay.",
+  "user_quotes": [
+    "the node layout here is gorgeously done",
+    "this is that reaction diffusion style spline growth that i LOVE",
+    "this does reaction diffusion within a contained space, the extruded number 3 is called Collision in the viewport bc its the contained colision of the reaction diffusion growth",
+    "this is a key build bc if we want to do a spline based reaction diffusion build ON the surface of an object and contain it within something like an exruded logo etc this would be the kind of scene wed want to engineer"
+  ],
+  "target_recipe_status": {
+    "is_target_template": true,
+    "target_capability": "RD-grown spline ON a surface, contained within an extruded shape (logo-fillable RD)",
+    "rebuild_priority": "TOP — flagged as a 'kind of scene wed want to engineer' for our toolkit",
+    "rebuild_recipe_id_proposed": "R28_contained_rd_spline_on_surface"
+  },
+  "hosts": [
+    {
+      "om_name": "Geometry Axis",
+      "plugin_id": 180420400,
+      "plugin_name": "Scene Nodes Deformer (Neutron)",
+      "nodespace": "net.maxon.neutron.nodespace",
+      "graph_node_count": 23,
+      "role": "containment-frame math + per-frame deformation; reads context_externaltimeinput so deformation IS time-driven (classifier reported time_state=0, which is misleading because it does not count context_externaltimeinput as a true time node)",
+      "location_in_om": "child of Collision (Extrude) — sibling of Text Spline; therefore deforms the EXTRUDE OUTPUT, not the Landscape and not the root Spline"
+    }
+  ],
+  "doc_level_objects": [
+    {
+      "name": "Landscape",
+      "plugin_id": 5169,
+      "type": "Landscape primitive",
+      "role": "procedural terrain substrate; cached to 10201-pt polygon grid (101x101) with Phong + UVW + Tselection (5600) + Tunknown(5604); collision/projection target"
+    },
+    {
+      "name": "Collision",
+      "plugin_id": 5116,
+      "type": "Extrude",
+      "role": "RENAMED from 'Extrude' — the CONTAINMENT VOLUME. Extrudes Text Spline '3' by Vector(0,0,100). Children: Text Spline (input geometry) + Geometry Axis (SN deformer); the deformer transforms the extrude output before it is rendered/used"
+    },
+    {
+      "name": "Text Spline",
+      "plugin_id": 5178,
+      "type": "Text Spline",
+      "role": "letter '3', height 920.8, child of Collision = the containment shape source"
+    },
+    {
+      "name": "Spline",
+      "plugin_id": 5101,
+      "type": "SplineObject",
+      "role": "STATIC 64-pt open polyline winding through 3D space (Y range -16 to +71). Confirmed identical at f0 vs f90, no PLA, no CTracks. Likely the BAKED FINAL STATE of a prior RD growth, OR a guide path the SN deformer references by name. Its tags are Tnotes(5617) + Tpointselection(5600) — selection probably marks growth tips"
+    }
+  ],
+  "annotations": [
+    {
+      "label": "Layout quality",
+      "note": "Spenser explicitly called the SN node layout 'gorgeously done' — capture this as a layout-quality reference when we open the Scene Nodes editor for visual study"
+    },
+    {
+      "label": "Operator-style rename",
+      "note": "The Extrude was renamed 'Collision' by the original artist as a personal intuitive label — a one-off operator quirk, NOT a methodology pattern. Do not generalize as 'naming as semantics' across the recipe library."
+    }
+  ],
+  "annotation_storage_pattern": "OM-name-driven role labeling (no scaffold@ in graph). Spline holds a Tpointselection that likely encodes growth-tip indices.",
+  "am_sliders": [],
+  "am_exposure_pattern_note": "ZERO root-direct AM exposure on the Geometry Axis SN Deformer — the BC dump shows only display-color slots (10000, 1041671, 1041667, 1036147). All graph parameters are INTERNAL. composematrix nodes have _0/_1 floatingio routing helpers but nothing surfaces to AM. This is a 'closed' deformer asset.",
+  "key_connections": [
+    {
+      "from": "Extrude(Collision).cache",
+      "to": "Geometry Axis.input_port",
+      "purpose": "Deformer receives extruded '3' mesh as its working geometry (the volume to be deformed)"
+    },
+    {
+      "from": "context_externaltimeinput",
+      "to": "<internal nodes>",
+      "purpose": "Time drives the per-frame deformation — visible animation of the colored spline-like growth filling the 3 interior"
+    },
+    {
+      "from": "bb (bounding box)",
+      "to": "composematrix#1",
+      "purpose": "Source basis matrix derived from input bbox — the SOURCE space for the axis remap"
+    },
+    {
+      "from": "<TARGET frame source>",
+      "to": "composematrix#2",
+      "purpose": "Target basis matrix — likely derived from the Spline path or Landscape normal to enable surface-projection"
+    },
+    {
+      "from": "composematrix#1 + inversematrix + composematrix#2",
+      "to": "transformvector x3 -> transform_element(transformpoint)",
+      "purpose": "Per-vertex SOURCE^-1 * TARGET round-trip: transports input points from extrude-bbox space into target-frame space"
+    },
+    {
+      "from": "selectionstringparser -> transform_element",
+      "to": "selection scope",
+      "purpose": "Restricts deformation to a NAMED selection — probably 'inside the 3' or 'on the spline'"
+    }
+  ],
+  "scene_nodes_graph_summary": {
+    "total_nodes": 23,
+    "dominant_class": "math_compound (47.8%)",
+    "function_class_distribution": {
+      "math_compound": 0.478,
+      "framework": 0.087,
+      "selection_ops": 0.043,
+      "visual": 0.043
+    },
+    "top_nodes_by_frequency": [
+      {
+        "node": "maprange",
+        "count": 3
+      },
+      {
+        "node": "transformvector",
+        "count": 3
+      },
+      {
+        "node": "composematrix",
+        "count": 2
+      },
+      {
+        "node": "splitvectorcomponents",
+        "count": 2
+      },
+      {
+        "node": "bb",
+        "count": 1
+      },
+      {
+        "node": "group",
+        "count": 1
+      },
+      {
+        "node": "composevector3",
+        "count": 1
+      },
+      {
+        "node": "transform_element",
+        "count": 1
+      },
+      {
+        "node": "transformpoint",
+        "count": 1
+      },
+      {
+        "node": "selectionstringparser",
+        "count": 1
+      },
+      {
+        "node": "inversematrix",
+        "count": 1
+      }
+    ],
+    "loop_carried_state_count": 0,
+    "patterns_detected_by_classifier": [],
+    "probable_purpose_per_classifier": "Mixed-purpose graph",
+    "actual_inferred_purpose": "Bounding-box-to-target-frame axis-remap deformer with selection-scoped point transport, time-driven via context_externaltimeinput"
+  },
+  "renderer_active": "300001061 (third-party, not Standard/Physical/Octane/Redshift-classic — probably C4D 2026 native render or Redshift 2026 ID)",
+  "frame_range": {
+    "min": 0,
+    "max": 999,
+    "fps": 25
+  },
+  "evidence_screenshots": [
+    "frames/f0000_persp.png — initial state, small visible colored spline",
+    "frames/f0030_persp.png — early growth",
+    "frames/f0060_persp.png — mid growth",
+    "frames/f0090_persp.png — late growth",
+    "frames/f0000_persp_v2.png — re-captured after camera setup, clearly shows short colored ribbon top-right of '3'",
+    "frames/f0083_persp.png — frame 83 perspective",
+    "frames/live_now.png — frame 83 TOP-DOWN — convoluted spline FILLS the inside of the '3'"
+  ],
+  "open_questions": [
+    "What ENTITY is the visible colored animated ribbon? Not the rooted Spline (static, 64pts). Not the Extrude cache surface (that is the 3 outline). Possibilities: a sub-cache produced by the SN deformer; a SplineObject output from the deformer applied to a new visualization layer; a PLA cache I missed.",
+    "How does the deformation actually achieve VOLUME-CONTAINMENT? The bbox math gives a frame, but the growth visually never escapes the 3 outline — this implies a containment TEST somewhere (point-in-polygon? winding number? selection lookup against Landscape's selection tag?). The selectionstringparser node hints at the latter.",
+    "What is the role of the rooted Spline (64 open pts)? Static throughout the timeline. Possible roles: (a) baked final-state reference, (b) guide curve read by name in the SN graph, (c) input to a Sweep/Profile not present here.",
+    "What does the Tpointselection on the Spline encode? Worth opening manually in C4D — likely growth-tip markers.",
+    "What is the unknown tag type 5604 on the Landscape cache?",
+    "What is the third-party renderer ID 300001061?"
+  ],
+  "blockers_for_rebuild": [
+    "Need to inspect the SN graph in the EDITOR (not via walk) to capture the 'gorgeous layout' pattern — Spenser called this out specifically",
+    "Need to identify the actual growth-driver: is it inside this scene's SN graph (via context_externaltimeinput math) or baked elsewhere?",
+    "If real RD: where is the loop-carried-value? Classifier says 0. Maybe the LCV lives in a Memory primitive inside one of the time-context subgraphs that the walk didn't fully expand.",
+    "Need to load scene 18 (Relax-Spline_02_Optimized) for the optimized variant — likely shows the SAME mechanism with cleaner architecture or live LCV"
+  ],
+  "recipe_candidates": [
+    {
+      "id": "R28_contained_rd_spline_on_surface",
+      "title": "Contained reaction-diffusion spline growth ON a surface, bounded by an extruded shape",
+      "priority": "TOP — Spenser flagged as target capability",
+      "ingredients": [
+        "Substrate object (e.g. Landscape, Plane, or any polygon mesh with UV)",
+        "Containment volume: Extrude generator wrapping a Text Spline / Spline / Logo Spline (becomes the boundary mask)",
+        "Scene Nodes Deformer as a child of the Extrude — provides bbox-to-target-frame math + selection-scoped point transport",
+        "Time-driven RD step via Memory primitive feedback INSIDE the SN graph (TODO: confirm vs scene 18)",
+        "Optional: separate guide Spline read-by-name for initial seed path"
+      ],
+      "key_techniques": [
+        "Use bbox + composematrix x2 + inversematrix to build a SOURCE^-1 * TARGET axis-remap pipeline",
+        "Use selectionstringparser + transform_element to scope deformation to named selections (probably 'inside the volume')",
+        "Drive per-frame growth via context_externaltimeinput — even small deformations accumulate to RD-look",
+        "Bake the final state to a static SplineObject for reuse / export"
+      ],
+      "conceptual_operations": [
+        "Establish a containment volume from any extruded shape",
+        "Establish a substrate surface where growth lives",
+        "Provide per-point coordinate transform substrate-space -> containment-space",
+        "Maintain time-evolving state (growing curve) — requires loop-carried-value",
+        "Apply containment test per step to clamp growth inside the volume",
+        "Visualize state as a renderable spline / mesh / vertex attribute"
+      ],
+      "implementation_paths": [
+        {
+          "label": "Pure Scene Nodes",
+          "summary": "What scene 17 does — bbox+matrix axis-remap + transform_element + (suspected) Memory feedback. Closed asset, no AM exposure."
+        },
+        {
+          "label": "Hybrid SN + classic OM",
+          "summary": "SN deformer for the math + classic Field/MoGraph for iteration + Sweep generator for visualization."
+        },
+        {
+          "label": "OM + XPresso",
+          "summary": "Extrude + Field-driven point modification via XPresso Iterator + Tracer/Connect for the curve."
+        },
+        {
+          "label": "Capsule shipping form",
+          "summary": "Wrap any of the above with AM-exposed sliders for substrate / containment / seed / step-size / iteration-count."
+        }
+      ],
+      "implementation_note": "the reference build scene 17 is HAND-BUILT artist work and shows ONE valid implementation. Treat it as awareness/direction data — extract the operations + data flow, not the specific node assembly."
+    }
+  ],
+  "secondary_recipes": [
+    {
+      "id": "R29_axis_remap_deformer_minimal",
+      "title": "Axis-remap SN deformer (bbox -> target frame)",
+      "ingredients": [
+        "bb",
+        "composematrix x2",
+        "inversematrix",
+        "transformvector x3",
+        "transform_element with transformpoint",
+        "selectionstringparser for scope"
+      ],
+      "use_case": "Whenever you need to transport per-vertex positions from one local frame into another (e.g. align extruded geometry to a curve-driven frame, conform to a target axis system, or re-orient a sub-mesh to match a parent direction)"
+    }
+  ],
+  "operational_notes": [
+    "Per gotcha #57 (sequential stepping for sims): even though my classifier says time_state=0, the visible animation IS time-driven via context_externaltimeinput — when re-probing this scene per-frame, step sequentially (0,1,2,...) rather than jumping",
+    "Per gotcha #58 (top-down for flat-2D scenes): top-down camera is THE diagnostic camera here — perspective shows the bumped landscape but the RD pattern containment within the 3 outline is only fully readable from above",
+    "Image safety: kept all frames at 800x450 with save_path; six total frames captured",
+    "C4D doc was not killed at end of session — leave open for Spenser since the SN editor needs to be opened manually for the 'gorgeous layout' visual capture"
+  ]
+}
