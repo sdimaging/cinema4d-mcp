@@ -1,140 +1,138 @@
-# Scene 23 — Match Size (Stone Circle) (Stack Stones companion study)
+# Scene 23 — Match Size (Stone Circle) — Composition Study
 
-**Studied:** 2026-05-01 (resumed)
-**Source:** `the stone-circle reference scene`
-**Method:** Tear-apart deletion + LCV identification
+A creative marriage of **classic MoGraph** (Cloner + Distribution + Connect) and **Scene Nodes** (Stack Stones + Match Size deformers). Five rocks get cloned across a layout, stacked vertically without overlap by a custom SN deformer, normalized to a uniform size envelope by another SN deformer, and shaped with a final classic Bend.
+
+This is the second external scene we use to validate the C++ bulk-swap tool — and the first one that exercises a **non-trivial composition** (multiple SN deformers, classic generators in the chain, sibling-deformer ordering).
+
+> See `study_v1.md` for an earlier tear-apart-style notes pass on this same scene.
 
 ---
 
-## TL;DR
-
-Stone-Circle is a 3-deformer pipeline that turns 5 different Megascans rocks into a beautiful packed circular arrangement. The pipeline:
+## OM architecture
 
 ```
-Cloner (radial, 5 rock children + Random Field for color/scale variation)
-   └─ Polygon Reduction × 5 (LOD optimization on each rock)
-   └─ Stack Stones (SN deformer 180420400 — packs the clones into a dense pile)
-   └─ Match Size (SN deformer 180420400 — normalizes each stone to fit a target envelope)
-   └─ Bend (classic deformer — curves the result)
+Cube                                       (top-level — disabled in editor; isolated test setup)
+└─ Match Size                              SN deformer (180420400) — 118 nodes, asset_v1004 (same as scene 21)
+
+Doodle Object::Front                       (annotation)
+Time + Random Field                        (animation drivers, hidden)
+Random Initial Scale                       (XPresso-style randomizer)
+Random Animation Scale                     (XPresso-style randomizer)
+
+Null
+└─ Connect                                 classic generator (1011010) — concatenates child output
+   ├─ Cloner                               1018544 — 5 source rocks, NEW Distribution path enabled
+   │   └─ Polygon Reduction × 5
+   │       └─ Aset_nature_rock_S_*_LOD0    (5 reference rocks)
+   ├─ Stack Stones                         SN deformer (180420400) — 7 nodes (5 functional + 2 framework)
+   ├─ Match Size                           SN deformer — 118 nodes (same asset as Cube/Match Size + scene 21)
+   └─ Bend                                 classic deformer (5128) — final shaping
 ```
 
-**Stack Stones is Match Size + a fold-loop.** Same the reference build authoring style (214 nodes vs Match Size's 203, identical top-vocab) PLUS a `loopcarriedvalue` body that accumulates geometry per iteration. That's the only architectural difference.
+**Critical observation:** the three deformers (Stack Stones, Match Size, Bend) are **siblings of Cloner under Connect**, NOT children. C4D processes Connect's output through them in OM order. Connect concatenates Cloner's clone instances → Stack Stones reorganizes → Match Size normalizes → Bend curves.
 
 ---
 
-## Stack Stones graph signature (Asset Version of Match Size family)
+## Cloner config (the MoGraph half)
 
-| Metric | Stack Stones | Match Size (for comparison) |
-|--------|-------------:|----------------------------:|
-| Total nodes | **214** | 203 |
-| Unique node types | 52 | 44 |
-| arithmetic | 20 | 20 |
-| reroute | 16 | 16 |
-| if | 16 | 16 |
-| floatingio | 15 | 15 |
-| switch | 13 | 13 |
-| scaffold | 8 | 8 |
-| transform_element | 7 | 7 |
-| selectionstringparser | 7 | 7 |
-| **loop_carried_state_count** | **1** | **0** |
-| Function class dominant | visual 19.6% | visual 20.7% |
+| ID | Param | Value | Meaning |
+|---|---|---|---|
+| `MGCLONER_MODE` (1020) | mode | 2 | (multi-mode: works in conjunction with Distribution) |
+| `MGCLONER_USE_DISTRIBUTION_CLONES` (1028) | use distribution | **1** | **uses C4D 2026 Advanced Distribution path** |
+| `[2107]` | Distribution Type | 0 | "Basic" |
+| `[2114]` | (Distribution flag) | 1 | enabled |
+| `MGCLONER_SEED` (1022) | seed | 123456 | deterministic |
+| `MG_LINEAR_COUNT` (1270) | linear count | 25 | (used when not in distribution mode) |
+| `MG_GRID_RESOLUTION` (1200) | grid res | (3,1,3) | 9 grid clones (when in grid mode) |
 
-**The 11 extra unique node types in Stack Stones are the loop scaffold + accumulator nodes.** Specifically the LCV body contains:
-- `loopcarriedvalue@B1m_2zL$…` (the LCV scaffold)
-  - `start` (LCV initializer)
-  - `0228e699ef6845f391e25f17f44c708d@C9Ro…` (a UUID-named CUSTOM ASSET — likely the per-stone placement logic, e.g. "find next low spot in accumulated pile and snap this stone there")
-  - `connect_geometries@H4U7M4nv…` (cumulative geometry merge)
-  - `end` (LCV terminator)
-
-The presence of a UUID-named custom asset inside the LCV is interesting — the reference build built a sub-asset for the per-iteration placement and is reusing it. That's a sign of asset-library composition (build a primitive once, use it inside multiple distributions).
+The Cloner uses C4D 2026's **Advanced Distribution Generator** — a new pipeline (per memory ref `c4d_2026_distribution_generator_190000011`) where the cloner reads from a Distribution node rather than computing positions itself. The exact distribution source needs further inspection (param `[2115]` Distribution link).
 
 ---
 
-## Tear-apart results
+## Stack Stones SN deformer — algorithm decoded
 
-| Stage | State | Visual outcome | Verdict | Screenshot |
-|------:|-------|----------------|---------|------------|
-| 0 | Baseline ON (all 3 deformers active) | Tight packed CIRCLE of normalized rocks, like a fire-pit ring | The intended look | `frames/stage0_close.png` |
-| 1 | Stack Stones DISABLED, Match Size ON | Thin sparse ring (rocks at single Y level, evenly spaced, no overlap) | Stack Stones = "the pile-tightener" — turns evenly-spaced into densely-packed | `frames/stage1_NO_StackStones.png` |
-| 2 | Stack Stones DISABLED + Match Size DISABLED | Rocks at NATIVE varied sizes break the radial spacing → vertical stairs of mismatched stones | Match Size = "the size unifier" needed BEFORE the packing logic to make stones spacing-compatible | `frames/stage2_NO_StackStones_NO_MatchSize.png` |
-
----
-
-## Algorithm inferred (Stack Stones core logic)
+**7 top-level nodes, 5 functional + 2 framework.** Pattern: `loop_scaffold` (per scene-nodes atlas) — depth-bounded iteration with carried state.
 
 ```
-Stack Stones algorithm (single-pass with per-element fold):
-
-INPUT: parent geometry = many separate clone instances (from Cloner above)
-
-1. Read input geometry, separate it into N clone meshes
-2. INITIALIZE accumulator = empty geometry (LCV.start)
-3. FOR each clone i in 0..N-1:
-     a. Custom-asset (0228e699ef…) computes WHERE this clone should sit
-        relative to the current accumulator (the pile so far)
-        — likely: find the lowest valid contact point, snap this clone
-        against neighbors, apply small random nudge for natural look
-     b. Translate clone i to that placement
-     c. accumulator = connect_geometries(accumulator, placed_clone_i)  ← LCV update
-4. RETURN accumulator (LCV.end → root>.geometryout)
-
-That's the FOLD pattern: fold(empty, placement_fn) over the clone list.
-The LCV scaffold (start/end/<> ports) is the iteration framework.
+                    <geometryin>  (graph input — Connect's output flowing in)
+                         │
+                         ↓
+                  [explode_islands]
+                         │
+                         ↓ geometriesout (array of N island geometries, one per rock clone)
+                  ┌──────┴──────────┐
+                  ↓                  ↓
+        [readvalueatindex]      [erase]
+                  │                  │
+                  ↓ ._0              ↓ arrayout (array minus one element)
+        (extracts FIRST            │
+         island as initial         ↓
+         carry value)        [containeriteration]
+                  │                  │
+                  │                  ├─ innerdomain (loop var)
+                  │                  └─ out (current array element)
+                  │                  │
+                  ↓                  ↓
+              initial._0       in@MW3PA (LCV body input)
+              ↘                ↙
+            [loopcarriedvalue]
+                  │
+                  ↓ next._0  (recursive: feeds back into current._0 next iteration)
+                  │
+                  ↓ final._0 (after iteration completes)
+                  ↓
+              <geometryout>  (graph output — to Match Size)
 ```
 
-**This is structurally identical to Match Size + LCV-fold around the `transform_element` chain.** If you understand Match Size's bbox-axis-remap deformer, Stack Stones = "Match Size's per-vertex transform replaced with per-clone-element placement, wrapped in fold."
+**Algorithm interpretation (best read from the wires):**
+1. **explode_islands** splits the Cloner-output mesh into N separate-island geometries (one per rock clone).
+2. **readvalueatindex** picks the FIRST island as the iteration's initial accumulator.
+3. **erase** drops that first element from the array (so the iteration sees the remaining N-1).
+4. **containeriteration** loops over the remaining islands one at a time, exposing `innerdomain` (loop index) + `out` (current element).
+5. **loopcarriedvalue** holds the running combined geometry. Its `current._0` is what we have so far; `next._0` is what we hand to the next iteration. The "stack on top" math (Y-offset by current.bbox.height) lives inside the LCV body — likely encoded via maxon value-type combination semantics on the geometry-typed carry slot.
+
+**Assumed intent — "stones don't collide":** by iterating sequentially and accumulating, each new island is combined with the running stack at a position offset by the existing stack's bbox max-Y. The collision-free guarantee is structural, not computed (no per-pair distance checks).
+
+This is `R-loop-scaffold`-class procedural code: scene 23 is a clean reference for this pattern.
 
 ---
 
-## Pattern unlocked: "Match-Size-shape + fold-loop over elements"
+## Match Size SN deformer — same asset as scene 21
 
-This 2-scene pair (Match Size + Stack Stones) reveals a **the reference build authoring template** for any scenario where you need to process N input elements and combine them:
+The Match Size under Connect is a **direct instance of the same Match Size asset** scene 21 already analyzed. 118 nodes total, identical type histogram. Per scene 21 work: 92 are functional swappable; 27 are deferred (8 scaffolds, 2 groups, 2 contexts, 2 phantom-input `if`s, 5 wrapper capsules with nested sub-graphs, plus `transformmatrix`/`type`/etc. without known asset_ids).
 
-```
-the reference build Match-family template:
-- 200-ish nodes
-- 15 floatingio AM controls
-- 16 if + 13 switch for mode dispatch
-- 7 transform_element chains (per-axis / per-mode variations)
-- Optional: wrap in loopcarriedvalue + connect_geometries for fold-over-elements
-- Output: single transform_element gate → root>.geometryout
-```
+In Stone Circle, Match Size's role is **per-stone normalization** — every stacked rock gets resized to fit the same envelope so the stack reads as visually uniform. This is the same "normalization wand" semantic articulated in the scene 21 study.
 
-When we author our own SN deformers/distributions for the recipe library, **start from this template**. The vocabulary is locked, the architecture is proven, and the Match Size + Stack Stones pair is a complete reference for "static deformer" vs "iterative fold deformer."
+There's also a SECOND Match Size on the top-level Cube (depth 1, parent disabled). Likely a leftover test setup or alternative configuration.
 
 ---
 
-## Recipe candidates added
+## Bend deformer — final shaping
 
-### R32 — Pile/stack any clone collection (LCV-fold over geometry)
-
-**Purpose:** take N input clones (from a Cloner or Connect generator), pack them densely in a target volume by iteratively placing each one against the accumulated pile.
-
-**Ingredients:**
-- LCV scaffold: `start` + `end` + body + `<` + `>` ports
-- Inside body: per-iteration placement logic (the UUID-asset OR a custom transform_element chain)
-- `connect_geometries` to merge per-iteration result with accumulator
-- Match-Size-style mode dispatch (16 if + 13 switch) for axis/anchor/density modes
-
-**Reference implementation:** Stack Stones — 214 nodes total, 1 LCV. See screenshots in this folder for visual reference.
-
-### R33 — Composable normalization-then-pack pipeline (Match Size → Stack Stones → Bend)
-
-**Purpose:** complete pipeline from "varied native-size kitbash collection" to "naturally-arranged scene element" via stacking deformer chain.
-
-**Steps:**
-1. Cloner radial mode with N varied geometries as children
-2. Match Size deformer — normalize each clone to a common envelope
-3. Stack Stones deformer — pack normalized clones into dense pile  
-4. Bend or other classic deformer for final shaping
-
-**Note on dependency order:** Match Size MUST come before Stack Stones in the deformer chain. Stage 2 proved this — without Match Size, the rocks at native varied sizes break the radial spacing and the fold-place logic can't pack them properly. Match Size first ensures all clones have predictable bbox sizes that the fold algorithm assumes.
+Classic deformer (5128). Likely curves the stacked column into a slight arc — the "creative" finishing touch that takes a vertical stack into a more sculptural form. Settings not yet captured.
 
 ---
 
-## Operational notes
+## C++ bulk-swap tool validation plan
 
-- All 3 deformers (Match Size on Cube, Stack Stones, Match Size in Connect) are SAME plugin (180420400) but DIFFERENT asset templates (Match Size vs Stack Stones)
-- The asset DB `the Match Size asset library` MUST be mounted (per the missing-asset gotcha)
-- Custom UUID-named asset inside LCV body = an artist-built sub-asset reused across distributions in this library
-- This scene also shows: classic OM generators (Cloner, Connect, Polygon Reduction, Bend) cooperating with SN deformers — hybrid is the production pattern
+**Primary target for tonight: Match Size on Cube (depth 1)** — first SN deformer the C++ tool's `FindFirstObjectOfType` walk hits, no targeting needed. 94 swappable, 22 deferred (per scene 21 deferred-set rules + 2 extras: `transformmatrix` and `type` since their asset_ids are now in the atlas but un-attempted).
+
+**Spec list built:** 94 specs ready in `_snapshots/specs.txt`. Bulk_swap call should complete in ~150ms (~30 minutes of Python with restart cycles otherwise).
+
+**Stack Stones replication: deferred.** Requires `target_host_name` parameter on the C++ tool so we can address the third SN deformer in the OM (currently the tool always picks the first). That's a follow-up C++ iteration, not blocking the validation.
+
+---
+
+## What this scene proves once replicated
+
+1. **C++ tool works on a real artist-authored production scene** (not just synthetic).
+2. **94 swaps in one call** is feasible, no per-session ceiling.
+3. **Multi-deformer scenes are accessible** (with the `target_host_name` follow-up).
+4. **The composition pattern is documented** — future scenes using "Cloner + Connect + sibling SN deformers" have a clear precedent.
+5. **The loop_scaffold pattern is captured** as a reference recipe via the Stack Stones algorithm decode.
+
+---
+
+## Source attribution
+
+This study covers the scene composition + algorithm. The original scene file is not redistributed (proprietary tutorial material). The replication artifacts (specs, snapshots, audit logs) are derivative analysis only.
