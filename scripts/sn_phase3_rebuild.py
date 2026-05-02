@@ -307,6 +307,10 @@ DEFAULT_ASSET_MAP = {
     "invertselection": "net.maxon.neutron.modeling.selection.invertselection",
     "active": "net.maxon.neutron.modeling.selection.active",
     "cube": "net.maxon.neutron.node.primitive.cube",
+    "nside": "net.maxon.neutron.node.primitive.curve.nside",  # ATLAS-VERIFIED
+    "tessellation": "net.maxon.neutron.geometry.spline.tessellation",  # ATLAS-VERIFIED
+    "tessellate": "net.maxon.neutron.op.tessellate",  # ATLAS-VERIFIED
+    "edgetoline": "net.maxon.neutron.geometry.edgetoline",  # ATLAS-VERIFIED
     "assembler": "net.maxon.neutron.geometry.spline.assembler",  # ATLAS-VERIFIED
     "children": "net.maxon.neutron.op.children",  # unverified
     "get": "net.maxon.neutron.geometry.get",  # ATLAS-VERIFIED (geometry/get not op/get)
@@ -360,7 +364,28 @@ def discover_asset_id(node, fallback_base):
         return None
 
 
-def basename_of(node_id):
+def basename_of(node_id, asset_map=None):
+    """Extract the canonical type basename from a node id.
+
+    Handles three id forms:
+    - `<type>@<hash>`  → standard maxon id form
+    - `MY_<type>_<hash>_swap`  → in-place parallel-replacement naming convention
+      (used in our atomic-swap snapshots). The hash CAN contain underscores
+      (e.g. MY_floatingio_RK_Sp8_swap), so we use longest-prefix match
+      against the asset_map keys to disambiguate.
+    - `<type>` alone → bare basename (interior body nodes)
+    """
+    if node_id.startswith("MY_") and node_id.endswith("_swap"):
+        body = node_id[3:-5]  # strip MY_ and _swap
+        if asset_map is not None:
+            # Try longest-prefix match against known types
+            parts = body.split("_")
+            for take in range(len(parts), 0, -1):
+                cand = "_".join(parts[:take])
+                if cand in asset_map:
+                    return cand
+        # Fall back to first underscore-delimited segment
+        return body.split("_", 1)[0]
     if "@" in node_id:
         return node_id.split("@", 1)[0]
     return node_id
@@ -493,7 +518,7 @@ def rebuild_scene(desc, target_name="REBUILT", parent_obj=None,
                     addchild_skip_framework += 1
                     continue
 
-                base = basename_of(nid)
+                base = basename_of(nid, asset_map)
                 asset = asset_map.get(base)
                 if asset is None:
                     addchild_err.append({"path": full_path, "reason": "unknown_asset", "base": base})
