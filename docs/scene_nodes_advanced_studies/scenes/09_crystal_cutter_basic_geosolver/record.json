@@ -1,0 +1,209 @@
+{
+  "scene_name": "Crystal_Cutter_Basic_GeoSolver",
+  "studied_date": "2026-05-01",
+  "study_index": 9,
+  "patterns": [
+    "feedback_loop",
+    "simulation_bridge",
+    "volume_pipeline",
+    "time_animation",
+    "modifier_stack",
+    "om_orchestrated_feedback",
+    "swappable_deformer_slot",
+    "externalized_memory_host"
+  ],
+  "purpose": "Foundational substrate of the Crystal Cutter family. A generic 'perpetual reactionary growth' engine where any deformer slots in (Displacer in this demo) to drive self-feedback geometry evolution. Each frame: read previous state → apply deformer → voxelize → polygonize → store as new state.",
+  "visual_result": "Sphere seed grows into beautiful organic blobby coral-like accumulation by f30. Each frame's displacement compounds on the previous frame's voxelized result.",
+  "input_geometry": "Sphere (5160) wrapped in Init State Connect generator — only used as frame-0 seed.",
+  "spenser_canonical_interpretation": "Quote: 'essentially just a memory function driving perpetual reactionary growth — using a displacer here so you could use really any deformer and it just continues to redeform the new solved state'. Confirms the Displacer is a SWAPPABLE DEFORMER SLOT — the architecture is universal across deformer types.",
+  "hosts": [
+    {
+      "om_name": "Store for next Frame",
+      "plugin_id": 180420600,
+      "plugin_name": "Nodes Mesh simple",
+      "nodespace": "net.maxon.neutron.nodespace",
+      "graph_node_count": 5,
+      "role": "EXTERNALIZED MEMORY PRIMITIVE — 5 nodes total: memory@ + framework. Pure single-purpose state buffer."
+    }
+  ],
+  "om_classic_generators": [
+    {
+      "name": "Init State",
+      "plugin_id": 1011010,
+      "type": "Connect",
+      "role": "frame-0 seed wrap (Sphere)"
+    },
+    {
+      "name": "Sphere",
+      "plugin_id": 5160,
+      "type": "primitive",
+      "role": "the seed mesh"
+    },
+    {
+      "name": "Solved State",
+      "plugin_id": 1011010,
+      "type": "Connect",
+      "role": "per-frame solver wrap"
+    },
+    {
+      "name": "Volume Mesher",
+      "plugin_id": 1039861,
+      "role": "polygonize SDF each frame"
+    },
+    {
+      "name": "Volume Builder",
+      "plugin_id": 1039859,
+      "role": "voxelize previous-frame state + Displacer modification"
+    },
+    {
+      "name": "State from previous Frame",
+      "plugin_id": 5126,
+      "type": "Connect Instance",
+      "role": "OM reference to Store-for-next-Frame; reflects memory's previous output",
+      "instance_link": "Store for next Frame"
+    },
+    {
+      "name": "Displacer",
+      "plugin_id": 1018685,
+      "type": "deformer",
+      "role": "THE SWAPPABLE DEFORMER SLOT — any deformer plugs in here"
+    }
+  ],
+  "annotations": [],
+  "am_sliders": [],
+  "am_exposure_pattern_note": "Store-for-next-Frame has zero AM exposure. Slider tuning happens on the Displacer (or whichever deformer occupies the slot) and on the Volume Builder.",
+  "key_connections": [
+    {
+      "from": "memory@.Variable_1.out",
+      "to": "memory@.in@<hash>",
+      "purpose": "PURE FEEDBACK WIRE — memory holds whatever Variable_1 was on its last output. The 5-node Nodes Mesh's only logic.",
+      "criticality": "load_bearing"
+    },
+    {
+      "from": "memory@.Geometry.in",
+      "to": "Root.geometry",
+      "purpose": "Host's input geometry feeds into Memory's Geometry slot."
+    },
+    {
+      "from": "memory@.Variable_1.in",
+      "to": "Root.geometry",
+      "purpose": "Initial seed value for Variable_1 (frame 0)."
+    },
+    {
+      "from": "Connect Instance (State from previous Frame).INSTANCEOBJECT_LINK",
+      "to": "Store for next Frame (Nodes Mesh)",
+      "purpose": "OM-LEVEL FEEDBACK — Instance reflects whatever Store renders. Reading 'previous frame state' anywhere in the scene = create another Connect Instance pointing here.",
+      "criticality": "load_bearing"
+    },
+    {
+      "from": "Solved State Connect (the polygonal output)",
+      "to": "Store-for-next-Frame's host input (implicit per-frame evaluation)",
+      "purpose": "Frame N's Solved State becomes Frame N+1's Memory contents — the perpetual loop."
+    },
+    {
+      "from": "Init State Connect",
+      "to": "(seed for the very first iteration)",
+      "purpose": "Frame-0-only role — provides initial geometry before the loop starts feeding itself."
+    }
+  ],
+  "output_routing": {
+    "final_node": "Solved State Connect (OM-level)",
+    "via": "Connect's polygon output → visible mesh in OM",
+    "host_visibility_path": "Solved State renders as classic mesh; Volume Mesher → Volume Builder → Connect Instance → Displacer chain produces it. Store-for-next-Frame is a hidden helper.",
+    "notes": "OM-level orchestration — different from graph-internal output routing of scenes 02-06."
+  },
+  "interesting_types": [
+    "5-node Nodes Mesh as pure memory primitive container",
+    "Connect Instance.INSTANCEOBJECT_LINK as OM-level feedback reference",
+    "Frame-feedback choreographed via OM generators (no graph-internal memory@ wiring orchestration)"
+  ],
+  "core_idea_nodes": [
+    {
+      "name": "Store for next Frame (Nodes Mesh)",
+      "type": "180420600 with 5 nodes: memory@ + framework",
+      "why_it_matters": "EXTERNALIZED MEMORY HOST — the smallest possible useful Scene Nodes host. Holds state between frames, has zero other logic. Reusable as a stock template for any frame-feedback OM scene."
+    },
+    {
+      "name": "State from previous Frame (Connect Instance)",
+      "type": "5126 (Connect Instance)",
+      "why_it_matters": "OM-LEVEL FEEDBACK reference — INSTANCEOBJECT_LINK to the memory holder lets any part of the scene read 'the previous frame state' as if it were a regular OM object. No graph wires needed."
+    },
+    {
+      "name": "Displacer (or any deformer in the slot)",
+      "type": "1018685 (Displacer) — but THE PATTERN supports ANY deformer",
+      "why_it_matters": "SWAPPABLE DEFORMER SLOT — the entire architecture's character changes by replacing this. Bend=spiraling, Smoothing=erosion, Subdivide=recursive growth, Twist=helical, Wind=flowing, etc."
+    }
+  ],
+  "scaffolding_nodes": [
+    "Init State Connect — frame-0 seed only, not in steady-state loop"
+  ],
+  "what_is_clever": [
+    "Memory primitive externalized into a tiny dedicated 5-node host. Separates state-holding from simulation logic — swap simulation, keep memory unchanged.",
+    "Connect Instance.INSTANCEOBJECT_LINK lets multiple consumers reference the same memory snapshot without graph wires.",
+    "Deformer slot pattern: ONE stack, infinite growth simulations. Same 5-line architecture covers crystal growth, erosion, recursive subdivision, twisting accumulation, etc.",
+    "OM-orchestrated feedback is more artist-friendly than graph-internal memory@ wiring — visual, swappable, no graph editing required.",
+    "5-node Nodes Mesh proves you can ship the smallest possible useful Scene Nodes container."
+  ],
+  "gotchas": [
+    {
+      "issue": "Tracing the wire from 'Solved State Connect' back into 'Store for next Frame's host input is non-obvious — there's no explicit parent/child relationship. The feedback flows via implicit pull-evaluation order at frame-step time.",
+      "evidence": "OM tree shows Init State / Solved State / Store-for-next-Frame as siblings. Their interaction is choreographed by the per-frame evaluation order, not a wire.",
+      "workaround": "Trust the canonical interpretation (Spenser's): 'memory function driving perpetual reactionary growth — Displacer is one example, swap for any deformer'. Don't worry about tracing every implicit wire if the behavior is clear."
+    }
+  ],
+  "rebuild_recipe": [
+    "1. Create 'Init State' Connect (1011010) generator. Inside it: a Sphere (or any seed mesh).",
+    "2. Create 'Store for next Frame' Nodes Mesh (180420600) at top level. Build a 5-node graph: memory@ + framework. Wire memory.Variable_1.out → memory.in@<hash> for self-feedback.",
+    "3. Create 'Solved State' Connect (1011010) generator at top level. Inside it:",
+    "   a. Volume Mesher (1039861)",
+    "   b. Inside Volume Mesher: Volume Builder (1039859)",
+    "   c. Inside Volume Builder: Connect Instance (5126) named 'State from previous Frame', set its INSTANCEOBJECT_LINK to 'Store for next Frame'",
+    "   d. Inside the Connect Instance OR as child of Volume Builder: a Displacer (1018685) — OR any other deformer (Bend, Twist, Smoothing, Subdivide, FFD, Wind, etc.)",
+    "4. The implicit per-frame loop: Solved State → renders polygons → Store-for-next-Frame's memory holds those polygons → Connect Instance reflects them → next frame's Volume Builder reads those + Displacer mods → repeat."
+  ],
+  "minimal_reproducible_subgraph": {
+    "name": "perpetual_reactionary_growth",
+    "purpose": "Generic frame-feedback growth engine where any deformer plugs into a designated slot to drive perpetual self-reactionary geometry evolution.",
+    "node_count": "5 OM objects + 1 minimal Nodes Mesh (5 graph nodes) ≈ 6 host elements total",
+    "nodes": [
+      "Init State (Connect) wrapping seed mesh",
+      "Solved State (Connect) wrapping Volume Mesher → Volume Builder → Connect Instance → ★ DEFORMER ★",
+      "Store for next Frame (180420600 Nodes Mesh, 5-node memory@ container)",
+      "Connect Instance with INSTANCEOBJECT_LINK = Store for next Frame"
+    ],
+    "exposed_params": [
+      "Deformer-specific params (Displacer.Strength / Bend.Angle / etc.)",
+      "Volume Builder.Voxel Size — feedback resolution",
+      "Volume Mesher smoothing if any"
+    ],
+    "value_proposition": "ONE skeleton, INFINITE growth simulations. Drop in different deformers without touching the feedback substrate. Crystal growth, lava flow, erosion, recursive subdivision, spiral accumulation, curve-following growth, pulsing organic shapes — all from the same 6-element OM stack with different deformers occupying the slot.",
+    "candidate_for_mcp_recipe": true,
+    "recipe_id_proposed": "R28_perpetual_reactionary_growth",
+    "secondary_recipes": [
+      "R26_externalized_memory_buffer — 5-node Nodes Mesh as pure memory primitive container (smallest useful Scene Nodes host)",
+      "R27_om_feedback_via_instance — Connect Instance + INSTANCEOBJECT_LINK pattern for 'previous frame reference'"
+    ],
+    "blockers_to_recipe_implementation": [
+      "Stock 5-node Nodes Mesh template needed in cinema4d-mcp asset library",
+      "INSTANCEOBJECT_LINK programmatic setting in scene_nodes_create_capsule_with_pattern",
+      "Recipe declaration of 'swappable deformer slot' so agents can propose alternatives"
+    ]
+  },
+  "lessons_for_cinema4d_mcp": [
+    "OM-orchestrated feedback is the artist-friendly cousin of graph-internal memory@ feedback. Recipe library needs BOTH styles.",
+    "5-node Nodes Mesh = pure memory primitive container. Worth shipping as a default asset / template.",
+    "Connect Instance.INSTANCEOBJECT_LINK is the per-frame state visibility primitive. Multiple consumers, single producer.",
+    "Deformer slot pattern (swappable_deformer_slot) is a recipe composition primitive — recipes can declare 'fill this slot with any deformer of category X'.",
+    "Same 5-line stack covers Crystal Cutter / lava / erosion / recursive growth / pulse / etc. Maximum leverage per recipe."
+  ],
+  "artifacts": {
+    "study_md": "study.md",
+    "frames": [
+      "frames/default_f030.png (organic blobby growth at f30)"
+    ],
+    "sliders": [],
+    "raw_graph_dump": null
+  },
+  "complexity": "medium",
+  "estimated_tool_calls_to_recreate_from_recipe": 15
+}

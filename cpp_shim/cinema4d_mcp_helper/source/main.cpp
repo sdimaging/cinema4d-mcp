@@ -49,7 +49,7 @@ namespace cinema
 
 const Int32 MCP_HELPER_PLUGIN_ID = 1057845;
 
-const Int32 MCP_HELPER_PROTOCOL_VERSION = 3; // 1=A.0, 2=A.1, 3=A.1+SpecialEventAdd
+const Int32 MCP_HELPER_PROTOCOL_VERSION = 4; // 4 adds bulk-swap scaffold op.
 
 // Phase A.1 dispatch mechanism: Python calls c4d.SpecialEventAdd(
 //   MCP_HELPER_PLUGIN_ID, op_code, 0) which broadcasts a CoreMessage to
@@ -75,6 +75,10 @@ const Int32 BC_KEY_DEBUG          = 1057845030; // optional debug trail (Phase A
 
 // Phase A.2 — promiscuous CoreMessage logger key (read-back only)
 const Int32 BC_KEY_LOG_DUMP       = 1057845041; // String — read by client
+// Scene Nodes bulk swap scaffold. These are intentionally string-only so the
+// Python bridge can pass/resume audit state without new binary protocol work.
+const Int32 BC_KEY_BULK_SWAP_INPUT  = 1057845060; // String — line-delimited specs
+const Int32 BC_KEY_BULK_SWAP_RESULT = 1057845061; // String — line-delimited audit
 
 const Int32 OP_PING                   = 0;
 const Int32 OP_ADD_FLOATING_IO_PORT   = 1;
@@ -98,6 +102,12 @@ const Int32 OP_OBSERVER_CLEAR         = 23;
 // observer-based capture: we get the FULL list of every callable command,
 // regardless of whether the user invoked it.
 const Int32 OP_LIST_COMMANDS          = 30;
+// Bulk graph surgery op. Current implementation is a safe scaffold only:
+// it proves the bridge/input/audit contract and refuses mutation until the
+// preflight + atomic transaction body is implemented.
+const Int32 OP_BULK_SWAP_NODES        = 50;
+
+const Int32 SN_DEFORMER_PLUGIN_ID     = 180420400;
 
 // Phase A.2 — promiscuous CoreMessage logger state. When active, every
 // CoreMessage that fires (including ones NOT from our own SpecialEventAdd)
@@ -414,6 +424,126 @@ static maxon::Result<void> EnsureCommandObserverSubscribed_Impl()
 }
 
 // ============================================================================
+// Scene Nodes bulk-swap scaffold
+// ============================================================================
+
+static BaseObject* FindFirstObjectOfType(BaseObject* obj, Int32 typeId)
+{
+	while (obj)
+	{
+		if (obj->GetType() == typeId)
+			return obj;
+		if (BaseObject* childHit = FindFirstObjectOfType(obj->GetDown(), typeId))
+			return childHit;
+		obj = obj->GetNext();
+	}
+	return nullptr;
+}
+
+static Bool SplitBulkSwapLine(const String& line, String& ogId, String& myName, String& assetId)
+{
+	maxon::Int firstPipe = NOTOK;
+	if (!line.Find("|"_s, &firstPipe))
+		return false;
+
+	const String rest = line.GetPart(firstPipe + 1, line.GetLength() - firstPipe - 1);
+	maxon::Int secondPipe = NOTOK;
+	if (!rest.Find("|"_s, &secondPipe))
+		return false;
+
+	ogId = line.GetPart(0, firstPipe);
+	myName = rest.GetPart(0, secondPipe);
+	assetId = rest.GetPart(secondPipe + 1, rest.GetLength() - secondPipe - 1);
+	return ogId.GetLength() > 0 && myName.GetLength() > 0 && assetId.GetLength() > 0;
+}
+
+static Int32 DoBulkSwapNodesScaffold(BaseContainer* wc)
+{
+	if (!wc)
+		return 90;
+
+	const String input = wc->GetString(BC_KEY_BULK_SWAP_INPUT);
+	wc->SetString(BC_KEY_BULK_SWAP_RESULT, ""_s);
+
+	if (input.GetLength() == 0)
+	{
+		wc->SetString(BC_KEY_STATUS_MSG, "bulk_swap scaffold: empty input"_s);
+		return 91;
+	}
+
+	BaseDocument* doc = GetActiveDocument();
+	if (!doc)
+	{
+		wc->SetString(BC_KEY_STATUS_MSG, "bulk_swap scaffold: no active document"_s);
+		return 92;
+	}
+
+	BaseObject* snHost = FindFirstObjectOfType(doc->GetFirstObject(), SN_DEFORMER_PLUGIN_ID);
+	const Bool hostFound = snHost != nullptr;
+
+	String audit;
+	Int32 parsed = 0;
+	Int32 malformed = 0;
+	maxon::Int pos = 0;
+	const maxon::Int total = input.GetLength();
+
+	while (pos < total)
+	{
+		const String remainder = input.GetPart(pos, total - pos);
+		maxon::Int newline = NOTOK;
+		String line;
+		if (remainder.Find("\n"_s, &newline))
+		{
+			line = remainder.GetPart(0, newline);
+			pos += newline + 1;
+		}
+		else
+		{
+			line = remainder;
+			pos = total;
+		}
+
+		if (line.GetLength() == 0)
+			continue;
+
+		String ogId;
+		String myName;
+		String assetId;
+		if (!SplitBulkSwapLine(line, ogId, myName, assetId))
+		{
+			malformed++;
+			audit += line;
+			audit += "|preflight_fail|0|0|malformed spec; expected og_id|my_name|asset_id\n";
+			continue;
+		}
+
+		parsed++;
+		audit += ogId;
+		audit += "|scaffold_only|0|0|";
+		audit += hostFound
+			? "C++ bridge contract reached; mutation intentionally disabled until preflight+atomic swap body lands"
+			: "C++ bridge contract reached, but no SN Deformer host (180420400) found in active document";
+		audit += "\n";
+	}
+
+	wc->SetString(BC_KEY_BULK_SWAP_RESULT, audit);
+
+	String summary;
+	summary += "bulk_swap scaffold: parsed=";
+	summary += String::IntToString((Int64)parsed);
+	summary += " malformed=";
+	summary += String::IntToString((Int64)malformed);
+	summary += " sn_deformer_found=";
+	summary += hostFound ? "true" : "false";
+	summary += " mutation=disabled";
+	wc->SetString(BC_KEY_STATUS_MSG, summary);
+
+	// Non-zero by design: callers must not treat this scaffold as a completed
+	// production mutation. It is a compile/bridge/audit foundation only.
+	return 93;
+}
+
+// ============================================================================
 // MessageData receiver
 // ============================================================================
 class CinemaMcpHelper : public MessageData
@@ -464,6 +594,7 @@ public:
 		wc->SetInt32(BC_KEY_PROTOCOL_VER, MCP_HELPER_PROTOCOL_VERSION);
 		wc->SetString(BC_KEY_NEW_PORT_ID, ""_s);
 		wc->SetString(BC_KEY_STATUS_MSG, ""_s);
+		wc->SetString(BC_KEY_BULK_SWAP_RESULT, ""_s);
 
 		Int32 status = 0;
 		switch (op)
@@ -582,6 +713,11 @@ public:
 				status = 0;
 				break;
 			}
+
+			case OP_BULK_SWAP_NODES:
+				status = DoBulkSwapNodesScaffold(wc);
+				break;
+
 			default:
 				wc->SetString(BC_KEY_STATUS_MSG, "unknown op-code"_s);
 				status = 99;

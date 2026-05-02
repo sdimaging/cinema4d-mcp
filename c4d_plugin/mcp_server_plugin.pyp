@@ -918,6 +918,8 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_scene_nodes_helper_ping(command)
                         elif command_type == "scene_nodes_helper_logger":
                             response = self.handle_scene_nodes_helper_logger(command)
+                        elif command_type == "scene_nodes_bulk_swap_nodes":
+                            response = self.handle_scene_nodes_bulk_swap_nodes(command)
                         elif command_type == "scene_nodes_add_floating_io_port":
                             response = self.handle_scene_nodes_add_floating_io_port(command)
                         elif command_type == "cinema4d_knowledge_index":
@@ -15633,6 +15635,10 @@ class C4DSocketServer(threading.Thread):
     _BC_KEY_CMD_OBSERVER_DUMP = 1057845050
     # Phase A.2.2 maxon command-framework registry enumeration
     _OP_LIST_COMMANDS         = 30
+    # Scene Nodes bulk-swap scaffold / future C++ graph surgery op
+    _OP_BULK_SWAP_NODES       = 50
+    _BC_KEY_BULK_SWAP_INPUT   = 1057845060
+    _BC_KEY_BULK_SWAP_RESULT  = 1057845061
 
     def _mcp_helper_dispatch(self, op_code, args, timeout_s=5.0):
         """Send a request to the cinema4d_mcp_helper C++ plugin via
@@ -15666,6 +15672,7 @@ class C4DSocketServer(threading.Thread):
         node_id = args.get("node_id", "") or ""
         port_name = args.get("port_name", "") or ""
         is_output = bool(args.get("is_output", False))
+        bulk_swap_input = args.get("bulk_swap_input", "") or ""
 
         def _write_and_fire():
             wc = c4d.GetWorldContainerInstance()
@@ -15674,11 +15681,13 @@ class C4DSocketServer(threading.Thread):
             wc.SetString(self._BC_KEY_NODE_ID, node_id)
             wc.SetString(self._BC_KEY_PORT_NAME, port_name)
             wc.SetBool(self._BC_KEY_IS_OUTPUT, is_output)
+            wc.SetString(self._BC_KEY_BULK_SWAP_INPUT, bulk_swap_input)
             # Reset response slots
             wc.SetInt32(self._BC_KEY_STATUS, -1)
             wc.SetString(self._BC_KEY_STATUS_MSG, "")
             wc.SetString(self._BC_KEY_NEW_PORT_ID, "")
             wc.SetInt32(self._BC_KEY_PROTOCOL_VER, -1)
+            wc.SetString(self._BC_KEY_BULK_SWAP_RESULT, "")
             c4d.SpecialEventAdd(self._MCP_HELPER_PLUGIN_ID, op_code_int, 0)
             return True
 
@@ -15697,6 +15706,7 @@ class C4DSocketServer(threading.Thread):
                 "status_msg": wc.GetString(self._BC_KEY_STATUS_MSG),
                 "new_port_id": wc.GetString(self._BC_KEY_NEW_PORT_ID),
                 "protocol_version": wc.GetInt32(self._BC_KEY_PROTOCOL_VER),
+                "bulk_swap_result": wc.GetString(self._BC_KEY_BULK_SWAP_RESULT),
             }
 
         deadline = time.time() + timeout_s
@@ -15710,7 +15720,7 @@ class C4DSocketServer(threading.Thread):
         # Timeout — return whatever last was, with a hint
         if not isinstance(last, dict):
             last = {"status": -1, "status_msg": "", "new_port_id": "",
-                    "protocol_version": -1}
+                    "protocol_version": -1, "bulk_swap_result": ""}
         last["_timeout"] = True
         last["_timeout_hint"] = (
             f"Helper did not respond within {timeout_s}s. The C++ plugin "
@@ -15719,6 +15729,79 @@ class C4DSocketServer(threading.Thread):
             "see gotcha #35), (b) helper rebuilt without restart, "
             "(c) unknown op-code.")
         return last
+
+    def handle_scene_nodes_bulk_swap_nodes(self, command):
+        """Route a Scene Nodes bulk-swap request through the C++ helper.
+
+        Current C++ state is intentionally a safe scaffold: it proves the
+        Python->C++ op/BC/audit path and refuses mutation until the preflight
+        and atomic graph surgery body is implemented.
+
+        Args:
+          swap_specs: either a pipe-delimited string with lines formatted as
+            og_id|my_name|asset_id, or a list of dicts with those keys.
+          timeout_s: helper response timeout, default 30 seconds.
+
+        Returns:
+          {ok, status, status_msg, bulk_swap_result, audit_rows}
+        """
+        try:
+            specs = command.get("swap_specs") or command.get("specs") or ""
+            if isinstance(specs, list):
+                lines = []
+                for item in specs:
+                    if not isinstance(item, dict):
+                        continue
+                    og_id = str(item.get("og_id") or item.get("og") or "")
+                    my_name = str(item.get("my_name") or item.get("mine") or "")
+                    asset_id = str(item.get("asset_id") or item.get("asset") or "")
+                    if og_id and my_name and asset_id:
+                        lines.append(f"{og_id}|{my_name}|{asset_id}")
+                specs_text = "\n".join(lines)
+            else:
+                specs_text = str(specs or "")
+
+            if not specs_text.strip():
+                return {"error": "swap_specs is required; expected og_id|my_name|asset_id lines"}
+
+            timeout_s = float(command.get("timeout_s", 30.0) or 30.0)
+
+            # Call directly from the worker thread. _mcp_helper_dispatch itself
+            # performs short main-thread writes/reads around SpecialEventAdd.
+            outcome = self._mcp_helper_dispatch(
+                self._OP_BULK_SWAP_NODES,
+                {"bulk_swap_input": specs_text},
+                timeout_s=timeout_s,
+            )
+
+            raw = outcome.get("bulk_swap_result") or ""
+            rows = []
+            for line in raw.splitlines():
+                parts = line.split("|", 4)
+                if len(parts) == 5:
+                    rows.append({
+                        "og_id": parts[0],
+                        "status": parts[1],
+                        "wires_mirrored": parts[2],
+                        "wires_rewired": parts[3],
+                        "message": parts[4],
+                    })
+                elif line:
+                    rows.append({"raw": line})
+
+            return {
+                "ok": outcome.get("status", -1) == 0,
+                "status": outcome.get("status"),
+                "status_msg": outcome.get("status_msg"),
+                "protocol_version": outcome.get("protocol_version"),
+                "bulk_swap_result": raw,
+                "audit_rows": rows,
+                "implementation_stage": "cxx_scaffold_only",
+                "mutation_enabled": False,
+            }
+        except Exception as e:
+            return {"error": f"scene_nodes_bulk_swap_nodes failed: {e}",
+                    "traceback": traceback.format_exc()}
 
     def handle_scene_nodes_helper_logger(self, command):
         """Phase A.2 / A.2.1 diagnostic driver. Two channels:

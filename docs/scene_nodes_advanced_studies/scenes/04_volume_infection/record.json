@@ -1,0 +1,255 @@
+{
+  "scene_name": "Volume_Infection",
+  "studied_date": "2026-05-01",
+  "study_index": 4,
+  "patterns": [
+    "feedback_loop",
+    "simulation_bridge",
+    "volume_pipeline",
+    "point_stream_iteration",
+    "legacy_object_bridge",
+    "array_processing",
+    "time_animation",
+    "noise_driven",
+    "parameter_exposure"
+  ],
+  "purpose": "Per-frame growing infection that spreads from 2 seed points across a Torus surface; the accumulated infected positions are voxelized and polygonized into a smooth fleshy mesh via the Volume Builder/Mesher stack.",
+  "visual_result": "Two fleshy growths emerge at the seeds (f60), expand along the torus surface (f120), and fully envelop the surface by f200-333.",
+  "input_geometry": "Torus (5163) — the surface infection spreads on. Point1 + Point2 (Null, 5140) — initial seed positions.",
+  "hosts": [
+    {
+      "om_name": "Volume Mesher",
+      "plugin_id": 1039861,
+      "role": "polygonizes the SDF produced by Volume Builder"
+    },
+    {
+      "om_name": "Volume Builder",
+      "plugin_id": 1039859,
+      "role": "consumes voxel data from Object Group, builds SDF"
+    },
+    {
+      "om_name": "Object Group",
+      "plugin_id": 180420500,
+      "plugin_name": "Scene Nodes Generator (Neutron)",
+      "nodespace": "net.maxon.neutron.nodespace",
+      "graph_node_count": 47,
+      "role": "generates per-frame infected point positions, voxelizes via fillgeometry"
+    }
+  ],
+  "doc_level_objects": [],
+  "annotations": [],
+  "annotation_storage_pattern": "No OM-tag annotations; no scaffold@ section labels in this graph either. Naming carried entirely on container@ and direct-named nodes.",
+  "am_sliders": [
+    {
+      "name": "Voxel Size",
+      "type": "Float",
+      "exposure_pattern": "root_direct (NO floatingio wrapper)",
+      "controls": "voxel resolution of the fillgeometry output"
+    },
+    {
+      "name": "Interior Filter",
+      "type": "?",
+      "exposure_pattern": "root_direct (NO floatingio wrapper)",
+      "controls": "filter for which voxels count as 'inside' the input mesh"
+    }
+  ],
+  "am_exposure_pattern_note": "This scene exposes parameters via direct root.in@<hash> ports without floatingio wrappers. This is a SECOND AM-exposure pattern distinct from the floatingio-routed pattern observed in scene 03. Both produce AM-visible parameters; floatingio adds explicit labeling/typing while root-direct surfaces the underlying node port name.",
+  "key_connections": [
+    {
+      "from": "memory(Memory).Infection",
+      "to": "memory(Memory)._0",
+      "purpose": "PER-FRAME FEEDBACK CHANNEL 1 — Infection state array self-feedback.",
+      "criticality": "load_bearing"
+    },
+    {
+      "from": "memory(Memory).Neighbors",
+      "to": "memory(Memory)._1",
+      "purpose": "PER-FRAME FEEDBACK CHANNEL 2 — Neighbors state array self-feedback. PROVES Memory supports N independent state channels via numbered ports.",
+      "criticality": "load_bearing"
+    },
+    {
+      "from": "Get Element._0",
+      "to": "append(Append Elements).Value",
+      "purpose": "Candidate next-infected position to append."
+    },
+    {
+      "from": "compare(Greater Than).out",
+      "to": "append(Append Elements).Count",
+      "purpose": "0/1 boolean gate — whether to actually add this candidate (array-growth threshold)."
+    },
+    {
+      "from": "Wire Rerouter (already-infected indices)",
+      "to": "nearestneighbor(Closest Points).Exclude Index",
+      "purpose": "Skip positions already in the infection set so K-NN returns only fresh candidates."
+    },
+    {
+      "from": "legacyobjectaccess(Torus).geometry",
+      "to": "fillgeometry(Volume Voxel Fill).Geometry",
+      "purpose": "Restrict voxel fill to the Torus surface domain."
+    },
+    {
+      "from": "Root.in@<voxelsize_hash>",
+      "to": "fillgeometry.Voxel Size",
+      "purpose": "AM-exposed Voxel Size parameter (root-direct pattern)."
+    },
+    {
+      "from": "Root.in@<interiorfilter_hash>",
+      "to": "fillgeometry.Interior Filter",
+      "purpose": "AM-exposed Interior Filter parameter (root-direct pattern)."
+    },
+    {
+      "from": "fillgeometry.Distribution",
+      "to": "Group.distdataout",
+      "purpose": "Voxel distribution stream consumed directly by the Volume Builder host."
+    },
+    {
+      "from": "Point Set.geometryout",
+      "to": "geometry(Geometry Op).Geometry",
+      "purpose": "Final emit at the root."
+    }
+  ],
+  "output_routing": {
+    "final_node": "geometry(Geometry Op)",
+    "via": "Geometry Op.Op → root input port; Volume Builder reads root distdataout from fillgeometry",
+    "host_visibility_path": "Object Group emits voxel data → Volume Builder → SDF → Volume Mesher → polygons → display",
+    "notes": "Two parallel outputs from Object Group: (1) Geometry Op for any direct mesh output, (2) fillgeometry.Distribution → Group.distdataout for the Volume Builder consumption."
+  },
+  "interesting_types": [
+    "Multi-channel Memory primitive — N independent state arrays via numbered ports (_0, _1, ...)",
+    "fillgeometry.Distribution stream — direct graph-to-Volume-Builder bridge without intermediate caches",
+    "Exclude Index port on nearestneighbor — array of indices to skip",
+    "Per-frame point cloud as a state array (vs the per-vertex chemical scalar of scene 03)"
+  ],
+  "core_idea_nodes": [
+    {
+      "name": "Memory",
+      "type": "memory",
+      "why_it_matters": "Multi-channel state buffer carrying both Infection (the spreading state) and Neighbors (per-frame neighbor cache). PROVES the Memory primitive scales to N independent state channels."
+    },
+    {
+      "name": "Append Elements",
+      "type": "append",
+      "why_it_matters": "Implements array-growth-per-frame: state[t] = state[t-1] ⊕ filter(neighbors). Combined with compare gating, this is the canonical 'spreading state' primitive."
+    },
+    {
+      "name": "Closest Points",
+      "type": "nearestneighbor",
+      "why_it_matters": "Same K-NN pattern as scene 03 but with Exclude Index input — skips already-infected positions to keep candidates fresh per iteration."
+    },
+    {
+      "name": "Volume Voxel Fill",
+      "type": "fillgeometry",
+      "why_it_matters": "The graph→Volume Builder bridge primitive. Converts a point cloud into voxel distribution data Volume Builder can consume directly. Unlocks the entire Volume Pipeline as a graph output target."
+    },
+    {
+      "name": "Start Points",
+      "type": "buildfromvalue",
+      "why_it_matters": "Initial seed array (Point1.position + Point2.position) — feeds Memory's initial state. Without this, Memory has no infection to spread from."
+    }
+  ],
+  "scaffolding_nodes": [
+    "container × 4 (Strength, Infection, Neighbors, Positions — passive value-holders)",
+    "reroute × 8 (wire organization)",
+    "context_externaltimeinput / context_notime / builder (framework)",
+    "multransform_5 / combine / mat / sqrpart / sqrtrans / vectrans (root template internals)"
+  ],
+  "what_is_clever": [
+    "Multi-channel Memory: TWO simultaneously self-feedback'd state arrays (Infection + Neighbors). Generalizes to any multi-species/multi-state simulation.",
+    "Exclude Index on nearestneighbor: keeps K-NN candidates fresh per iteration, preventing infinite re-processing of already-known points.",
+    "fillgeometry as the graph→volume-pipeline bridge: no intermediate file/cache; direct point-cloud-to-SDF wire. Volume Builder reads the graph's output stream live.",
+    "Two AM-exposure patterns coexist: floatingio (labeled+typed) and root-direct (raw passthrough). Different ergonomics for different use-cases.",
+    "Sequential-only Memory evaluation is the simulation's signature: real time-dependent state, not just a procedural evaluation."
+  ],
+  "gotchas": [
+    {
+      "issue": "Memory primitive only updates on SEQUENTIAL frame stepping. Direct SetTime(N) jumps produce 0 evolution.",
+      "evidence": "Volume Mesher cache: jump-to-f120=0 points; sequential 0→...→30 produces 3858 points. Logged for gotcha #57.",
+      "workaround": "In MCP test loops touching simulation scenes, ALWAYS step contiguously. Never jump in time."
+    },
+    {
+      "issue": "All OM objects load with vis_e=2 (UNDEF/hidden). Without unhiding, scene appears empty.",
+      "evidence": "walk(doc.GetFirstObject()) showed every object had vis_e=vis_r=2 on fresh load.",
+      "workaround": "Set ID_BASEOBJECT_VISIBILITY_EDITOR=0 on every object after load. Universal across the reference build scenes."
+    },
+    {
+      "issue": "BaseDraw has no SetMg method in C4D 2026; can't programmatically frame the perspective camera.",
+      "evidence": "AttributeError: 'c4d.BaseDraw' object has no attribute 'SetMg'.",
+      "workaround": "Create a CameraObject (Ocamera), SetAbsPos + SetRelRot on it, bd.SetSceneCamera(cam). Already documented in CLAUDE.md memory."
+    },
+    {
+      "issue": "Scene has zero floatingio nodes — AM-exposure happens via root-direct ports.",
+      "evidence": "All floatingio nodes count = 0; Voxel Size + Interior Filter wire from Root.in@<hash> directly to fillgeometry inputs.",
+      "workaround": "When mining AM sliders from a Neutron scene, walk both floatingio nodes AND root.GetInputs() ports. Don't miss the root-direct pattern."
+    }
+  ],
+  "rebuild_recipe": [
+    "1. Create Volume Mesher → Volume Builder → Scene Nodes Generator (180420500) host stack in OM (parent → child → grandchild).",
+    "2. Add seed Null objects (Point1, Point2) and an input Torus to the OM as siblings of the Volume Mesher.",
+    "3. Inside the Neutron graph: add legacyobjectaccess × 3 to bridge Point1, Point2, Torus into the graph.",
+    "4. Add buildfromvalue ('Start Points') with initial value = [Point1.position, Point2.position].",
+    "5. Add memory primitive carrying 2 state channels: Infection (state[]) and Neighbors (cache[]); wire .out._0 → .in._0 and .out._1 → .in._1 for each.",
+    "6. Wire Start Points → Memory.Infection (initial seed).",
+    "7. containeriteration over Memory.Infection — for each currently-infected position:",
+    "   a. nearestneighbor on Torus geometry with Query Position=current iteration, Exclude Index=already-known-indices",
+    "   b. compare (Greater Than) gates whether to accept this candidate (e.g., distance < threshold)",
+    "   c. append (Append Elements) adds candidate to a working array, gated by compare.out",
+    "8. After containeriteration: feed the grown array back to Memory.Infection (closing the per-frame loop).",
+    "9. fillgeometry: Geometry=Torus, Voxel Size + Interior Filter = root AM ports. Distribution → root.distdataout for Volume Builder consumption.",
+    "10. Volume Builder reads .distdataout, Volume Mesher polygonizes — producing the visible spreading-mesh output.",
+    "11. Expose Voxel Size + Interior Filter as root-direct AM ports (no floatingio wrapper)."
+  ],
+  "minimal_reproducible_subgraph": {
+    "name": "array_growth_per_frame",
+    "purpose": "Per-frame state array that grows by appending neighbor-query candidates gated by a threshold. The canonical 'spreading' simulation primitive.",
+    "node_count": 8,
+    "nodes": [
+      "legacyobjectaccess (input surface for K-NN domain)",
+      "legacyobjectaccess (initial seed null OR buildfromvalue with hardcoded seed positions)",
+      "buildfromvalue (Start Points — initialize state array from seeds)",
+      "memory (state buffer; out._0 → in._0 self-feedback for the Infection array)",
+      "containeriteration (per-element iterator over current state)",
+      "nearestneighbor (with Exclude Index to skip already-known positions)",
+      "compare + append (gate + grow the state array)",
+      "geometry (output sink) → root"
+    ],
+    "exposed_params": [
+      "Spread Threshold (Float) — compare's right-hand value",
+      "Search Radius (Float) — nearestneighbor's Maximum Distance"
+    ],
+    "value_proposition": "Spreading-state is the canonical primitive for fire propagation, infection, lichen/moss growth, crystal nucleation, flood-fill, BFS-style traversal on irregular geometry, ivy/vine growth. Combined with the volume_pipeline pattern (fillgeometry + Volume Builder + Volume Mesher) it becomes production-ready volumetric growth.",
+    "candidate_for_mcp_recipe": true,
+    "recipe_id_proposed": "R9_array_growth_per_frame",
+    "secondary_recipes": [
+      "R10_volume_pipeline_bridge — fillgeometry + Volume Builder + Volume Mesher 3-stage host stack",
+      "R11_multi_channel_memory — Memory with N state channels via numbered ports"
+    ],
+    "blockers_to_recipe_implementation": [
+      "Memory multi-channel port wiring needs synthesizer support (numbered ports _0, _1, ...)",
+      "fillgeometry node not yet exposed via cinema4d-mcp scene_nodes_add_node",
+      "Exclude Index port mapping on nearestneighbor not yet documented",
+      "Sequential-step evaluation in MCP test loops needed for any simulation scene"
+    ]
+  },
+  "lessons_for_cinema4d_mcp": [
+    "fillgeometry@ is THE graph→Volume-Builder bridge. Document and recipe-fy.",
+    "Memory's port count is variable — supports N state channels via numbered ports. Synthesizer must handle this.",
+    "Sequential-only simulation evaluation is a runtime constraint affecting viewport_screenshot(frame=N), render_frame, scene_assert. They MUST step sequentially, not jump.",
+    "Detect AM exposure WITHOUT floatingio wrapper. Walk root.GetInputs() directly; not all hosts use the floatingio idiom. Both patterns coexist in the same graph engine.",
+    "Visibility=2 on fresh load is universal across the reference build scenes — needs an auto-fix in load helpers.",
+    "BaseDraw.SetMg doesn't exist in C4D 2026 — must create a CameraObject for programmatic camera control."
+  ],
+  "artifacts": {
+    "study_md": "study.md",
+    "frames": [
+      "frames/default_f000.png",
+      "frames/default_f060.png",
+      "frames/default_f120.png",
+      "frames/default_f200.png",
+      "frames/default_f333.png"
+    ],
+    "sliders": [],
+    "raw_graph_dump": null
+  },
+  "complexity": "hard",
+  "estimated_tool_calls_to_recreate_from_recipe": 40
+}

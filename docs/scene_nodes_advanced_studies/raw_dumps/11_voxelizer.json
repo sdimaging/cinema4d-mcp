@@ -1,0 +1,341 @@
+{
+  "scene": "Voxelizer_Tutorial_01.c4d",
+  "objects": [
+    {
+      "name": "Voxelizer_Simple",
+      "type": 180420500,
+      "type_name": "Scene Nodes Generator",
+      "depth": 0,
+      "parent": null,
+      "tags": [
+        {
+          "name": "Phong",
+          "type": 5612
+        }
+      ],
+      "selection_tags": [],
+      "is_sn": true,
+      "graph": {
+        "node_types": {
+          "nearestneighbor": 1,
+          "readvalueatindex": 2,
+          "matrix": 1,
+          "color": 1,
+          "fillgeometry": 1,
+          "containeriteration": 1,
+          "decomposematrix": 1,
+          "children": 1,
+          "getvertexselectiondata": 1,
+          "cube": 1,
+          "builder": 1,
+          "net.maxon.neutron.corenode.multransform_5": 1,
+          "combine": 1,
+          "mat": 1,
+          "sqrpart": 1,
+          "vectrans": 1,
+          "sqrtrans": 1
+        },
+        "node_count": 18,
+        "connections": [
+          "nearestneighbor.nearestindices-><.arrayin",
+          "readvalueatindex._0-><.indexin",
+          "matrix.net.maxon.neutron.op.outp-><.net.maxon.neutron.op.inpu",
+          "color.net.maxon.neutron.op.outp->>.net.maxon.neutron.op.outp",
+          "readvalueatindex._0-><.color",
+          "fillgeometry.distdataout-><.in",
+          "decomposematrix.translation-><.queryposition",
+          "getvertexselectiondata.ptscolorasout-><.arrayin",
+          "cube.matrixout->>.net.maxon.neutron.op.outp",
+          "cube.net.maxon.neutron.op.outp-><.net.maxon.neutron.op.inpu",
+          "builder.out->>.scene",
+          "net.maxon.neutron.corenode.multransform_5.out->children.out.parentmatrix",
+          "combine.out->matrixout.domain",
+          "mat.out->matrixout.matrix",
+          "sqrpart.out-><.in2",
+          "vectrans.out->matrixout.translation",
+          "vectrans.out-><.off",
+          "sqrtrans.out->matrixout.sqrmatrix",
+          "sqrtrans.out-><.sqmat"
+        ],
+        "root_inputs_typed": [
+          "in@LfJZhWplJhSv00QHiJdNKN",
+          "in@THlVZVKhHNCse0tIaKS_jN",
+          "in@PbCDhHMCBNFpH$qhdqMn_I",
+          "net.maxon.neutron.op.objectbase.matrix",
+          "net.maxon.neutron.op.objectbase.children",
+          "objectinput",
+          "net.maxon.node.bypassable.bypass",
+          "net.maxon.neutron.op.input"
+        ],
+        "root_outputs": [
+          "scene",
+          "matrixout",
+          "children.out",
+          "net.maxon.neutron.op.output"
+        ]
+      }
+    },
+    {
+      "name": "Connect",
+      "type": 1011010,
+      "type_name": "Connect",
+      "depth": 1,
+      "parent": "Voxelizer_Simple",
+      "tags": [
+        {
+          "name": "Vertex Color",
+          "type": 431000045
+        },
+        {
+          "name": "Material",
+          "type": 5616,
+          "material": "Banana",
+          "restriction": ""
+        }
+      ],
+      "selection_tags": [],
+      "is_sn": false
+    },
+    {
+      "name": "Banana",
+      "type": 5100,
+      "type_name": "Polygon",
+      "depth": 2,
+      "parent": "Connect",
+      "tags": [
+        {
+          "name": "UVW",
+          "type": 5671
+        },
+        {
+          "name": "Phong",
+          "type": 5612
+        },
+        {
+          "name": "",
+          "type": 5604
+        },
+        {
+          "name": "",
+          "type": 5600
+        },
+        {
+          "name": "Polygon Selection",
+          "type": 5673,
+          "sel_count": 373
+        }
+      ],
+      "selection_tags": [
+        {
+          "name": "Polygon Selection",
+          "type": 5673,
+          "sel_count": 373
+        }
+      ],
+      "is_sn": false
+    },
+    {
+      "name": "Shader Field",
+      "type": 440000282,
+      "type_name": "Shader Field",
+      "depth": 2,
+      "parent": "Connect",
+      "tags": [],
+      "selection_tags": [],
+      "is_sn": false
+    },
+    {
+      "name": "Voxelizer_Lego",
+      "type": 180420500,
+      "type_name": "Scene Nodes Generator",
+      "depth": 0,
+      "parent": null,
+      "tags": [
+        {
+          "name": "Phong",
+          "type": 5612
+        }
+      ],
+      "selection_tags": [],
+      "is_sn": true,
+      "graph": {
+        "node_types": {
+          "nearestneighbor": 1,
+          "readvalueatindex": 2,
+          "matrix": 1,
+          "color": 1,
+          "fillgeometry": 1,
+          "containeriteration": 1,
+          "decomposematrix": 1,
+          "children": 1,
+          "getvertexselectiondata": 1,
+          "composematrix": 1,
+          "composevector3": 1,
+          "builder": 1,
+          "net.maxon.neutron.corenode.multransform_5": 1,
+          "combine": 1,
+          "mat": 1,
+          "sqrpart": 1,
+          "vectrans": 1,
+          "sqrtrans": 1
+        },
+        "node_count": 19,
+        "connections": [
+          "nearestneighbor.nearestindices-><.arrayin",
+          "readvalueatindex._0-><.indexin",
+          "matrix.net.maxon.neutron.op.outp-><.net.maxon.neutron.op.inpu",
+          "color.net.maxon.neutron.op.outp->>.net.maxon.neutron.op.outp",
+          "readvalueatindex._0-><.color",
+          "fillgeometry.distdataout-><.in",
+          "decomposematrix.translation-><.queryposition",
+          "getvertexselectiondata.ptscolorasout-><.arrayin",
+          "composematrix.out-><.matrix",
+          "composevector3.result-><.scale",
+          "builder.out->>.scene",
+          "net.maxon.neutron.corenode.multransform_5.out->children.out.parentmatrix",
+          "combine.out->matrixout.domain",
+          "mat.out->matrixout.matrix",
+          "sqrpart.out-><.in2",
+          "vectrans.out->matrixout.translation",
+          "vectrans.out-><.off",
+          "sqrtrans.out->matrixout.sqrmatrix",
+          "sqrtrans.out-><.sqmat"
+        ],
+        "root_inputs_typed": [
+          "in@LfJZhWplJhSv00QHiJdNKN",
+          "in@THlVZVKhHNCse0tIaKS_jN",
+          "in@PbCDhHMCBNFpH$qhdqMn_I",
+          "net.maxon.neutron.op.objectbase.matrix",
+          "net.maxon.neutron.op.objectbase.children",
+          "objectinput",
+          "net.maxon.node.bypassable.bypass",
+          "net.maxon.neutron.op.input"
+        ],
+        "root_outputs": [
+          "scene",
+          "matrixout",
+          "children.out",
+          "net.maxon.neutron.op.output"
+        ]
+      }
+    },
+    {
+      "name": "Connect",
+      "type": 1011010,
+      "type_name": "Connect",
+      "depth": 1,
+      "parent": "Voxelizer_Lego",
+      "tags": [
+        {
+          "name": "Vertex Color",
+          "type": 431000045
+        },
+        {
+          "name": "Material",
+          "type": 5616,
+          "material": "Banana",
+          "restriction": ""
+        }
+      ],
+      "selection_tags": [],
+      "is_sn": false
+    },
+    {
+      "name": "Banana",
+      "type": 5100,
+      "type_name": "Polygon",
+      "depth": 2,
+      "parent": "Connect",
+      "tags": [
+        {
+          "name": "UVW",
+          "type": 5671
+        },
+        {
+          "name": "Phong",
+          "type": 5612
+        },
+        {
+          "name": "",
+          "type": 5604
+        },
+        {
+          "name": "",
+          "type": 5600
+        },
+        {
+          "name": "Polygon Selection",
+          "type": 5673,
+          "sel_count": 373
+        }
+      ],
+      "selection_tags": [
+        {
+          "name": "Polygon Selection",
+          "type": 5673,
+          "sel_count": 373
+        }
+      ],
+      "is_sn": false
+    },
+    {
+      "name": "Shader Field",
+      "type": 440000282,
+      "type_name": "Shader Field",
+      "depth": 2,
+      "parent": "Connect",
+      "tags": [],
+      "selection_tags": [],
+      "is_sn": false
+    },
+    {
+      "name": "Lego",
+      "type": 5100,
+      "type_name": "Polygon",
+      "depth": 1,
+      "parent": "Voxelizer_Lego",
+      "tags": [
+        {
+          "name": "Phong",
+          "type": 5612
+        },
+        {
+          "name": "UVW",
+          "type": 5671
+        },
+        {
+          "name": "",
+          "type": 5604
+        },
+        {
+          "name": "",
+          "type": 5600
+        }
+      ],
+      "selection_tags": [],
+      "is_sn": false
+    }
+  ],
+  "materials": [
+    {
+      "name": "Banana",
+      "type": 5703
+    }
+  ],
+  "doc_graph": {
+    "node_types": {
+      "net.maxon.neutron.scene.root": 1,
+      "builder": 1
+    },
+    "node_count": 2,
+    "connections": [
+      "net.maxon.neutron.scene.root.net.maxon.neutron.op.outp->>.net.maxon.neutron.op.outp",
+      "builder.out->>.scene"
+    ],
+    "root_inputs_typed": [],
+    "root_outputs": [
+      "net.maxon.neutron.op.output",
+      "scene"
+    ]
+  }
+}

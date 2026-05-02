@@ -1,0 +1,65 @@
+{
+  "scene_name": "Relax-Spline_02_Optimized",
+  "studied_date": "2026-05-01",
+  "study_index": 18,
+  "delta_only": true,
+  "twin_of": [
+    17
+  ],
+  "patterns": [
+    "spline_growth_in_volume",
+    "containment_via_extrude_collision",
+    "axis_remap_deformer",
+    "bbox_to_target_frame",
+    "selection_scoped_deform",
+    "time_driven_via_context_externaltimeinput"
+  ],
+  "minimal_recipe_id": "R28_contained_rd_spline_on_surface",
+  "secondary_recipes": [
+    "R29_axis_remap_deformer_minimal"
+  ],
+  "host_plugin_id": 180420400,
+  "nodespace": "net.maxon.neutron.nodespace",
+  "graph_node_count": 23,
+  "complexity": "medium-hard",
+  "purpose": "Optimized variant of scene 17 (Relax-Spline Tutorial). Spenser confirmed: 'just seems very similar to the other version' — structural near-duplicate.",
+  "user_quote": "optimized version just seems very similar to the other version",
+  "delta_vs_scene_17": {
+    "structurally_identical": true,
+    "evidence": [
+      "Identical 3-object hierarchy (Landscape + Collision-Extrude with Text Spline + Geometry Axis children + Spline)",
+      "SN graph node IDs match byte-for-byte (composematrix@a_4qfS9tKF$ta$ioW2TaY6, bb@JeZkk_GeCdGhY$$yBOP5g5, etc.)",
+      "Same 23-node count, same function-class distribution (math_compound 47.8%)",
+      "Same 64-pt static Spline with identical first/last point coordinates",
+      "Same Extrude params (MOVE Vec(0,0,100), ISOPARM 10, HIERARCHIC 0, SUB 1)",
+      "Same Text Spline ('3', height 920.8253895627777)",
+      "Same Landscape (radius 443.7x96.45x443.7, cache 10201 pts, 4 cache tags)",
+      "Same materials (Standart, RS) — both unused",
+      "Same renderer (300001061)",
+      "Same nimbus refs (Geometry Axis only, neutron nodespace)"
+    ],
+    "actual_differences": [
+      "Time range: scene 17 = [0, 999], scene 18 = [0, 100] — tighter loop length, suggesting the 'optimization' is a tuned cycle length for clean looping",
+      "Possibly: scalar parameter values inside individual maprange/composematrix nodes (not fully diffed — would require deep node-level value comparison)"
+    ]
+  },
+  "key_insight_added": "The 'optimization' here is NOT a graph rewrite — it is a parameter/timing tune. Useful data point: identical SN architectures can be re-tuned for different production purposes (long form vs short loop) without touching node topology.",
+  "no_new_recipes_extracted": true,
+  "carried_blockers_unresolved": [
+    "Identity of the visible animated colored ribbon (still unknown)",
+    "Containment-clamp mechanism (selectionstringparser hint, unverified)",
+    "Loop-carried-value source (classifier reports 0; visible animation real but driver unconfirmed)",
+    "Tag type 5604 on Landscape cache",
+    "Renderer ID 300001061"
+  ],
+  "evidence_screenshots": [
+    "frames/f0000_persp.png",
+    "frames/f0030_persp.png",
+    "frames/f0060_persp.png",
+    "frames/f0090_persp.png"
+  ],
+  "operational_notes": [
+    "Doc CLOSED via KillDocument at end of session per Spenser's RAM-hygiene reminder",
+    "Two study cameras (StudyCam_Persp/Top) inserted; not removed before close — they live with the file in memory only, not saved to disk"
+  ]
+}
