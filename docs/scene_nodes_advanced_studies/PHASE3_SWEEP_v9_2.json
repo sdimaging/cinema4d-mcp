@@ -205,5 +205,116 @@
         "err": "'NoneType' object has no attribute 'GetGraph'"
       }
     ]
+  },
+  "RealEdgeToLine_Tut": {
+    "hosts": [
+      {
+        "name": "Object Group",
+        "n": 31,
+        "w": 31,
+        "node_pct": 100.0,
+        "wire_pct": 87.1,
+        "clones": 2
+      }
+    ]
+  },
+  "EdgeToSpline_Sel": {
+    "hosts": [
+      {
+        "name": "Spline Primitive Group",
+        "n": 34,
+        "w": 69,
+        "node_pct": 100.0,
+        "wire_pct": 100.0,
+        "clones": 2
+      }
+    ]
+  },
+  "Plexus_Static": {
+    "hosts": [
+      {
+        "name": "New_Ray_Connector",
+        "n": 52,
+        "w": 164,
+        "node_pct": 100.0,
+        "wire_pct": 99.4,
+        "clones": 5
+      },
+      {
+        "name": "Plexus_without_Loop",
+        "n": 45,
+        "w": 103,
+        "node_pct": 100.0,
+        "wire_pct": 99.0,
+        "clones": 13
+      },
+      {
+        "name": "Mesh Primitive Group",
+        "n": 49,
+        "w": 105,
+        "node_pct": 100.0,
+        "wire_pct": 100.0,
+        "clones": 6
+      }
+    ]
+  },
+  "Plexus": {
+    "hosts": [
+      {
+        "name": "Plexus_with_Loop",
+        "n": 36,
+        "w": 94,
+        "node_pct": 100.0,
+        "wire_pct": 100.0,
+        "clones": 2
+      },
+      {
+        "name": "Plexus_without_Loop",
+        "n": 45,
+        "w": 103,
+        "node_pct": 100.0,
+        "wire_pct": 100.0,
+        "clones": 13
+      }
+    ]
+  },
+  "ParticleEmitter": {
+    "hosts": []
+  },
+  "RelaxSpline_Tut": {
+    "hosts": [
+      {
+        "name": "Geometry Axis",
+        "n": 23,
+        "w": 28,
+        "node_pct": 100.0,
+        "wire_pct": 100.0,
+        "clones": 6
+      }
+    ]
+  },
+  "RelaxSpline_Opt": {
+    "hosts": [
+      {
+        "name": "Geometry Axis",
+        "n": 23,
+        "w": 28,
+        "node_pct": 100.0,
+        "wire_pct": 100.0,
+        "clones": 6
+      }
+    ]
+  },
+  "SplineGrower_Orn": {
+    "hosts": [
+      {
+        "name": "Spline_Grower",
+        "n": 57,
+        "w": 67,
+        "node_pct": 100.0,
+        "wire_pct": 88.1,
+        "clones": 12
+      }
+    ]
   }
 }
