@@ -608,3 +608,73 @@ The PRACTICAL paths to get a Scene-Nodes-only morph deformer:
 3. **File a Maxon SDK bug/feature request** — ask for `AddChild(parent, ...)` overload OR `Validate()` documentation to unlock MoveToGroup. With those, pure-SN authoring from Python becomes possible.
 
 For now: **production-ready Python tag morph slider** (commit baca66c on GH, commit 8c7eacc on cinema4d-mcp) is the working tool. Same end-result as a pure-SN deformer would give the artist; the only difference is the implementation language.
+
+---
+
+## Iteration 14 (2026-05-02) — 🎉 BREAKTHROUGH: CreateView(filter, rootPath) UNLOCKS inner-capsule mutation
+
+User pushed back on iter 12's "deferred" framing — directing to keep diving until the SN build works. That push was correct; iter 11/12 wall #2 ("AddChild has no parent argument") was the WRONG framing. Parent isn't an arg to AddChild — it's the **rootPath of a graph view**.
+
+### THE UNLOCK
+
+**`graph.CreateView(filter, rootPath)`** returns a WRITABLE view of the graph rooted at any path — including INSIDE a capsule.
+
+```python
+inner_view = graph.CreateView(3, uvtomesh.GetPath())  # 3 = FILTER.INCLUDE_ALL
+# inner_view.GetRoot() == uvtomesh's inner subgraph root!
+# inner_view.AddChild(...) ADDS NODES INSIDE uvtomesh!
+```
+
+Confirmed live: cloned Build UV Preview, called CreateView on uvtomesh.GetPath(), AddChild → uvtomesh's inner node count went 9 → 10 → 13. The new nodes are PERSISTENT inside the capsule and visible in the inner walk. **This invalidates iter 11/12 wall #2.**
+
+Three confirmed unlocks:
+- `graph.CreateView(filter, rootPath)` — get a view rooted at any path
+- `inner_view.AddChild(id, asset)` — adds the node INSIDE the parent at that rootPath
+- `inner_view.BeginTransaction()` — transactions on the view also work
+
+### What we built (in flight when wedge happened)
+
+Inside uvtomesh, added 4 nodes:
+- `get_orig` — neutron.geometry.get for original Position
+- `iter_orig` — containeriteration to stream per-vertex orig pos
+- `blend_morph` — vec3 blend node
+- `factor_io` — floatingio for factor (0-1) artist slider
+
+Wired:
+```
+gateway.geometryin → get_orig.geometry
+get_orig.array → iter_orig.in
+iter_orig.out → blend.in1 (per-vertex orig)
+existing scale.out → blend.in2 (per-vertex flat)
+factor → blend.in3
+blend.out → set.iteration  (replaces old scale.out → set.iteration)
+```
+
+### What caused the wedge
+
+When `get_orig` was configured with `accessortype=uv` + `accessorname="Position"` (mismatched accessor + attribute), the chain entered an evaluation loop / invalid state and wedged C4D's main thread.
+
+The mismatch: `accessortype=uv` expects UV-shaped (Vec2 per polygon-vertex) values, but `accessorname="Position"` is Vec3 per source vertex. Trying to read Position via UV accessor was the wedge trigger.
+
+### Two open puzzles for next attempt
+
+1. **Lockstep iteration**: get_uv reads UV (length 4664, per polygon-vertex). get_orig with `accessortype=data3d` reads Position (length 1168 per source vertex). Iterating both in parallel gives mismatched indexing, blend produces invalid results.
+
+   Fixes to try:
+   - Find the right `accessortype + componentin` combo that gives Position-per-polygon-vertex (4664 entries)
+   - Use `loopcarriedvalue` or `memory` pattern to pre-build a per-poly-vertex orig array via uvtomesh's existing iteration index
+   - Look at how DRuckli's other capsules access positions per-poly-vertex for reference
+
+2. **floatingio.out missing**: floatingio's output port isn't called "out" — needs different probe to find the actual exposed port name. (Lower priority — can hardcode factor for first morph test.)
+
+### Status after iter 14
+
+Pure-SN morph: **mechanism PROVEN**. The inner-graph editing wall is broken (CreateView is the door). Remaining work is data-flow tuning: figure out the right accessor for per-poly-vertex orig Position.
+
+Next iteration after C4D restart:
+1. Probe lower-level `get`'s valid `accessortype` + `componentin` combinations
+2. Find one that gives Position with length matching iter_existing's 4664
+3. Re-wire blend chain with valid orig source
+4. Test factor=0/0.5/1.0 sweep
+
+Working production tool meanwhile: v7 Python tag morph slider.
