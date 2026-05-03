@@ -208,3 +208,53 @@ Per-vertex UV averaging is the new puzzle: PolygonVertexValues "UVW" has 4664 en
 - `UVTOMESH_GRANULAR_REFERENCE.md` — full anatomy + key insights
 - `UV_SLIDER_PROGRESS.md` — this doc
 - (older v1/v2/v3 .c4d files + screenshots — failed wire-surgery attempts, kept as cautionary tale)
+
+---
+
+## Iteration 6 (2026-05-02) — sandbox probe of true position-blend deformer
+
+Built a fresh sandbox doc with a sphere + SN deformer. Goal: get `set.iteration` working WITHOUT the wedge, to enable per-vertex morph for any deformer.
+
+### Findings
+
+1. **`set.iteration` requires `arraymode=False` to expose the port.** Setting `arraymode=true` (which I'd been doing because the wrapper `set_property` always uses array mode) hides `.iteration` and `.domain`. Toggling `arraymode=false` reveals them. **This was the missing unlock that made all earlier set.iteration attempts impossible to even wire.**
+
+2. **`op.geometry` + `op.filter` wrappers prevent the wedge.** Wiring `set.geometryout → op_g.input → op_f.input → root.geometryout` with arraymode=false and set.iteration wired produces NO main-thread wedge (vs iter 4 which wedged C4D solid).
+
+3. **But the iteration math STILL doesn't apply.** Deformer outputs the input geometry verbatim (rad=100,100,100, not 200,200,200 with scale ×2). The op chain is acting as a passthrough; the set.iteration changes are being silently dropped.
+
+4. **`outerdomain` is NOT the aggregated post-iteration array.** Tested with `containeriteration.outerdomain → set_property.array` — produced empty geometry (rad=0). The naming was misleading; outerdomain appears to be an iteration-context value, not the result array.
+
+5. **The "self-loops" in DRuckli's IsConnected wire trace are FALSE POSITIVES.** Tried wiring `op_g.output → op_g.input` literally — SN rejected with `"The ports form a cycle"`. So my granular reference dump's `geometry.output → geometry.input` and `filter.output → filter.input` entries are an `IsConnected` artifact, not real wires.
+
+6. **`op.filter` has hidden internal structure (`op_f/or` child node).** These op wrappers aren't simple pass-throughs — they have inner corenodes (likely the conditional/branching logic for the filter operation). Cracking this requires walking op_f's internal graph, not just its top-level ports.
+
+7. **DRuckli's inner `set` has unset `accessorname` and `arraymode`** (only `accessortype` set). Yet it works. This means the op container chain must inject context (which attribute to write, array vs single mode) via a mechanism that's not explicit at the set node's input ports — probably via the geometry-context flow established by op_g + op_f.
+
+### Current architecture state
+
+```
+root.geometryin → gl.geometry           ✓
+root.geometryin → sl.geometryin         ✓
+gl.array → it.in                        ✓
+gl.topology → sl.topology               ✓
+it.out → sc.in1                         ✓ (per-vertex Vec3, sc.in2=2.0, sc.datatype=vec3)
+sc.out → sl.iteration                   ✓ (the bridge, NOW VISIBLE because arraymode=false)
+it.outerdomain → sl.domain              ✓ (didn't help)
+sl.geometryout → op_g.input             ✓ (NOT op_g.geometry!)
+op_g.output → op_f.input                ✓
+op_f.output → root.geometryout          ✓ (no wedge)
+```
+
+Result: rad=100,100,100 (passthrough, scale not applied). Geometry flows through, math chain is silently bypassed.
+
+### Hypothesis for next iteration
+
+The op chain needs the math chain to be INSIDE its evaluation context, not parallel to it. In DRuckli, the `set` and the math nodes are inside `uvtomesh` capsule WITH the op wrappers, all sharing one evaluation context. When we put them at the top-level of our deformer alongside op_g/op_f, the ops don't see the iteration math's output — they only see the input geometry.
+
+Possible fixes to try next:
+1. **Group everything into a sub-capsule** via `graph.MoveToGroup()` so the set + math + op wrappers share an evaluation scope
+2. **Walk op_f's internal `or` corenode** to understand what context flow ops actually establish
+3. **Wire op_g.geometry from set.geometryout AND op_g.input from root.geometryin** simultaneously — maybe op needs both the value-to-inject AND the chain-context
+
+For now: v4 clone (Path 2) remains the working slider deliverable. True topology-preserving morph deferred pending a session focused on cracking the op container evaluation model.
