@@ -316,5 +316,156 @@
         "clones": 12
       }
     ]
+  },
+  "GrowPts_Adv": {
+    "hosts": [
+      {
+        "name": "Point_Grower with Collision",
+        "n": 129,
+        "w": 200,
+        "node_pct": 100.0,
+        "wire_pct": 98.0,
+        "clones": 8
+      }
+    ]
+  },
+  "GrowPts_Tut": {
+    "hosts": [
+      {
+        "name": "Object Group",
+        "n": 58,
+        "w": 77,
+        "node_pct": 100.0,
+        "wire_pct": 98.7,
+        "clones": 7
+      }
+    ]
+  },
+  "Crystal_BasicGS": {
+    "hosts": [
+      {
+        "name": "Store for next Frame",
+        "n": 5,
+        "w": 9,
+        "node_pct": 100.0,
+        "wire_pct": 100.0,
+        "clones": 1
+      }
+    ]
+  },
+  "Crystal_FinalRender": {
+    "hosts": [
+      {
+        "name": "Store for next Frame",
+        "n": 5,
+        "w": 9,
+        "node_pct": 100.0,
+        "wire_pct": 100.0,
+        "clones": 1
+      }
+    ]
+  },
+  "VoxelMesher_Tut": {
+    "hosts": [
+      {
+        "name": "Object Group Color Transfer",
+        "n": 103,
+        "w": 167,
+        "node_pct": 100.0,
+        "wire_pct": 94.0,
+        "clones": 16
+      },
+      {
+        "name": "Object Group Solver",
+        "n": 205,
+        "w": 341,
+        "node_pct": 100.0,
+        "wire_pct": 99.4,
+        "clones": 3
+      }
+    ]
+  },
+  "Voxelizer_Tut": {
+    "hosts": [
+      {
+        "name": "Voxelizer_Simple",
+        "n": 50,
+        "w": 60,
+        "node_pct": 100.0,
+        "wire_pct": 93.3,
+        "clones": 7
+      },
+      {
+        "name": "Voxelizer_Lego",
+        "n": 45,
+        "w": 50,
+        "node_pct": 100.0,
+        "wire_pct": 88.0,
+        "clones": 8
+      }
+    ]
+  },
+  "VolColorizer": {
+    "hosts": []
+  },
+  "GeoSolver_Basic": {
+    "hosts": [
+      {
+        "name": "Store for next Frame",
+        "n": 5,
+        "w": 9,
+        "node_pct": 100.0,
+        "wire_pct": 100.0,
+        "clones": 1
+      }
+    ]
+  },
+  "PaintStrokes": {
+    "hosts": [
+      {
+        "name": "Paint Strokes",
+        "n": 96,
+        "w": 130,
+        "node_pct": 100.0,
+        "wire_pct": 87.7,
+        "clones": 12
+      }
+    ]
+  },
+  "ShortestPath": {
+    "hosts": [
+      {
+        "name": "Shortest_Path_Simple",
+        "n": 45,
+        "w": 69,
+        "node_pct": 100.0,
+        "wire_pct": 91.3,
+        "clones": 4
+      },
+      {
+        "name": "Shortest_Path_Advanced",
+        "n": 64,
+        "w": 120,
+        "node_pct": 100.0,
+        "wire_pct": 93.3,
+        "clones": 8
+      },
+      {
+        "name": "Shortest_Path_Volume-Mesher",
+        "n": 33,
+        "w": 28,
+        "node_pct": 100.0,
+        "wire_pct": 82.1,
+        "clones": 4
+      },
+      {
+        "name": "Smooth Points",
+        "n": 32,
+        "w": 48,
+        "node_pct": 100.0,
+        "wire_pct": 100.0,
+        "clones": 1
+      }
+    ]
   }
 }
