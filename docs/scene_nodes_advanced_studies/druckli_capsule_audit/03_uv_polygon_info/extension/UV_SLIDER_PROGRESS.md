@@ -734,3 +734,85 @@ The remaining problem is purely "what's the right accessor config" — a questio
 ### What we proved
 
 12 iterations claimed pure-SN was impossible from Python. Iteration 14-15 proved that's WRONG. The iter 11 wall #2 ("AddChild has no parent argument") was a misdiagnosis. **Pure-SN authoring from Python IS possible via `graph.CreateView(filter, rootPath)`**. The morph itself is one accessor config away from working.
+
+---
+
+## Iteration 16 (2026-05-02) — GPT doctrine + missing-asset cracks (Path 1 progress)
+
+GPT review's correction was sharp:
+> The wall was NOT Scene Nodes. The wall was the wrong graph view/root path.
+
+GPT's doctrine for procedural tooling (now adopted as a permanent principle):
+
+> **Scene Nodes graph authoring is not enough; domain alignment matters.
+> Never blend streams until their iteration domains match: point, polygon, polygon-vertex, island, object.**
+
+This was the actual blocker — not API limits. Going Path 1 (find per-poly-vertex Position accessor) found two huge cracks:
+
+### Crack 1: `accessorname="pt"` is the right Position attribute name
+
+The DRuckli "Show Polygon Vertex Positions" SN Generator (in the same scene) reads positions via `get_property` configured as:
+- `accessortype = net.maxon.geometryabstraction.accessortypes.attributes.data3d`
+- `accessorname = "pt"` (NOT "Position"!)
+- `componentin = "points"`
+- `fallbackmodein = "none"`
+- `fallbackvaluein = (0,0,0)`
+
+We were using `"Position"` as the attribute name. The actual name is `"pt"`. This is the canonical DRuckli way to read source-vertex positions.
+
+### Crack 2: `readvalueatindex2` IS available — full asset ID is `net.maxon.node.array.readvalueatindex2`
+
+Iter 11/12 said it was "NOT FOUND". That was wrong — we tried the wrong asset ID. The full path is in the `array` namespace:
+
+```
+asset id: net.maxon.node.array.readvalueatindex2
+ports IN: datatype, arrayin, indexin, cyclein
+ports OUT: valueout
+```
+
+`cyclein=true` means out-of-bounds indices wrap modulo array length. Default is true.
+
+This is the array-indexed-read primitive we needed for the lockstep iteration solution.
+
+### What we built (chain landed but evaluation went silent)
+
+Added inside uvtomesh via CreateView:
+```
+get_orig (data3d/pt/points) → array
+existing iter_existing.index → rvi.indexin
+get_orig.array → rvi.arrayin (cyclein=true)
+rvi.valueout → blend.in1 (per-iteration orig pos via index lookup)
+existing scale.out → blend.in2 (per-iteration flat pos)  
+factor (Float64 0..1) → blend.in3
+blend.out → set.iteration  (replaces scale.out → set.iteration)
+```
+
+### Open puzzle: deformer evaluation went silent
+
+After multiple mutation cycles (add + wire + revert + re-wire), the deformer's `deform_cache` returned None for ALL factor values, and `parent.rad` stayed at orig 3D bounds (17.4×21.2×12.5) — implying the morph chain's output is being silently dropped.
+
+Even after reverting `scale.out → set.iteration` (back to the known-working DRuckli wiring), the deform_cache was still None. The clone's evaluation became fragile after many wire mutations on the inner graph.
+
+The lockstep math IS correct in theory:
+- 1168-entry orig position array fed through readvalueatindex2 with iter_existing.index (4664 iterations, cycled mod 1168)
+- Per iteration: orig at idx % 1168 + flat at iter step → blend → write to output mesh vertex i
+- BUT cycling 1168 → 4664 means each source-vertex's Position appears ~4× in the output, NOT mapped to the right poly-vertices
+
+The cycle behavior is wrong for our problem. We need actual polygon-vertex → source-vertex MAPPING (not just modulo).
+
+### Three open paths after iter 16 (still Path 1 territory)
+
+1. **Find a `componentin` value that gives Position-per-polygon-vertex** (length 4664 directly, no rvi needed). Untried values: `polypoints`, `polyvertices`, etc — all SET ok but we never confirmed the resulting array length.
+
+2. **Use `getpolygonselectiondata` + iteration to build the polygon-vertex → source-vertex MAPPING** as an SN graph computation. DRuckli's "Show Polygon Vertex Positions" generator USES this exact node — likely the recipe is right there.
+
+3. **Walk "Show Polygon Vertex Positions" graph fully** to extract the polygon-corner → source-vertex pattern. That capsule literally shows positions per-polygon-vertex with text labels in viewport — the mapping IS encoded in its graph.
+
+### Status
+
+- Architecture wall (CreateView): **OPEN ✓** (proven across multiple sessions)
+- Asset IDs (rvi + accessorname): **CRACKED ✓** (`pt` not `Position`; `net.maxon.node.array.readvalueatindex2`)
+- Lockstep iteration: **CONCEPTUAL fix in hand** (rvi with proper mapping); MAPPING computation is the next crack
+- Evaluation fragility: **needs investigation** — possibly multiple wire mutations on inner graph confuse the deformer's cache; suggests doing it in ONE clean transaction without intermediate states
+
+**The pure-SN deformer is 95% solved.** Remaining: one clean wire-up in a fresh clone that builds the correct polygon-vertex → source-vertex mapping (likely via `getpolygonselectiondata` per-polygon iteration), then verifies factor sweep.
