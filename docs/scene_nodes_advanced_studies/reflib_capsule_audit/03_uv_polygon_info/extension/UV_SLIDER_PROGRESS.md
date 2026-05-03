@@ -469,3 +469,37 @@ Documented in the published GH script `c4d-scripts/uv-pipeline/morph_3d_to_flat_
 - `Build_UV_Slider_v6_split_topology.c4d` — WORKING split-topology morph slider (gitignored)
 - `v6_split_factor_000_b.png`, `v6_split_factor_050_b.png`, `v6_split_factor_100_b.png` — visual proof of the welded → exploding → flat transition
 - Published as: https://github.com/sdimaging/c4d-scripts/blob/main/uv-pipeline/morph_3d_to_flat_slider.py
+
+---
+
+## Iteration 9 (2026-05-02) — pure-SN morph: MoveToGroup API spelunking
+
+To realize the pure-SN morph (per iter 6/7 hypothesis: math chain inside an op-container evaluation scope via grouping), tried `graph.MoveToGroup(root, group_id, selection)`.
+
+### What we learned
+
+Signature: `MoveToGroup(groupRoot, groupId, selection)`.
+
+Calling pattern requires:
+1. Inside a `BeginTransaction` block (else "No current transaction for modification")
+2. Selection passed as a fresh `GetSelectedNodes` iterator, not a Python list of held node refs (else "Condition System::GetReferenceCounter(w) == 1 not fulfilled" — Python keeps strong refs that exceed the expected refcount of 1)
+3. Selection-marking via `GraphModelHelper.SelectNode(n)` ALSO needs a transaction wrap
+
+Even with all three above, hits **"Base nodesystem hasn't been validated"** — MoveToGroup needs the graph to pass a `Validate()` call or some other readiness check first. That's the current blocker.
+
+### Confirmed-good
+
+- `net.maxon.node.group` IS addable as a primitive (no IN/OUT ports — generic empty group container)
+- `GraphModelHelper.{SelectNode, DeselectAll, GetSelectedNodes}` all exist and have the expected behavior
+- DeselectAll signature: `(graph, kind)` — needs the kind arg
+
+### Next-iteration plan for pure-SN morph
+
+1. Call `graph.Validate()` (or whatever the right pre-MoveToGroup readiness check is) before MoveToGroup
+2. If Validate doesn't fix it, try building the chain INSIDE an empty `net.maxon.node.group` from the start (use `group.AddChild(...)` instead of `root.AddChild(...)`) — sidesteps the move-after-build pattern entirely
+3. With the chain inside a group, wire group-external ports to root.geometryin/geometryout
+4. Test if grouped chain + op wrappers finally apply iteration math (vs the silent-bypass at top-level)
+
+### Status
+
+Pure-SN morph deferred again. Working sliders: v4 SN clone (flat-mesh-size, pure SN), v5/v6 Python tag morph (true 3D↔flat with split topology, hybrid).
