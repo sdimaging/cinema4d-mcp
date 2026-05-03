@@ -542,3 +542,69 @@ Pure-SN morph **deferred to a dedicated SDK research session**. Production deliv
 - **v4 SN clone slider** for flat-mesh-size scaling via uvtomesh.scale (pure SN, drag/drop ready)
 
 Both shipped, documented, and published. The pure-SN morph remains a documented research goal with three concrete blockers identified for future work.
+
+---
+
+## Iteration 12 (2026-05-02) — GraphDescription path + capsule encapsulation FULLY enforced
+
+After iter 11 deferred pure-SN, pushed deeper to crack `GraphDescription.ApplyDescription` and capsule modification.
+
+### What we cracked about GraphDescription.ApplyDescription
+
+- Format is `dict` or `list[dict]` of `{"$type": "<English label>", "$name": "...", ...}`
+- `$type` MUST be the English UI label (e.g. `"Range"` works, `"Scale"` works); asset IDs do NOT (`"net.maxon.neutron.geometry.get"` fails as `$type`)
+- `$language` and `language=` parameter only accept registered languages — there's no "raw asset id" language
+- `$description` (sub-block) accepts only DICT children, not list
+- `$cmd_group` IS recognized as a command but parser is opaque about its accepted value form (tried strings, lists, GraphNode refs, maxon.Ids — all failed with "Missing node type declaration" or "Unsupported group value type")
+- The "neutron-internal" nodes we need (`net.maxon.neutron.geometry.get/set`, `net.maxon.neutron.op.geometry/op.filter`) have NO English labels in the registry — `verified_label: false` per atlas — so they're NOT available to ApplyDescription even though they're available to `graph.AddChild`
+
+### NEW BLOCKER: capsule encapsulation enforced at SDK level
+
+Tried to bypass the "can't add inside a capsule" limit by MODIFYING existing inner port values. Specifically: clone Build UV Preview, then `inner_scale.in2.SetPortValue(100)` to override the slider value from outside.
+
+**Result: WRITE SILENTLY IGNORED.**
+- Read inner port value: 50 ✓
+- SetPortValue(100) — no error
+- Read-back: still 50 (not 100)
+- Geometry didn't change
+
+So capsule inner state is read-only from outside the capsule via Python.
+
+### Three enforcement walls now confirmed
+
+1. **AddChild has no parent argument** — all node adds go to root, can't put a node inside a capsule
+2. **MoveToGroup needs Base nodesystem validation** Python's `Validate()` doesn't trigger
+3. **Inner port WRITES from outside are silently ignored** — even though reads work
+
+Plus the unsolved sub-puzzles:
+- `$cmd_group` syntax not figured out
+- Neutron-internal nodes (the ones with `.iteration` port) have no `$type` label
+
+### Conclusion: pure-SN morph from Python is fundamentally limited
+
+The Python SDK enforces capsule encapsulation strongly. Modifying or extending DRuckli's uvtomesh capsule's INNER chain (where the math broadcast works) is not accessible from Python. Building OUR OWN capsule with the same architecture requires either:
+
+- **Writing a custom .res asset definition** — the canonical "make a new capsule" path, but requires C4D plugin authoring + asset registration + restart. Not a Python-scriptable path.
+- **Working in the Scene Nodes editor UI manually** — drag/drop the chain into a capsule visually, save as preset. Artist-friendly but not automatable from Python.
+- **C++ SDK + custom node template registration** — full plugin development.
+
+### What WOULD work (for future sessions)
+
+If we had ANY of these, we could crack pure-SN:
+- A way to call `Validate()` that satisfies MoveToGroup's state requirement → use MoveToGroup as designed
+- An `AddChild(parent, ...)` overload → add nodes inside capsules directly
+- An "open capsule for editing" API → modify inner chains directly
+- The `$cmd_group` syntax for ApplyDescription → declare grouped structures via JSON
+- Writable English labels on neutron-internal nodes → use ApplyDescription with those types
+
+### Definitive status
+
+**Pure-SN topology-preserving morph from Python: not possible with current SDK Python bindings.**
+
+The PRACTICAL paths to get a Scene-Nodes-only morph deformer:
+
+1. **Manually author it in the Scene Nodes editor UI** — drag uvtomesh's chain inside a custom capsule, add a blend with original positions, save as preset. One-time manual work, then deployable as an asset everyone in the studio can use.
+2. **Write a custom Scene Nodes asset (.res)** in the C4D plugin SDK — proper installation-level new node. Substantial work but generally useful.
+3. **File a Maxon SDK bug/feature request** — ask for `AddChild(parent, ...)` overload OR `Validate()` documentation to unlock MoveToGroup. With those, pure-SN authoring from Python becomes possible.
+
+For now: **production-ready Python tag morph slider** (commit baca66c on GH, commit 8c7eacc on cinema4d-mcp) is the working tool. Same end-result as a pure-SN deformer would give the artist; the only difference is the implementation language.
