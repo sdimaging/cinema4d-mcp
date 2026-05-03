@@ -995,3 +995,60 @@ We have:
 The remaining work is "what's the right blend architecture" — likely a study of how DRuckli's other capsules combine streams across iteration scopes.
 
 Iter 18-19 .c4d: `Build_UV_Slider_v9b.c4d` (saved with chain in current state — empty output but reproducible).
+
+---
+
+## Iteration 20 (2026-05-02) — Critical fragility discovery: uvtomesh mutations are NON-RECOVERABLE
+
+Tried multiple chain variants in v10 clone:
+1. `gpsd → iter → set.iteration` (no blend, no scale) → deform_cache=None
+2. `gpsd → set.iteration` (direct, no iter) → deform_cache=None
+3. **REVERT** to `scale.out → set.iteration` (original DRuckli wire) → deform_cache=None
+4. **REMOVE** added gpsd + iter_orig nodes entirely → deform_cache=None
+
+**Reverting to the original DRuckli wiring DID NOT restore the deformer.** Multiple mutations on uvtomesh's inner graph corrupted state irreversibly within the clone.
+
+### THE NEW DOCTRINE
+
+**Mutating a DRuckli capsule's inner graph multiple times = non-recoverable damage.**
+
+The capsule's evaluation system carries cached state that depends on the EXACT structure at first evaluation. Adding nodes + wiring + reverting → cached state mismatch → eval falls back to None silently.
+
+**Practical implication:** for pure-SN authoring via CreateView, the right pattern is:
+
+1. **CLONE the capsule first** (so original is untouched)
+2. **ONE atomic transaction** that adds ALL nodes + configures ALL ports + wires ALL connections at once
+3. **NO exploratory wiring** — the transaction must be the FINAL state
+4. **If it doesn't work first try**: throw away the clone, start with a fresh one. DO NOT iterate on the same clone.
+
+The "tiny ugly correct graph" doctrine compounds: every probe-and-revert cycle leaves residual damage.
+
+### What this changes for our morph quest
+
+We CAN'T iteratively refine the chain inside uvtomesh. We need:
+- Either: one PERFECT atomic transaction (requires knowing all wires upfront)
+- Or: build a CUSTOM capsule from scratch (skip uvtomesh entirely) — start with empty geometry chain, build morph the SN-native way
+
+The custom-capsule path is probably cleaner. Build:
+- `set` with iteration over a custom-built array
+- `gpsd` for source positions per polygon-vertex
+- own iteration scheme that drives blend properly
+- output via `op.geometry / op.filter` wrappers
+
+This is essentially building our own uvtomesh equivalent. ~2-3 days of focused SN work.
+
+### Definitive 95% status
+
+**Architecture wall**: BROKEN ✓ (CreateView)
+**Asset IDs**: ALL CRACKED ✓ (`pt`, `net.maxon.node.array.readvalueatindex2`, `getpolygonselectiondata`, `gpsd.ptsposout` for per-poly-vert positions)
+**Domain mismatch**: SOLVED ✓ (gpsd.ptsposout gives 4664-length per-poly-vert)
+**Atomic-transaction discipline**: VALIDATED ✓
+**Last 5%**: build the right chain in ONE atomic transaction — OR build a custom capsule from scratch — without uvtomesh's fragility
+
+### Working production tool
+
+v7 Python tag morph slider continues as the artist-shipping tool. Pure-SN morph achievable but requires either:
+1. Lucky one-shot atomic chain in cloned uvtomesh (high precision needed)
+2. Custom capsule from scratch with our own evaluation scope
+
+Documentation now contains 20 iterations of findings — the recipe is in this doc + the GPT doctrine + the asset ID memory.
