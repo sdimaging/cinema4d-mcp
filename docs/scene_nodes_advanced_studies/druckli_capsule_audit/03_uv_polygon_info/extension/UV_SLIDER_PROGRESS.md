@@ -258,3 +258,152 @@ Possible fixes to try next:
 3. **Wire op_g.geometry from set.geometryout AND op_g.input from root.geometryin** simultaneously — maybe op needs both the value-to-inject AND the chain-context
 
 For now: v4 clone (Path 2) remains the working slider deliverable. True topology-preserving morph deferred pending a session focused on cracking the op container evaluation model.
+
+---
+
+## Iteration 7 (2026-05-02) — TRUE 3D ↔ FLAT MORPH WORKING (Python tag)
+
+After hitting walls in SN op-container evaluation, switched to a guaranteed-working pure-Python approach. Result: **true topology-preserving 3D ↔ flat morph slider with smooth interpolation.** Visual proof at `v5_morph_factor_000_v2.png`, `v5_morph_factor_050_v2.png`, `v5_morph_factor_100_v2.png`.
+
+### Architecture
+
+1. **Clone the source 3D head** (preserves topology + UV tag)
+2. **Pre-compute averaged UV-per-vertex** at scene-build time:
+   - Loop polygons, accumulate per-corner UV into per-vertex buckets
+   - Divide by count → averaged UV per source vertex
+   - This collapses the "split-vertex" problem (multiple UVs per vertex from seams → one)
+3. **Cache** original positions + averaged UVs in the polygon's `BaseContainer[99999]` (sub-BC with vec3 entries indexed 0..N (orig) and 10000..10000+N (uv))
+4. **Add UD sliders**: `Factor` (0-1, 3D ↔ flat) + `Scale` (0-200, flat layout size)
+5. **Add a Python tag** that on every evaluation:
+   - Reads cached orig pos + uv per vertex
+   - Computes flat pos = `(uv.x * scale, -uv.y * scale, 0)`
+   - Outputs `lerp(orig_pos, flat_pos, factor)` per vertex
+   - Writes via `SetAllPoints`
+
+### Sweep verified
+
+| Factor | rad bounds | Description |
+|--:|---|---|
+| 0.0  | (17.438, 21.238, 12.499) | Original 3D head shape |
+| 0.25 | (14.572, 21.843, 9.374)  | Slight flatten — Z compresses |
+| 0.5  | (14.389, 22.494, 6.249)  | Halfway — Z half, sides spreading |
+| 0.75 | (17.174, 23.144, 3.125)  | Nearly flat — Z thin, X/Y close to flat |
+| 1.0  | (21.912, 23.795, 0.0)    | Fully flat (z=0), UV layout dimensions |
+
+Smooth, continuous, no jumps. Same topology throughout (1168 verts).
+
+### Why Python tag succeeded where Pose Morph + SN failed
+
+- **Pose Morph** stored both Base 3D + Flat morphs but apparently shared underlying data references. Both `m0.Apply()` and `m1.Apply()` produced identical output (flat). Either a Store() bug or a CAMORPH_MODE configuration we didn't crack. The Apply method works directly, but the slider param isn't auto-evaluating in our setup.
+- **SN op-wrapper chain** doesn't wedge but doesn't apply iteration math at the top-level deformer scope. Math runs but is silently bypassed. The op containers establish an evaluation scope that the math chain isn't entering.
+- **Python tag** runs in C4D's standard expression-evaluation phase, has direct access to BaseContainer cache + UD params, and does the per-vertex math in plain Python with `SetAllPoints`. No SN evaluation context to crack, no Pose Morph delta semantics, just a function evaluating per frame.
+
+### Files
+
+- `Build_UV_Slider_v5_python_morph.c4d` — WORKING true morph slider scene (gitignored; reproduce via the script in this doc)
+- `v5_morph_factor_000_v2.png`, `v5_morph_factor_050_v2.png`, `v5_morph_factor_100_v2.png` — visual proof of 3D ↔ flat continuous morph
+- `v5_morph_factor_025.png`, `v5_morph_factor_075.png` — additional sweep stops (older layout)
+
+### How to reproduce
+
+```python
+import c4d
+doc = c4d.documents.GetActiveDocument()
+
+def find_obj(o, name):
+    while o:
+        if o.GetName() == name: return o
+        r = find_obj(o.GetDown(), name)
+        if r: return r
+        o = o.GetNext()
+    return None
+
+head_orig = find_obj(doc.GetFirstObject(), "Generic Head Bust")
+mh = head_orig.GetClone(c4d.COPYFLAGS_NONE)
+mh.SetName("UV Morph Head LIVE")
+mh.SetAbsPos(head_orig.GetAbsPos() + c4d.Vector(70, 0, 0))
+doc.InsertObject(mh, pred=head_orig)
+
+# Bake averaged UV per vertex
+n = mh.GetPointCount()
+uvtag = mh.GetTag(c4d.Tuvw)
+uvw_sum = [c4d.Vector(0,0,0) for _ in range(n)]
+uvw_cnt = [0] * n
+for poly_idx in range(mh.GetPolygonCount()):
+    poly = mh.GetPolygon(poly_idx)
+    uv = uvtag.GetSlow(poly_idx)
+    corners = [poly.a, poly.b, poly.c, poly.d]
+    uv_corners = [uv["a"], uv["b"], uv["c"], uv["d"]]
+    is_tri = (poly.c == poly.d)
+    for ci in range(3 if is_tri else 4):
+        uvw_sum[corners[ci]] = uvw_sum[corners[ci]] + uv_corners[ci]
+        uvw_cnt[corners[ci]] += 1
+
+orig_pts = [mh.GetPoint(i) for i in range(n)]
+uv_avg = [uvw_sum[i]/uvw_cnt[i] if uvw_cnt[i]>0 else c4d.Vector(0,0,0) for i in range(n)]
+
+# Cache in BaseContainer
+data_bc = c4d.BaseContainer()
+for i in range(n):
+    data_bc.SetVector(i, orig_pts[i])
+    data_bc.SetVector(10000 + i, uv_avg[i])
+mh.GetDataInstance().SetContainer(99999, data_bc)
+
+# Add Factor + Scale UD sliders
+for ud_name, ud_short, ud_min, ud_max, ud_def, ud_step in [
+    ("Factor (0=3D, 1=Flat)", "Factor", 0.0, 1.0, 0.0, 0.01),
+    ("Scale (flat layout)",   "Scale",  0.0, 200.0, 50.0, 1.0),
+]:
+    bc_ud = c4d.GetCustomDataTypeDefault(c4d.DTYPE_REAL)
+    bc_ud[c4d.DESC_NAME] = ud_name
+    bc_ud[c4d.DESC_SHORT_NAME] = ud_short
+    bc_ud[c4d.DESC_MIN] = ud_min
+    bc_ud[c4d.DESC_MAX] = ud_max
+    bc_ud[c4d.DESC_STEP] = ud_step
+    bc_ud[c4d.DESC_DEFAULT] = ud_def
+    bc_ud[c4d.DESC_CUSTOMGUI] = c4d.CUSTOMGUI_REALSLIDER
+    bc_ud[c4d.DESC_ANIMATE] = c4d.DESC_ANIMATE_ON
+    bc_ud[c4d.DESC_UNIT] = c4d.DESC_UNIT_FLOAT
+    new_id = mh.AddUserData(bc_ud)
+    mh[new_id] = ud_def
+
+# Add Python tag — descIDs assumed Factor=(700,5,0)/(1,19,0), Scale=(700,5,0)/(2,19,0)
+py_tag = c4d.BaseTag(c4d.Tpython)
+py_tag.SetName("UV Morph (Python)")
+mh.InsertTag(py_tag)
+py_tag[c4d.TPYTHON_CODE] = '''import c4d
+def main():
+    obj = op.GetObject()
+    bc = obj.GetDataInstance()
+    cache = bc.GetContainer(99999)
+    if not cache: return
+    fid = c4d.DescID(c4d.DescLevel(700, 5, 0), c4d.DescLevel(1, 19, 0))
+    sid = c4d.DescID(c4d.DescLevel(700, 5, 0), c4d.DescLevel(2, 19, 0))
+    factor = obj[fid] if obj[fid] is not None else 0.0
+    scale  = obj[sid] if obj[sid] is not None else 50.0
+    n = obj.GetPointCount()
+    new_pts = []
+    for i in range(n):
+        orig = cache.GetVector(i)
+        uv = cache.GetVector(10000 + i)
+        flat = c4d.Vector(uv.x * scale, -uv.y * scale, 0)
+        new_pts.append(orig + (flat - orig) * factor)
+    obj.SetAllPoints(new_pts)
+    obj.Message(c4d.MSG_UPDATE)
+'''
+
+c4d.EventAdd(c4d.EVENT_FORCEREDRAW)
+```
+
+### What we now have
+
+1. **v4 clone slider** (commit 6979617) — flat-mesh-size slider via uvtomesh.inport scale (0 = collapsed to point, N = full flat layout). Topology-altering (4664 vs 1168 pts). Uses pure SN.
+2. **v5 Python morph slider** (this commit) — TRUE 3D ↔ flat morph via per-vertex lerp. Topology-preserving (1168 verts throughout). Uses Python tag, not SN.
+
+Two complementary approaches, both demoed and committed.
+
+### Lessons for future SN morph attempts
+
+- The DRuckli `uvtomesh` capsule + sister `set` + iteration pattern works flawlessly INSIDE the capsule scope — but reproducing that pattern at the top-level of a custom deformer requires understanding op container evaluation semantics that we haven't fully cracked.
+- The path forward for a pure-SN morph: build the entire chain INSIDE a sub-capsule (group via `MoveToGroup`), so the math + set + op wrappers share the same evaluation scope as DRuckli's working uvtomesh.
+- For now, hybrid (SN for procedural geometry generation + Python tag for per-vertex math) is the pragmatic working approach.
