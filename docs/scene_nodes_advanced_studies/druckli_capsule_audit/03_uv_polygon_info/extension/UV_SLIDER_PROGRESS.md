@@ -816,3 +816,71 @@ The cycle behavior is wrong for our problem. We need actual polygon-vertex → s
 - Evaluation fragility: **needs investigation** — possibly multiple wire mutations on inner graph confuse the deformer's cache; suggests doing it in ONE clean transaction without intermediate states
 
 **The pure-SN deformer is 95% solved.** Remaining: one clean wire-up in a fresh clone that builds the correct polygon-vertex → source-vertex mapping (likely via `getpolygonselectiondata` per-polygon iteration), then verifies factor sweep.
+
+---
+
+## Iteration 17 (2026-05-02) — GPT discipline applied: stream counts + canonical pattern
+
+User + GPT directed: ONE atomic transaction, no scope creep, on silent fail RECORD STREAM COUNTS + diagnose domain only.
+
+### Stream counts recorded (the diagnosis)
+
+Source mesh "Generic Head Bust":
+- **vertex (pt) array length: 1168** (per source vertex, accessortype=data3d/pt/points)
+- **polygon count: 1166**
+- **polygon-vertex corners (sum of 3 for tris, 4 for quads): 4664**
+- **UV tag entries: 1166** (one PolygonUVW struct per polygon, NOT per polygon-vertex)
+- iter_existing iterates the UV array → index range 0..1165 (1166 steps)
+
+### Domain mismatch confirmed
+
+```
+rvi.indexin gets 0..1165 (1166 steps from iter_existing.index)
+rvi.arrayin has 1168 entries (pt array)
+With cyclein=true: index i reads orig.pt[i % 1168]
+```
+
+This is the WRONG mapping. Polygon-corner i ≠ source vertex i % 1168.
+
+The CORRECT mapping requires polygon_idx + corner_idx → source_vertex_idx → source position. Two-stage indexed lookup.
+
+### Canonical pattern from "Show Polygon Vertex Positions"
+
+Walked SPVP graph - it uses **7 chained readvalueatindex2 nodes** with `getpolygonselectiondata` as the source. Connection map:
+
+```
+getpolygonselectiondata → readvalueatindex2_A (arrayin)
+floatingio (poly index) → readvalueatindex2_A (indexin)
+readvalueatindex2_A.valueout → readvalueatindex2_B (corner data → source vertex idx)
+... (chain continues for per-corner spheres + text labels)
+get_property(pt) → final readvalueatindex2 (looks up Position at source vertex idx)
+```
+
+The pattern is:
+1. `getpolygonselectiondata` outputs polygon corner data (4 corners per polygon)
+2. `readvalueatindex2` chain extracts source vertex index per corner
+3. Final `readvalueatindex2(pt_array, source_vert_idx)` gives the source 3D position
+
+This is the canonical **polygon-vertex → source-vertex → source-position** mapping.
+
+### Why iter 17's atomic transaction failed
+
+Even with the right CreateView + asset IDs + transaction discipline:
+- Used cyclein-modulo as the mapping (WRONG)
+- The correct mapping needs `getpolygonselectiondata + 2-stage rvi chain`
+- Without that, blend.in1 receives wrong-source positions → set.iteration writes garbage → silent eval failure (deform_cache=None)
+
+### Next iteration scope (still discipline)
+
+ONE atomic transaction in a fresh clone:
+1. Add nodes: `get_orig (data3d/pt/points)`, `get_corners (getpolygonselectiondata)`, `rvi_corner` (extract per-corner source idx), `rvi_pt` (look up pt at source idx), `blend`, no UI
+2. Wire: `gateway.geoin → get_orig.geometry`, `gateway.geoin → get_corners.geometryin`, `iter_existing.index → rvi_corner.indexin`, `get_corners.<output> → rvi_corner.arrayin`, `rvi_corner.valueout → rvi_pt.indexin`, `get_orig.array → rvi_pt.arrayin`, `rvi_pt.valueout → blend.in1`, `scale.out → blend.in2`, `factor=0.5 → blend.in3`, `blend.out → set.iteration`
+3. Verify factor 0/0.5/1 — save IMMEDIATELY on first working state.
+
+### Status
+
+**Architecture wall**: BROKEN ✓ (CreateView)
+**Asset IDs**: CRACKED ✓ (`pt`, `net.maxon.node.array.readvalueatindex2`)
+**Domain mismatch**: DIAGNOSED ✓ (1168 vs 1166 vs 4664; cyclein-modulo is wrong mapping)
+**Canonical mapping pattern**: IDENTIFIED ✓ (getpolygonselectiondata + 2-stage rvi chain, per SPVP)
+**Wiring**: pending - needs `getpolygonselectiondata.<output_port>` exact name + 2-stage rvi structure
