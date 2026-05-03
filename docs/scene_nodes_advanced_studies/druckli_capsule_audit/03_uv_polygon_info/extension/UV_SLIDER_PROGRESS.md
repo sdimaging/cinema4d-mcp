@@ -678,3 +678,59 @@ Next iteration after C4D restart:
 4. Test factor=0/0.5/1.0 sweep
 
 Working production tool meanwhile: v7 Python tag morph slider.
+
+---
+
+## Iteration 15 (2026-05-02) — CreateView confirmed across restart + lockstep iteration is the remaining puzzle
+
+After C4D restart, re-confirmed `graph.CreateView(filter=3, rootPath=uvtomesh.GetPath())` works:
+- Cloned Build UV Preview into "SN MORPH WIP - inner_view proven"
+- `AddChild` on the inner_view added 4 nodes inside uvtomesh
+- Confirmed via outer-graph walk: uvtomesh's inner node count is now 13 (was 9), persistent across save (`Build_UV_Slider_v8_inner_view_proof.c4d`)
+
+So the **inner-graph editing capability is real and reproducible**. The architectural wall is broken.
+
+### Probed accessortype valid values
+
+Via `set` on `accessortype` port + read-back:
+- ✓ `data3d` (per-source-vertex Vec3, length 1168 for head)
+- ✓ `uv` (per-polygon-vertex Vec2-like, length 4664)
+- ✓ `normal`, `color`
+- ✗ `position`, `polyvertexvalues`, `points` (silently dropped — not registered)
+
+The DRuckli inner `get` uses `accessortype=uv, accessorname=""` to get per-polygon-vertex UVs. We need an analogue for Position. The wedge in iter 14 was caused by `accessortype=uv, accessorname="Position"` mismatch (UV-shaped accessor + Vec3 attribute = invalid).
+
+### Lockstep iteration challenge
+
+The fundamental data-flow puzzle:
+- Existing chain inside uvtomesh runs an iteration over `get_uv.array` (4664 entries)
+- `set.iteration` runs that many times, writing to OUTPUT mesh's vertex i (4664 verts)
+- For per-vertex blend with orig 3D position, blend.in1 needs orig pos AT iteration step i
+- `get_orig` with `accessortype=data3d` gives per-source-vertex Position (length 1168)
+- A parallel `iter_orig` over the 1168-length array runs out at iteration 1168 while the main loop continues to 4664 → blend.in1 has no value → empty output
+
+The mismatch between source-vertex domain (1168) and polygon-vertex domain (4664) means we can't directly blend.
+
+### Three concrete paths forward (require dedicated SDK research)
+
+1. **Find a per-polygon-vertex Position accessor.** No combination of accessortype+componentin we tried reads Position with length 4664. Maxon SDK docs likely have the right config; needs reading the geometryabstraction docs.
+
+2. **Build a polygon-vertex → source-vertex MAPPING via accessory nodes.** Possibly via `getpolygonselectiondata`, `containeriteration` over polygons, `read polygon corner index`. Requires constructing the mapping in SN graph form.
+
+3. **Change uvtomesh's output topology to match input** (1168 verts, no seam splits). Then iter_orig (1168) and set.iteration (1168) align naturally. But uvtomesh's whole purpose is to split seams — modifying it to NOT split would just give us the v5 same-topology Python tag morph behavior, and we'd lose the proper UV-island layout at factor=1.
+
+### Status
+
+- **Inner-graph editing wall**: BROKEN ✓ (CreateView works)
+- **Lockstep iteration data flow**: open puzzle, requires reading Maxon's geometryabstraction docs OR finding the per-polygon-vertex Position accessor name
+
+The remaining problem is purely "what's the right accessor config" — a question for the SDK docs, not a Python binding limitation.
+
+### Files
+
+- `Build_UV_Slider_v8_inner_view_proof.c4d` — clone with 4 morph nodes inside uvtomesh, NOT WIRED (preserves working flat output as baseline). Demonstrates the CreateView mutation is persistent.
+- `UV_SLIDER_PROGRESS.md` — this doc, 15 iterations of findings.
+
+### What we proved
+
+12 iterations claimed pure-SN was impossible from Python. Iteration 14-15 proved that's WRONG. The iter 11 wall #2 ("AddChild has no parent argument") was a misdiagnosis. **Pure-SN authoring from Python IS possible via `graph.CreateView(filter, rootPath)`**. The morph itself is one accessor config away from working.
