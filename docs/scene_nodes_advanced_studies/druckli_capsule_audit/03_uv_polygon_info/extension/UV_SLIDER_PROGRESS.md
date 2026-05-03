@@ -141,3 +141,70 @@ The DRuckli pattern AVOIDS this by wrapping `set` inside `geometry.op` + `filter
 1. **Don't wire `set.geometryout` directly to `root.geometryout` when set has `.iteration`** — wedges main thread (this iteration).
 2. **Don't wire whole-array math** (scale.in1 = orig_get.array, blend.in1 = orig_get.array) — silently produces empty geometry (iter 1-3 of v3.x).
 3. **Don't wire dual-consumer of root.geometryin** to both a math chain and a pass-through — likely causes the original wire-surgery failures (iter 1-3 of v3.x).
+
+---
+
+## Iteration 5 (2026-05-02) — WORKING SLIDER ✓ via Path 2 (clone)
+
+After iter 4's wedge, switched to wholesale-clone strategy. The WIN:
+
+```python
+# In a doc with original Build UV Preview deformer present:
+clone = host_orig.GetClone(c4d.COPYFLAGS_NO_ANIMATION)
+clone.SetName("UV Slider v2")
+doc.InsertObject(clone, parent=parent_inst, pred=host_orig)
+```
+
+`BaseObject.GetClone()` preserves the entire SN graph including all 9 inner nodes of `uvtomesh` and its 14 internal wires — confirmed by walking the clone's graph (6 top-level / 9 inner). No Python graph manipulation required to reproduce the working pipeline.
+
+### The slider mechanism
+
+The exposed AM parameter on uvtomesh is `inport@PxTGkq2oDdAgGRlbBgxn7m` (a Float64). Internally it drives `scale.in2` of the per-vertex math chain — meaning it scales the entire flat layout linearly.
+
+Sweep results (clone deformer, original disabled):
+
+| scale | rad | description |
+|---:|---|---|
+| 0   | (0, 0, 0)         | flat mesh collapsed to point |
+| 25  | (12.41, 12.16, 0) | half-size flat unwrap |
+| 50  | (24.82, 24.32, 0) | DRuckli default (matches viewport) |
+| 100 | (49.64, 48.64, 0) | 2× full-size flat |
+
+All sub-50 values are smooth and continuous. Slider works perfectly with NO code changes — just driving the existing `inport@PxTGkq…` value.
+
+**Visual proof:** `v4_no_deformer_3d.png` (deformer disabled = orig 3D head shown), `v4_slider_scale_000/025/050/100.png` (the UV-preview instance shrinks/expands continuously while the source 3D head stays put on the left).
+
+### IMPORTANT — what kind of slider this is
+
+This is a **flat-mesh-size slider, NOT a 3D↔flat morph**. The clone produces a TOPOLOGICALLY DIFFERENT mesh (4664 pts vs orig 1168 pts) because uvtomesh splits seam vertices to lay them flat. So:
+
+- Slider can smoothly scale the flat unwrap from 0 to N (collapse → full size)
+- Slider CANNOT smoothly morph between the orig 3D head shape and the flat unwrap
+
+A true 3D↔flat morph requires a **different deformer architecture** that preserves the source topology and only changes per-vertex positions (not vertex count).
+
+### Path forward — true topology-preserving morph
+
+This needs a fresh SN Deformer that:
+
+1. Reads each source vertex's UV coordinate (averaged across seams if vertex has multiple UVs)
+2. Computes `flat_pos = (uv.x * scale, -uv.y * scale, 0)` per vertex
+3. Reads source vertex position
+4. Outputs `lerp(orig_pos, flat_pos, factor)` per vertex
+5. **Same topology as input** — no seam splits
+
+The architecture must use:
+- `containeriteration` to iterate per-vertex (we proved this is needed for math nodes)
+- `set.iteration` for writeback (we proved this is the bridge)
+- **`net.maxon.neutron.op.geometry` + `net.maxon.neutron.op.filter` wrappers** to establish evaluation boundaries (the missing piece from iter 4 wedge)
+
+Per-vertex UV averaging is the new puzzle: PolygonVertexValues "UVW" has 4664 entries (one per polygon-vertex) but we want one per VERTEX (1168 entries). Need to either:
+- Pre-bake an averaged UV-per-vertex attribute on the source mesh (one-time setup)
+- Use `componentin = "polygons"` or similar to access per-poly-vertex via the iteration index, mapping back to vertex via topology lookup
+
+## Files in this folder (after iter 5)
+- `Build_UV_Slider_v4_clone.c4d` — WORKING clone with slider via uvtomesh.inport scale (LOCAL ONLY — `.c4d` files are gitignored repo-wide; reproduce by loading the original UV-Polygon-Info_Example_01 snapshot and running the GetClone() snippet at the top of iter 5)
+- `v4_no_deformer_3d.png`, `v4_slider_scale_000.png`, `v4_slider_scale_025.png`, `v4_slider_scale_050.png`, `v4_slider_scale_100.png` — visual proof
+- `UVTOMESH_GRANULAR_REFERENCE.md` — full anatomy + key insights
+- `UV_SLIDER_PROGRESS.md` — this doc
+- (older v1/v2/v3 .c4d files + screenshots — failed wire-surgery attempts, kept as cautionary tale)
