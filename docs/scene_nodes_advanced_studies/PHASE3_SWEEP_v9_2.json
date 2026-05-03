@@ -1,0 +1,209 @@
+{
+  "RD": {
+    "hosts": [
+      {
+        "name": "Reaction_Diffusion",
+        "n": 181,
+        "w": 292,
+        "node_pct": 100.0,
+        "wire_pct": 92.8,
+        "clones": 13
+      },
+      {
+        "name": "Reaction_Diffusion_Simple",
+        "n": 89,
+        "w": 161,
+        "node_pct": 100.0,
+        "wire_pct": 95.7,
+        "clones": 6
+      }
+    ]
+  },
+  "VolInf": {
+    "hosts": [
+      {
+        "name": "Object Group",
+        "n": 125,
+        "w": 289,
+        "node_pct": 100.0,
+        "wire_pct": 98.3,
+        "clones": 14
+      }
+    ]
+  },
+  "GrowPts_Simple": {
+    "hosts": [
+      {
+        "name": "Point_Grower Simple",
+        "n": 75,
+        "w": 93,
+        "node_pct": 100.0,
+        "wire_pct": 97.8,
+        "clones": 7
+      }
+    ]
+  },
+  "Mycelium_Tut": {
+    "hosts": [
+      {
+        "name": "Nodes Spline",
+        "n": 61,
+        "w": 100,
+        "node_pct": 100.0,
+        "wire_pct": 89.0,
+        "clones": 5
+      }
+    ]
+  },
+  "Mycelium_V3": {
+    "hosts": [
+      {
+        "name": "Myzel_Generator_V3.1",
+        "n": 299,
+        "w": 620,
+        "node_pct": 100.0,
+        "wire_pct": 98.9,
+        "clones": 10
+      }
+    ]
+  },
+  "OctTree_Tut": {
+    "hosts": []
+  },
+  "Coral_Tut": {
+    "hosts": [
+      {
+        "name": "Geometry Axis",
+        "n": 157,
+        "w": 278,
+        "node_pct": 100.0,
+        "wire_pct": 95.7,
+        "clones": 8
+      },
+      {
+        "name": "Mask Y",
+        "n": 69,
+        "w": 121,
+        "node_pct": 100.0,
+        "wire_pct": 100.0,
+        "clones": 1
+      }
+    ]
+  },
+  "MatchSize_StoneCircle": {
+    "hosts": [
+      {
+        "name": "Match Size",
+        "n": 203,
+        "w": 367,
+        "node_pct": 100.0,
+        "wire_pct": 80.1,
+        "clones": 4
+      },
+      {
+        "name": "Stack Stones",
+        "n": 214,
+        "w": 385,
+        "node_pct": 100.0,
+        "wire_pct": 100.0,
+        "clones": 1
+      },
+      {
+        "name": "Match Size",
+        "n": 203,
+        "w": 367,
+        "node_pct": 100.0,
+        "wire_pct": 80.1,
+        "clones": 4
+      }
+    ]
+  },
+  "MatchSize_GlobalLocal": {
+    "hosts": [
+      {
+        "name": "Match Size",
+        "n": 203,
+        "w": 367,
+        "node_pct": 100.0,
+        "wire_pct": 80.1,
+        "clones": 4
+      },
+      {
+        "name": "Match Size",
+        "n": 203,
+        "w": 367,
+        "node_pct": 100.0,
+        "wire_pct": 80.1,
+        "clones": 4
+      },
+      {
+        "name": "Match Size",
+        "n": 203,
+        "w": 367,
+        "node_pct": 100.0,
+        "wire_pct": 80.1,
+        "clones": 4
+      },
+      {
+        "name": "Match Size",
+        "n": 203,
+        "w": 367,
+        "node_pct": 100.0,
+        "wire_pct": 80.1,
+        "clones": 4
+      },
+      {
+        "name": "Match Size",
+        "n": 203,
+        "w": 367,
+        "node_pct": 100.0,
+        "wire_pct": 80.1,
+        "clones": 4
+      }
+    ]
+  },
+  "MatchSize_Basic": {
+    "hosts": [
+      {
+        "name": "Match Size",
+        "n": 203,
+        "w": 367,
+        "node_pct": 100.0,
+        "wire_pct": 80.1,
+        "clones": 4
+      }
+    ]
+  },
+  "Spiderweb_Setups": {
+    "hosts": [
+      {
+        "name": "Spiderweb_Complex_01",
+        "n": 159,
+        "w": 255,
+        "node_pct": 100.0,
+        "wire_pct": 94.1,
+        "clones": 11
+      },
+      {
+        "name": "Spiderweb_Simple_01",
+        "n": 53,
+        "w": 100,
+        "node_pct": 100.0,
+        "wire_pct": 91.0,
+        "clones": 1
+      }
+    ]
+  },
+  "Crystal_Tut": {
+    "hosts": [
+      {
+        "name": "Store for next Frame",
+        "err": "'NoneType' object has no attribute 'GetGraph'"
+      },
+      {
+        "name": "Store for next Frame",
+        "err": "'NoneType' object has no attribute 'GetGraph'"
+      }
+    ]
+  }
+}
