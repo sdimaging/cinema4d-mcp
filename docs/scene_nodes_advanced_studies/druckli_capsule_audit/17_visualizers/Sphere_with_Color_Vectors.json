@@ -1,0 +1,3732 @@
+{
+  "source_host": "Sphere with Color Vectors",
+  "source_host_type": 180420600,
+  "node_count": 119,
+  "capsule_count": 24,
+  "wire_count": 188,
+  "defaults_count": 251,
+  "nodes": [
+    {
+      "path": "active@NbL6goi7PdZqJdpHBbOLel",
+      "id": "active@NbL6goi7PdZqJdpHBbOLel",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 3
+    },
+    {
+      "path": "active@NbL6goi7PdZqJdpHBbOLel/selectionoperator",
+      "id": "selectionoperator",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "active@NbL6goi7PdZqJdpHBbOLel/variadictolist",
+      "id": "variadictolist",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "active@NbL6goi7PdZqJdpHBbOLel/selectionstringtoselection",
+      "id": "selectionstringtoselection",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "id": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 45
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h",
+      "id": "mainnoise@UjAGzhcWI5XvVeJrrp4T6h",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 9
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.arithmetic@OlT8tI6IFh6jDc4Od5tGZV",
+      "id": "net.maxon.node.arithmetic@OlT8tI6IFh6jDc4Od5tGZV",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU",
+      "id": "asset@RV98dcm1Ad9lrBFw$HZsEU",
+      "depth": 2,
+      "is_capsule": true,
+      "inner_count": 11
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@GjN0HFyULREv5CamEwwiSd",
+      "id": "net.maxon.pattern.node.generator.noise@GjN0HFyULREv5CamEwwiSd",
+      "depth": 3,
+      "is_capsule": true,
+      "inner_count": 2
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@GjN0HFyULREv5CamEwwiSd/_0",
+      "id": "_0",
+      "depth": 4,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@GjN0HFyULREv5CamEwwiSd/_1",
+      "id": "_1",
+      "depth": 4,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.arithmetic@c827L_C8GJfjWLBawjHgnf",
+      "id": "net.maxon.node.arithmetic@c827L_C8GJfjWLBawjHgnf",
+      "depth": 3,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.effect.contrast@LnScVUXCIxThRElBzPCXvB",
+      "id": "net.maxon.pattern.node.effect.contrast@LnScVUXCIxThRElBzPCXvB",
+      "depth": 3,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.conversion.splitcolorcomponents@btCXi7RBGxAouI60oDMgrF",
+      "id": "net.maxon.pattern.node.conversion.splitcolorcomponents@btCXi7RBGxAouI60oDMgrF",
+      "depth": 3,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.smoothstep@Us2elXOPPlKvvdPfgJJtvj",
+      "id": "net.maxon.node.smoothstep@Us2elXOPPlKvvdPfgJJtvj",
+      "depth": 3,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.smoothstep@OgOfktxmKFtpD_EmWNUbFj",
+      "id": "net.maxon.node.smoothstep@OgOfktxmKFtpD_EmWNUbFj",
+      "depth": 3,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.smoothstep@N0wfOVyLHptkiYMbkh4Y1g",
+      "id": "net.maxon.node.smoothstep@N0wfOVyLHptkiYMbkh4Y1g",
+      "depth": 3,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb",
+      "id": "net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb",
+      "depth": 3,
+      "is_capsule": true,
+      "inner_count": 2
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb/_0",
+      "id": "_0",
+      "depth": 4,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb/_1",
+      "id": "_1",
+      "depth": 4,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf",
+      "id": "net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf",
+      "depth": 3,
+      "is_capsule": true,
+      "inner_count": 2
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf/_0",
+      "id": "_0",
+      "depth": 4,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf/_1",
+      "id": "_1",
+      "depth": 4,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.arithmetic@EeNk7mQKL58lGZ_KvDSiHY",
+      "id": "net.maxon.node.arithmetic@EeNk7mQKL58lGZ_KvDSiHY",
+      "depth": 3,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.conversion.composecolor@Jlb4gtbhLlynt_FQIb0Gge",
+      "id": "net.maxon.pattern.node.conversion.composecolor@Jlb4gtbhLlynt_FQIb0Gge",
+      "depth": 3,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.if@dX7EhCO$DV0gmb6hnjkKFP",
+      "id": "net.maxon.node.if@dX7EhCO$DV0gmb6hnjkKFP",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.arithmetic@b3PQCpmOIdjgY3wOHH0VwS",
+      "id": "net.maxon.node.arithmetic@b3PQCpmOIdjgY3wOHH0VwS",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.render.node.placement2d@AXz_E0wdMdCvCYvy9uJAVN",
+      "id": "net.maxon.render.node.placement2d@AXz_E0wdMdCvCYvy9uJAVN",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "id": "net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.switch@QbhBf33eKB4qHDZABQjx9V",
+      "id": "net.maxon.node.switch@QbhBf33eKB4qHDZABQjx9V",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.type@bL55TUi9LVktC$XAOpUEDv",
+      "id": "net.maxon.node.type@bL55TUi9LVktC$XAOpUEDv",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.arithmetic@XXIohaQqIBbuVrhfhkoOjs",
+      "id": "net.maxon.node.arithmetic@XXIohaQqIBbuVrhfhkoOjs",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/normalize@XpL1_CqiMFOmE3rrekKa3g",
+      "id": "normalize@XpL1_CqiMFOmE3rrekKa3g",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/type@Adr0K7EcKN_pIQ6S3VmQYg",
+      "id": "type@Adr0K7EcKN_pIQ6S3VmQYg",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/floatingio@CTbMTm$nIpqkwpt1YuHErh",
+      "id": "floatingio@CTbMTm$nIpqkwpt1YuHErh",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/sampleshader@KdGPEnKAGVejc2E8ZPhZDm",
+      "id": "sampleshader@KdGPEnKAGVejc2E8ZPhZDm",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 5
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/sampleshader@KdGPEnKAGVejc2E8ZPhZDm/setshadingcontext@HbKqNm$ZKdCpjQp83hPguu",
+      "id": "setshadingcontext@HbKqNm$ZKdCpjQp83hPguu",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/sampleshader@KdGPEnKAGVejc2E8ZPhZDm/passthrough@BhhAaPAJJ9FpPZ7I13Jyfr",
+      "id": "passthrough@BhhAaPAJJ9FpPZ7I13Jyfr",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/sampleshader@KdGPEnKAGVejc2E8ZPhZDm/type@HlO_12lxG5Jk$_HCX$q0bg",
+      "id": "type@HlO_12lxG5Jk$_HCX$q0bg",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/sampleshader@KdGPEnKAGVejc2E8ZPhZDm/switch@fZezVSemBpipdQRzdD7$Sl",
+      "id": "switch@fZezVSemBpipdQRzdD7$Sl",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/sampleshader@KdGPEnKAGVejc2E8ZPhZDm/setshadingcontext@drfUW6VoGxfkH2JmhHYbWl",
+      "id": "setshadingcontext@drfUW6VoGxfkH2JmhHYbWl",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/maprange@SNIRToK2Ot5r_liUubp2Lh",
+      "id": "maprange@SNIRToK2Ot5r_liUubp2Lh",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.7",
+      "id": "geometryset.7",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 1
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.7/set",
+      "id": "set",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.6",
+      "id": "setelement.6",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.0",
+      "id": "colors.geometryget.0",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 1
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.0/get",
+      "id": "get",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.6",
+      "id": "geometryset.6",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 1
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.6/set",
+      "id": "set",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.7",
+      "id": "getelement.7",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/normals.geometryget.0",
+      "id": "normals.geometryget.0",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 1
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/normals.geometryget.0/get",
+      "id": "get",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.7",
+      "id": "setelement.7",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.8",
+      "id": "getelement.8",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/select",
+      "id": "select",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 3
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/select/selectionoperator",
+      "id": "selectionoperator",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/select/variadictolist",
+      "id": "variadictolist",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/select/selectionstringtoselection",
+      "id": "selectionstringtoselection",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo",
+      "id": "pointinfo",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 8
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/selfromptids",
+      "id": "selfromptids",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/ptposfrompolyids",
+      "id": "ptposfrompolyids",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/selectionstringparser",
+      "id": "selectionstringparser",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/vertexnormalsfromptids",
+      "id": "vertexnormalsfromptids",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/weightsfromptids",
+      "id": "weightsfromptids",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/coloralhpafromptids",
+      "id": "coloralhpafromptids",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/polyidsfromptids",
+      "id": "polyidsfromptids",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/edgesfromptids",
+      "id": "edgesfromptids",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/weights.geometryget.0",
+      "id": "weights.geometryget.0",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 1
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/weights.geometryget.0/get",
+      "id": "get",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.9",
+      "id": "geometryset.9",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 1
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.9/set",
+      "id": "set",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.8",
+      "id": "setelement.8",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.9",
+      "id": "getelement.9",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.9",
+      "id": "setelement.9",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.8",
+      "id": "geometryset.8",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 1
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.8/set",
+      "id": "set",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/if",
+      "id": "if",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.5",
+      "id": "getelement.5",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.0",
+      "id": "getelement.0",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.3",
+      "id": "getelement.3",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/transfer_selection",
+      "id": "transfer_selection",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 2
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/transfer_selection/modelingoperator",
+      "id": "modelingoperator",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/transfer_selection/parambuilder",
+      "id": "parambuilder",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/ratio.divide",
+      "id": "ratio.divide",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/ratio.max",
+      "id": "ratio.max",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/iterate",
+      "id": "iterate",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.6",
+      "id": "getelement.6",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.2",
+      "id": "getelement.2",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection",
+      "id": "pointinfoselection",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 8
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection/selfromptids",
+      "id": "selfromptids",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection/ptposfrompolyids",
+      "id": "ptposfrompolyids",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection/selectionstringparser",
+      "id": "selectionstringparser",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection/vertexnormalsfromptids",
+      "id": "vertexnormalsfromptids",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection/weightsfromptids",
+      "id": "weightsfromptids",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection/coloralhpafromptids",
+      "id": "coloralhpafromptids",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection/polyidsfromptids",
+      "id": "polyidsfromptids",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection/edgesfromptids",
+      "id": "edgesfromptids",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.4",
+      "id": "getelement.4",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/corenode.neighbors",
+      "id": "corenode.neighbors",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/ratio.add",
+      "id": "ratio.add",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getcount",
+      "id": "getcount",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.2",
+      "id": "colors.geometryget.2",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 1
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.2/get",
+      "id": "get",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.11",
+      "id": "getelement.11",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.10",
+      "id": "setelement.10",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.11",
+      "id": "setelement.11",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.10",
+      "id": "geometryset.10",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 1
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.10/set",
+      "id": "set",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.10",
+      "id": "getelement.10",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.1",
+      "id": "colors.geometryget.1",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 1
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.1/get",
+      "id": "get",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.11",
+      "id": "geometryset.11",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 1
+    },
+    {
+      "path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.11/set",
+      "id": "set",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "sphere@ZcFGixi5DJsmdHxA2$Jpmn",
+      "id": "sphere@ZcFGixi5DJsmdHxA2$Jpmn",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 3
+    },
+    {
+      "path": "sphere@ZcFGixi5DJsmdHxA2$Jpmn/parambuilder",
+      "id": "parambuilder",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "sphere@ZcFGixi5DJsmdHxA2$Jpmn/defaultselections",
+      "id": "defaultselections",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "sphere@ZcFGixi5DJsmdHxA2$Jpmn/generategeometry",
+      "id": "generategeometry",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "context_externaltimeinput",
+      "id": "context_externaltimeinput",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "context_notime",
+      "id": "context_notime",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    }
+  ],
+  "wires": [
+    {
+      "src_path": "active@NbL6goi7PdZqJdpHBbOLel",
+      "src_port": "geometryout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dst_port": "geometryin"
+    },
+    {
+      "src_path": "active@NbL6goi7PdZqJdpHBbOLel/selectionoperator",
+      "src_port": "geometryout",
+      "dst_path": "active@NbL6goi7PdZqJdpHBbOLel",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "active@NbL6goi7PdZqJdpHBbOLel/variadictolist",
+      "src_port": "geometryarrayout",
+      "dst_path": "active@NbL6goi7PdZqJdpHBbOLel/selectionoperator",
+      "dst_port": "geometryarrayin"
+    },
+    {
+      "src_path": "active@NbL6goi7PdZqJdpHBbOLel/selectionstringtoselection",
+      "src_port": "selection",
+      "dst_path": "active@NbL6goi7PdZqJdpHBbOLel/selectionoperator",
+      "dst_port": "selectionfromstring"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "src_port": "pointout_position",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb/_0",
+      "dst_port": "_0"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "src_port": "pointout.weights._0",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb/_0",
+      "dst_port": "_0"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "src_port": "pointout.colors._0",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb/_0",
+      "dst_port": "_0"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "src_port": "pointout.normals._0",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb/_0",
+      "dst_port": "_0"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "src_port": "pointout.colors._1",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb/_0",
+      "dst_port": "_0"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "src_port": "pointout.colors._2",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb/_0",
+      "dst_port": "_0"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h",
+      "src_port": "outport@FHbBmNwPBlVg8FPOMo15Bg",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/sampleshader@KdGPEnKAGVejc2E8ZPhZDm",
+      "dst_port": "attr.2ccb9fffaa4f419395c22426c1b3d104"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.arithmetic@OlT8tI6IFh6jDc4Od5tGZV",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "dst_port": "spacescale"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU",
+      "src_port": "outport@I1BlgsiRIVhrgjMiM9ptRe",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.if@dX7EhCO$DV0gmb6hnjkKFP",
+      "dst_port": "in2"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU",
+      "src_port": "outport@KI5Yr081Ot6mjyeRbI5Udd",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.if@dX7EhCO$DV0gmb6hnjkKFP",
+      "dst_port": "in3"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@GjN0HFyULREv5CamEwwiSd",
+      "src_port": "result",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.smoothstep@Us2elXOPPlKvvdPfgJJtvj",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@GjN0HFyULREv5CamEwwiSd/_0",
+      "src_port": "noisetable",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf/_1",
+      "dst_port": "noisetable"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@GjN0HFyULREv5CamEwwiSd/_1",
+      "src_port": "result",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@GjN0HFyULREv5CamEwwiSd",
+      "dst_port": "result"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.arithmetic@c827L_C8GJfjWLBawjHgnf",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf",
+      "dst_port": "seed"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.arithmetic@c827L_C8GJfjWLBawjHgnf",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.arithmetic@EeNk7mQKL58lGZ_KvDSiHY",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.effect.contrast@LnScVUXCIxThRElBzPCXvB",
+      "src_port": "result",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU",
+      "dst_port": "outport@I1BlgsiRIVhrgjMiM9ptRe"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.effect.contrast@LnScVUXCIxThRElBzPCXvB",
+      "src_port": "result",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.conversion.splitcolorcomponents@btCXi7RBGxAouI60oDMgrF",
+      "dst_port": "color"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.conversion.splitcolorcomponents@btCXi7RBGxAouI60oDMgrF",
+      "src_port": "r",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU",
+      "dst_port": "outport@KI5Yr081Ot6mjyeRbI5Udd"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.smoothstep@Us2elXOPPlKvvdPfgJJtvj",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.conversion.composecolor@Jlb4gtbhLlynt_FQIb0Gge",
+      "dst_port": "red"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.smoothstep@OgOfktxmKFtpD_EmWNUbFj",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.conversion.composecolor@Jlb4gtbhLlynt_FQIb0Gge",
+      "dst_port": "green"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.smoothstep@N0wfOVyLHptkiYMbkh4Y1g",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.conversion.composecolor@Jlb4gtbhLlynt_FQIb0Gge",
+      "dst_port": "blue"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb",
+      "src_port": "result",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.smoothstep@N0wfOVyLHptkiYMbkh4Y1g",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb/_0",
+      "src_port": "noisetable",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf/_1",
+      "dst_port": "noisetable"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb/_1",
+      "src_port": "result",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb",
+      "dst_port": "result"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf",
+      "src_port": "result",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.smoothstep@OgOfktxmKFtpD_EmWNUbFj",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf/_0",
+      "src_port": "noisetable",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf/_1",
+      "dst_port": "noisetable"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf/_1",
+      "src_port": "result",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf",
+      "dst_port": "result"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.arithmetic@EeNk7mQKL58lGZ_KvDSiHY",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb",
+      "dst_port": "seed"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.conversion.composecolor@Jlb4gtbhLlynt_FQIb0Gge",
+      "src_port": "result",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.effect.contrast@LnScVUXCIxThRElBzPCXvB",
+      "dst_port": "color"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.if@dX7EhCO$DV0gmb6hnjkKFP",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h",
+      "dst_port": "outport@FHbBmNwPBlVg8FPOMo15Bg"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.arithmetic@b3PQCpmOIdjgY3wOHH0VwS",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.render.node.placement2d@AXz_E0wdMdCvCYvy9uJAVN",
+      "dst_port": "locallength"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.render.node.placement2d@AXz_E0wdMdCvCYvy9uJAVN",
+      "src_port": "result",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb/_0",
+      "dst_port": "_0"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "src_port": "result",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf/_1",
+      "dst_port": "_1"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.switch@QbhBf33eKB4qHDZABQjx9V",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU",
+      "dst_port": "inport@HcMTjP1iBhqn_XQ_26NyVb"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.type@bL55TUi9LVktC$XAOpUEDv",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.arithmetic@XXIohaQqIBbuVrhfhkoOjs",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.arithmetic@XXIohaQqIBbuVrhfhkoOjs",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.arithmetic@OlT8tI6IFh6jDc4Od5tGZV",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.arithmetic@XXIohaQqIBbuVrhfhkoOjs",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.arithmetic@b3PQCpmOIdjgY3wOHH0VwS",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/normalize@XpL1_CqiMFOmE3rrekKa3g",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/maprange@SNIRToK2Ot5r_liUubp2Lh",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/type@Adr0K7EcKN_pIQ6S3VmQYg",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dst_port": "pointout.colors._1"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/floatingio@CTbMTm$nIpqkwpt1YuHErh",
+      "src_port": "in1.pointin.normals._0",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dst_port": "pointout.colors._0"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/sampleshader@KdGPEnKAGVejc2E8ZPhZDm",
+      "src_port": "attr.2cf53a4459df417689ec23672a72abfb",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/normalize@XpL1_CqiMFOmE3rrekKa3g",
+      "dst_port": "in"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/sampleshader@KdGPEnKAGVejc2E8ZPhZDm/setshadingcontext@HbKqNm$ZKdCpjQp83hPguu",
+      "src_port": "result",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb/_0",
+      "dst_port": "_0"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/sampleshader@KdGPEnKAGVejc2E8ZPhZDm/passthrough@BhhAaPAJJ9FpPZ7I13Jyfr",
+      "src_port": "passthrough",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/sampleshader@KdGPEnKAGVejc2E8ZPhZDm",
+      "dst_port": "attr.2cf53a4459df417689ec23672a72abfb"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/sampleshader@KdGPEnKAGVejc2E8ZPhZDm/type@HlO_12lxG5Jk$_HCX$q0bg",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/sampleshader@KdGPEnKAGVejc2E8ZPhZDm/setshadingcontext@HbKqNm$ZKdCpjQp83hPguu",
+      "dst_port": "context"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/sampleshader@KdGPEnKAGVejc2E8ZPhZDm/switch@fZezVSemBpipdQRzdD7$Sl",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/sampleshader@KdGPEnKAGVejc2E8ZPhZDm/passthrough@BhhAaPAJJ9FpPZ7I13Jyfr",
+      "dst_port": "context"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/sampleshader@KdGPEnKAGVejc2E8ZPhZDm/setshadingcontext@drfUW6VoGxfkH2JmhHYbWl",
+      "src_port": "result",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf/_1",
+      "dst_port": "_1"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/maprange@SNIRToK2Ot5r_liUubp2Lh",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dst_port": "pointout.colors._2"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.7/set",
+      "src_port": "geometryout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.7",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.6",
+      "src_port": "arrayout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.6",
+      "dst_port": "array"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.0",
+      "src_port": "array",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.8",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.0",
+      "src_port": "array",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.8",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.0/get",
+      "src_port": "arrayout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.0",
+      "dst_port": "array"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.0/get",
+      "src_port": "accessornameout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.0",
+      "dst_port": "accessornameout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.0/get",
+      "src_port": "isaccessorfoundout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.0",
+      "dst_port": "isattributefoundout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.0/get",
+      "src_port": "topologyout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.0",
+      "dst_port": "topology"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.6/set",
+      "src_port": "geometryout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.6",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.7",
+      "src_port": "_0",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dst_port": "pointin.normals._0"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/normals.geometryget.0",
+      "src_port": "array",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.7",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/normals.geometryget.0",
+      "src_port": "array",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.7",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/normals.geometryget.0/get",
+      "src_port": "arrayout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/normals.geometryget.0",
+      "dst_port": "array"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/normals.geometryget.0/get",
+      "src_port": "accessornameout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/normals.geometryget.0",
+      "dst_port": "accessornameout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/normals.geometryget.0/get",
+      "src_port": "isaccessorfoundout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/normals.geometryget.0",
+      "dst_port": "isattributefoundout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/normals.geometryget.0/get",
+      "src_port": "topologyout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/normals.geometryget.0",
+      "dst_port": "topology"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.7",
+      "src_port": "arrayout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.7",
+      "dst_port": "array"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.8",
+      "src_port": "_0",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dst_port": "pointin.colors._0"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/select",
+      "src_port": "geometryout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/transfer_selection",
+      "dst_port": "geometryin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/select/selectionoperator",
+      "src_port": "geometryout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/select",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/select/variadictolist",
+      "src_port": "geometryarrayout",
+      "dst_path": "active@NbL6goi7PdZqJdpHBbOLel/selectionoperator",
+      "dst_port": "geometryarrayin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/select/selectionstringtoselection",
+      "src_port": "selection",
+      "dst_path": "active@NbL6goi7PdZqJdpHBbOLel/selectionoperator",
+      "dst_port": "selectionfromstring"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo",
+      "src_port": "ptsposout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.6",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo",
+      "src_port": "ptsposout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.6",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo",
+      "src_port": "edgesout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.4",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo",
+      "src_port": "polyidsout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.3",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo",
+      "src_port": "ptsidsout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/corenode.neighbors",
+      "dst_port": "ptidsin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo",
+      "src_port": "ptsidsout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.0",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo",
+      "src_port": "ptsidsout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/if",
+      "dst_port": "in3"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo",
+      "src_port": "ptsidsout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getcount",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/selfromptids",
+      "src_port": "ptsselectedout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo",
+      "dst_port": "selectionout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/ptposfrompolyids",
+      "src_port": "ptsposout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo",
+      "dst_port": "ptsposout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo",
+      "dst_port": "ptsidsout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection/selfromptids",
+      "dst_port": "ptidsin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection/ptposfrompolyids",
+      "dst_port": "ptsidsin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/edgesfromptids",
+      "dst_port": "ptidsin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/coloralhpafromptids",
+      "dst_port": "ptsidsin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection/polyidsfromptids",
+      "dst_port": "ptidsin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/vertexnormalsfromptids",
+      "dst_port": "ptsidsin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/weightsfromptids",
+      "dst_port": "ptsidsin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/vertexnormalsfromptids",
+      "src_port": "ptsnormalsout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo",
+      "dst_port": "ptsnormalsout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/weightsfromptids",
+      "src_port": "ptsweightsout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo",
+      "dst_port": "ptsweightsout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/coloralhpafromptids",
+      "src_port": "ptscolorsout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo",
+      "dst_port": "ptscolorasout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/polyidsfromptids",
+      "src_port": "polyidsout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo",
+      "dst_port": "polyidsout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/edgesfromptids",
+      "src_port": "edgesout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo",
+      "dst_port": "edgesout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/weights.geometryget.0",
+      "src_port": "array",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.11",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/weights.geometryget.0",
+      "src_port": "array",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.11",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/weights.geometryget.0/get",
+      "src_port": "arrayout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/weights.geometryget.0",
+      "dst_port": "array"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/weights.geometryget.0/get",
+      "src_port": "accessornameout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/weights.geometryget.0",
+      "dst_port": "accessornameout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/weights.geometryget.0/get",
+      "src_port": "isaccessorfoundout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/weights.geometryget.0",
+      "dst_port": "isattributefoundout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/weights.geometryget.0/get",
+      "src_port": "topologyout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/weights.geometryget.0",
+      "dst_port": "topology"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.9",
+      "src_port": "geometryout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.10",
+      "dst_port": "geometryin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.9/set",
+      "src_port": "geometryout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.9",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.8",
+      "src_port": "arrayout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.8",
+      "dst_port": "array"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.9",
+      "src_port": "_0",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dst_port": "pointin.colors._1"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.9",
+      "src_port": "arrayout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.9",
+      "dst_port": "array"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.8",
+      "src_port": "geometryout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.9",
+      "dst_port": "geometryin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.8/set",
+      "src_port": "geometryout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.8",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/if",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/iterate",
+      "dst_port": "in"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.5",
+      "src_port": "_0",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dst_port": "pointin_selected"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.0",
+      "src_port": "_0",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dst_port": "pointin_index"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.3",
+      "src_port": "_0",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dst_port": "pointin_polygon"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/transfer_selection",
+      "src_port": "geometryout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection",
+      "dst_port": "geometryin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/transfer_selection/modelingoperator",
+      "src_port": "geometryout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/transfer_selection",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/transfer_selection/parambuilder",
+      "src_port": "dictout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/transfer_selection/modelingoperator",
+      "dst_port": "parameters"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/ratio.divide",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dst_port": "pointin_ratio"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/ratio.max",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/ratio.divide",
+      "dst_port": "in2"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/iterate",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.10",
+      "dst_port": "indexin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/iterate",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.2",
+      "dst_port": "indexin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/iterate",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.4",
+      "dst_port": "indexin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/iterate",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.6",
+      "dst_port": "indexin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/iterate",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.7",
+      "dst_port": "indexin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/iterate",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.5",
+      "dst_port": "indexin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/iterate",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.3",
+      "dst_port": "indexin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/iterate",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.7",
+      "dst_port": "indexin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/iterate",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.8",
+      "dst_port": "indexin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/iterate",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.8",
+      "dst_port": "indexin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/iterate",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.0",
+      "dst_port": "indexin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/iterate",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.6",
+      "dst_port": "indexin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/iterate",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.9",
+      "dst_port": "indexin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/iterate",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.9",
+      "dst_port": "indexin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/iterate",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.10",
+      "dst_port": "indexin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/iterate",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.11",
+      "dst_port": "indexin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/iterate",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.11",
+      "dst_port": "indexin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/iterate",
+      "src_port": "innerdomain",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.8",
+      "dst_port": "innerdomain"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/iterate",
+      "src_port": "innerdomain",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.10",
+      "dst_port": "innerdomain"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/iterate",
+      "src_port": "innerdomain",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.6",
+      "dst_port": "innerdomain"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/iterate",
+      "src_port": "innerdomain",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.7",
+      "dst_port": "innerdomain"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/iterate",
+      "src_port": "innerdomain",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.9",
+      "dst_port": "innerdomain"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/iterate",
+      "src_port": "innerdomain",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dst_port": "innerdomain"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/iterate",
+      "src_port": "innerdomain",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.11",
+      "dst_port": "innerdomain"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.6",
+      "src_port": "_0",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dst_port": "pointin_position"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.2",
+      "src_port": "_0",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dst_port": "pointin_neighbors"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection",
+      "src_port": "selectionout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.5",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection",
+      "src_port": "ptsidsout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/if",
+      "dst_port": "in2"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection/selfromptids",
+      "src_port": "ptsselectedout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection",
+      "dst_port": "selectionout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection/ptposfrompolyids",
+      "src_port": "ptsposout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection",
+      "dst_port": "ptsposout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection",
+      "dst_port": "ptsidsout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection/selfromptids",
+      "dst_port": "ptidsin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection/ptposfrompolyids",
+      "dst_port": "ptsidsin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/edgesfromptids",
+      "dst_port": "ptidsin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/coloralhpafromptids",
+      "dst_port": "ptsidsin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection/polyidsfromptids",
+      "dst_port": "ptidsin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/vertexnormalsfromptids",
+      "dst_port": "ptsidsin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/weightsfromptids",
+      "dst_port": "ptsidsin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection/vertexnormalsfromptids",
+      "src_port": "ptsnormalsout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection",
+      "dst_port": "ptsnormalsout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection/weightsfromptids",
+      "src_port": "ptsweightsout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection",
+      "dst_port": "ptsweightsout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection/coloralhpafromptids",
+      "src_port": "ptscolorsout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection",
+      "dst_port": "ptscolorasout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection/polyidsfromptids",
+      "src_port": "polyidsout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection",
+      "dst_port": "polyidsout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection/edgesfromptids",
+      "src_port": "edgesout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection",
+      "dst_port": "edgesout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.4",
+      "src_port": "_0",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dst_port": "pointin_edge"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/corenode.neighbors",
+      "src_port": "neighborsout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.2",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/ratio.add",
+      "src_port": "out",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf/_1",
+      "dst_port": "_1"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getcount",
+      "src_port": "countout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dst_port": "pointcount"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.2",
+      "src_port": "array",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.10",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.2",
+      "src_port": "array",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.10",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.2/get",
+      "src_port": "arrayout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.2",
+      "dst_port": "array"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.2/get",
+      "src_port": "accessornameout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.2",
+      "dst_port": "accessornameout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.2/get",
+      "src_port": "isaccessorfoundout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.2",
+      "dst_port": "isattributefoundout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.2/get",
+      "src_port": "topologyout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.2",
+      "dst_port": "topology"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.11",
+      "src_port": "_0",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dst_port": "pointin.weights._0"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.10",
+      "src_port": "arrayout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.10",
+      "dst_port": "array"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.11",
+      "src_port": "arrayout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.11",
+      "dst_port": "array"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.10",
+      "src_port": "geometryout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.10/set",
+      "src_port": "geometryout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.10",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.10",
+      "src_port": "_0",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dst_port": "pointin.colors._2"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.1",
+      "src_port": "array",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.9",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.1",
+      "src_port": "array",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.9",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.1/get",
+      "src_port": "arrayout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.1",
+      "dst_port": "array"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.1/get",
+      "src_port": "accessornameout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.1",
+      "dst_port": "accessornameout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.1/get",
+      "src_port": "isaccessorfoundout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.1",
+      "dst_port": "isattributefoundout"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.1/get",
+      "src_port": "topologyout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.1",
+      "dst_port": "topology"
+    },
+    {
+      "src_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.11/set",
+      "src_port": "geometryout",
+      "dst_path": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.11",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "sphere@ZcFGixi5DJsmdHxA2$Jpmn",
+      "src_port": "geometryout",
+      "dst_path": "active@NbL6goi7PdZqJdpHBbOLel",
+      "dst_port": "geometryin"
+    },
+    {
+      "src_path": "sphere@ZcFGixi5DJsmdHxA2$Jpmn/parambuilder",
+      "src_port": "dictout",
+      "dst_path": "sphere@ZcFGixi5DJsmdHxA2$Jpmn/generategeometry",
+      "dst_port": "parameters"
+    },
+    {
+      "src_path": "sphere@ZcFGixi5DJsmdHxA2$Jpmn/defaultselections",
+      "src_port": "geometryout",
+      "dst_path": "sphere@ZcFGixi5DJsmdHxA2$Jpmn",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "sphere@ZcFGixi5DJsmdHxA2$Jpmn/generategeometry",
+      "src_port": "geometry",
+      "dst_path": "sphere@ZcFGixi5DJsmdHxA2$Jpmn/defaultselections",
+      "dst_port": "geometryin"
+    }
+  ],
+  "port_defaults": [
+    {
+      "node": "active@NbL6goi7PdZqJdpHBbOLel",
+      "dir": "IN",
+      "port": "selectionstring",
+      "type": "String",
+      "val": "0-20"
+    },
+    {
+      "node": "active@NbL6goi7PdZqJdpHBbOLel",
+      "dir": "IN",
+      "port": "net.maxon.datatype.neutron.modeling.selection.type",
+      "type": "InternedId",
+      "val": "active"
+    },
+    {
+      "node": "active@NbL6goi7PdZqJdpHBbOLel",
+      "dir": "IN",
+      "port": "mode",
+      "type": "InternedId",
+      "val": "points"
+    },
+    {
+      "node": "active@NbL6goi7PdZqJdpHBbOLel/selectionstringtoselection",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.accessorclas>cR"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dir": "IN",
+      "port": "weights",
+      "type": "Array",
+      "val": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=1)"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dir": "IN",
+      "port": "weights._0",
+      "type": "String",
+      "val": "Vertex Map"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dir": "IN",
+      "port": "normals",
+      "type": "Array",
+      "val": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=1)"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dir": "IN",
+      "port": "normals._0",
+      "type": "String",
+      "val": "Normal"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dir": "IN",
+      "port": "selectionmodein",
+      "type": "InternedId",
+      "val": "points"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dir": "IN",
+      "port": "selectionstringin",
+      "type": "String",
+      "val": "default"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dir": "IN",
+      "port": "colors",
+      "type": "Array",
+      "val": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=3)"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dir": "IN",
+      "port": "colors._0",
+      "type": "String",
+      "val": "Vertex Color"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dir": "IN",
+      "port": "colors._2",
+      "type": "String",
+      "val": "color2"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dir": "IN",
+      "port": "colors._1",
+      "type": "String",
+      "val": "color1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dir": "IN",
+      "port": "pointin.colors._0.*access*alphain",
+      "type": "Float32",
+      "val": "1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dir": "IN",
+      "port": "pointin.colors._1.*access*alphain",
+      "type": "Float32",
+      "val": "1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil",
+      "dir": "IN",
+      "port": "pointin.colors._2.*access*alphain",
+      "type": "Float32",
+      "val": "1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h",
+      "dir": "IN",
+      "port": "inport@HUTCREz5N56j4Z2o_YKc1v",
+      "type": "Float64",
+      "val": "4.54"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h",
+      "dir": "IN",
+      "port": "seed@UcrLmQLOERSmQX2Oel14Tm",
+      "type": "UInt32",
+      "val": "124"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h",
+      "dir": "IN",
+      "port": "inport@RGgFmpm3Jx7vyEnqzn8fBN",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h",
+      "dir": "IN",
+      "port": "inport@eQfObi4vDtUnno$VAZmspS",
+      "type": "Vector64",
+      "val": "X:100.0, Y:100.0, Z:100.0"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h",
+      "dir": "IN",
+      "port": "spacescale@EaA_eF$tC9ov3Z2eJSI6HV",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h",
+      "dir": "IN",
+      "port": "spacetype@XJgWmwRkIBBvC3zM7N2$4j",
+      "type": "InternedId",
+      "val": "object"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h",
+      "dir": "IN",
+      "port": "localrepetitions@b6_ar8MEPxroT7LRfR1dkN",
+      "type": "UnknownDataType",
+      "val": "net.maxon.parametrictype.vec<2,float64>"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h",
+      "dir": "IN",
+      "port": "octaves@LrIsHF62L5VrK6oQyoVsjl",
+      "type": "Float64",
+      "val": "6"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h",
+      "dir": "IN",
+      "port": "lacunarity@MKPHkm0oCRlsYFnbjGnwSh",
+      "type": "Float64",
+      "val": "2.1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h",
+      "dir": "IN",
+      "port": "noisetype@UyzMvTq3O56oH6NFG5lOak",
+      "type": "Id",
+      "val": "net.maxon.render.rendernoiseclass.perlin"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h",
+      "dir": "IN",
+      "port": "gain@f_CrJPoSAd_gIdJY3d1qRn",
+      "type": "Float64",
+      "val": "0.5"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h",
+      "dir": "IN",
+      "port": "inport@RPErPiXAFVKncL$Yh54Voi",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h",
+      "dir": "IN",
+      "port": "locallength@eKZInXEdFpnnfEKs97190P",
+      "type": "UnknownDataType",
+      "val": "net.maxon.parametrictype.vec<2,float64>"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h",
+      "dir": "IN",
+      "port": "exponent@bzuLQDReKNAvegfoJ1izlj",
+      "type": "Float64",
+      "val": "2"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h",
+      "dir": "IN",
+      "port": "localmodeu@WIQqEk0wBFxrWYvZ14BL_P",
+      "type": "InternedId",
+      "val": "extend"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h",
+      "dir": "IN",
+      "port": "localmodev@Zeik3yxKOd7i$HAgcBnt3M",
+      "type": "InternedId",
+      "val": "extend"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h",
+      "dir": "IN",
+      "port": "referencesize@SojWM2YgKxHrxyzEmqIUKV",
+      "type": "Float64",
+      "val": "200"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h",
+      "dir": "IN",
+      "port": "spacerotationorder@Pc2ZsMDjBFJs8Y8LbBcy0T",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h",
+      "dir": "IN",
+      "port": "localpivot@dGL0UqOMA1SvPK_iNN5qwL",
+      "type": "UnknownDataType",
+      "val": "net.maxon.parametrictype.vec<2,float64>"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h",
+      "dir": "OUT",
+      "port": "outport@FHbBmNwPBlVg8FPOMo15Bg",
+      "type": "ColorA64",
+      "val": "R:0.0, G:0.0, B:0.0, Alpha:1.0"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.arithmetic@OlT8tI6IFh6jDc4Od5tGZV",
+      "dir": "IN",
+      "port": "operation",
+      "type": "Id",
+      "val": "Mul"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.arithmetic@OlT8tI6IFh6jDc4Od5tGZV",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "net.maxon.parametrictype.vec<3,float>"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.arithmetic@OlT8tI6IFh6jDc4Od5tGZV",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU",
+      "dir": "IN",
+      "port": "octaves@CzOvTultEh8vMbwOLO4Ugd",
+      "type": "Float64",
+      "val": "6"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU",
+      "dir": "IN",
+      "port": "noisetype@cEtmlAnENJFuSWvelINPoc",
+      "type": "Id",
+      "val": "net.maxon.render.rendernoiseclass.perlin"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU",
+      "dir": "IN",
+      "port": "lacunarity@cgFtb50uKN2hWVomxxjXlb",
+      "type": "Float64",
+      "val": "2.1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU",
+      "dir": "IN",
+      "port": "gain@bnscpMJ9Ax4r8emd19F3Aa",
+      "type": "Float64",
+      "val": "0.5"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU",
+      "dir": "IN",
+      "port": "seed@HIk5isu5KJbsMNvIDG76MY",
+      "type": "Int64",
+      "val": "123"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU",
+      "dir": "IN",
+      "port": "exponent@boiIqpv1LRTvsqVnsR$LXc",
+      "type": "Float64",
+      "val": "2"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU",
+      "dir": "IN",
+      "port": "inport@KeCoz1QkPJFmxrS9nkSDOf",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU",
+      "dir": "OUT",
+      "port": "outport@I1BlgsiRIVhrgjMiM9ptRe",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@GjN0HFyULREv5CamEwwiSd",
+      "dir": "IN",
+      "port": "seed",
+      "type": "Int64",
+      "val": "123"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@GjN0HFyULREv5CamEwwiSd",
+      "dir": "IN",
+      "port": "octaves",
+      "type": "Float64",
+      "val": "6"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@GjN0HFyULREv5CamEwwiSd",
+      "dir": "IN",
+      "port": "exponent",
+      "type": "Float64",
+      "val": "2"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@GjN0HFyULREv5CamEwwiSd",
+      "dir": "IN",
+      "port": "noisetype",
+      "type": "Id",
+      "val": "net.maxon.render.rendernoiseclass.perlin"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@GjN0HFyULREv5CamEwwiSd",
+      "dir": "IN",
+      "port": "lacunarity",
+      "type": "Float64",
+      "val": "2.1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@GjN0HFyULREv5CamEwwiSd",
+      "dir": "IN",
+      "port": "gain",
+      "type": "Float64",
+      "val": "0.5"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.arithmetic@c827L_C8GJfjWLBawjHgnf",
+      "dir": "IN",
+      "port": "operation",
+      "type": "Id",
+      "val": "Add"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.arithmetic@c827L_C8GJfjWLBawjHgnf",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "float"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.arithmetic@c827L_C8GJfjWLBawjHgnf",
+      "dir": "IN",
+      "port": "in2",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.arithmetic@c827L_C8GJfjWLBawjHgnf",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Int64",
+      "val": "123"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.effect.contrast@LnScVUXCIxThRElBzPCXvB",
+      "dir": "IN",
+      "port": "maskblend",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.effect.contrast@LnScVUXCIxThRElBzPCXvB",
+      "dir": "IN",
+      "port": "maskred",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.effect.contrast@LnScVUXCIxThRElBzPCXvB",
+      "dir": "IN",
+      "port": "maskgreen",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.effect.contrast@LnScVUXCIxThRElBzPCXvB",
+      "dir": "IN",
+      "port": "maskblue",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.effect.contrast@LnScVUXCIxThRElBzPCXvB",
+      "dir": "OUT",
+      "port": "result",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.smoothstep@Us2elXOPPlKvvdPfgJJtvj",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "float"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.smoothstep@Us2elXOPPlKvvdPfgJJtvj",
+      "dir": "IN",
+      "port": "in3",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.smoothstep@OgOfktxmKFtpD_EmWNUbFj",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "float"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.smoothstep@OgOfktxmKFtpD_EmWNUbFj",
+      "dir": "IN",
+      "port": "in3",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.smoothstep@N0wfOVyLHptkiYMbkh4Y1g",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "float"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.smoothstep@N0wfOVyLHptkiYMbkh4Y1g",
+      "dir": "IN",
+      "port": "in3",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb",
+      "dir": "IN",
+      "port": "seed",
+      "type": "Int64",
+      "val": "123"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb",
+      "dir": "IN",
+      "port": "octaves",
+      "type": "Float64",
+      "val": "6"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb",
+      "dir": "IN",
+      "port": "exponent",
+      "type": "Float64",
+      "val": "2"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb",
+      "dir": "IN",
+      "port": "noisetype",
+      "type": "Id",
+      "val": "net.maxon.render.rendernoiseclass.perlin"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb",
+      "dir": "IN",
+      "port": "lacunarity",
+      "type": "Float64",
+      "val": "2.1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb",
+      "dir": "IN",
+      "port": "gain",
+      "type": "Float64",
+      "val": "0.5"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf",
+      "dir": "IN",
+      "port": "seed",
+      "type": "Int64",
+      "val": "123"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf",
+      "dir": "IN",
+      "port": "octaves",
+      "type": "Float64",
+      "val": "6"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf",
+      "dir": "IN",
+      "port": "exponent",
+      "type": "Float64",
+      "val": "2"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf",
+      "dir": "IN",
+      "port": "noisetype",
+      "type": "Id",
+      "val": "net.maxon.render.rendernoiseclass.perlin"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf",
+      "dir": "IN",
+      "port": "lacunarity",
+      "type": "Float64",
+      "val": "2.1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf",
+      "dir": "IN",
+      "port": "gain",
+      "type": "Float64",
+      "val": "0.5"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.arithmetic@EeNk7mQKL58lGZ_KvDSiHY",
+      "dir": "IN",
+      "port": "operation",
+      "type": "Id",
+      "val": "Add"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.arithmetic@EeNk7mQKL58lGZ_KvDSiHY",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "float"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.arithmetic@EeNk7mQKL58lGZ_KvDSiHY",
+      "dir": "IN",
+      "port": "in2",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.arithmetic@EeNk7mQKL58lGZ_KvDSiHY",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Int64",
+      "val": "123"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.if@dX7EhCO$DV0gmb6hnjkKFP",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "net.maxon.parametrictype.col<3,float>"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.if@dX7EhCO$DV0gmb6hnjkKFP",
+      "dir": "IN",
+      "port": "in2",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.if@dX7EhCO$DV0gmb6hnjkKFP",
+      "dir": "OUT",
+      "port": "out",
+      "type": "ColorA64",
+      "val": "R:0.0, G:0.0, B:0.0, Alpha:1.0"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.arithmetic@b3PQCpmOIdjgY3wOHH0VwS",
+      "dir": "IN",
+      "port": "operation",
+      "type": "Id",
+      "val": "Mul"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.arithmetic@b3PQCpmOIdjgY3wOHH0VwS",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "net.maxon.parametrictype.vec<3,float>"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.arithmetic@b3PQCpmOIdjgY3wOHH0VwS",
+      "dir": "IN",
+      "port": "in2",
+      "type": "Vector64",
+      "val": "X:2.0, Y:3.0, Z:4.0"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.arithmetic@b3PQCpmOIdjgY3wOHH0VwS",
+      "dir": "IN",
+      "port": "in1",
+      "type": "Vector64",
+      "val": "X:2.0, Y:3.0, Z:4.0"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.arithmetic@b3PQCpmOIdjgY3wOHH0VwS",
+      "dir": "OUT",
+      "port": "out",
+      "type": "UnknownDataType",
+      "val": "net.maxon.parametrictype.vec<2,float64>"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.render.node.placement2d@AXz_E0wdMdCvCYvy9uJAVN",
+      "dir": "IN",
+      "port": "localmodev",
+      "type": "InternedId",
+      "val": "extend"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.render.node.placement2d@AXz_E0wdMdCvCYvy9uJAVN",
+      "dir": "IN",
+      "port": "localmodeu",
+      "type": "InternedId",
+      "val": "extend"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.render.node.placement2d@AXz_E0wdMdCvCYvy9uJAVN",
+      "dir": "IN",
+      "port": "localrepetitions",
+      "type": "UnknownDataType",
+      "val": "net.maxon.parametrictype.vec<2,float64>"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.render.node.placement2d@AXz_E0wdMdCvCYvy9uJAVN",
+      "dir": "IN",
+      "port": "localpivot",
+      "type": "UnknownDataType",
+      "val": "net.maxon.parametrictype.vec<2,float64>"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.render.node.placement2d@AXz_E0wdMdCvCYvy9uJAVN",
+      "dir": "IN",
+      "port": "locallength",
+      "type": "UnknownDataType",
+      "val": "net.maxon.parametrictype.vec<2,float64>"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "dir": "IN",
+      "port": "localmodev",
+      "type": "InternedId",
+      "val": "extend"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "dir": "IN",
+      "port": "localmodeu",
+      "type": "InternedId",
+      "val": "extend"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "dir": "IN",
+      "port": "spacescale",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "dir": "IN",
+      "port": "enablespacetransformation",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "dir": "IN",
+      "port": "referencesize",
+      "type": "Float64",
+      "val": "200"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "dir": "IN",
+      "port": "localrepetitions",
+      "type": "UnknownDataType",
+      "val": "net.maxon.parametrictype.vec<2,float64>"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "dir": "IN",
+      "port": "localpivot",
+      "type": "UnknownDataType",
+      "val": "net.maxon.parametrictype.vec<2,float64>"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "dir": "IN",
+      "port": "locallength",
+      "type": "UnknownDataType",
+      "val": "net.maxon.parametrictype.vec<2,float64>"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "dir": "IN",
+      "port": "spacetype",
+      "type": "InternedId",
+      "val": "object"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "dir": "IN",
+      "port": "projectiontype",
+      "type": "InternedId",
+      "val": "none"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "dir": "IN",
+      "port": "spacerotationorder",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "dir": "IN",
+      "port": "filmaspect",
+      "type": "Float64",
+      "val": "1.333"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "dir": "IN",
+      "port": "pixelaspect",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.switch@QbhBf33eKB4qHDZABQjx9V",
+      "dir": "IN",
+      "port": "in",
+      "type": "Array",
+      "val": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=2)"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.switch@QbhBf33eKB4qHDZABQjx9V",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "net.maxon.render.datatype.shadingcontext"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.type@bL55TUi9LVktC$XAOpUEDv",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "float"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.arithmetic@XXIohaQqIBbuVrhfhkoOjs",
+      "dir": "IN",
+      "port": "operation",
+      "type": "Id",
+      "val": "mul"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.arithmetic@XXIohaQqIBbuVrhfhkoOjs",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "net.maxon.parametrictype.vec<3,float>"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/mainnoise@UjAGzhcWI5XvVeJrrp4T6h/net.maxon.node.arithmetic@XXIohaQqIBbuVrhfhkoOjs",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Vector64",
+      "val": "X:2.0, Y:3.0, Z:4.0"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/normalize@XpL1_CqiMFOmE3rrekKa3g",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "net.maxon.parametrictype.vec<3,float>"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/type@Adr0K7EcKN_pIQ6S3VmQYg",
+      "dir": "IN",
+      "port": "in",
+      "type": "Vector64",
+      "val": "X:0.0, Y:1.0, Z:0.0"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/type@Adr0K7EcKN_pIQ6S3VmQYg",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "net.maxon.parametrictype.vec<3,float>"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/floatingio@CTbMTm$nIpqkwpt1YuHErh",
+      "dir": "IN",
+      "port": "net.maxon.node.floatingio.portlist",
+      "type": "Array",
+      "val": "(net.maxon.datatype.internedid,net.maxon.interface.datadictionary-C)[], input=1)"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/sampleshader@KdGPEnKAGVejc2E8ZPhZDm",
+      "dir": "IN",
+      "port": "attr.2ccb9fffaa4f419395c22426c1b3d104",
+      "type": "ColorA64",
+      "val": "R:0.0, G:0.0, B:0.0, Alpha:1.0"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/sampleshader@KdGPEnKAGVejc2E8ZPhZDm",
+      "dir": "IN",
+      "port": "attr.2ccb9fffaa4f419395c22426c1b3d104.*access*alphain",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/sampleshader@KdGPEnKAGVejc2E8ZPhZDm/passthrough@BhhAaPAJJ9FpPZ7I13Jyfr",
+      "dir": "IN",
+      "port": "color",
+      "type": "ColorA64",
+      "val": "R:0.0, G:0.0, B:0.0, Alpha:1.0"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/sampleshader@KdGPEnKAGVejc2E8ZPhZDm/type@HlO_12lxG5Jk$_HCX$q0bg",
+      "dir": "IN",
+      "port": "in",
+      "type": "UnknownDataType",
+      "val": "net.maxon.render.datatype.shadingcontext"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/sampleshader@KdGPEnKAGVejc2E8ZPhZDm/type@HlO_12lxG5Jk$_HCX$q0bg",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "net.maxon.render.datatype.shadingcontext"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/sampleshader@KdGPEnKAGVejc2E8ZPhZDm/switch@fZezVSemBpipdQRzdD7$Sl",
+      "dir": "IN",
+      "port": "in",
+      "type": "Array",
+      "val": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=2)"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/sampleshader@KdGPEnKAGVejc2E8ZPhZDm/switch@fZezVSemBpipdQRzdD7$Sl",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "net.maxon.render.datatype.shadingcontext"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/maprange@SNIRToK2Ot5r_liUubp2Lh",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "net.maxon.parametrictype.vec<3,float>"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/maprange@SNIRToK2Ot5r_liUubp2Lh",
+      "dir": "IN",
+      "port": "in3",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/maprange@SNIRToK2Ot5r_liUubp2Lh",
+      "dir": "IN",
+      "port": "in4",
+      "type": "Vector64",
+      "val": "X:-1.0, Y:-1.0, Z:-1.0"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/maprange@SNIRToK2Ot5r_liUubp2Lh",
+      "dir": "IN",
+      "port": "in5",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.7",
+      "dir": "IN",
+      "port": "accessorname",
+      "type": "String",
+      "val": "Normal"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.7",
+      "dir": "IN",
+      "port": "fallbackmodein",
+      "type": "Id",
+      "val": "none"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.7",
+      "dir": "IN",
+      "port": "arraymode",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.7",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "Id",
+      "val": "net.maxon.geometryabstraction.accessortypes.attributes.normal"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.7",
+      "dir": "IN",
+      "port": "newdataset",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.7",
+      "dir": "IN",
+      "port": "fallbackvaluein",
+      "type": "Vector32",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.6",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "DataType",
+      "val": "net.maxon.parametrictype.vec<3,float64>[]C"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.0",
+      "dir": "IN",
+      "port": "accessorname",
+      "type": "String",
+      "val": "Vertex Color"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.0",
+      "dir": "IN",
+      "port": "fallbackmodein",
+      "type": "Id",
+      "val": "default"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.0",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "Id",
+      "val": "net.maxon.geometryabstraction.accessortypes.attributes.colora"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.0",
+      "dir": "IN",
+      "port": "fallbackvaluein",
+      "type": "ColorA32",
+      "val": "R:0.0, G:0.0, B:0.0, Alpha:1.0"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.0",
+      "dir": "IN",
+      "port": "fallbackvaluein.*access*alphain",
+      "type": "Float32",
+      "val": "1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.0",
+      "dir": "IN",
+      "port": "componentin",
+      "type": "Id",
+      "val": "points"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.6",
+      "dir": "IN",
+      "port": "accessorname",
+      "type": "String",
+      "val": "pt"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.6",
+      "dir": "IN",
+      "port": "fallbackmodein",
+      "type": "Id",
+      "val": "none"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.6",
+      "dir": "IN",
+      "port": "arraymode",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.6",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "Id",
+      "val": "net.maxon.geometryabstraction.accessortypes.attributes.data3d"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.6",
+      "dir": "IN",
+      "port": "newdataset",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.6",
+      "dir": "IN",
+      "port": "fallbackvaluein",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.7",
+      "dir": "IN",
+      "port": "cyclein",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/normals.geometryget.0",
+      "dir": "IN",
+      "port": "accessorname",
+      "type": "String",
+      "val": "Normal"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/normals.geometryget.0",
+      "dir": "IN",
+      "port": "fallbackmodein",
+      "type": "Id",
+      "val": "default"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/normals.geometryget.0",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "Id",
+      "val": "net.maxon.geometryabstraction.accessortypes.attributes.normal"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/normals.geometryget.0",
+      "dir": "IN",
+      "port": "fallbackvaluein",
+      "type": "Vector32",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/normals.geometryget.0",
+      "dir": "IN",
+      "port": "componentin",
+      "type": "Id",
+      "val": "points"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.7",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "DataType",
+      "val": "net.maxon.parametrictype.vec<3,float32>[]C"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.8",
+      "dir": "IN",
+      "port": "cyclein",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/select",
+      "dir": "IN",
+      "port": "net.maxon.datatype.neutron.modeling.selection.type",
+      "type": "InternedId",
+      "val": "active"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/select",
+      "dir": "IN",
+      "port": "mode",
+      "type": "InternedId",
+      "val": "points"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/select/selectionstringtoselection",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.accessorclas>cR"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo",
+      "dir": "IN",
+      "port": "normaltypein",
+      "type": "InternedId",
+      "val": "uniform"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo",
+      "dir": "IN",
+      "port": "selectionstringin",
+      "type": "String",
+      "val": "all"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfo/selectionstringparser",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.accessorclas>cR"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/weights.geometryget.0",
+      "dir": "IN",
+      "port": "accessorname",
+      "type": "String",
+      "val": "Vertex Map"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/weights.geometryget.0",
+      "dir": "IN",
+      "port": "fallbackmodein",
+      "type": "Id",
+      "val": "default"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/weights.geometryget.0",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "Id",
+      "val": "net.maxon.geometryabstraction.accessortypes.attributes.weight"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/weights.geometryget.0",
+      "dir": "IN",
+      "port": "componentin",
+      "type": "Id",
+      "val": "points"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.9",
+      "dir": "IN",
+      "port": "accessorname",
+      "type": "String",
+      "val": "Vertex Color"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.9",
+      "dir": "IN",
+      "port": "fallbackmodein",
+      "type": "Id",
+      "val": "none"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.9",
+      "dir": "IN",
+      "port": "arraymode",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.9",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "Id",
+      "val": "net.maxon.geometryabstraction.accessortypes.attributes.colora"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.9",
+      "dir": "IN",
+      "port": "newdataset",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.9",
+      "dir": "IN",
+      "port": "fallbackvaluein",
+      "type": "ColorA32",
+      "val": "R:0.0, G:0.0, B:0.0, Alpha:1.0"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.9",
+      "dir": "IN",
+      "port": "fallbackvaluein.*access*alphain",
+      "type": "Float32",
+      "val": "1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.8",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "DataType",
+      "val": "net.maxon.parametrictype.col<4,float32>[]C"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.8",
+      "dir": "IN",
+      "port": "_0.*access*alphain",
+      "type": "Float32",
+      "val": "1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.9",
+      "dir": "IN",
+      "port": "cyclein",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.9",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "DataType",
+      "val": "net.maxon.parametrictype.col<4,float32>[]C"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.9",
+      "dir": "IN",
+      "port": "_0.*access*alphain",
+      "type": "Float32",
+      "val": "1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.8",
+      "dir": "IN",
+      "port": "accessorname",
+      "type": "String",
+      "val": "Vertex Color"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.8",
+      "dir": "IN",
+      "port": "fallbackmodein",
+      "type": "Id",
+      "val": "none"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.8",
+      "dir": "IN",
+      "port": "arraymode",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.8",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "Id",
+      "val": "net.maxon.geometryabstraction.accessortypes.attributes.colora"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.8",
+      "dir": "IN",
+      "port": "newdataset",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.8",
+      "dir": "IN",
+      "port": "fallbackvaluein",
+      "type": "ColorA32",
+      "val": "R:0.0, G:0.0, B:0.0, Alpha:1.0"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.8",
+      "dir": "IN",
+      "port": "fallbackvaluein.*access*alphain",
+      "type": "Float32",
+      "val": "1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/if",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "int32[]C"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/if",
+      "dir": "IN",
+      "port": "in2",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.5",
+      "dir": "IN",
+      "port": "cyclein",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.0",
+      "dir": "IN",
+      "port": "cyclein",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.3",
+      "dir": "IN",
+      "port": "cyclein",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/transfer_selection",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.selectiontype.to",
+      "type": "Id",
+      "val": "vertex"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/transfer_selection",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.selectiontype.from",
+      "type": "Id",
+      "val": "vertex"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/transfer_selection/modelingoperator",
+      "dir": "IN",
+      "port": "applytoallifempty",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/transfer_selection/modelingoperator",
+      "dir": "IN",
+      "port": "commandid",
+      "type": "Id",
+      "val": "net.maxon.command.modeling.selection.convert"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/ratio.divide",
+      "dir": "IN",
+      "port": "operation",
+      "type": "Id",
+      "val": "div"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/ratio.divide",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "float64"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/ratio.max",
+      "dir": "IN",
+      "port": "in",
+      "type": "Array",
+      "val": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=2)"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/ratio.max",
+      "dir": "IN",
+      "port": "in._0",
+      "type": "Int32",
+      "val": "1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/ratio.max",
+      "dir": "IN",
+      "port": "operation",
+      "type": "Id",
+      "val": "max"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/ratio.max",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "int64"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.6",
+      "dir": "IN",
+      "port": "cyclein",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.2",
+      "dir": "IN",
+      "port": "cyclein",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection",
+      "dir": "IN",
+      "port": "normaltypein",
+      "type": "InternedId",
+      "val": "uniform"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection",
+      "dir": "IN",
+      "port": "selectionstringin",
+      "type": "String",
+      "val": "active"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection",
+      "dir": "OUT",
+      "port": "ptsidsout",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection/selectionstringparser",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.accessorclas>cR"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/pointinfoselection/selectionstringparser",
+      "dir": "OUT",
+      "port": "array",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.4",
+      "dir": "IN",
+      "port": "cyclein",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/ratio.add",
+      "dir": "IN",
+      "port": "operation",
+      "type": "Id",
+      "val": "add"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/ratio.add",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "int64"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/ratio.add",
+      "dir": "IN",
+      "port": "in2",
+      "type": "Int32",
+      "val": "-1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.2",
+      "dir": "IN",
+      "port": "accessorname",
+      "type": "String",
+      "val": "Vertex Color"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.2",
+      "dir": "IN",
+      "port": "fallbackmodein",
+      "type": "Id",
+      "val": "default"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.2",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "Id",
+      "val": "net.maxon.geometryabstraction.accessortypes.attributes.colora"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.2",
+      "dir": "IN",
+      "port": "fallbackvaluein",
+      "type": "ColorA32",
+      "val": "R:0.0, G:0.0, B:0.0, Alpha:1.0"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.2",
+      "dir": "IN",
+      "port": "fallbackvaluein.*access*alphain",
+      "type": "Float32",
+      "val": "1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.2",
+      "dir": "IN",
+      "port": "componentin",
+      "type": "Id",
+      "val": "points"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.11",
+      "dir": "IN",
+      "port": "cyclein",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.10",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "DataType",
+      "val": "net.maxon.parametrictype.col<4,float32>[]C"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.10",
+      "dir": "IN",
+      "port": "_0.*access*alphain",
+      "type": "Float32",
+      "val": "1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/setelement.11",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "DataType",
+      "val": "float32[]C"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.10",
+      "dir": "IN",
+      "port": "accessorname",
+      "type": "String",
+      "val": "Vertex Color"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.10",
+      "dir": "IN",
+      "port": "fallbackmodein",
+      "type": "Id",
+      "val": "none"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.10",
+      "dir": "IN",
+      "port": "arraymode",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.10",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "Id",
+      "val": "net.maxon.geometryabstraction.accessortypes.attributes.colora"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.10",
+      "dir": "IN",
+      "port": "newdataset",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.10",
+      "dir": "IN",
+      "port": "fallbackvaluein",
+      "type": "ColorA32",
+      "val": "R:0.0, G:0.0, B:0.0, Alpha:1.0"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.10",
+      "dir": "IN",
+      "port": "fallbackvaluein.*access*alphain",
+      "type": "Float32",
+      "val": "1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/getelement.10",
+      "dir": "IN",
+      "port": "cyclein",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.1",
+      "dir": "IN",
+      "port": "accessorname",
+      "type": "String",
+      "val": "Vertex Color"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.1",
+      "dir": "IN",
+      "port": "fallbackmodein",
+      "type": "Id",
+      "val": "default"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.1",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "Id",
+      "val": "net.maxon.geometryabstraction.accessortypes.attributes.colora"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.1",
+      "dir": "IN",
+      "port": "fallbackvaluein",
+      "type": "ColorA32",
+      "val": "R:0.0, G:0.0, B:0.0, Alpha:1.0"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.1",
+      "dir": "IN",
+      "port": "fallbackvaluein.*access*alphain",
+      "type": "Float32",
+      "val": "1"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/colors.geometryget.1",
+      "dir": "IN",
+      "port": "componentin",
+      "type": "Id",
+      "val": "points"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.11",
+      "dir": "IN",
+      "port": "accessorname",
+      "type": "String",
+      "val": "Vertex Map"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.11",
+      "dir": "IN",
+      "port": "fallbackmodein",
+      "type": "Id",
+      "val": "none"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.11",
+      "dir": "IN",
+      "port": "arraymode",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.11",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "Id",
+      "val": "net.maxon.geometryabstraction.accessortypes.attributes.weight"
+    },
+    {
+      "node": "pointsmodifier@XZYCmd3MGNXtnuBzHppiil/geometryset.11",
+      "dir": "IN",
+      "port": "newdataset",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "sphere@ZcFGixi5DJsmdHxA2$Jpmn",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.sphere.segment",
+      "type": "Int64",
+      "val": "48"
+    },
+    {
+      "node": "sphere@ZcFGixi5DJsmdHxA2$Jpmn",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.sphere.radius",
+      "type": "Float64",
+      "val": "50"
+    },
+    {
+      "node": "sphere@ZcFGixi5DJsmdHxA2$Jpmn",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.sphere.type",
+      "type": "Id",
+      "val": "icosahedron"
+    },
+    {
+      "node": "sphere@ZcFGixi5DJsmdHxA2$Jpmn/parambuilder",
+      "dir": "IN",
+      "port": "in",
+      "type": "Array",
+      "val": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=3)"
+    },
+    {
+      "node": "sphere@ZcFGixi5DJsmdHxA2$Jpmn/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.sphere.segment",
+      "type": "Int64",
+      "val": "24"
+    },
+    {
+      "node": "sphere@ZcFGixi5DJsmdHxA2$Jpmn/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.sphere.radius",
+      "type": "Float64",
+      "val": "50"
+    },
+    {
+      "node": "sphere@ZcFGixi5DJsmdHxA2$Jpmn/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.sphere.type",
+      "type": "Id",
+      "val": "standard"
+    },
+    {
+      "node": "sphere@ZcFGixi5DJsmdHxA2$Jpmn/generategeometry",
+      "dir": "IN",
+      "port": "commandid",
+      "type": "Id",
+      "val": "net.maxon.command.modeling.primitive.sphere"
+    }
+  ]
+}

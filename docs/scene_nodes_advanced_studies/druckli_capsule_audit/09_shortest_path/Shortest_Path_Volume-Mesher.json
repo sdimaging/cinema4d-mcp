@@ -1,0 +1,845 @@
+{
+  "source_host": "Shortest_Path_Volume-Mesher",
+  "source_host_type": 180420500,
+  "node_count": 29,
+  "capsule_count": 5,
+  "wire_count": 23,
+  "defaults_count": 70,
+  "nodes": [
+    {
+      "path": "containeriteration@f2Ln72dOFFxrApi6MHa9Gq",
+      "id": "containeriteration@f2Ln72dOFFxrApi6MHa9Gq",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "matrix@dthHB3BgFdSsy$L7EixBWu",
+      "id": "matrix@dthHB3BgFdSsy$L7EixBWu",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 5
+    },
+    {
+      "path": "matrix@dthHB3BgFdSsy$L7EixBWu/combine",
+      "id": "combine",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "matrix@dthHB3BgFdSsy$L7EixBWu/mat",
+      "id": "mat",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "matrix@dthHB3BgFdSsy$L7EixBWu/sqrpart",
+      "id": "sqrpart",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "matrix@dthHB3BgFdSsy$L7EixBWu/vectrans",
+      "id": "vectrans",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "matrix@dthHB3BgFdSsy$L7EixBWu/sqrtrans",
+      "id": "sqrtrans",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "fillgeometry@ZQmrq8dLHBllOnTl9sJR4o",
+      "id": "fillgeometry@ZQmrq8dLHBllOnTl9sJR4o",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 1
+    },
+    {
+      "path": "fillgeometry@ZQmrq8dLHBllOnTl9sJR4o/distnode",
+      "id": "distnode",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "cube@NHlYxM9NFVmhpCQbEP9bVo",
+      "id": "cube@NHlYxM9NFVmhpCQbEP9bVo",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 3
+    },
+    {
+      "path": "cube@NHlYxM9NFVmhpCQbEP9bVo/parambuilder",
+      "id": "parambuilder",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "cube@NHlYxM9NFVmhpCQbEP9bVo/defaultselections",
+      "id": "defaultselections",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "cube@NHlYxM9NFVmhpCQbEP9bVo/generategeometry",
+      "id": "generategeometry",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pokepolygons@NB7cGZlHE5dmXO21_825gs",
+      "id": "pokepolygons@NB7cGZlHE5dmXO21_825gs",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 3
+    },
+    {
+      "path": "pokepolygons@NB7cGZlHE5dmXO21_825gs/selectionstringtoselection",
+      "id": "selectionstringtoselection",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pokepolygons@NB7cGZlHE5dmXO21_825gs/modelingoperator",
+      "id": "modelingoperator",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "pokepolygons@NB7cGZlHE5dmXO21_825gs/parambuilder",
+      "id": "parambuilder",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "geometry@cxXNxwplBFJtaxrg0P3T6o",
+      "id": "geometry@cxXNxwplBFJtaxrg0P3T6o",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "arithmetic@QRw41Iq5D1_prtpiP1Vrmt",
+      "id": "arithmetic@QRw41Iq5D1_prtpiP1Vrmt",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "context_externaltimeinput",
+      "id": "context_externaltimeinput",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "context_notime",
+      "id": "context_notime",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "builder",
+      "id": "builder",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 1
+    },
+    {
+      "path": "builder/rot",
+      "id": "rot",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "net.maxon.neutron.corenode.multransform_5",
+      "id": "net.maxon.neutron.corenode.multransform_5",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "combine",
+      "id": "combine",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "mat",
+      "id": "mat",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "sqrpart",
+      "id": "sqrpart",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "vectrans",
+      "id": "vectrans",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "sqrtrans",
+      "id": "sqrtrans",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    }
+  ],
+  "wires": [
+    {
+      "src_path": "containeriteration@f2Ln72dOFFxrApi6MHa9Gq",
+      "src_port": "out.matrix",
+      "dst_path": "matrix@dthHB3BgFdSsy$L7EixBWu",
+      "dst_port": "matrix"
+    },
+    {
+      "src_path": "matrix@dthHB3BgFdSsy$L7EixBWu",
+      "src_port": "net.maxon.neutron.op.output",
+      "dst_path": "geometry@cxXNxwplBFJtaxrg0P3T6o",
+      "dst_port": "net.maxon.neutron.op.input"
+    },
+    {
+      "src_path": "matrix@dthHB3BgFdSsy$L7EixBWu/combine",
+      "src_port": "out",
+      "dst_path": "matrix@dthHB3BgFdSsy$L7EixBWu",
+      "dst_port": "domain"
+    },
+    {
+      "src_path": "matrix@dthHB3BgFdSsy$L7EixBWu/mat",
+      "src_port": "out",
+      "dst_path": "matrix@dthHB3BgFdSsy$L7EixBWu",
+      "dst_port": "matrix"
+    },
+    {
+      "src_path": "matrix@dthHB3BgFdSsy$L7EixBWu/sqrpart",
+      "src_port": "out",
+      "dst_path": "matrix@dthHB3BgFdSsy$L7EixBWu/sqrtrans",
+      "dst_port": "in2"
+    },
+    {
+      "src_path": "matrix@dthHB3BgFdSsy$L7EixBWu/vectrans",
+      "src_port": "out",
+      "dst_path": "matrix@dthHB3BgFdSsy$L7EixBWu",
+      "dst_port": "translation"
+    },
+    {
+      "src_path": "matrix@dthHB3BgFdSsy$L7EixBWu/vectrans",
+      "src_port": "out",
+      "dst_path": "matrix@dthHB3BgFdSsy$L7EixBWu/mat",
+      "dst_port": "off"
+    },
+    {
+      "src_path": "matrix@dthHB3BgFdSsy$L7EixBWu/sqrtrans",
+      "src_port": "out",
+      "dst_path": "matrix@dthHB3BgFdSsy$L7EixBWu/mat",
+      "dst_port": "sqmat"
+    },
+    {
+      "src_path": "matrix@dthHB3BgFdSsy$L7EixBWu/sqrtrans",
+      "src_port": "out",
+      "dst_path": "matrix@dthHB3BgFdSsy$L7EixBWu",
+      "dst_port": "sqrmatrix"
+    },
+    {
+      "src_path": "fillgeometry@ZQmrq8dLHBllOnTl9sJR4o",
+      "src_port": "distdataout",
+      "dst_path": "containeriteration@f2Ln72dOFFxrApi6MHa9Gq",
+      "dst_port": "in"
+    },
+    {
+      "src_path": "fillgeometry@ZQmrq8dLHBllOnTl9sJR4o/distnode",
+      "src_port": "distdataout",
+      "dst_path": "fillgeometry@ZQmrq8dLHBllOnTl9sJR4o",
+      "dst_port": "distdataout"
+    },
+    {
+      "src_path": "cube@NHlYxM9NFVmhpCQbEP9bVo",
+      "src_port": "geometryout",
+      "dst_path": "pokepolygons@NB7cGZlHE5dmXO21_825gs",
+      "dst_port": "geometryin"
+    },
+    {
+      "src_path": "cube@NHlYxM9NFVmhpCQbEP9bVo/parambuilder",
+      "src_port": "dictout",
+      "dst_path": "cube@NHlYxM9NFVmhpCQbEP9bVo/generategeometry",
+      "dst_port": "parameters"
+    },
+    {
+      "src_path": "cube@NHlYxM9NFVmhpCQbEP9bVo/defaultselections",
+      "src_port": "geometryout",
+      "dst_path": "cube@NHlYxM9NFVmhpCQbEP9bVo",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "cube@NHlYxM9NFVmhpCQbEP9bVo/generategeometry",
+      "src_port": "geometry",
+      "dst_path": "cube@NHlYxM9NFVmhpCQbEP9bVo/defaultselections",
+      "dst_port": "geometryin"
+    },
+    {
+      "src_path": "pokepolygons@NB7cGZlHE5dmXO21_825gs",
+      "src_port": "geometryout",
+      "dst_path": "geometry@cxXNxwplBFJtaxrg0P3T6o",
+      "dst_port": "geometry"
+    },
+    {
+      "src_path": "pokepolygons@NB7cGZlHE5dmXO21_825gs/selectionstringtoselection",
+      "src_port": "selection",
+      "dst_path": "pokepolygons@NB7cGZlHE5dmXO21_825gs/modelingoperator",
+      "dst_port": "selectionfromstring"
+    },
+    {
+      "src_path": "pokepolygons@NB7cGZlHE5dmXO21_825gs/modelingoperator",
+      "src_port": "geometryout",
+      "dst_path": "pokepolygons@NB7cGZlHE5dmXO21_825gs",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "pokepolygons@NB7cGZlHE5dmXO21_825gs/parambuilder",
+      "src_port": "dictout",
+      "dst_path": "pokepolygons@NB7cGZlHE5dmXO21_825gs/modelingoperator",
+      "dst_port": "parameters"
+    },
+    {
+      "src_path": "arithmetic@QRw41Iq5D1_prtpiP1Vrmt",
+      "src_port": "out",
+      "dst_path": "pokepolygons@NB7cGZlHE5dmXO21_825gs",
+      "dst_port": "net.maxon.command.modeling.pokepolygons.offset"
+    },
+    {
+      "src_path": "builder/rot",
+      "src_port": "out",
+      "dst_path": "builder",
+      "dst_port": "sqrmatrix"
+    },
+    {
+      "src_path": "sqrpart",
+      "src_port": "out",
+      "dst_path": "matrix@dthHB3BgFdSsy$L7EixBWu/sqrtrans",
+      "dst_port": "in2"
+    },
+    {
+      "src_path": "sqrtrans",
+      "src_port": "out",
+      "dst_path": "matrix@dthHB3BgFdSsy$L7EixBWu/mat",
+      "dst_port": "sqmat"
+    }
+  ],
+  "port_defaults": [
+    {
+      "node": "containeriteration@f2Ln72dOFFxrApi6MHa9Gq",
+      "dir": "OUT",
+      "port": "out.matrix",
+      "type": "Matrix64",
+      "val": "((0,0,0),((1,0,0),(0,1,0),(0,0,1)))"
+    },
+    {
+      "node": "matrix@dthHB3BgFdSsy$L7EixBWu",
+      "dir": "IN",
+      "port": "local",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "matrix@dthHB3BgFdSsy$L7EixBWu",
+      "dir": "IN",
+      "port": "matrix",
+      "type": "Matrix64",
+      "val": "((0,0,0),((1,0,0),(0,1,0),(0,0,1)))"
+    },
+    {
+      "node": "matrix@dthHB3BgFdSsy$L7EixBWu",
+      "dir": "IN",
+      "port": "matrix.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "matrix@dthHB3BgFdSsy$L7EixBWu",
+      "dir": "IN",
+      "port": "matrix.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "matrix@dthHB3BgFdSsy$L7EixBWu",
+      "dir": "IN",
+      "port": "matrix.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "matrix@dthHB3BgFdSsy$L7EixBWu",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.translation",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "matrix@dthHB3BgFdSsy$L7EixBWu",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.sqrmatrix",
+      "type": "SqMat3_64",
+      "val": "((1,0,0),(0,1,0),(0,0,1))"
+    },
+    {
+      "node": "matrix@dthHB3BgFdSsy$L7EixBWu/mat",
+      "dir": "IN",
+      "port": "in",
+      "type": "Matrix64",
+      "val": "((0,0,0),((1,0,0),(0,1,0),(0,0,1)))"
+    },
+    {
+      "node": "matrix@dthHB3BgFdSsy$L7EixBWu/sqrpart",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "auto"
+    },
+    {
+      "node": "fillgeometry@ZQmrq8dLHBllOnTl9sJR4o",
+      "dir": "IN",
+      "port": "upvectorin",
+      "type": "Id",
+      "val": "ypos"
+    },
+    {
+      "node": "fillgeometry@ZQmrq8dLHBllOnTl9sJR4o",
+      "dir": "IN",
+      "port": "seedin",
+      "type": "Int64",
+      "val": "12345"
+    },
+    {
+      "node": "fillgeometry@ZQmrq8dLHBllOnTl9sJR4o",
+      "dir": "IN",
+      "port": "voxelsizein",
+      "type": "Float64",
+      "val": "50"
+    },
+    {
+      "node": "fillgeometry@ZQmrq8dLHBllOnTl9sJR4o",
+      "dir": "IN",
+      "port": "fillfactorin",
+      "type": "Float64",
+      "val": "0.1"
+    },
+    {
+      "node": "fillgeometry@ZQmrq8dLHBllOnTl9sJR4o",
+      "dir": "IN",
+      "port": "filterratio",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "cube@NHlYxM9NFVmhpCQbEP9bVo",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.fillets.segment",
+      "type": "Int64",
+      "val": "5"
+    },
+    {
+      "node": "cube@NHlYxM9NFVmhpCQbEP9bVo",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.fillets.radius",
+      "type": "Float64",
+      "val": "5"
+    },
+    {
+      "node": "cube@NHlYxM9NFVmhpCQbEP9bVo",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.cube.subz",
+      "type": "Int64",
+      "val": "1"
+    },
+    {
+      "node": "cube@NHlYxM9NFVmhpCQbEP9bVo",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.cube.suby",
+      "type": "Int64",
+      "val": "1"
+    },
+    {
+      "node": "cube@NHlYxM9NFVmhpCQbEP9bVo",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.cube.subx",
+      "type": "Int64",
+      "val": "1"
+    },
+    {
+      "node": "cube@NHlYxM9NFVmhpCQbEP9bVo",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.size",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "cube@NHlYxM9NFVmhpCQbEP9bVo/parambuilder",
+      "dir": "IN",
+      "port": "in",
+      "type": "Array",
+      "val": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=8)"
+    },
+    {
+      "node": "cube@NHlYxM9NFVmhpCQbEP9bVo/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.fillets.segment",
+      "type": "Int64",
+      "val": "5"
+    },
+    {
+      "node": "cube@NHlYxM9NFVmhpCQbEP9bVo/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.fillets.radius",
+      "type": "Float64",
+      "val": "5"
+    },
+    {
+      "node": "cube@NHlYxM9NFVmhpCQbEP9bVo/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.cube.subz",
+      "type": "Int64",
+      "val": "1"
+    },
+    {
+      "node": "cube@NHlYxM9NFVmhpCQbEP9bVo/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.cube.suby",
+      "type": "Int64",
+      "val": "1"
+    },
+    {
+      "node": "cube@NHlYxM9NFVmhpCQbEP9bVo/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.cube.subx",
+      "type": "Int64",
+      "val": "1"
+    },
+    {
+      "node": "cube@NHlYxM9NFVmhpCQbEP9bVo/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.size",
+      "type": "Vector64",
+      "val": "X:100.0, Y:100.0, Z:100.0"
+    },
+    {
+      "node": "cube@NHlYxM9NFVmhpCQbEP9bVo/generategeometry",
+      "dir": "IN",
+      "port": "commandid",
+      "type": "Id",
+      "val": "net.maxon.command.modeling.primitive.cube"
+    },
+    {
+      "node": "pokepolygons@NB7cGZlHE5dmXO21_825gs",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.pokepolygons.offset",
+      "type": "Float64",
+      "val": "-0.5"
+    },
+    {
+      "node": "pokepolygons@NB7cGZlHE5dmXO21_825gs",
+      "dir": "IN",
+      "port": "selectionstring",
+      "type": "String",
+      "val": "all"
+    },
+    {
+      "node": "pokepolygons@NB7cGZlHE5dmXO21_825gs",
+      "dir": "IN",
+      "port": "mode",
+      "type": "InternedId",
+      "val": "polygons"
+    },
+    {
+      "node": "pokepolygons@NB7cGZlHE5dmXO21_825gs",
+      "dir": "OUT",
+      "port": "geometryout",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.object>C"
+    },
+    {
+      "node": "pokepolygons@NB7cGZlHE5dmXO21_825gs/selectionstringtoselection",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.accessorclas>cR"
+    },
+    {
+      "node": "pokepolygons@NB7cGZlHE5dmXO21_825gs/modelingoperator",
+      "dir": "IN",
+      "port": "commandid",
+      "type": "Id",
+      "val": "net.maxon.command.modeling.pokepolygons"
+    },
+    {
+      "node": "pokepolygons@NB7cGZlHE5dmXO21_825gs/modelingoperator",
+      "dir": "OUT",
+      "port": "geometryout",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.object>C"
+    },
+    {
+      "node": "geometry@cxXNxwplBFJtaxrg0P3T6o",
+      "dir": "IN",
+      "port": "geometry",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.object>C"
+    },
+    {
+      "node": "geometry@cxXNxwplBFJtaxrg0P3T6o",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.matrix.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "geometry@cxXNxwplBFJtaxrg0P3T6o",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.matrix.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "geometry@cxXNxwplBFJtaxrg0P3T6o",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.matrix.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "arithmetic@QRw41Iq5D1_prtpiP1Vrmt",
+      "dir": "IN",
+      "port": "operation",
+      "type": "Id",
+      "val": "div"
+    },
+    {
+      "node": "arithmetic@QRw41Iq5D1_prtpiP1Vrmt",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "float"
+    },
+    {
+      "node": "arithmetic@QRw41Iq5D1_prtpiP1Vrmt",
+      "dir": "IN",
+      "port": "in2",
+      "type": "Float64",
+      "val": "-2"
+    },
+    {
+      "node": "arithmetic@QRw41Iq5D1_prtpiP1Vrmt",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Float64",
+      "val": "-0.5"
+    },
+    {
+      "node": "builder",
+      "dir": "IN",
+      "port": "in.color",
+      "type": "Color64",
+      "val": "R:inf, G:inf, B:inf"
+    },
+    {
+      "node": "builder",
+      "dir": "IN",
+      "port": "in.matrix.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "builder",
+      "dir": "IN",
+      "port": "in.matrix.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "builder",
+      "dir": "IN",
+      "port": "in.matrix.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "builder/rot",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "auto"
+    },
+    {
+      "node": "net.maxon.neutron.corenode.multransform_5",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "auto"
+    },
+    {
+      "node": "net.maxon.neutron.corenode.multransform_5",
+      "dir": "IN",
+      "port": "in2.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "net.maxon.neutron.corenode.multransform_5",
+      "dir": "IN",
+      "port": "in2.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "net.maxon.neutron.corenode.multransform_5",
+      "dir": "IN",
+      "port": "in2.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "net.maxon.neutron.corenode.multransform_5",
+      "dir": "IN",
+      "port": "in1.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "net.maxon.neutron.corenode.multransform_5",
+      "dir": "IN",
+      "port": "in1.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "net.maxon.neutron.corenode.multransform_5",
+      "dir": "IN",
+      "port": "in1.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "combine",
+      "dir": "IN",
+      "port": "in2.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "combine",
+      "dir": "IN",
+      "port": "in2.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "combine",
+      "dir": "IN",
+      "port": "in2.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "mat",
+      "dir": "IN",
+      "port": "in",
+      "type": "Matrix64",
+      "val": "((0,0,0),((1,0,0),(0,1,0),(0,0,1)))"
+    },
+    {
+      "node": "mat",
+      "dir": "IN",
+      "port": "in.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "mat",
+      "dir": "IN",
+      "port": "in.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "mat",
+      "dir": "IN",
+      "port": "in.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "mat",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "sqrpart",
+      "dir": "IN",
+      "port": "in.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "sqrpart",
+      "dir": "IN",
+      "port": "in.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "sqrpart",
+      "dir": "IN",
+      "port": "in.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "sqrpart",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "auto"
+    },
+    {
+      "node": "vectrans",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "sqrtrans",
+      "dir": "OUT",
+      "port": "out",
+      "type": "SqMat3_64",
+      "val": "((1,0,0),(0,1,0),(0,0,1))"
+    }
+  ]
+}

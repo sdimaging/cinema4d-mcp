@@ -1,0 +1,7 @@
+Scene: Surface_Stippling_Distribution_HighAmount_01.c4d
+FPS=30 max=90
+
+Torus  (t=5163)
+Surface Stippling Distribution  (t=190000011)
+Cloner  (t=1018544)
+  Sphere  (t=5160)

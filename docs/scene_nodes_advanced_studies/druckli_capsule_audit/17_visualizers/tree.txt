@@ -1,0 +1,11 @@
+Scene: Visualizer_Examples_01.c4d
+FPS=25 max=100
+
+Sphere with Color Vectors  (t=180420600)
+Color as Vector Visualizer   (t=180420700)
+Sphere with Point Selection  (t=180420600)
+Selection Visualizer Points  (t=180420600)
+Sphere with Edge Selection  (t=180420600)
+Selection Visualizer Edges  (t=180420600)
+Sphere with Poly Selection  (t=180420600)
+Selection Visualizer Polys  (t=180420600)

@@ -1,0 +1,68 @@
+{
+  "source_host": "Store Selection",
+  "source_host_type": 180420400,
+  "node_count": 5,
+  "capsule_count": 0,
+  "wire_count": 2,
+  "defaults_count": 1,
+  "nodes": [
+    {
+      "path": "context_externaltimeinput",
+      "id": "context_externaltimeinput",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "context_notime",
+      "id": "context_notime",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "selectionoperator",
+      "id": "selectionoperator",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "variadictolist",
+      "id": "variadictolist",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "selectionstringtoselection",
+      "id": "selectionstringtoselection",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    }
+  ],
+  "wires": [
+    {
+      "src_path": "variadictolist",
+      "src_port": "geometryarrayout",
+      "dst_path": "selectionoperator",
+      "dst_port": "geometryarrayin"
+    },
+    {
+      "src_path": "selectionstringtoselection",
+      "src_port": "selection",
+      "dst_path": "selectionoperator",
+      "dst_port": "selectionfromstring"
+    }
+  ],
+  "port_defaults": [
+    {
+      "node": "selectionstringtoselection",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.accessorclas>cR"
+    }
+  ]
+}

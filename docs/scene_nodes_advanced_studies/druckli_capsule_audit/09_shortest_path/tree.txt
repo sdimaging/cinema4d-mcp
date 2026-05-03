@@ -1,0 +1,21 @@
+Scene: Shortest_Path_Example_02.c4d
+FPS=25 max=120
+
+Tree  (t=5140)
+  Start_Tree  (t=440000243)
+  End_Tree.1  (t=440000243)
+  End_Tree.2  (t=440000243)
+  End_Tree.3  (t=440000243)
+  End_Tree.4  (t=440000243)
+  End_Tree  (t=440000243)
+  Sweep_Tree  (t=5118)
+    n-Side  (t=5179)
+    Shortest Path  (t=180420700)
+    Smoothing  (t=1024529)
+Shortest_Path_Mesh-Container  (t=1011010)
+  Shortest_Path_Volume-Mesher  (t=180420500)
+    Volume Mesher  (t=1039861)
+      Volume Builder  (t=1039859)
+        Tree Paint Spline  (t=5101)
+  Smooth Points  (t=180420400)
+  Random  (t=1018643)

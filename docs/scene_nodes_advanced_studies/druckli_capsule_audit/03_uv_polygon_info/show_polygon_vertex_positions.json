@@ -1,0 +1,4446 @@
+{
+  "source_host": "Show Polygon Vertex Positions",
+  "source_host_type": 180420500,
+  "node_count": 122,
+  "capsule_count": 21,
+  "wire_count": 181,
+  "defaults_count": 356,
+  "nodes": [
+    {
+      "path": "scaffold@aWAfH$OvDVOl2C9BjNMlVE",
+      "id": "scaffold@aWAfH$OvDVOl2C9BjNMlVE",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "scaffold@LGUF8qbJJJep46q8ArGGMG",
+      "id": "scaffold@LGUF8qbJJJep46q8ArGGMG",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "color@S3R4aoDUBtasQ8mvdvGOxF",
+      "id": "color@S3R4aoDUBtasQ8mvdvGOxF",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "readvalueatindex2@f$1UjiueE1IiRd3nOcKBEB",
+      "id": "readvalueatindex2@f$1UjiueE1IiRd3nOcKBEB",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "readvalueatindex2@VLH4d4lwJRHnA_oU80DJFG",
+      "id": "readvalueatindex2@VLH4d4lwJRHnA_oU80DJFG",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "transformmatrix@VqKoaPM6HdCsXUNUr9zgWH",
+      "id": "transformmatrix@VqKoaPM6HdCsXUNUr9zgWH",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "reroute@ImEfR1U4Dxvnx9N0tuGUMC",
+      "id": "reroute@ImEfR1U4Dxvnx9N0tuGUMC",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs",
+      "id": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 17
+    },
+    {
+      "path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@H25aMgsaAd$kHHnU$$J3dc",
+      "id": "append2@H25aMgsaAd$kHHnU$$J3dc",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@GKYYA2NZL9gv7OV4jB2lXd",
+      "id": "append2@GKYYA2NZL9gv7OV4jB2lXd",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/loopcarriedvalue@cHOHCKIpFJ$p39fpboqe2b",
+      "id": "loopcarriedvalue@cHOHCKIpFJ$p39fpboqe2b",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 3
+    },
+    {
+      "path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/loopcarriedvalue@cHOHCKIpFJ$p39fpboqe2b/arithmetic@UeDzjr6bPtso$I30KuAXXa",
+      "id": "arithmetic@UeDzjr6bPtso$I30KuAXXa",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/loopcarriedvalue@cHOHCKIpFJ$p39fpboqe2b/end",
+      "id": "end",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/loopcarriedvalue@cHOHCKIpFJ$p39fpboqe2b/start",
+      "id": "start",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/polygonarrayget@cXp11p43JRwpGb4kBgi5yV",
+      "id": "polygonarrayget@cXp11p43JRwpGb4kBgi5yV",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/readvalueatindex2@IUvMkfUJJZrmWHk$czz3Xe",
+      "id": "readvalueatindex2@IUvMkfUJJZrmWHk$czz3Xe",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/arithmetic@a3$yoB7vHJAh8DnwsJhYof",
+      "id": "arithmetic@a3$yoB7vHJAh8DnwsJhYof",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/range@NwcWCp7XP1qm8gEHFd3gVb",
+      "id": "range@NwcWCp7XP1qm8gEHFd3gVb",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/readvalueatindex2@UrnL22hkNpLi75NF_UXLQd",
+      "id": "readvalueatindex2@UrnL22hkNpLi75NF_UXLQd",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/containeriteration@XCGdve6aEZvgRW4OczC3qY",
+      "id": "containeriteration@XCGdve6aEZvgRW4OczC3qY",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/arithmetic@LTBQrxufH1SpcQNKNA_dTe",
+      "id": "arithmetic@LTBQrxufH1SpcQNKNA_dTe",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@eazh_aOsHJvj$ygzvJ6NuZ",
+      "id": "append2@eazh_aOsHJvj$ygzvJ6NuZ",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@RKikl6kdNJ6gCnrwwIGRna",
+      "id": "append2@RKikl6kdNJ6gCnrwwIGRna",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@b7CS9QSsCRAtO7si2wg1yc",
+      "id": "append2@b7CS9QSsCRAtO7si2wg1yc",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/reroute@LbB1wMtJExzlRIrhQSdpQZ",
+      "id": "reroute@LbB1wMtJExzlRIrhQSdpQZ",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@bf9H8jXLLhnoZ3WwJd31yb",
+      "id": "append2@bf9H8jXLLhnoZ3WwJd31yb",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/get_property@bJwBXXRCOpzmBcooMdSswc",
+      "id": "get_property@bJwBXXRCOpzmBcooMdSswc",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 1
+    },
+    {
+      "path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/get_property@bJwBXXRCOpzmBcooMdSswc/get",
+      "id": "get",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/arithmetic@bSt86DMWBBrmfClAAcMsAb",
+      "id": "arithmetic@bSt86DMWBBrmfClAAcMsAb",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "id": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 7
+    },
+    {
+      "path": "sphere@QSfKNlQFAVtgMrV2amN6cd/primitive",
+      "id": "primitive",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 3
+    },
+    {
+      "path": "sphere@QSfKNlQFAVtgMrV2amN6cd/primitive/parambuilder",
+      "id": "parambuilder",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "sphere@QSfKNlQFAVtgMrV2amN6cd/primitive/defaultselections",
+      "id": "defaultselections",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "sphere@QSfKNlQFAVtgMrV2amN6cd/primitive/generategeometry",
+      "id": "generategeometry",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "sphere@QSfKNlQFAVtgMrV2amN6cd/net.maxon.neutron.corenode.multransform_5",
+      "id": "net.maxon.neutron.corenode.multransform_5",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "sphere@QSfKNlQFAVtgMrV2amN6cd/combine",
+      "id": "combine",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "sphere@QSfKNlQFAVtgMrV2amN6cd/mat",
+      "id": "mat",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "sphere@QSfKNlQFAVtgMrV2amN6cd/sqrpart",
+      "id": "sqrpart",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "sphere@QSfKNlQFAVtgMrV2amN6cd/vectrans",
+      "id": "vectrans",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "sphere@QSfKNlQFAVtgMrV2amN6cd/sqrtrans",
+      "id": "sqrtrans",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "readvalueatindex2@AJGadUDSKRhoyX1JPuB13Y",
+      "id": "readvalueatindex2@AJGadUDSKRhoyX1JPuB13Y",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "annotation@RLUvygL2DJain06FswzTlF",
+      "id": "annotation@RLUvygL2DJain06FswzTlF",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "annotation@F5wO6NdWENWqySLZs8O44F",
+      "id": "annotation@F5wO6NdWENWqySLZs8O44F",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "transform_element@DIhU0DxjLBYvvGKbracGQp",
+      "id": "transform_element@DIhU0DxjLBYvvGKbracGQp",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 2
+    },
+    {
+      "path": "transform_element@DIhU0DxjLBYvvGKbracGQp/transformpoint",
+      "id": "transformpoint",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "transform_element@DIhU0DxjLBYvvGKbracGQp/selectionstringparser",
+      "id": "selectionstringparser",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "id": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 7
+    },
+    {
+      "path": "sphere@NsYU2JfcNx_mHmzFjnewaf/primitive",
+      "id": "primitive",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 3
+    },
+    {
+      "path": "sphere@NsYU2JfcNx_mHmzFjnewaf/primitive/parambuilder",
+      "id": "parambuilder",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "sphere@NsYU2JfcNx_mHmzFjnewaf/primitive/defaultselections",
+      "id": "defaultselections",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "sphere@NsYU2JfcNx_mHmzFjnewaf/primitive/generategeometry",
+      "id": "generategeometry",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "sphere@NsYU2JfcNx_mHmzFjnewaf/net.maxon.neutron.corenode.multransform_5",
+      "id": "net.maxon.neutron.corenode.multransform_5",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "sphere@NsYU2JfcNx_mHmzFjnewaf/combine",
+      "id": "combine",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "sphere@NsYU2JfcNx_mHmzFjnewaf/mat",
+      "id": "mat",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "sphere@NsYU2JfcNx_mHmzFjnewaf/sqrpart",
+      "id": "sqrpart",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "sphere@NsYU2JfcNx_mHmzFjnewaf/vectrans",
+      "id": "vectrans",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "sphere@NsYU2JfcNx_mHmzFjnewaf/sqrtrans",
+      "id": "sqrtrans",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "transform_element@UlEsFFx7MhFkV7evEzz5rq",
+      "id": "transform_element@UlEsFFx7MhFkV7evEzz5rq",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 2
+    },
+    {
+      "path": "transform_element@UlEsFFx7MhFkV7evEzz5rq/transformpoint",
+      "id": "transformpoint",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "transform_element@UlEsFFx7MhFkV7evEzz5rq/selectionstringparser",
+      "id": "selectionstringparser",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "readvalueatindex2@MS$2NpT4DJkjOHh3edaY6b",
+      "id": "readvalueatindex2@MS$2NpT4DJkjOHh3edaY6b",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "id": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 7
+    },
+    {
+      "path": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive",
+      "id": "primitive",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 3
+    },
+    {
+      "path": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive/parambuilder",
+      "id": "parambuilder",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive/defaultselections",
+      "id": "defaultselections",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive/generategeometry",
+      "id": "generategeometry",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "text@b2h4AL6pCdvpGwNkiVPG8H/net.maxon.neutron.corenode.multransform_5",
+      "id": "net.maxon.neutron.corenode.multransform_5",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "text@b2h4AL6pCdvpGwNkiVPG8H/combine",
+      "id": "combine",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "text@b2h4AL6pCdvpGwNkiVPG8H/mat",
+      "id": "mat",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "text@b2h4AL6pCdvpGwNkiVPG8H/sqrpart",
+      "id": "sqrpart",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "text@b2h4AL6pCdvpGwNkiVPG8H/vectrans",
+      "id": "vectrans",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "text@b2h4AL6pCdvpGwNkiVPG8H/sqrtrans",
+      "id": "sqrtrans",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc",
+      "id": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 7
+    },
+    {
+      "path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc/ptposfrompolyids",
+      "id": "ptposfrompolyids",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc/selectionstringparser",
+      "id": "selectionstringparser",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc/ptidsfrompolyids",
+      "id": "ptidsfrompolyids",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc/polynormalsfrompolyids",
+      "id": "polynormalsfrompolyids",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc/edgesfrompolyids",
+      "id": "edgesfrompolyids",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc/polycenterfrompolyids",
+      "id": "polycenterfrompolyids",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc/selfrompolyids",
+      "id": "selfrompolyids",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "color@a3Sjqi9FO5gkuWQZiMvuUH",
+      "id": "color@a3Sjqi9FO5gkuWQZiMvuUH",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "readvalueatindex2@H515FpJuAREoeMqiza0p6B",
+      "id": "readvalueatindex2@H515FpJuAREoeMqiza0p6B",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "readvalueatindex2@EAcfjFnnJx5kZzIpDYWT9A",
+      "id": "readvalueatindex2@EAcfjFnnJx5kZzIpDYWT9A",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "children@Jbl2M67GGZ1iyeBF_4eoqZ",
+      "id": "children@Jbl2M67GGZ1iyeBF_4eoqZ",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 5
+    },
+    {
+      "path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_0",
+      "id": "_0",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 1
+    },
+    {
+      "path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_0/rot",
+      "id": "rot",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_2",
+      "id": "_2",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 1
+    },
+    {
+      "path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_2/rot",
+      "id": "rot",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_3",
+      "id": "_3",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 1
+    },
+    {
+      "path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_3/rot",
+      "id": "rot",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_1",
+      "id": "_1",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 1
+    },
+    {
+      "path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_1/rot",
+      "id": "rot",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/concat",
+      "id": "concat",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "floatingio@Hl5KF$ixEl7n2e7vlkIf8E",
+      "id": "floatingio@Hl5KF$ixEl7n2e7vlkIf8E",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "transformmatrix@XpppyrtyPpWhERON3$uX9E",
+      "id": "transformmatrix@XpppyrtyPpWhERON3$uX9E",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "id": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 7
+    },
+    {
+      "path": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive",
+      "id": "primitive",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 3
+    },
+    {
+      "path": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive/parambuilder",
+      "id": "parambuilder",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive/defaultselections",
+      "id": "defaultselections",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive/generategeometry",
+      "id": "generategeometry",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "text@cMRYbRssO5Ttnu6NGu8ngF/net.maxon.neutron.corenode.multransform_5",
+      "id": "net.maxon.neutron.corenode.multransform_5",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "text@cMRYbRssO5Ttnu6NGu8ngF/combine",
+      "id": "combine",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "text@cMRYbRssO5Ttnu6NGu8ngF/mat",
+      "id": "mat",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "text@cMRYbRssO5Ttnu6NGu8ngF/sqrpart",
+      "id": "sqrpart",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "text@cMRYbRssO5Ttnu6NGu8ngF/vectrans",
+      "id": "vectrans",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "text@cMRYbRssO5Ttnu6NGu8ngF/sqrtrans",
+      "id": "sqrtrans",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "color@Zb3PaLDpEFFudVSmyYG4hv",
+      "id": "color@Zb3PaLDpEFFudVSmyYG4hv",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "readvalueatindex2@UtA8cRHpJhgsTR6FEJwGIY",
+      "id": "readvalueatindex2@UtA8cRHpJhgsTR6FEJwGIY",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "get_property@WnzdMa4iJRygwk1p9swu7d",
+      "id": "get_property@WnzdMa4iJRygwk1p9swu7d",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 1
+    },
+    {
+      "path": "get_property@WnzdMa4iJRygwk1p9swu7d/get",
+      "id": "get",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "scaffold@Y8QRKIyUCpJhBwDsNNlf3D",
+      "id": "scaffold@Y8QRKIyUCpJhBwDsNNlf3D",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "color@ffRGFB0GLJNiKO9$hvlbgs",
+      "id": "color@ffRGFB0GLJNiKO9$hvlbgs",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "context_externaltimeinput",
+      "id": "context_externaltimeinput",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "context_notime",
+      "id": "context_notime",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "builder",
+      "id": "builder",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 1
+    },
+    {
+      "path": "builder/rot",
+      "id": "rot",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "net.maxon.neutron.corenode.multransform_5",
+      "id": "net.maxon.neutron.corenode.multransform_5",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "combine",
+      "id": "combine",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "mat",
+      "id": "mat",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "sqrpart",
+      "id": "sqrpart",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "vectrans",
+      "id": "vectrans",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "sqrtrans",
+      "id": "sqrtrans",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    }
+  ],
+  "wires": [
+    {
+      "src_path": "color@S3R4aoDUBtasQ8mvdvGOxF",
+      "src_port": "net.maxon.neutron.op.output",
+      "dst_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_1",
+      "dst_port": "_1"
+    },
+    {
+      "src_path": "readvalueatindex2@f$1UjiueE1IiRd3nOcKBEB",
+      "src_port": "valueout",
+      "dst_path": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dst_port": "net.maxon.command.modeling.primitive.curve.text.text"
+    },
+    {
+      "src_path": "readvalueatindex2@VLH4d4lwJRHnA_oU80DJFG",
+      "src_port": "valueout",
+      "dst_path": "readvalueatindex2@EAcfjFnnJx5kZzIpDYWT9A",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "transformmatrix@VqKoaPM6HdCsXUNUr9zgWH",
+      "src_port": "out",
+      "dst_path": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dst_port": "net.maxon.neutron.op.objectbase.matrix"
+    },
+    {
+      "src_path": "reroute@ImEfR1U4Dxvnx9N0tuGUMC",
+      "src_port": "out",
+      "dst_path": "get_property@WnzdMa4iJRygwk1p9swu7d",
+      "dst_port": "geometry"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs",
+      "src_port": "out@TZZwcxSiJ5mjEcms3$BZOY",
+      "dst_path": "readvalueatindex2@H515FpJuAREoeMqiza0p6B",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs",
+      "src_port": "out@HTK4fSgWBF7kAGR6pNugwc",
+      "dst_path": "readvalueatindex2@UtA8cRHpJhgsTR6FEJwGIY",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@H25aMgsaAd$kHHnU$$J3dc",
+      "src_port": "arrayout",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@b7CS9QSsCRAtO7si2wg1yc",
+      "dst_port": "valuein"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@H25aMgsaAd$kHHnU$$J3dc",
+      "src_port": "arrayout",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/arithmetic@LTBQrxufH1SpcQNKNA_dTe",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@GKYYA2NZL9gv7OV4jB2lXd",
+      "src_port": "arrayout",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@eazh_aOsHJvj$ygzvJ6NuZ",
+      "dst_port": "valuein"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/loopcarriedvalue@cHOHCKIpFJ$p39fpboqe2b",
+      "src_port": "out@ItEUNGEGPJthef4uP0yEsc",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/arithmetic@a3$yoB7vHJAh8DnwsJhYof",
+      "dst_port": "in2"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/loopcarriedvalue@cHOHCKIpFJ$p39fpboqe2b",
+      "src_port": "next._0",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/loopcarriedvalue@cHOHCKIpFJ$p39fpboqe2b/end",
+      "dst_port": "next._0"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/loopcarriedvalue@cHOHCKIpFJ$p39fpboqe2b/arithmetic@UeDzjr6bPtso$I30KuAXXa",
+      "src_port": "out",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/loopcarriedvalue@cHOHCKIpFJ$p39fpboqe2b",
+      "dst_port": "out@ItEUNGEGPJthef4uP0yEsc"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/loopcarriedvalue@cHOHCKIpFJ$p39fpboqe2b/arithmetic@UeDzjr6bPtso$I30KuAXXa",
+      "src_port": "out",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/loopcarriedvalue@cHOHCKIpFJ$p39fpboqe2b",
+      "dst_port": "next._0"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/loopcarriedvalue@cHOHCKIpFJ$p39fpboqe2b/end",
+      "src_port": "domain",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/loopcarriedvalue@cHOHCKIpFJ$p39fpboqe2b",
+      "dst_port": "domain"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/loopcarriedvalue@cHOHCKIpFJ$p39fpboqe2b/end",
+      "src_port": "final._0",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/loopcarriedvalue@cHOHCKIpFJ$p39fpboqe2b",
+      "dst_port": "final._0"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/loopcarriedvalue@cHOHCKIpFJ$p39fpboqe2b/start",
+      "src_port": "link",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/loopcarriedvalue@cHOHCKIpFJ$p39fpboqe2b/end",
+      "dst_port": "link"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/loopcarriedvalue@cHOHCKIpFJ$p39fpboqe2b/start",
+      "src_port": "state._0",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/loopcarriedvalue@cHOHCKIpFJ$p39fpboqe2b/end",
+      "dst_port": "state._0"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/loopcarriedvalue@cHOHCKIpFJ$p39fpboqe2b/start",
+      "src_port": "current._0",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/loopcarriedvalue@cHOHCKIpFJ$p39fpboqe2b",
+      "dst_port": "current._0"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/loopcarriedvalue@cHOHCKIpFJ$p39fpboqe2b/start",
+      "src_port": "current._0",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/loopcarriedvalue@cHOHCKIpFJ$p39fpboqe2b",
+      "dst_port": "final._0"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/polygonarrayget@cXp11p43JRwpGb4kBgi5yV",
+      "src_port": "pointindices",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/readvalueatindex2@IUvMkfUJJZrmWHk$czz3Xe",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/polygonarrayget@cXp11p43JRwpGb4kBgi5yV",
+      "src_port": "outlines",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/containeriteration@XCGdve6aEZvgRW4OczC3qY",
+      "dst_port": "in"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/readvalueatindex2@IUvMkfUJJZrmWHk$czz3Xe",
+      "src_port": "valueout",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/readvalueatindex2@UrnL22hkNpLi75NF_UXLQd",
+      "dst_port": "indexin"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/readvalueatindex2@IUvMkfUJJZrmWHk$czz3Xe",
+      "src_port": "valueout",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@GKYYA2NZL9gv7OV4jB2lXd",
+      "dst_port": "valuein"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/arithmetic@a3$yoB7vHJAh8DnwsJhYof",
+      "src_port": "out",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/arithmetic@bSt86DMWBBrmfClAAcMsAb",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/range@NwcWCp7XP1qm8gEHFd3gVb",
+      "src_port": "out",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/arithmetic@a3$yoB7vHJAh8DnwsJhYof",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/range@NwcWCp7XP1qm8gEHFd3gVb",
+      "src_port": "innerdomain",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@GKYYA2NZL9gv7OV4jB2lXd",
+      "dst_port": "innerdomain"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/range@NwcWCp7XP1qm8gEHFd3gVb",
+      "src_port": "innerdomain",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@H25aMgsaAd$kHHnU$$J3dc",
+      "dst_port": "innerdomain"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/readvalueatindex2@UrnL22hkNpLi75NF_UXLQd",
+      "src_port": "valueout",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@H25aMgsaAd$kHHnU$$J3dc",
+      "dst_port": "valuein"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/containeriteration@XCGdve6aEZvgRW4OczC3qY",
+      "src_port": "index",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@bf9H8jXLLhnoZ3WwJd31yb",
+      "dst_port": "valuein"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/containeriteration@XCGdve6aEZvgRW4OczC3qY",
+      "src_port": "out",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/arithmetic@bSt86DMWBBrmfClAAcMsAb",
+      "dst_port": "in2"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/containeriteration@XCGdve6aEZvgRW4OczC3qY",
+      "src_port": "out",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/loopcarriedvalue@cHOHCKIpFJ$p39fpboqe2b",
+      "dst_port": "in@JP$ACzWMF1Lq1lNgqvsodY"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/containeriteration@XCGdve6aEZvgRW4OczC3qY",
+      "src_port": "out",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/loopcarriedvalue@cHOHCKIpFJ$p39fpboqe2b/end",
+      "dst_port": "end"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/containeriteration@XCGdve6aEZvgRW4OczC3qY",
+      "src_port": "innerdomain",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/loopcarriedvalue@cHOHCKIpFJ$p39fpboqe2b",
+      "dst_port": "innerdomain"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/containeriteration@XCGdve6aEZvgRW4OczC3qY",
+      "src_port": "innerdomain",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/reroute@LbB1wMtJExzlRIrhQSdpQZ",
+      "dst_port": "in"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/arithmetic@LTBQrxufH1SpcQNKNA_dTe",
+      "src_port": "out.*access*xout",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@RKikl6kdNJ6gCnrwwIGRna",
+      "dst_port": "*access*xin"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/arithmetic@LTBQrxufH1SpcQNKNA_dTe",
+      "src_port": "out.*access*yout",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@RKikl6kdNJ6gCnrwwIGRna",
+      "dst_port": "*access*yin"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@eazh_aOsHJvj$ygzvJ6NuZ",
+      "src_port": "arrayout",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs",
+      "dst_port": "out@HTK4fSgWBF7kAGR6pNugwc"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@RKikl6kdNJ6gCnrwwIGRna",
+      "src_port": "arrayout",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs",
+      "dst_port": "out@eq7vJtXeNlytpk4o0G74zY"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@b7CS9QSsCRAtO7si2wg1yc",
+      "src_port": "arrayout",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs",
+      "dst_port": "out@TZZwcxSiJ5mjEcms3$BZOY"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/reroute@LbB1wMtJExzlRIrhQSdpQZ",
+      "src_port": "out",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@RKikl6kdNJ6gCnrwwIGRna",
+      "dst_port": "innerdomain"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/reroute@LbB1wMtJExzlRIrhQSdpQZ",
+      "src_port": "out",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@bf9H8jXLLhnoZ3WwJd31yb",
+      "dst_port": "innerdomain"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/reroute@LbB1wMtJExzlRIrhQSdpQZ",
+      "src_port": "out",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@b7CS9QSsCRAtO7si2wg1yc",
+      "dst_port": "innerdomain"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/reroute@LbB1wMtJExzlRIrhQSdpQZ",
+      "src_port": "out",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@eazh_aOsHJvj$ygzvJ6NuZ",
+      "dst_port": "innerdomain"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@bf9H8jXLLhnoZ3WwJd31yb",
+      "src_port": "arrayout",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs",
+      "dst_port": "out@ZLxJFHsaARtt8LttP_TKsd"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/get_property@bJwBXXRCOpzmBcooMdSswc",
+      "src_port": "topology",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/polygonarrayget@cXp11p43JRwpGb4kBgi5yV",
+      "dst_port": "topology"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/get_property@bJwBXXRCOpzmBcooMdSswc",
+      "src_port": "array",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/readvalueatindex2@UrnL22hkNpLi75NF_UXLQd",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/get_property@bJwBXXRCOpzmBcooMdSswc/get",
+      "src_port": "arrayout",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/get_property@bJwBXXRCOpzmBcooMdSswc",
+      "dst_port": "array"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/get_property@bJwBXXRCOpzmBcooMdSswc/get",
+      "src_port": "accessornameout",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/get_property@bJwBXXRCOpzmBcooMdSswc",
+      "dst_port": "accessornameout"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/get_property@bJwBXXRCOpzmBcooMdSswc/get",
+      "src_port": "isaccessorfoundout",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/get_property@bJwBXXRCOpzmBcooMdSswc",
+      "dst_port": "isattributefoundout"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/get_property@bJwBXXRCOpzmBcooMdSswc/get",
+      "src_port": "topologyout",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/get_property@bJwBXXRCOpzmBcooMdSswc",
+      "dst_port": "topology"
+    },
+    {
+      "src_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/arithmetic@bSt86DMWBBrmfClAAcMsAb",
+      "src_port": "out",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/readvalueatindex2@IUvMkfUJJZrmWHk$czz3Xe",
+      "dst_port": "indexin"
+    },
+    {
+      "src_path": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "src_port": "matrixout",
+      "dst_path": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "dst_port": "net.maxon.neutron.op.output"
+    },
+    {
+      "src_path": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "src_port": "matrixout.domain",
+      "dst_path": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "dst_port": "domain"
+    },
+    {
+      "src_path": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "src_port": "matrixout.parentmatrix",
+      "dst_path": "text@cMRYbRssO5Ttnu6NGu8ngF/net.maxon.neutron.corenode.multransform_5",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "src_port": "matrixout.matrix",
+      "dst_path": "text@cMRYbRssO5Ttnu6NGu8ngF/net.maxon.neutron.corenode.multransform_5",
+      "dst_port": "in2"
+    },
+    {
+      "src_path": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "src_port": "net.maxon.neutron.op.output",
+      "dst_path": "color@Zb3PaLDpEFFudVSmyYG4hv",
+      "dst_port": "net.maxon.neutron.op.input"
+    },
+    {
+      "src_path": "sphere@QSfKNlQFAVtgMrV2amN6cd/primitive",
+      "src_port": "geometryout",
+      "dst_path": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "dst_port": "geometry"
+    },
+    {
+      "src_path": "sphere@QSfKNlQFAVtgMrV2amN6cd/primitive/parambuilder",
+      "src_port": "dictout",
+      "dst_path": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive/generategeometry",
+      "dst_port": "parameters"
+    },
+    {
+      "src_path": "sphere@QSfKNlQFAVtgMrV2amN6cd/primitive/defaultselections",
+      "src_port": "geometryout",
+      "dst_path": "sphere@NsYU2JfcNx_mHmzFjnewaf/primitive",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "sphere@QSfKNlQFAVtgMrV2amN6cd/primitive/generategeometry",
+      "src_port": "geometry",
+      "dst_path": "sphere@NsYU2JfcNx_mHmzFjnewaf/primitive/defaultselections",
+      "dst_port": "geometryin"
+    },
+    {
+      "src_path": "sphere@QSfKNlQFAVtgMrV2amN6cd/net.maxon.neutron.corenode.multransform_5",
+      "src_port": "out",
+      "dst_path": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "dst_port": "parentmatrix"
+    },
+    {
+      "src_path": "sphere@QSfKNlQFAVtgMrV2amN6cd/combine",
+      "src_port": "out",
+      "dst_path": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "dst_port": "domain"
+    },
+    {
+      "src_path": "sphere@QSfKNlQFAVtgMrV2amN6cd/mat",
+      "src_port": "out",
+      "dst_path": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "dst_port": "matrix"
+    },
+    {
+      "src_path": "sphere@QSfKNlQFAVtgMrV2amN6cd/sqrpart",
+      "src_port": "out",
+      "dst_path": "text@cMRYbRssO5Ttnu6NGu8ngF/sqrtrans",
+      "dst_port": "in2"
+    },
+    {
+      "src_path": "sphere@QSfKNlQFAVtgMrV2amN6cd/vectrans",
+      "src_port": "out",
+      "dst_path": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "dst_port": "translation"
+    },
+    {
+      "src_path": "sphere@QSfKNlQFAVtgMrV2amN6cd/vectrans",
+      "src_port": "out",
+      "dst_path": "sphere@QSfKNlQFAVtgMrV2amN6cd/mat",
+      "dst_port": "off"
+    },
+    {
+      "src_path": "sphere@QSfKNlQFAVtgMrV2amN6cd/sqrtrans",
+      "src_port": "out",
+      "dst_path": "sphere@QSfKNlQFAVtgMrV2amN6cd/mat",
+      "dst_port": "sqmat"
+    },
+    {
+      "src_path": "sphere@QSfKNlQFAVtgMrV2amN6cd/sqrtrans",
+      "src_port": "out",
+      "dst_path": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "dst_port": "sqrmatrix"
+    },
+    {
+      "src_path": "readvalueatindex2@AJGadUDSKRhoyX1JPuB13Y",
+      "src_port": "valueout",
+      "dst_path": "readvalueatindex2@MS$2NpT4DJkjOHh3edaY6b",
+      "dst_port": "indexin"
+    },
+    {
+      "src_path": "transform_element@DIhU0DxjLBYvvGKbracGQp",
+      "src_port": "geometryout",
+      "dst_path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc",
+      "dst_port": "geometryin"
+    },
+    {
+      "src_path": "transform_element@DIhU0DxjLBYvvGKbracGQp/transformpoint",
+      "src_port": "geometryout",
+      "dst_path": "transform_element@DIhU0DxjLBYvvGKbracGQp",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "transform_element@DIhU0DxjLBYvvGKbracGQp/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "transform_element@DIhU0DxjLBYvvGKbracGQp/transformpoint",
+      "dst_port": "ptsidsin"
+    },
+    {
+      "src_path": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "src_port": "matrixout",
+      "dst_path": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "dst_port": "net.maxon.neutron.op.output"
+    },
+    {
+      "src_path": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "src_port": "matrixout.domain",
+      "dst_path": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "dst_port": "domain"
+    },
+    {
+      "src_path": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "src_port": "matrixout.parentmatrix",
+      "dst_path": "text@cMRYbRssO5Ttnu6NGu8ngF/net.maxon.neutron.corenode.multransform_5",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "src_port": "matrixout.matrix",
+      "dst_path": "text@cMRYbRssO5Ttnu6NGu8ngF/net.maxon.neutron.corenode.multransform_5",
+      "dst_port": "in2"
+    },
+    {
+      "src_path": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "src_port": "net.maxon.neutron.op.output",
+      "dst_path": "color@ffRGFB0GLJNiKO9$hvlbgs",
+      "dst_port": "net.maxon.neutron.op.input"
+    },
+    {
+      "src_path": "sphere@NsYU2JfcNx_mHmzFjnewaf/primitive",
+      "src_port": "geometryout",
+      "dst_path": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "dst_port": "geometry"
+    },
+    {
+      "src_path": "sphere@NsYU2JfcNx_mHmzFjnewaf/primitive/parambuilder",
+      "src_port": "dictout",
+      "dst_path": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive/generategeometry",
+      "dst_port": "parameters"
+    },
+    {
+      "src_path": "sphere@NsYU2JfcNx_mHmzFjnewaf/primitive/defaultselections",
+      "src_port": "geometryout",
+      "dst_path": "sphere@NsYU2JfcNx_mHmzFjnewaf/primitive",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "sphere@NsYU2JfcNx_mHmzFjnewaf/primitive/generategeometry",
+      "src_port": "geometry",
+      "dst_path": "sphere@NsYU2JfcNx_mHmzFjnewaf/primitive/defaultselections",
+      "dst_port": "geometryin"
+    },
+    {
+      "src_path": "sphere@NsYU2JfcNx_mHmzFjnewaf/net.maxon.neutron.corenode.multransform_5",
+      "src_port": "out",
+      "dst_path": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "dst_port": "parentmatrix"
+    },
+    {
+      "src_path": "sphere@NsYU2JfcNx_mHmzFjnewaf/combine",
+      "src_port": "out",
+      "dst_path": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "dst_port": "domain"
+    },
+    {
+      "src_path": "sphere@NsYU2JfcNx_mHmzFjnewaf/mat",
+      "src_port": "out",
+      "dst_path": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "dst_port": "matrix"
+    },
+    {
+      "src_path": "sphere@NsYU2JfcNx_mHmzFjnewaf/sqrpart",
+      "src_port": "out",
+      "dst_path": "text@cMRYbRssO5Ttnu6NGu8ngF/sqrtrans",
+      "dst_port": "in2"
+    },
+    {
+      "src_path": "sphere@NsYU2JfcNx_mHmzFjnewaf/vectrans",
+      "src_port": "out",
+      "dst_path": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "dst_port": "translation"
+    },
+    {
+      "src_path": "sphere@NsYU2JfcNx_mHmzFjnewaf/vectrans",
+      "src_port": "out",
+      "dst_path": "sphere@QSfKNlQFAVtgMrV2amN6cd/mat",
+      "dst_port": "off"
+    },
+    {
+      "src_path": "sphere@NsYU2JfcNx_mHmzFjnewaf/sqrtrans",
+      "src_port": "out",
+      "dst_path": "sphere@QSfKNlQFAVtgMrV2amN6cd/mat",
+      "dst_port": "sqmat"
+    },
+    {
+      "src_path": "sphere@NsYU2JfcNx_mHmzFjnewaf/sqrtrans",
+      "src_port": "out",
+      "dst_path": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "dst_port": "sqrmatrix"
+    },
+    {
+      "src_path": "transform_element@UlEsFFx7MhFkV7evEzz5rq",
+      "src_port": "geometryout",
+      "dst_path": "reroute@ImEfR1U4Dxvnx9N0tuGUMC",
+      "dst_port": "in"
+    },
+    {
+      "src_path": "transform_element@UlEsFFx7MhFkV7evEzz5rq",
+      "src_port": "geometryout",
+      "dst_path": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs",
+      "dst_port": "in@KLcfmonpKFHmox9RbW5M2c"
+    },
+    {
+      "src_path": "transform_element@UlEsFFx7MhFkV7evEzz5rq/transformpoint",
+      "src_port": "geometryout",
+      "dst_path": "transform_element@UlEsFFx7MhFkV7evEzz5rq",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "transform_element@UlEsFFx7MhFkV7evEzz5rq/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "transform_element@DIhU0DxjLBYvvGKbracGQp/transformpoint",
+      "dst_port": "ptsidsin"
+    },
+    {
+      "src_path": "readvalueatindex2@MS$2NpT4DJkjOHh3edaY6b",
+      "src_port": "valueout",
+      "dst_path": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "dst_port": "net.maxon.neutron.op.objectbase.matrix"
+    },
+    {
+      "src_path": "readvalueatindex2@MS$2NpT4DJkjOHh3edaY6b",
+      "src_port": "valueout",
+      "dst_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_0",
+      "dst_port": "_0"
+    },
+    {
+      "src_path": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "src_port": "matrixout",
+      "dst_path": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dst_port": "net.maxon.neutron.op.output"
+    },
+    {
+      "src_path": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "src_port": "matrixout.domain",
+      "dst_path": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dst_port": "domain"
+    },
+    {
+      "src_path": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "src_port": "matrixout.parentmatrix",
+      "dst_path": "text@cMRYbRssO5Ttnu6NGu8ngF/net.maxon.neutron.corenode.multransform_5",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "src_port": "matrixout.matrix",
+      "dst_path": "text@cMRYbRssO5Ttnu6NGu8ngF/net.maxon.neutron.corenode.multransform_5",
+      "dst_port": "in2"
+    },
+    {
+      "src_path": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "src_port": "net.maxon.neutron.op.output",
+      "dst_path": "color@S3R4aoDUBtasQ8mvdvGOxF",
+      "dst_port": "net.maxon.neutron.op.input"
+    },
+    {
+      "src_path": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive",
+      "src_port": "geometryout",
+      "dst_path": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dst_port": "geometry"
+    },
+    {
+      "src_path": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive/parambuilder",
+      "src_port": "dictout",
+      "dst_path": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive/generategeometry",
+      "dst_port": "parameters"
+    },
+    {
+      "src_path": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive/defaultselections",
+      "src_port": "geometryout",
+      "dst_path": "sphere@NsYU2JfcNx_mHmzFjnewaf/primitive",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive/generategeometry",
+      "src_port": "geometry",
+      "dst_path": "sphere@NsYU2JfcNx_mHmzFjnewaf/primitive/defaultselections",
+      "dst_port": "geometryin"
+    },
+    {
+      "src_path": "text@b2h4AL6pCdvpGwNkiVPG8H/net.maxon.neutron.corenode.multransform_5",
+      "src_port": "out",
+      "dst_path": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dst_port": "parentmatrix"
+    },
+    {
+      "src_path": "text@b2h4AL6pCdvpGwNkiVPG8H/combine",
+      "src_port": "out",
+      "dst_path": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dst_port": "domain"
+    },
+    {
+      "src_path": "text@b2h4AL6pCdvpGwNkiVPG8H/mat",
+      "src_port": "out",
+      "dst_path": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dst_port": "matrix"
+    },
+    {
+      "src_path": "text@b2h4AL6pCdvpGwNkiVPG8H/sqrpart",
+      "src_port": "out",
+      "dst_path": "text@cMRYbRssO5Ttnu6NGu8ngF/sqrtrans",
+      "dst_port": "in2"
+    },
+    {
+      "src_path": "text@b2h4AL6pCdvpGwNkiVPG8H/vectrans",
+      "src_port": "out",
+      "dst_path": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dst_port": "translation"
+    },
+    {
+      "src_path": "text@b2h4AL6pCdvpGwNkiVPG8H/vectrans",
+      "src_port": "out",
+      "dst_path": "sphere@QSfKNlQFAVtgMrV2amN6cd/mat",
+      "dst_port": "off"
+    },
+    {
+      "src_path": "text@b2h4AL6pCdvpGwNkiVPG8H/sqrtrans",
+      "src_port": "out",
+      "dst_path": "sphere@QSfKNlQFAVtgMrV2amN6cd/mat",
+      "dst_port": "sqmat"
+    },
+    {
+      "src_path": "text@b2h4AL6pCdvpGwNkiVPG8H/sqrtrans",
+      "src_port": "out",
+      "dst_path": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dst_port": "sqrmatrix"
+    },
+    {
+      "src_path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc",
+      "src_port": "ptsposout",
+      "dst_path": "readvalueatindex2@VLH4d4lwJRHnA_oU80DJFG",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc/ptposfrompolyids",
+      "src_port": "ptsposout",
+      "dst_path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc",
+      "dst_port": "ptsposout"
+    },
+    {
+      "src_path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc",
+      "dst_port": "polyidsout"
+    },
+    {
+      "src_path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc/ptposfrompolyids",
+      "dst_port": "polyidsin"
+    },
+    {
+      "src_path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc/edgesfrompolyids",
+      "dst_port": "polyidsin"
+    },
+    {
+      "src_path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc/selfrompolyids",
+      "dst_port": "polyidsin"
+    },
+    {
+      "src_path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc/ptidsfrompolyids",
+      "dst_port": "polyidsin"
+    },
+    {
+      "src_path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc/polynormalsfrompolyids",
+      "dst_port": "polyidsin"
+    },
+    {
+      "src_path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc/polycenterfrompolyids",
+      "dst_port": "polyidsin"
+    },
+    {
+      "src_path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc/ptidsfrompolyids",
+      "src_port": "ptsidsout",
+      "dst_path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc",
+      "dst_port": "ptsidsout"
+    },
+    {
+      "src_path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc/polynormalsfrompolyids",
+      "src_port": "polynormalsout",
+      "dst_path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc",
+      "dst_port": "polynormalsout"
+    },
+    {
+      "src_path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc/edgesfrompolyids",
+      "src_port": "edgesout",
+      "dst_path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc",
+      "dst_port": "edgesout"
+    },
+    {
+      "src_path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc/polycenterfrompolyids",
+      "src_port": "polycenterout",
+      "dst_path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc",
+      "dst_port": "polycenterout"
+    },
+    {
+      "src_path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc/selfrompolyids",
+      "src_port": "polysselectedout",
+      "dst_path": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc",
+      "dst_port": "selectionout"
+    },
+    {
+      "src_path": "color@a3Sjqi9FO5gkuWQZiMvuUH",
+      "src_port": "net.maxon.neutron.op.output",
+      "dst_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_3",
+      "dst_port": "_3"
+    },
+    {
+      "src_path": "readvalueatindex2@H515FpJuAREoeMqiza0p6B",
+      "src_port": "valueout",
+      "dst_path": "readvalueatindex2@f$1UjiueE1IiRd3nOcKBEB",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "readvalueatindex2@EAcfjFnnJx5kZzIpDYWT9A",
+      "src_port": "valueout",
+      "dst_path": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "dst_port": "net.maxon.neutron.op.objectbase.matrix"
+    },
+    {
+      "src_path": "readvalueatindex2@EAcfjFnnJx5kZzIpDYWT9A",
+      "src_port": "valueout",
+      "dst_path": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dst_port": "net.maxon.command.modeling.primitive.curve.text.text"
+    },
+    {
+      "src_path": "readvalueatindex2@EAcfjFnnJx5kZzIpDYWT9A",
+      "src_port": "valueout",
+      "dst_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_0",
+      "dst_port": "_0"
+    },
+    {
+      "src_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_0",
+      "src_port": "out",
+      "dst_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/concat",
+      "dst_port": "child#0"
+    },
+    {
+      "src_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_0/rot",
+      "src_port": "out",
+      "dst_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_0",
+      "dst_port": "sqrmatrix"
+    },
+    {
+      "src_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_2",
+      "src_port": "out",
+      "dst_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/concat",
+      "dst_port": "child#2"
+    },
+    {
+      "src_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_2/rot",
+      "src_port": "out",
+      "dst_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_2",
+      "dst_port": "sqrmatrix"
+    },
+    {
+      "src_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_3",
+      "src_port": "out",
+      "dst_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/concat",
+      "dst_port": "child#3"
+    },
+    {
+      "src_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_3/rot",
+      "src_port": "out",
+      "dst_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_3",
+      "dst_port": "sqrmatrix"
+    },
+    {
+      "src_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_1",
+      "src_port": "out",
+      "dst_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/concat",
+      "dst_port": "child#1"
+    },
+    {
+      "src_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_1/rot",
+      "src_port": "out",
+      "dst_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_1",
+      "dst_port": "sqrmatrix"
+    },
+    {
+      "src_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/concat",
+      "src_port": "children",
+      "dst_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ",
+      "dst_port": "array"
+    },
+    {
+      "src_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/concat",
+      "src_port": "out",
+      "dst_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ",
+      "dst_port": "children"
+    },
+    {
+      "src_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/concat",
+      "src_port": "packed#0",
+      "dst_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_0",
+      "dst_port": "_0"
+    },
+    {
+      "src_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/concat",
+      "src_port": "packed#1",
+      "dst_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_1",
+      "dst_port": "_1"
+    },
+    {
+      "src_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/concat",
+      "src_port": "packed#2",
+      "dst_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_2",
+      "dst_port": "_2"
+    },
+    {
+      "src_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/concat",
+      "src_port": "packed#3",
+      "dst_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_3",
+      "dst_port": "_3"
+    },
+    {
+      "src_path": "floatingio@Hl5KF$ixEl7n2e7vlkIf8E",
+      "src_port": "in2.in@LROzbTnvCF8kEE8a0Mpdcb",
+      "dst_path": "readvalueatindex2@AJGadUDSKRhoyX1JPuB13Y",
+      "dst_port": "indexin"
+    },
+    {
+      "src_path": "floatingio@Hl5KF$ixEl7n2e7vlkIf8E",
+      "src_port": "in2.in@LROzbTnvCF8kEE8a0Mpdcb",
+      "dst_path": "readvalueatindex2@EAcfjFnnJx5kZzIpDYWT9A",
+      "dst_port": "indexin"
+    },
+    {
+      "src_path": "floatingio@Hl5KF$ixEl7n2e7vlkIf8E",
+      "src_port": "in2.in@LROzbTnvCF8kEE8a0Mpdcb",
+      "dst_path": "readvalueatindex2@f$1UjiueE1IiRd3nOcKBEB",
+      "dst_port": "indexin"
+    },
+    {
+      "src_path": "floatingio@Hl5KF$ixEl7n2e7vlkIf8E",
+      "src_port": "in1.in@X5qUZlS_MdSs2MwS_Jq8DY",
+      "dst_path": "readvalueatindex2@UtA8cRHpJhgsTR6FEJwGIY",
+      "dst_port": "indexin"
+    },
+    {
+      "src_path": "floatingio@Hl5KF$ixEl7n2e7vlkIf8E",
+      "src_port": "in1.in@X5qUZlS_MdSs2MwS_Jq8DY",
+      "dst_path": "readvalueatindex2@H515FpJuAREoeMqiza0p6B",
+      "dst_port": "indexin"
+    },
+    {
+      "src_path": "floatingio@Hl5KF$ixEl7n2e7vlkIf8E",
+      "src_port": "in1.in@X5qUZlS_MdSs2MwS_Jq8DY",
+      "dst_path": "readvalueatindex2@VLH4d4lwJRHnA_oU80DJFG",
+      "dst_port": "indexin"
+    },
+    {
+      "src_path": "transformmatrix@XpppyrtyPpWhERON3$uX9E",
+      "src_port": "out",
+      "dst_path": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dst_port": "net.maxon.neutron.op.objectbase.matrix"
+    },
+    {
+      "src_path": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "src_port": "matrixout",
+      "dst_path": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dst_port": "net.maxon.neutron.op.output"
+    },
+    {
+      "src_path": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "src_port": "matrixout.domain",
+      "dst_path": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dst_port": "domain"
+    },
+    {
+      "src_path": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "src_port": "matrixout.parentmatrix",
+      "dst_path": "text@cMRYbRssO5Ttnu6NGu8ngF/net.maxon.neutron.corenode.multransform_5",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "src_port": "matrixout.matrix",
+      "dst_path": "text@cMRYbRssO5Ttnu6NGu8ngF/net.maxon.neutron.corenode.multransform_5",
+      "dst_port": "in2"
+    },
+    {
+      "src_path": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "src_port": "net.maxon.neutron.op.output",
+      "dst_path": "color@a3Sjqi9FO5gkuWQZiMvuUH",
+      "dst_port": "net.maxon.neutron.op.input"
+    },
+    {
+      "src_path": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive",
+      "src_port": "geometryout",
+      "dst_path": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dst_port": "geometry"
+    },
+    {
+      "src_path": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive/parambuilder",
+      "src_port": "dictout",
+      "dst_path": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive/generategeometry",
+      "dst_port": "parameters"
+    },
+    {
+      "src_path": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive/defaultselections",
+      "src_port": "geometryout",
+      "dst_path": "sphere@NsYU2JfcNx_mHmzFjnewaf/primitive",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive/generategeometry",
+      "src_port": "geometry",
+      "dst_path": "sphere@NsYU2JfcNx_mHmzFjnewaf/primitive/defaultselections",
+      "dst_port": "geometryin"
+    },
+    {
+      "src_path": "text@cMRYbRssO5Ttnu6NGu8ngF/net.maxon.neutron.corenode.multransform_5",
+      "src_port": "out",
+      "dst_path": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dst_port": "parentmatrix"
+    },
+    {
+      "src_path": "text@cMRYbRssO5Ttnu6NGu8ngF/combine",
+      "src_port": "out",
+      "dst_path": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dst_port": "domain"
+    },
+    {
+      "src_path": "text@cMRYbRssO5Ttnu6NGu8ngF/mat",
+      "src_port": "out",
+      "dst_path": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dst_port": "matrix"
+    },
+    {
+      "src_path": "text@cMRYbRssO5Ttnu6NGu8ngF/sqrpart",
+      "src_port": "out",
+      "dst_path": "text@cMRYbRssO5Ttnu6NGu8ngF/sqrtrans",
+      "dst_port": "in2"
+    },
+    {
+      "src_path": "text@cMRYbRssO5Ttnu6NGu8ngF/vectrans",
+      "src_port": "out",
+      "dst_path": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dst_port": "translation"
+    },
+    {
+      "src_path": "text@cMRYbRssO5Ttnu6NGu8ngF/vectrans",
+      "src_port": "out",
+      "dst_path": "sphere@QSfKNlQFAVtgMrV2amN6cd/mat",
+      "dst_port": "off"
+    },
+    {
+      "src_path": "text@cMRYbRssO5Ttnu6NGu8ngF/sqrtrans",
+      "src_port": "out",
+      "dst_path": "sphere@QSfKNlQFAVtgMrV2amN6cd/mat",
+      "dst_port": "sqmat"
+    },
+    {
+      "src_path": "text@cMRYbRssO5Ttnu6NGu8ngF/sqrtrans",
+      "src_port": "out",
+      "dst_path": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dst_port": "sqrmatrix"
+    },
+    {
+      "src_path": "color@Zb3PaLDpEFFudVSmyYG4hv",
+      "src_port": "net.maxon.neutron.op.output",
+      "dst_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_0",
+      "dst_port": "_0"
+    },
+    {
+      "src_path": "readvalueatindex2@UtA8cRHpJhgsTR6FEJwGIY",
+      "src_port": "valueout",
+      "dst_path": "readvalueatindex2@AJGadUDSKRhoyX1JPuB13Y",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "get_property@WnzdMa4iJRygwk1p9swu7d",
+      "src_port": "array",
+      "dst_path": "readvalueatindex2@MS$2NpT4DJkjOHh3edaY6b",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "get_property@WnzdMa4iJRygwk1p9swu7d/get",
+      "src_port": "arrayout",
+      "dst_path": "get_property@WnzdMa4iJRygwk1p9swu7d",
+      "dst_port": "array"
+    },
+    {
+      "src_path": "get_property@WnzdMa4iJRygwk1p9swu7d/get",
+      "src_port": "accessornameout",
+      "dst_path": "get_property@WnzdMa4iJRygwk1p9swu7d",
+      "dst_port": "accessornameout"
+    },
+    {
+      "src_path": "get_property@WnzdMa4iJRygwk1p9swu7d/get",
+      "src_port": "isaccessorfoundout",
+      "dst_path": "get_property@WnzdMa4iJRygwk1p9swu7d",
+      "dst_port": "isattributefoundout"
+    },
+    {
+      "src_path": "get_property@WnzdMa4iJRygwk1p9swu7d/get",
+      "src_port": "topologyout",
+      "dst_path": "get_property@WnzdMa4iJRygwk1p9swu7d",
+      "dst_port": "topology"
+    },
+    {
+      "src_path": "color@ffRGFB0GLJNiKO9$hvlbgs",
+      "src_port": "net.maxon.neutron.op.output",
+      "dst_path": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_2",
+      "dst_port": "_2"
+    },
+    {
+      "src_path": "builder/rot",
+      "src_port": "out",
+      "dst_path": "builder",
+      "dst_port": "sqrmatrix"
+    },
+    {
+      "src_path": "sqrpart",
+      "src_port": "out",
+      "dst_path": "text@cMRYbRssO5Ttnu6NGu8ngF/sqrtrans",
+      "dst_port": "in2"
+    },
+    {
+      "src_path": "sqrtrans",
+      "src_port": "out",
+      "dst_path": "sphere@QSfKNlQFAVtgMrV2amN6cd/mat",
+      "dst_port": "sqmat"
+    }
+  ],
+  "port_defaults": [
+    {
+      "node": "color@S3R4aoDUBtasQ8mvdvGOxF",
+      "dir": "IN",
+      "port": "color",
+      "type": "ColorA64",
+      "val": "R:0.9526205658912659, G:0.986547589302063, B:0.13018536567687988, Alpha:1.0"
+    },
+    {
+      "node": "color@S3R4aoDUBtasQ8mvdvGOxF",
+      "dir": "IN",
+      "port": "color.*access*alphain",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "color@S3R4aoDUBtasQ8mvdvGOxF",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.matrix.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "color@S3R4aoDUBtasQ8mvdvGOxF",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.matrix.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "color@S3R4aoDUBtasQ8mvdvGOxF",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.matrix.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "color@S3R4aoDUBtasQ8mvdvGOxF",
+      "dir": "OUT",
+      "port": "net.maxon.neutron.op.output.color",
+      "type": "Color64",
+      "val": "R:inf, G:inf, B:inf"
+    },
+    {
+      "node": "readvalueatindex2@f$1UjiueE1IiRd3nOcKBEB",
+      "dir": "IN",
+      "port": "cyclein",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "readvalueatindex2@f$1UjiueE1IiRd3nOcKBEB",
+      "dir": "OUT",
+      "port": "valueout",
+      "type": "String",
+      "val": "Text"
+    },
+    {
+      "node": "readvalueatindex2@VLH4d4lwJRHnA_oU80DJFG",
+      "dir": "IN",
+      "port": "cyclein",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "transformmatrix@VqKoaPM6HdCsXUNUr9zgWH",
+      "dir": "IN",
+      "port": "in",
+      "type": "Array",
+      "val": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=2)"
+    },
+    {
+      "node": "transformmatrix@VqKoaPM6HdCsXUNUr9zgWH",
+      "dir": "IN",
+      "port": "in._0.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "transformmatrix@VqKoaPM6HdCsXUNUr9zgWH",
+      "dir": "IN",
+      "port": "in._0.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "transformmatrix@VqKoaPM6HdCsXUNUr9zgWH",
+      "dir": "IN",
+      "port": "in._0.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "transformmatrix@VqKoaPM6HdCsXUNUr9zgWH",
+      "dir": "IN",
+      "port": "in._1",
+      "type": "UnknownDataType",
+      "val": "net.maxon.neutron.datatype.psrmatrix"
+    },
+    {
+      "node": "transformmatrix@VqKoaPM6HdCsXUNUr9zgWH",
+      "dir": "IN",
+      "port": "in._1.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "transformmatrix@VqKoaPM6HdCsXUNUr9zgWH",
+      "dir": "IN",
+      "port": "in._1.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "transformmatrix@VqKoaPM6HdCsXUNUr9zgWH",
+      "dir": "IN",
+      "port": "in._1.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "transformmatrix@VqKoaPM6HdCsXUNUr9zgWH",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Matrix64",
+      "val": "((0,0,0),((1,0,0),(0,1,0),(0,0,1)))"
+    },
+    {
+      "node": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs",
+      "dir": "IN",
+      "port": "in@AT7CYKSkHVRicWQjWBwcdZ",
+      "type": "String",
+      "val": "UVW"
+    },
+    {
+      "node": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@H25aMgsaAd$kHHnU$$J3dc",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "DataType",
+      "val": "net.maxon.parametrictype.vec<2,float>[]C"
+    },
+    {
+      "node": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@H25aMgsaAd$kHHnU$$J3dc",
+      "dir": "IN",
+      "port": "countin",
+      "type": "Int64",
+      "val": "1"
+    },
+    {
+      "node": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@GKYYA2NZL9gv7OV4jB2lXd",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "DataType",
+      "val": "int[]C"
+    },
+    {
+      "node": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@GKYYA2NZL9gv7OV4jB2lXd",
+      "dir": "IN",
+      "port": "countin",
+      "type": "Int64",
+      "val": "1"
+    },
+    {
+      "node": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/loopcarriedvalue@cHOHCKIpFJ$p39fpboqe2b",
+      "dir": "IN",
+      "port": "types",
+      "type": "Array",
+      "val": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=1)"
+    },
+    {
+      "node": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/loopcarriedvalue@cHOHCKIpFJ$p39fpboqe2b",
+      "dir": "IN",
+      "port": "types._0",
+      "type": "DataType",
+      "val": "int"
+    },
+    {
+      "node": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/loopcarriedvalue@cHOHCKIpFJ$p39fpboqe2b/arithmetic@UeDzjr6bPtso$I30KuAXXa",
+      "dir": "IN",
+      "port": "operation",
+      "type": "Id",
+      "val": "add"
+    },
+    {
+      "node": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/loopcarriedvalue@cHOHCKIpFJ$p39fpboqe2b/arithmetic@UeDzjr6bPtso$I30KuAXXa",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "int"
+    },
+    {
+      "node": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/readvalueatindex2@IUvMkfUJJZrmWHk$czz3Xe",
+      "dir": "IN",
+      "port": "cyclein",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/arithmetic@a3$yoB7vHJAh8DnwsJhYof",
+      "dir": "IN",
+      "port": "operation",
+      "type": "Id",
+      "val": "add"
+    },
+    {
+      "node": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/arithmetic@a3$yoB7vHJAh8DnwsJhYof",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "int"
+    },
+    {
+      "node": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/readvalueatindex2@UrnL22hkNpLi75NF_UXLQd",
+      "dir": "IN",
+      "port": "cyclein",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/arithmetic@LTBQrxufH1SpcQNKNA_dTe",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "net.maxon.parametrictype.vec<3,float>"
+    },
+    {
+      "node": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/arithmetic@LTBQrxufH1SpcQNKNA_dTe",
+      "dir": "IN",
+      "port": "operationin",
+      "type": "Id",
+      "val": "avg"
+    },
+    {
+      "node": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@eazh_aOsHJvj$ygzvJ6NuZ",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "DataType",
+      "val": "int[]C[]C"
+    },
+    {
+      "node": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@eazh_aOsHJvj$ygzvJ6NuZ",
+      "dir": "IN",
+      "port": "countin",
+      "type": "Int64",
+      "val": "1"
+    },
+    {
+      "node": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@RKikl6kdNJ6gCnrwwIGRna",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "DataType",
+      "val": "net.maxon.parametrictype.vec<2,float>[]C"
+    },
+    {
+      "node": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@RKikl6kdNJ6gCnrwwIGRna",
+      "dir": "IN",
+      "port": "countin",
+      "type": "Int64",
+      "val": "1"
+    },
+    {
+      "node": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@b7CS9QSsCRAtO7si2wg1yc",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "DataType",
+      "val": "net.maxon.parametrictype.vec<2,float>[]C[]C"
+    },
+    {
+      "node": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@b7CS9QSsCRAtO7si2wg1yc",
+      "dir": "IN",
+      "port": "countin",
+      "type": "Int64",
+      "val": "1"
+    },
+    {
+      "node": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@bf9H8jXLLhnoZ3WwJd31yb",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "DataType",
+      "val": "int[]C"
+    },
+    {
+      "node": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/append2@bf9H8jXLLhnoZ3WwJd31yb",
+      "dir": "IN",
+      "port": "countin",
+      "type": "Int64",
+      "val": "1"
+    },
+    {
+      "node": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/get_property@bJwBXXRCOpzmBcooMdSswc",
+      "dir": "IN",
+      "port": "accessorname",
+      "type": "String",
+      "val": "UVW"
+    },
+    {
+      "node": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/get_property@bJwBXXRCOpzmBcooMdSswc",
+      "dir": "IN",
+      "port": "fallbackmodein",
+      "type": "Id",
+      "val": "none"
+    },
+    {
+      "node": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/get_property@bJwBXXRCOpzmBcooMdSswc",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "Id",
+      "val": "net.maxon.geometryabstraction.accessortypes.attributes.uv"
+    },
+    {
+      "node": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/get_property@bJwBXXRCOpzmBcooMdSswc",
+      "dir": "IN",
+      "port": "fallbackvaluein",
+      "type": "UnknownDataType",
+      "val": "net.maxon.parametrictype.vec<2,float32>"
+    },
+    {
+      "node": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/get_property@bJwBXXRCOpzmBcooMdSswc",
+      "dir": "IN",
+      "port": "componentin",
+      "type": "Id",
+      "val": "points"
+    },
+    {
+      "node": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/arithmetic@bSt86DMWBBrmfClAAcMsAb",
+      "dir": "IN",
+      "port": "operation",
+      "type": "Id",
+      "val": "sub"
+    },
+    {
+      "node": "b329919b6fe74a11ac3b70c293ae92c2@d4i_oS1aDJvtpDhYlGIJLs/arithmetic@bSt86DMWBBrmfClAAcMsAb",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "int"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "dir": "IN",
+      "port": "primitivetypein",
+      "type": "UnknownDataType",
+      "val": "net.maxon.node.datatype.nodeortemplate"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.sphere.segment",
+      "type": "Int64",
+      "val": "24"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.sphere.radius",
+      "type": "Float64",
+      "val": "0.6"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.sphere.type",
+      "type": "Id",
+      "val": "standard"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.objectbase.matrix",
+      "type": "Matrix64",
+      "val": "((0,0,0),((1,0,0),(0,1,0),(0,0,1)))"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.objectbase.matrix.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.objectbase.matrix.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.objectbase.matrix.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.objectbase.children",
+      "type": "Array",
+      "val": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=0)"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.translation",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.sqrmatrix",
+      "type": "SqMat3_64",
+      "val": "((1,0,0),(0,1,0),(0,0,1))"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "dir": "OUT",
+      "port": "matrixout.parentmatrix",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "dir": "OUT",
+      "port": "matrixout.translation",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "dir": "OUT",
+      "port": "matrixout.sqrmatrix",
+      "type": "SqMat3_64",
+      "val": "((1,0,0),(0,1,0),(0,0,1))"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "dir": "OUT",
+      "port": "matrixout.matrix",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "dir": "OUT",
+      "port": "children.out.translation",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "dir": "OUT",
+      "port": "children.out.sqrmatrix",
+      "type": "SqMat3_64",
+      "val": "((1,0,0),(0,1,0),(0,0,1))"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd",
+      "dir": "OUT",
+      "port": "children.out.matrix",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.sphere.segment",
+      "type": "Int64",
+      "val": "24"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.sphere.radius",
+      "type": "Float64",
+      "val": "50"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.sphere.type",
+      "type": "Id",
+      "val": "standard"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in",
+      "type": "Array",
+      "val": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=3)"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.sphere.segment",
+      "type": "Int64",
+      "val": "24"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.sphere.radius",
+      "type": "Float64",
+      "val": "50"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.sphere.type",
+      "type": "Id",
+      "val": "standard"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd/primitive/generategeometry",
+      "dir": "IN",
+      "port": "commandid",
+      "type": "Id",
+      "val": "net.maxon.command.modeling.primitive.sphere"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd/net.maxon.neutron.corenode.multransform_5",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "auto"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd/mat",
+      "dir": "IN",
+      "port": "in",
+      "type": "Matrix64",
+      "val": "((0,0,0),((1,0,0),(0,1,0),(0,0,1)))"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd/mat",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd/sqrpart",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "auto"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd/vectrans",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "sphere@QSfKNlQFAVtgMrV2amN6cd/sqrtrans",
+      "dir": "OUT",
+      "port": "out",
+      "type": "SqMat3_64",
+      "val": "((1,0,0),(0,1,0),(0,0,1))"
+    },
+    {
+      "node": "readvalueatindex2@AJGadUDSKRhoyX1JPuB13Y",
+      "dir": "IN",
+      "port": "cyclein",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "transform_element@DIhU0DxjLBYvvGKbracGQp",
+      "dir": "IN",
+      "port": "selectionstringin",
+      "type": "String",
+      "val": "default"
+    },
+    {
+      "node": "transform_element@DIhU0DxjLBYvvGKbracGQp",
+      "dir": "IN",
+      "port": "transformin.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "transform_element@DIhU0DxjLBYvvGKbracGQp",
+      "dir": "IN",
+      "port": "transformin.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "transform_element@DIhU0DxjLBYvvGKbracGQp",
+      "dir": "IN",
+      "port": "transformin.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "transform_element@DIhU0DxjLBYvvGKbracGQp",
+      "dir": "IN",
+      "port": "pivotmatrixin.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "transform_element@DIhU0DxjLBYvvGKbracGQp",
+      "dir": "IN",
+      "port": "pivotmatrixin.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "transform_element@DIhU0DxjLBYvvGKbracGQp",
+      "dir": "IN",
+      "port": "pivotmatrixin.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "transform_element@DIhU0DxjLBYvvGKbracGQp",
+      "dir": "IN",
+      "port": "selectiontypein",
+      "type": "Id",
+      "val": "points"
+    },
+    {
+      "node": "transform_element@DIhU0DxjLBYvvGKbracGQp/selectionstringparser",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.accessorclas>cR"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "dir": "IN",
+      "port": "primitivetypein",
+      "type": "UnknownDataType",
+      "val": "net.maxon.node.datatype.nodeortemplate"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.sphere.segment",
+      "type": "Int64",
+      "val": "24"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.sphere.radius",
+      "type": "Float64",
+      "val": "0.6"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.sphere.type",
+      "type": "Id",
+      "val": "standard"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.objectbase.matrix",
+      "type": "Matrix64",
+      "val": "((0,0,0),((1,0,0),(0,1,0),(0,0,1)))"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.objectbase.matrix.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.objectbase.matrix.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.objectbase.matrix.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.objectbase.children",
+      "type": "Array",
+      "val": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=0)"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.translation",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.sqrmatrix",
+      "type": "SqMat3_64",
+      "val": "((1,0,0),(0,1,0),(0,0,1))"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "dir": "OUT",
+      "port": "matrixout.parentmatrix",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "dir": "OUT",
+      "port": "matrixout.translation",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "dir": "OUT",
+      "port": "matrixout.sqrmatrix",
+      "type": "SqMat3_64",
+      "val": "((1,0,0),(0,1,0),(0,0,1))"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "dir": "OUT",
+      "port": "matrixout.matrix",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "dir": "OUT",
+      "port": "children.out.translation",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "dir": "OUT",
+      "port": "children.out.sqrmatrix",
+      "type": "SqMat3_64",
+      "val": "((1,0,0),(0,1,0),(0,0,1))"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf",
+      "dir": "OUT",
+      "port": "children.out.matrix",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.sphere.segment",
+      "type": "Int64",
+      "val": "24"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.sphere.radius",
+      "type": "Float64",
+      "val": "50"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.sphere.type",
+      "type": "Id",
+      "val": "standard"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in",
+      "type": "Array",
+      "val": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=3)"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.sphere.segment",
+      "type": "Int64",
+      "val": "24"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.sphere.radius",
+      "type": "Float64",
+      "val": "50"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.sphere.type",
+      "type": "Id",
+      "val": "standard"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf/primitive/generategeometry",
+      "dir": "IN",
+      "port": "commandid",
+      "type": "Id",
+      "val": "net.maxon.command.modeling.primitive.sphere"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf/net.maxon.neutron.corenode.multransform_5",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "auto"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf/mat",
+      "dir": "IN",
+      "port": "in",
+      "type": "Matrix64",
+      "val": "((0,0,0),((1,0,0),(0,1,0),(0,0,1)))"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf/mat",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf/sqrpart",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "auto"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf/vectrans",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "sphere@NsYU2JfcNx_mHmzFjnewaf/sqrtrans",
+      "dir": "OUT",
+      "port": "out",
+      "type": "SqMat3_64",
+      "val": "((1,0,0),(0,1,0),(0,0,1))"
+    },
+    {
+      "node": "transform_element@UlEsFFx7MhFkV7evEzz5rq",
+      "dir": "IN",
+      "port": "selectionstringin",
+      "type": "String",
+      "val": "default"
+    },
+    {
+      "node": "transform_element@UlEsFFx7MhFkV7evEzz5rq",
+      "dir": "IN",
+      "port": "transformin.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "transform_element@UlEsFFx7MhFkV7evEzz5rq",
+      "dir": "IN",
+      "port": "transformin.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "transform_element@UlEsFFx7MhFkV7evEzz5rq",
+      "dir": "IN",
+      "port": "transformin.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "transform_element@UlEsFFx7MhFkV7evEzz5rq",
+      "dir": "IN",
+      "port": "pivotmatrixin.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "transform_element@UlEsFFx7MhFkV7evEzz5rq",
+      "dir": "IN",
+      "port": "pivotmatrixin.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "transform_element@UlEsFFx7MhFkV7evEzz5rq",
+      "dir": "IN",
+      "port": "pivotmatrixin.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "transform_element@UlEsFFx7MhFkV7evEzz5rq",
+      "dir": "IN",
+      "port": "selectiontypein",
+      "type": "Id",
+      "val": "points"
+    },
+    {
+      "node": "transform_element@UlEsFFx7MhFkV7evEzz5rq/selectionstringparser",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.accessorclas>cR"
+    },
+    {
+      "node": "readvalueatindex2@MS$2NpT4DJkjOHh3edaY6b",
+      "dir": "IN",
+      "port": "cyclein",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "readvalueatindex2@MS$2NpT4DJkjOHh3edaY6b",
+      "dir": "OUT",
+      "port": "valueout",
+      "type": "Matrix64",
+      "val": "((0,0,0),((1,0,0),(0,1,0),(0,0,1)))"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dir": "IN",
+      "port": "primitivetypein",
+      "type": "UnknownDataType",
+      "val": "net.maxon.node.datatype.nodeortemplate"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.curve.text.align",
+      "type": "InternedId",
+      "val": "left"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.curve.text.height",
+      "type": "Float64",
+      "val": "2"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.curve.text.text",
+      "type": "String",
+      "val": "Text"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.curve.text.variablefontstandardstyle",
+      "type": "Int64",
+      "val": "1"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.curve.text.varaxis09",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.curve.text.varaxis08",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.curve.text.varaxis07",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.curve.text.varaxis06",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.curve.text.varaxis05",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.curve.text.varaxis04",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.curve.text.varaxis03",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.curve.text.varaxis02",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.curve.text.varaxis01",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.curve.text.varaxis00",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.orientationplane.plane",
+      "type": "InternedId",
+      "val": "xy"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.objectbase.matrix",
+      "type": "Matrix64",
+      "val": "((0,0,0),((1,0,0),(0,1,0),(0,0,1)))"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.objectbase.matrix.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.objectbase.matrix.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.objectbase.matrix.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.objectbase.children",
+      "type": "Array",
+      "val": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=0)"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.translation",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.sqrmatrix",
+      "type": "SqMat3_64",
+      "val": "((1,0,0),(0,1,0),(0,0,1))"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dir": "OUT",
+      "port": "matrixout.parentmatrix",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dir": "OUT",
+      "port": "matrixout.translation",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dir": "OUT",
+      "port": "matrixout.sqrmatrix",
+      "type": "SqMat3_64",
+      "val": "((1,0,0),(0,1,0),(0,0,1))"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dir": "OUT",
+      "port": "matrixout.matrix",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dir": "OUT",
+      "port": "children.out.translation",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dir": "OUT",
+      "port": "children.out.sqrmatrix",
+      "type": "SqMat3_64",
+      "val": "((1,0,0),(0,1,0),(0,0,1))"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H",
+      "dir": "OUT",
+      "port": "children.out.matrix",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.curve.text.align",
+      "type": "InternedId",
+      "val": "left"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.curve.text.height",
+      "type": "Float64",
+      "val": "200"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.curve.text.text",
+      "type": "String",
+      "val": "Text"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.curve.text.variablefontstandardstyle",
+      "type": "Int64",
+      "val": "1"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.curve.text.varaxis09",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.curve.text.varaxis08",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.curve.text.varaxis07",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.curve.text.varaxis06",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.curve.text.varaxis05",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.curve.text.varaxis04",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.curve.text.varaxis03",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.curve.text.varaxis02",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.curve.text.varaxis01",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.curve.text.varaxis00",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.orientationplane.plane",
+      "type": "InternedId",
+      "val": "xy"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in",
+      "type": "Array",
+      "val": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=23)"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.curve.text.align",
+      "type": "InternedId",
+      "val": "left"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.curve.text.height",
+      "type": "Float64",
+      "val": "200"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.curve.text.text",
+      "type": "String",
+      "val": "Text"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.curve.text.variablefontstandardstyle",
+      "type": "Int64",
+      "val": "1"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.curve.text.varaxis09",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.curve.text.varaxis08",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.curve.text.varaxis07",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.curve.text.varaxis06",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.curve.text.varaxis05",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.curve.text.varaxis04",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.curve.text.varaxis03",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.curve.text.varaxis02",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.curve.text.varaxis01",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.curve.text.varaxis00",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.orientationplane.plane",
+      "type": "InternedId",
+      "val": "xy"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/primitive/generategeometry",
+      "dir": "IN",
+      "port": "commandid",
+      "type": "Id",
+      "val": "net.maxon.command.modeling.primitive.curve.text"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/net.maxon.neutron.corenode.multransform_5",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "auto"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/mat",
+      "dir": "IN",
+      "port": "in",
+      "type": "Matrix64",
+      "val": "((0,0,0),((1,0,0),(0,1,0),(0,0,1)))"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/mat",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/sqrpart",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "auto"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/vectrans",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "text@b2h4AL6pCdvpGwNkiVPG8H/sqrtrans",
+      "dir": "OUT",
+      "port": "out",
+      "type": "SqMat3_64",
+      "val": "((1,0,0),(0,1,0),(0,0,1))"
+    },
+    {
+      "node": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc",
+      "dir": "IN",
+      "port": "selectionstringin",
+      "type": "String",
+      "val": "default"
+    },
+    {
+      "node": "getpolygonselectiondata@BnbJhtS3KlHuvz9FcyJ8Sc/selectionstringparser",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.accessorclas>cR"
+    },
+    {
+      "node": "color@a3Sjqi9FO5gkuWQZiMvuUH",
+      "dir": "IN",
+      "port": "color",
+      "type": "ColorA64",
+      "val": "R:0.9526205658912659, G:0.986547589302063, B:0.13018536567687988, Alpha:1.0"
+    },
+    {
+      "node": "color@a3Sjqi9FO5gkuWQZiMvuUH",
+      "dir": "IN",
+      "port": "color.*access*alphain",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "color@a3Sjqi9FO5gkuWQZiMvuUH",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.matrix.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "color@a3Sjqi9FO5gkuWQZiMvuUH",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.matrix.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "color@a3Sjqi9FO5gkuWQZiMvuUH",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.matrix.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "color@a3Sjqi9FO5gkuWQZiMvuUH",
+      "dir": "OUT",
+      "port": "net.maxon.neutron.op.output.color",
+      "type": "Color64",
+      "val": "R:inf, G:inf, B:inf"
+    },
+    {
+      "node": "readvalueatindex2@H515FpJuAREoeMqiza0p6B",
+      "dir": "IN",
+      "port": "cyclein",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "readvalueatindex2@EAcfjFnnJx5kZzIpDYWT9A",
+      "dir": "IN",
+      "port": "cyclein",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "children@Jbl2M67GGZ1iyeBF_4eoqZ",
+      "dir": "IN",
+      "port": "children",
+      "type": "Array",
+      "val": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=4)"
+    },
+    {
+      "node": "children@Jbl2M67GGZ1iyeBF_4eoqZ",
+      "dir": "IN",
+      "port": "children._0.color",
+      "type": "Color64",
+      "val": "R:inf, G:inf, B:inf"
+    },
+    {
+      "node": "children@Jbl2M67GGZ1iyeBF_4eoqZ",
+      "dir": "IN",
+      "port": "children._0.matrix.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "children@Jbl2M67GGZ1iyeBF_4eoqZ",
+      "dir": "IN",
+      "port": "children._0.matrix.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "children@Jbl2M67GGZ1iyeBF_4eoqZ",
+      "dir": "IN",
+      "port": "children._0.matrix.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "children@Jbl2M67GGZ1iyeBF_4eoqZ",
+      "dir": "IN",
+      "port": "children._2.color",
+      "type": "Color64",
+      "val": "R:inf, G:inf, B:inf"
+    },
+    {
+      "node": "children@Jbl2M67GGZ1iyeBF_4eoqZ",
+      "dir": "IN",
+      "port": "children._2.matrix.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "children@Jbl2M67GGZ1iyeBF_4eoqZ",
+      "dir": "IN",
+      "port": "children._2.matrix.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "children@Jbl2M67GGZ1iyeBF_4eoqZ",
+      "dir": "IN",
+      "port": "children._2.matrix.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "children@Jbl2M67GGZ1iyeBF_4eoqZ",
+      "dir": "IN",
+      "port": "children._3.color",
+      "type": "Color64",
+      "val": "R:inf, G:inf, B:inf"
+    },
+    {
+      "node": "children@Jbl2M67GGZ1iyeBF_4eoqZ",
+      "dir": "IN",
+      "port": "children._3.matrix.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "children@Jbl2M67GGZ1iyeBF_4eoqZ",
+      "dir": "IN",
+      "port": "children._3.matrix.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "children@Jbl2M67GGZ1iyeBF_4eoqZ",
+      "dir": "IN",
+      "port": "children._3.matrix.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "children@Jbl2M67GGZ1iyeBF_4eoqZ",
+      "dir": "IN",
+      "port": "children._1.color",
+      "type": "Color64",
+      "val": "R:inf, G:inf, B:inf"
+    },
+    {
+      "node": "children@Jbl2M67GGZ1iyeBF_4eoqZ",
+      "dir": "IN",
+      "port": "children._1.matrix.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "children@Jbl2M67GGZ1iyeBF_4eoqZ",
+      "dir": "IN",
+      "port": "children._1.matrix.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "children@Jbl2M67GGZ1iyeBF_4eoqZ",
+      "dir": "IN",
+      "port": "children._1.matrix.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "children@Jbl2M67GGZ1iyeBF_4eoqZ",
+      "dir": "OUT",
+      "port": "packages",
+      "type": "Array",
+      "val": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=4)"
+    },
+    {
+      "node": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_0",
+      "dir": "IN",
+      "port": "in.color",
+      "type": "Color64",
+      "val": "R:inf, G:inf, B:inf"
+    },
+    {
+      "node": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_0/rot",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "auto"
+    },
+    {
+      "node": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_2",
+      "dir": "IN",
+      "port": "in.color",
+      "type": "Color64",
+      "val": "R:inf, G:inf, B:inf"
+    },
+    {
+      "node": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_2/rot",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "auto"
+    },
+    {
+      "node": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_3",
+      "dir": "IN",
+      "port": "in.color",
+      "type": "Color64",
+      "val": "R:inf, G:inf, B:inf"
+    },
+    {
+      "node": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_3/rot",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "auto"
+    },
+    {
+      "node": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_1",
+      "dir": "IN",
+      "port": "in.color",
+      "type": "Color64",
+      "val": "R:inf, G:inf, B:inf"
+    },
+    {
+      "node": "children@Jbl2M67GGZ1iyeBF_4eoqZ/_1/rot",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "auto"
+    },
+    {
+      "node": "floatingio@Hl5KF$ixEl7n2e7vlkIf8E",
+      "dir": "IN",
+      "port": "net.maxon.node.floatingio.portlist",
+      "type": "Array",
+      "val": "(net.maxon.datatype.internedid,net.maxon.interface.datadictionary-C)[], input=2)"
+    },
+    {
+      "node": "transformmatrix@XpppyrtyPpWhERON3$uX9E",
+      "dir": "IN",
+      "port": "in",
+      "type": "Array",
+      "val": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=2)"
+    },
+    {
+      "node": "transformmatrix@XpppyrtyPpWhERON3$uX9E",
+      "dir": "IN",
+      "port": "in._0.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "transformmatrix@XpppyrtyPpWhERON3$uX9E",
+      "dir": "IN",
+      "port": "in._0.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "transformmatrix@XpppyrtyPpWhERON3$uX9E",
+      "dir": "IN",
+      "port": "in._0.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "transformmatrix@XpppyrtyPpWhERON3$uX9E",
+      "dir": "IN",
+      "port": "in._1",
+      "type": "UnknownDataType",
+      "val": "net.maxon.neutron.datatype.psrmatrix"
+    },
+    {
+      "node": "transformmatrix@XpppyrtyPpWhERON3$uX9E",
+      "dir": "IN",
+      "port": "in._1.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "transformmatrix@XpppyrtyPpWhERON3$uX9E",
+      "dir": "IN",
+      "port": "in._1.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "transformmatrix@XpppyrtyPpWhERON3$uX9E",
+      "dir": "IN",
+      "port": "in._1.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "transformmatrix@XpppyrtyPpWhERON3$uX9E",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Matrix64",
+      "val": "((0,0,0),((1,0,0),(0,1,0),(0,0,1)))"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dir": "IN",
+      "port": "primitivetypein",
+      "type": "UnknownDataType",
+      "val": "net.maxon.node.datatype.nodeortemplate"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.curve.text.align",
+      "type": "InternedId",
+      "val": "left"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.curve.text.height",
+      "type": "Float64",
+      "val": "2"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.curve.text.text",
+      "type": "String",
+      "val": "Text"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.curve.text.variablefontstandardstyle",
+      "type": "Int64",
+      "val": "1"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.curve.text.varaxis09",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.curve.text.varaxis08",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.curve.text.varaxis07",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.curve.text.varaxis06",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.curve.text.varaxis05",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.curve.text.varaxis04",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.curve.text.varaxis03",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.curve.text.varaxis02",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.curve.text.varaxis01",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.curve.text.varaxis00",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dir": "IN",
+      "port": "parametersin.net.maxon.command.modeling.primitive.orientationplane.plane",
+      "type": "InternedId",
+      "val": "xy"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.objectbase.matrix",
+      "type": "Matrix64",
+      "val": "((0,0,0),((1,0,0),(0,1,0),(0,0,1)))"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.objectbase.matrix.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.objectbase.matrix.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.objectbase.matrix.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.objectbase.children",
+      "type": "Array",
+      "val": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=0)"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.translation",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.sqrmatrix",
+      "type": "SqMat3_64",
+      "val": "((1,0,0),(0,1,0),(0,0,1))"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dir": "OUT",
+      "port": "matrixout.parentmatrix",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dir": "OUT",
+      "port": "matrixout.translation",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dir": "OUT",
+      "port": "matrixout.sqrmatrix",
+      "type": "SqMat3_64",
+      "val": "((1,0,0),(0,1,0),(0,0,1))"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dir": "OUT",
+      "port": "matrixout.matrix",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dir": "OUT",
+      "port": "children.out.translation",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dir": "OUT",
+      "port": "children.out.sqrmatrix",
+      "type": "SqMat3_64",
+      "val": "((1,0,0),(0,1,0),(0,0,1))"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF",
+      "dir": "OUT",
+      "port": "children.out.matrix",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.curve.text.align",
+      "type": "InternedId",
+      "val": "left"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.curve.text.height",
+      "type": "Float64",
+      "val": "200"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.curve.text.text",
+      "type": "String",
+      "val": "Text"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.curve.text.variablefontstandardstyle",
+      "type": "Int64",
+      "val": "1"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.curve.text.varaxis09",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.curve.text.varaxis08",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.curve.text.varaxis07",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.curve.text.varaxis06",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.curve.text.varaxis05",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.curve.text.varaxis04",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.curve.text.varaxis03",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.curve.text.varaxis02",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.curve.text.varaxis01",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.curve.text.varaxis00",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.primitive.orientationplane.plane",
+      "type": "InternedId",
+      "val": "xy"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in",
+      "type": "Array",
+      "val": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=23)"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.curve.text.align",
+      "type": "InternedId",
+      "val": "left"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.curve.text.height",
+      "type": "Float64",
+      "val": "200"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.curve.text.text",
+      "type": "String",
+      "val": "Text"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.curve.text.variablefontstandardstyle",
+      "type": "Int64",
+      "val": "1"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.curve.text.varaxis09",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.curve.text.varaxis08",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.curve.text.varaxis07",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.curve.text.varaxis06",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.curve.text.varaxis05",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.curve.text.varaxis04",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.curve.text.varaxis03",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.curve.text.varaxis02",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.curve.text.varaxis01",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.curve.text.varaxis00",
+      "type": "Float64",
+      "val": "500"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive/parambuilder",
+      "dir": "IN",
+      "port": "in.net.maxon.command.modeling.primitive.orientationplane.plane",
+      "type": "InternedId",
+      "val": "xy"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/primitive/generategeometry",
+      "dir": "IN",
+      "port": "commandid",
+      "type": "Id",
+      "val": "net.maxon.command.modeling.primitive.curve.text"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/net.maxon.neutron.corenode.multransform_5",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "auto"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/mat",
+      "dir": "IN",
+      "port": "in",
+      "type": "Matrix64",
+      "val": "((0,0,0),((1,0,0),(0,1,0),(0,0,1)))"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/mat",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/sqrpart",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "auto"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/vectrans",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "text@cMRYbRssO5Ttnu6NGu8ngF/sqrtrans",
+      "dir": "OUT",
+      "port": "out",
+      "type": "SqMat3_64",
+      "val": "((1,0,0),(0,1,0),(0,0,1))"
+    },
+    {
+      "node": "color@Zb3PaLDpEFFudVSmyYG4hv",
+      "dir": "IN",
+      "port": "color",
+      "type": "ColorA64",
+      "val": "R:0.6130974292755127, G:0.07019372284412384, B:0.0206155925989151, Alpha:1.0"
+    },
+    {
+      "node": "color@Zb3PaLDpEFFudVSmyYG4hv",
+      "dir": "IN",
+      "port": "color.*access*alphain",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "color@Zb3PaLDpEFFudVSmyYG4hv",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.matrix.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "color@Zb3PaLDpEFFudVSmyYG4hv",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.matrix.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "color@Zb3PaLDpEFFudVSmyYG4hv",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.matrix.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "color@Zb3PaLDpEFFudVSmyYG4hv",
+      "dir": "OUT",
+      "port": "net.maxon.neutron.op.output.color",
+      "type": "Color64",
+      "val": "R:inf, G:inf, B:inf"
+    },
+    {
+      "node": "readvalueatindex2@UtA8cRHpJhgsTR6FEJwGIY",
+      "dir": "IN",
+      "port": "cyclein",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "get_property@WnzdMa4iJRygwk1p9swu7d",
+      "dir": "IN",
+      "port": "accessorname",
+      "type": "String",
+      "val": "pt"
+    },
+    {
+      "node": "get_property@WnzdMa4iJRygwk1p9swu7d",
+      "dir": "IN",
+      "port": "fallbackmodein",
+      "type": "Id",
+      "val": "none"
+    },
+    {
+      "node": "get_property@WnzdMa4iJRygwk1p9swu7d",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "Id",
+      "val": "net.maxon.geometryabstraction.accessortypes.attributes.data3d"
+    },
+    {
+      "node": "get_property@WnzdMa4iJRygwk1p9swu7d",
+      "dir": "IN",
+      "port": "fallbackvaluein",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "get_property@WnzdMa4iJRygwk1p9swu7d",
+      "dir": "IN",
+      "port": "componentin",
+      "type": "Id",
+      "val": "points"
+    },
+    {
+      "node": "color@ffRGFB0GLJNiKO9$hvlbgs",
+      "dir": "IN",
+      "port": "color",
+      "type": "ColorA64",
+      "val": "R:0.6130974292755127, G:0.07019372284412384, B:0.0206155925989151, Alpha:1.0"
+    },
+    {
+      "node": "color@ffRGFB0GLJNiKO9$hvlbgs",
+      "dir": "IN",
+      "port": "color.*access*alphain",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "color@ffRGFB0GLJNiKO9$hvlbgs",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.matrix.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "color@ffRGFB0GLJNiKO9$hvlbgs",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.matrix.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "color@ffRGFB0GLJNiKO9$hvlbgs",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.matrix.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "color@ffRGFB0GLJNiKO9$hvlbgs",
+      "dir": "OUT",
+      "port": "net.maxon.neutron.op.output.color",
+      "type": "Color64",
+      "val": "R:inf, G:inf, B:inf"
+    },
+    {
+      "node": "builder",
+      "dir": "IN",
+      "port": "in.color",
+      "type": "Color64",
+      "val": "R:inf, G:inf, B:inf"
+    },
+    {
+      "node": "builder/rot",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "auto"
+    },
+    {
+      "node": "net.maxon.neutron.corenode.multransform_5",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "auto"
+    },
+    {
+      "node": "net.maxon.neutron.corenode.multransform_5",
+      "dir": "IN",
+      "port": "in2.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "net.maxon.neutron.corenode.multransform_5",
+      "dir": "IN",
+      "port": "in2.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "net.maxon.neutron.corenode.multransform_5",
+      "dir": "IN",
+      "port": "in2.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "net.maxon.neutron.corenode.multransform_5",
+      "dir": "IN",
+      "port": "in1.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "net.maxon.neutron.corenode.multransform_5",
+      "dir": "IN",
+      "port": "in1.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "net.maxon.neutron.corenode.multransform_5",
+      "dir": "IN",
+      "port": "in1.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "combine",
+      "dir": "IN",
+      "port": "in2.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "combine",
+      "dir": "IN",
+      "port": "in2.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "combine",
+      "dir": "IN",
+      "port": "in2.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "mat",
+      "dir": "IN",
+      "port": "in",
+      "type": "Matrix64",
+      "val": "((0,0,0),((1,0,0),(0,1,0),(0,0,1)))"
+    },
+    {
+      "node": "mat",
+      "dir": "IN",
+      "port": "in.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "mat",
+      "dir": "IN",
+      "port": "in.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "mat",
+      "dir": "IN",
+      "port": "in.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "mat",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "sqrpart",
+      "dir": "IN",
+      "port": "in.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "sqrpart",
+      "dir": "IN",
+      "port": "in.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "sqrpart",
+      "dir": "IN",
+      "port": "in.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "sqrpart",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "auto"
+    },
+    {
+      "node": "vectrans",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "sqrtrans",
+      "dir": "OUT",
+      "port": "out",
+      "type": "SqMat3_64",
+      "val": "((1,0,0),(0,1,0),(0,0,1))"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+Scene: Field_VertexMap_Example_01.c4d
+FPS=25 max=100
+
+Linear Field  (t=440000266)
+Spherical Field  (t=440000243)
+Torus Field  (t=440000272)
+Radial Field  (t=1040448)
+Other compatible Fileds  (t=5140)
+  Box Field  (t=440000267)
+  Cylinder Field  (t=440000268)
+  Cone Field  (t=440000269)
+Field Vertex Map Debug Capsule  (t=180420500)

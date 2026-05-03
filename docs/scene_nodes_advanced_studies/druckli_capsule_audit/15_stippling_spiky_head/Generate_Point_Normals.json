@@ -1,0 +1,250 @@
+{
+  "source_host": "Generate Point Normals",
+  "source_host_type": 180420400,
+  "node_count": 13,
+  "capsule_count": 2,
+  "wire_count": 16,
+  "defaults_count": 7,
+  "nodes": [
+    {
+      "path": "context_externaltimeinput",
+      "id": "context_externaltimeinput",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "context_notime",
+      "id": "context_notime",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir",
+      "id": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 8
+    },
+    {
+      "path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir/selfromptids",
+      "id": "selfromptids",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir/ptposfrompolyids",
+      "id": "ptposfrompolyids",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir/selectionstringparser",
+      "id": "selectionstringparser",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir/vertexnormalsfromptids",
+      "id": "vertexnormalsfromptids",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir/weightsfromptids",
+      "id": "weightsfromptids",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir/coloralhpafromptids",
+      "id": "coloralhpafromptids",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir/polyidsfromptids",
+      "id": "polyidsfromptids",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir/edgesfromptids",
+      "id": "edgesfromptids",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "set@Zf$_HNUIBtCviOd9RVRwQJ",
+      "id": "set@Zf$_HNUIBtCviOd9RVRwQJ",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 1
+    },
+    {
+      "path": "set@Zf$_HNUIBtCviOd9RVRwQJ/set",
+      "id": "set",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    }
+  ],
+  "wires": [
+    {
+      "src_path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir/selfromptids",
+      "src_port": "ptsselectedout",
+      "dst_path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir",
+      "dst_port": "selectionout"
+    },
+    {
+      "src_path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir/ptposfrompolyids",
+      "src_port": "ptsposout",
+      "dst_path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir",
+      "dst_port": "ptsposout"
+    },
+    {
+      "src_path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir",
+      "dst_port": "ptsidsout"
+    },
+    {
+      "src_path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir/selfromptids",
+      "dst_port": "ptidsin"
+    },
+    {
+      "src_path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir/ptposfrompolyids",
+      "dst_port": "ptsidsin"
+    },
+    {
+      "src_path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir/edgesfromptids",
+      "dst_port": "ptidsin"
+    },
+    {
+      "src_path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir/coloralhpafromptids",
+      "dst_port": "ptsidsin"
+    },
+    {
+      "src_path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir/polyidsfromptids",
+      "dst_port": "ptidsin"
+    },
+    {
+      "src_path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir/vertexnormalsfromptids",
+      "dst_port": "ptsidsin"
+    },
+    {
+      "src_path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir/weightsfromptids",
+      "dst_port": "ptsidsin"
+    },
+    {
+      "src_path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir/vertexnormalsfromptids",
+      "src_port": "ptsnormalsout",
+      "dst_path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir",
+      "dst_port": "ptsnormalsout"
+    },
+    {
+      "src_path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir/weightsfromptids",
+      "src_port": "ptsweightsout",
+      "dst_path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir",
+      "dst_port": "ptsweightsout"
+    },
+    {
+      "src_path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir/coloralhpafromptids",
+      "src_port": "ptscolorsout",
+      "dst_path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir",
+      "dst_port": "ptscolorasout"
+    },
+    {
+      "src_path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir/polyidsfromptids",
+      "src_port": "polyidsout",
+      "dst_path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir",
+      "dst_port": "polyidsout"
+    },
+    {
+      "src_path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir/edgesfromptids",
+      "src_port": "edgesout",
+      "dst_path": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir",
+      "dst_port": "edgesout"
+    },
+    {
+      "src_path": "set@Zf$_HNUIBtCviOd9RVRwQJ/set",
+      "src_port": "geometryout",
+      "dst_path": "set@Zf$_HNUIBtCviOd9RVRwQJ",
+      "dst_port": "geometryout"
+    }
+  ],
+  "port_defaults": [
+    {
+      "node": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir",
+      "dir": "IN",
+      "port": "normaltypein",
+      "type": "InternedId",
+      "val": "uniform"
+    },
+    {
+      "node": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir",
+      "dir": "IN",
+      "port": "selectionstringin",
+      "type": "String",
+      "val": "all"
+    },
+    {
+      "node": "getvertexselectiondata@BN6HtGkoBh5gsadTP2nZir/selectionstringparser",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.accessorclas>cR"
+    },
+    {
+      "node": "set@Zf$_HNUIBtCviOd9RVRwQJ",
+      "dir": "IN",
+      "port": "accessorname",
+      "type": "String",
+      "val": "Normal"
+    },
+    {
+      "node": "set@Zf$_HNUIBtCviOd9RVRwQJ",
+      "dir": "IN",
+      "port": "arraymode",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "set@Zf$_HNUIBtCviOd9RVRwQJ",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "Id",
+      "val": "net.maxon.geometryabstraction.accessortypes.attributes.normal"
+    },
+    {
+      "node": "set@Zf$_HNUIBtCviOd9RVRwQJ",
+      "dir": "IN",
+      "port": "newdataset",
+      "type": "Bool",
+      "val": "true"
+    }
+  ]
+}

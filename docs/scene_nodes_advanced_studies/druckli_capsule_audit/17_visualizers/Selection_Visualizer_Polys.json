@@ -1,0 +1,1266 @@
+{
+  "source_host": "Selection Visualizer Polys",
+  "source_host_type": 180420600,
+  "node_count": 52,
+  "capsule_count": 7,
+  "wire_count": 57,
+  "defaults_count": 78,
+  "nodes": [
+    {
+      "path": "context_externaltimeinput",
+      "id": "context_externaltimeinput",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "context_notime",
+      "id": "context_notime",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "transformmatrix@d7MHJqPjCVrjkwKV62Tlkx",
+      "id": "transformmatrix@d7MHJqPjCVrjkwKV62Tlkx",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "if@SvAEkEfLDduoOxqcGfnhO3",
+      "id": "if@SvAEkEfLDduoOxqcGfnhO3",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "readvalueatindex2@Ws3ILBtxJdZsac6WSmV$az",
+      "id": "readvalueatindex2@Ws3ILBtxJdZsac6WSmV$az",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "reroute@J2TbJUa_BBinLEx1PXQ790",
+      "id": "reroute@J2TbJUa_BBinLEx1PXQ790",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "reroute@NLG1QiSRO9ttj29fhZwH20",
+      "id": "reroute@NLG1QiSRO9ttj29fhZwH20",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "reroute@N9s1L4m9CpPjk2dwrZ15oy",
+      "id": "reroute@N9s1L4m9CpPjk2dwrZ15oy",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "reroute@NY6Cw5NSItah$2R6AKu1ww",
+      "id": "reroute@NY6Cw5NSItah$2R6AKu1ww",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "transform_element@IHIauTjRB19tYcmzhu8oUw",
+      "id": "transform_element@IHIauTjRB19tYcmzhu8oUw",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 2
+    },
+    {
+      "path": "transform_element@IHIauTjRB19tYcmzhu8oUw/transformpoint",
+      "id": "transformpoint",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "transform_element@IHIauTjRB19tYcmzhu8oUw/selectionstringparser",
+      "id": "selectionstringparser",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "split@Lbl5xtyMLB4uAsl4GPP20w",
+      "id": "split@Lbl5xtyMLB4uAsl4GPP20w",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 4
+    },
+    {
+      "path": "split@Lbl5xtyMLB4uAsl4GPP20w/delete_remainder",
+      "id": "delete_remainder",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "split@Lbl5xtyMLB4uAsl4GPP20w/delete_split",
+      "id": "delete_split",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "split@Lbl5xtyMLB4uAsl4GPP20w/reverse_selection",
+      "id": "reverse_selection",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "split@Lbl5xtyMLB4uAsl4GPP20w/selection_parser",
+      "id": "selection_parser",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "reroute@VU_Z7NmBE5PpwYtc$lK3B1",
+      "id": "reroute@VU_Z7NmBE5PpwYtc$lK3B1",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "inversematrix@fxktmdTeJ5Vv2xgCIsZN$0",
+      "id": "inversematrix@fxktmdTeJ5Vv2xgCIsZN$0",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "concat@P0RHY3dtIRRlDDFirccEdx",
+      "id": "concat@P0RHY3dtIRRlDDFirccEdx",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "negate@QaEF35OpLREhNS__CdA8Oy",
+      "id": "negate@QaEF35OpLREhNS__CdA8Oy",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "extrude@ZHqUpedgC9bo4JNF47DM0y",
+      "id": "extrude@ZHqUpedgC9bo4JNF47DM0y",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 3
+    },
+    {
+      "path": "extrude@ZHqUpedgC9bo4JNF47DM0y/selectionstringtoselection",
+      "id": "selectionstringtoselection",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "extrude@ZHqUpedgC9bo4JNF47DM0y/modelingoperator",
+      "id": "modelingoperator",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "extrude@ZHqUpedgC9bo4JNF47DM0y/parambuilder",
+      "id": "parambuilder",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx",
+      "id": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 12
+    },
+    {
+      "path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/tangentsName",
+      "id": "tangentsName",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/colorsName",
+      "id": "colorsName",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/uvsName",
+      "id": "uvsName",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/uvwsName",
+      "id": "uvwsName",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/normalsName",
+      "id": "normalsName",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/cornersName",
+      "id": "cornersName",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/weightsName",
+      "id": "weightsName",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/colorasName",
+      "id": "colorasName",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/polySelName",
+      "id": "polySelName",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/edgeSelName",
+      "id": "edgeSelName",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/data3dName",
+      "id": "data3dName",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/ptSelName",
+      "id": "ptSelName",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "floatingio@fg_1Vy3UDFJsKVKfL82CGy",
+      "id": "floatingio@fg_1Vy3UDFJsKVKfL82CGy",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "concat@UWX$hJE4HhOn7Xto8aE4A3",
+      "id": "concat@UWX$hJE4HhOn7Xto8aE4A3",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "connect_geometries@KCxsyWpTEdWkupZL81wvS3",
+      "id": "connect_geometries@KCxsyWpTEdWkupZL81wvS3",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 2
+    },
+    {
+      "path": "connect_geometries@KCxsyWpTEdWkupZL81wvS3/filter",
+      "id": "filter",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "connect_geometries@KCxsyWpTEdWkupZL81wvS3/connect",
+      "id": "connect",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "extrude@eJFfiHGyARMvNFeH$GgxI2",
+      "id": "extrude@eJFfiHGyARMvNFeH$GgxI2",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 3
+    },
+    {
+      "path": "extrude@eJFfiHGyARMvNFeH$GgxI2/selectionstringtoselection",
+      "id": "selectionstringtoselection",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "extrude@eJFfiHGyARMvNFeH$GgxI2/modelingoperator",
+      "id": "modelingoperator",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "extrude@eJFfiHGyARMvNFeH$GgxI2/parambuilder",
+      "id": "parambuilder",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "split@OwuiJc4PIJwhU8dwGMhkY1",
+      "id": "split@OwuiJc4PIJwhU8dwGMhkY1",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 4
+    },
+    {
+      "path": "split@OwuiJc4PIJwhU8dwGMhkY1/delete_remainder",
+      "id": "delete_remainder",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "split@OwuiJc4PIJwhU8dwGMhkY1/delete_split",
+      "id": "delete_split",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "split@OwuiJc4PIJwhU8dwGMhkY1/reverse_selection",
+      "id": "reverse_selection",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "split@OwuiJc4PIJwhU8dwGMhkY1/selection_parser",
+      "id": "selection_parser",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    }
+  ],
+  "wires": [
+    {
+      "src_path": "transformmatrix@d7MHJqPjCVrjkwKV62Tlkx",
+      "src_port": "out",
+      "dst_path": "transform_element@IHIauTjRB19tYcmzhu8oUw",
+      "dst_port": "transformin"
+    },
+    {
+      "src_path": "if@SvAEkEfLDduoOxqcGfnhO3",
+      "src_port": "out",
+      "dst_path": "extrude@eJFfiHGyARMvNFeH$GgxI2",
+      "dst_port": "selectionstring"
+    },
+    {
+      "src_path": "if@SvAEkEfLDduoOxqcGfnhO3",
+      "src_port": "out",
+      "dst_path": "extrude@ZHqUpedgC9bo4JNF47DM0y",
+      "dst_port": "selectionstring"
+    },
+    {
+      "src_path": "if@SvAEkEfLDduoOxqcGfnhO3",
+      "src_port": "out",
+      "dst_path": "split@Lbl5xtyMLB4uAsl4GPP20w",
+      "dst_port": "selectionstring"
+    },
+    {
+      "src_path": "if@SvAEkEfLDduoOxqcGfnhO3",
+      "src_port": "out",
+      "dst_path": "split@OwuiJc4PIJwhU8dwGMhkY1",
+      "dst_port": "selectionstring"
+    },
+    {
+      "src_path": "readvalueatindex2@Ws3ILBtxJdZsac6WSmV$az",
+      "src_port": "valueout",
+      "dst_path": "concat@P0RHY3dtIRRlDDFirccEdx",
+      "dst_port": "_1"
+    },
+    {
+      "src_path": "reroute@J2TbJUa_BBinLEx1PXQ790",
+      "src_port": "out",
+      "dst_path": "extrude@eJFfiHGyARMvNFeH$GgxI2",
+      "dst_port": "geometryin"
+    },
+    {
+      "src_path": "reroute@J2TbJUa_BBinLEx1PXQ790",
+      "src_port": "out",
+      "dst_path": "extrude@ZHqUpedgC9bo4JNF47DM0y",
+      "dst_port": "geometryin"
+    },
+    {
+      "src_path": "reroute@J2TbJUa_BBinLEx1PXQ790",
+      "src_port": "out",
+      "dst_path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx",
+      "dst_port": "geometryin"
+    },
+    {
+      "src_path": "reroute@NLG1QiSRO9ttj29fhZwH20",
+      "src_port": "out",
+      "dst_path": "extrude@ZHqUpedgC9bo4JNF47DM0y",
+      "dst_port": "net.maxon.command.modeling.extrude.base.offset"
+    },
+    {
+      "src_path": "reroute@NLG1QiSRO9ttj29fhZwH20",
+      "src_port": "out",
+      "dst_path": "negate@QaEF35OpLREhNS__CdA8Oy",
+      "dst_port": "in"
+    },
+    {
+      "src_path": "reroute@N9s1L4m9CpPjk2dwrZ15oy",
+      "src_port": "out",
+      "dst_path": "if@SvAEkEfLDduoOxqcGfnhO3",
+      "dst_port": "in3"
+    },
+    {
+      "src_path": "reroute@NY6Cw5NSItah$2R6AKu1ww",
+      "src_port": "out",
+      "dst_path": "if@SvAEkEfLDduoOxqcGfnhO3",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "transform_element@IHIauTjRB19tYcmzhu8oUw",
+      "src_port": "geometryout",
+      "dst_path": "reroute@J2TbJUa_BBinLEx1PXQ790",
+      "dst_port": "in"
+    },
+    {
+      "src_path": "transform_element@IHIauTjRB19tYcmzhu8oUw/transformpoint",
+      "src_port": "geometryout",
+      "dst_path": "transform_element@IHIauTjRB19tYcmzhu8oUw",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "transform_element@IHIauTjRB19tYcmzhu8oUw/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "transform_element@IHIauTjRB19tYcmzhu8oUw/transformpoint",
+      "dst_port": "ptsidsin"
+    },
+    {
+      "src_path": "split@Lbl5xtyMLB4uAsl4GPP20w",
+      "src_port": "geometryout",
+      "dst_path": "connect_geometries@KCxsyWpTEdWkupZL81wvS3",
+      "dst_port": "_2"
+    },
+    {
+      "src_path": "split@Lbl5xtyMLB4uAsl4GPP20w/delete_remainder",
+      "src_port": "geometryout",
+      "dst_path": "split@Lbl5xtyMLB4uAsl4GPP20w",
+      "dst_port": "remaindergeoout"
+    },
+    {
+      "src_path": "split@Lbl5xtyMLB4uAsl4GPP20w/delete_split",
+      "src_port": "geometryout",
+      "dst_path": "split@Lbl5xtyMLB4uAsl4GPP20w",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "split@Lbl5xtyMLB4uAsl4GPP20w/reverse_selection",
+      "src_port": "selectionout",
+      "dst_path": "split@Lbl5xtyMLB4uAsl4GPP20w/delete_split",
+      "dst_port": "selectionin"
+    },
+    {
+      "src_path": "split@Lbl5xtyMLB4uAsl4GPP20w/selection_parser",
+      "src_port": "selection",
+      "dst_path": "split@Lbl5xtyMLB4uAsl4GPP20w/delete_remainder",
+      "dst_port": "selectionin"
+    },
+    {
+      "src_path": "split@Lbl5xtyMLB4uAsl4GPP20w/selection_parser",
+      "src_port": "selection",
+      "dst_path": "split@OwuiJc4PIJwhU8dwGMhkY1/reverse_selection",
+      "dst_port": "selectionin"
+    },
+    {
+      "src_path": "reroute@VU_Z7NmBE5PpwYtc$lK3B1",
+      "src_port": "out",
+      "dst_path": "readvalueatindex2@Ws3ILBtxJdZsac6WSmV$az",
+      "dst_port": "indexin"
+    },
+    {
+      "src_path": "inversematrix@fxktmdTeJ5Vv2xgCIsZN$0",
+      "src_port": "out",
+      "dst_path": "transformmatrix@d7MHJqPjCVrjkwKV62Tlkx",
+      "dst_port": "_0"
+    },
+    {
+      "src_path": "concat@P0RHY3dtIRRlDDFirccEdx",
+      "src_port": "result",
+      "dst_path": "concat@UWX$hJE4HhOn7Xto8aE4A3",
+      "dst_port": "_0"
+    },
+    {
+      "src_path": "negate@QaEF35OpLREhNS__CdA8Oy",
+      "src_port": "out",
+      "dst_path": "extrude@eJFfiHGyARMvNFeH$GgxI2",
+      "dst_port": "net.maxon.command.modeling.extrude.base.offset"
+    },
+    {
+      "src_path": "extrude@ZHqUpedgC9bo4JNF47DM0y",
+      "src_port": "geometryout",
+      "dst_path": "split@Lbl5xtyMLB4uAsl4GPP20w",
+      "dst_port": "geometryin"
+    },
+    {
+      "src_path": "extrude@ZHqUpedgC9bo4JNF47DM0y/selectionstringtoselection",
+      "src_port": "selection",
+      "dst_path": "extrude@ZHqUpedgC9bo4JNF47DM0y/modelingoperator",
+      "dst_port": "selectionfromstring"
+    },
+    {
+      "src_path": "extrude@ZHqUpedgC9bo4JNF47DM0y/modelingoperator",
+      "src_port": "geometryout",
+      "dst_path": "extrude@ZHqUpedgC9bo4JNF47DM0y",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "extrude@ZHqUpedgC9bo4JNF47DM0y/parambuilder",
+      "src_port": "dictout",
+      "dst_path": "extrude@ZHqUpedgC9bo4JNF47DM0y/modelingoperator",
+      "dst_port": "parameters"
+    },
+    {
+      "src_path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx",
+      "src_port": "polyselnameout",
+      "dst_path": "readvalueatindex2@Ws3ILBtxJdZsac6WSmV$az",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/tangentsName",
+      "src_port": "selnamesout",
+      "dst_path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx",
+      "dst_port": "tangentsnameout"
+    },
+    {
+      "src_path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/colorsName",
+      "src_port": "selnamesout",
+      "dst_path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx",
+      "dst_port": "colorsnameout"
+    },
+    {
+      "src_path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/uvsName",
+      "src_port": "selnamesout",
+      "dst_path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx",
+      "dst_port": "uvsnameout"
+    },
+    {
+      "src_path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/uvwsName",
+      "src_port": "selnamesout",
+      "dst_path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx",
+      "dst_port": "uvwsnameout"
+    },
+    {
+      "src_path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/normalsName",
+      "src_port": "selnamesout",
+      "dst_path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx",
+      "dst_port": "normalsnameout"
+    },
+    {
+      "src_path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/cornersName",
+      "src_port": "selnamesout",
+      "dst_path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx",
+      "dst_port": "cornersnameout"
+    },
+    {
+      "src_path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/weightsName",
+      "src_port": "selnamesout",
+      "dst_path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx",
+      "dst_port": "weightsnameout"
+    },
+    {
+      "src_path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/colorasName",
+      "src_port": "selnamesout",
+      "dst_path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx",
+      "dst_port": "colorasnameout"
+    },
+    {
+      "src_path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/polySelName",
+      "src_port": "selnamesout",
+      "dst_path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx",
+      "dst_port": "polyselnameout"
+    },
+    {
+      "src_path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/edgeSelName",
+      "src_port": "selnamesout",
+      "dst_path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx",
+      "dst_port": "edgeselnameout"
+    },
+    {
+      "src_path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/data3dName",
+      "src_port": "selnamesout",
+      "dst_path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx",
+      "dst_port": "data3dnameout"
+    },
+    {
+      "src_path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/ptSelName",
+      "src_port": "selnamesout",
+      "dst_path": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx",
+      "dst_port": "ptselnameout"
+    },
+    {
+      "src_path": "floatingio@fg_1Vy3UDFJsKVKfL82CGy",
+      "src_port": "in1.in@VlgjJD5DL9xmMj7pZWDUjy",
+      "dst_path": "reroute@NLG1QiSRO9ttj29fhZwH20",
+      "dst_port": "in"
+    },
+    {
+      "src_path": "concat@UWX$hJE4HhOn7Xto8aE4A3",
+      "src_port": "result",
+      "dst_path": "if@SvAEkEfLDduoOxqcGfnhO3",
+      "dst_port": "in2"
+    },
+    {
+      "src_path": "connect_geometries@KCxsyWpTEdWkupZL81wvS3/filter",
+      "src_port": "arrayout",
+      "dst_path": "connect_geometries@KCxsyWpTEdWkupZL81wvS3/connect",
+      "dst_port": "geometriesin"
+    },
+    {
+      "src_path": "connect_geometries@KCxsyWpTEdWkupZL81wvS3/connect",
+      "src_port": "geometryout",
+      "dst_path": "connect_geometries@KCxsyWpTEdWkupZL81wvS3",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "extrude@eJFfiHGyARMvNFeH$GgxI2",
+      "src_port": "geometryout",
+      "dst_path": "split@OwuiJc4PIJwhU8dwGMhkY1",
+      "dst_port": "geometryin"
+    },
+    {
+      "src_path": "extrude@eJFfiHGyARMvNFeH$GgxI2/selectionstringtoselection",
+      "src_port": "selection",
+      "dst_path": "extrude@ZHqUpedgC9bo4JNF47DM0y/modelingoperator",
+      "dst_port": "selectionfromstring"
+    },
+    {
+      "src_path": "extrude@eJFfiHGyARMvNFeH$GgxI2/modelingoperator",
+      "src_port": "geometryout",
+      "dst_path": "extrude@eJFfiHGyARMvNFeH$GgxI2",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "extrude@eJFfiHGyARMvNFeH$GgxI2/parambuilder",
+      "src_port": "dictout",
+      "dst_path": "extrude@ZHqUpedgC9bo4JNF47DM0y/modelingoperator",
+      "dst_port": "parameters"
+    },
+    {
+      "src_path": "split@OwuiJc4PIJwhU8dwGMhkY1",
+      "src_port": "geometryout",
+      "dst_path": "connect_geometries@KCxsyWpTEdWkupZL81wvS3",
+      "dst_port": "_1"
+    },
+    {
+      "src_path": "split@OwuiJc4PIJwhU8dwGMhkY1/delete_remainder",
+      "src_port": "geometryout",
+      "dst_path": "split@OwuiJc4PIJwhU8dwGMhkY1",
+      "dst_port": "remaindergeoout"
+    },
+    {
+      "src_path": "split@OwuiJc4PIJwhU8dwGMhkY1/delete_split",
+      "src_port": "geometryout",
+      "dst_path": "split@OwuiJc4PIJwhU8dwGMhkY1",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "split@OwuiJc4PIJwhU8dwGMhkY1/reverse_selection",
+      "src_port": "selectionout",
+      "dst_path": "split@Lbl5xtyMLB4uAsl4GPP20w/delete_split",
+      "dst_port": "selectionin"
+    },
+    {
+      "src_path": "split@OwuiJc4PIJwhU8dwGMhkY1/selection_parser",
+      "src_port": "selection",
+      "dst_path": "split@Lbl5xtyMLB4uAsl4GPP20w/delete_remainder",
+      "dst_port": "selectionin"
+    },
+    {
+      "src_path": "split@OwuiJc4PIJwhU8dwGMhkY1/selection_parser",
+      "src_port": "selection",
+      "dst_path": "split@OwuiJc4PIJwhU8dwGMhkY1/reverse_selection",
+      "dst_port": "selectionin"
+    }
+  ],
+  "port_defaults": [
+    {
+      "node": "transformmatrix@d7MHJqPjCVrjkwKV62Tlkx",
+      "dir": "IN",
+      "port": "in",
+      "type": "Array",
+      "val": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=2)"
+    },
+    {
+      "node": "transformmatrix@d7MHJqPjCVrjkwKV62Tlkx",
+      "dir": "IN",
+      "port": "in._0.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "transformmatrix@d7MHJqPjCVrjkwKV62Tlkx",
+      "dir": "IN",
+      "port": "in._0.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "transformmatrix@d7MHJqPjCVrjkwKV62Tlkx",
+      "dir": "IN",
+      "port": "in._0.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "transformmatrix@d7MHJqPjCVrjkwKV62Tlkx",
+      "dir": "IN",
+      "port": "in._1.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "transformmatrix@d7MHJqPjCVrjkwKV62Tlkx",
+      "dir": "IN",
+      "port": "in._1.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "transformmatrix@d7MHJqPjCVrjkwKV62Tlkx",
+      "dir": "IN",
+      "port": "in._1.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "if@SvAEkEfLDduoOxqcGfnhO3",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "net.maxon.interface.string-C"
+    },
+    {
+      "node": "if@SvAEkEfLDduoOxqcGfnhO3",
+      "dir": "IN",
+      "port": "in2",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "if@SvAEkEfLDduoOxqcGfnhO3",
+      "dir": "OUT",
+      "port": "out",
+      "type": "String",
+      "val": "default"
+    },
+    {
+      "node": "readvalueatindex2@Ws3ILBtxJdZsac6WSmV$az",
+      "dir": "IN",
+      "port": "cyclein",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "reroute@NLG1QiSRO9ttj29fhZwH20",
+      "dir": "IN",
+      "port": "in",
+      "type": "Float64",
+      "val": "0.2"
+    },
+    {
+      "node": "reroute@NLG1QiSRO9ttj29fhZwH20",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Float64",
+      "val": "0.2"
+    },
+    {
+      "node": "transform_element@IHIauTjRB19tYcmzhu8oUw",
+      "dir": "IN",
+      "port": "selectionstringin",
+      "type": "String",
+      "val": "all"
+    },
+    {
+      "node": "transform_element@IHIauTjRB19tYcmzhu8oUw",
+      "dir": "IN",
+      "port": "transformin.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "transform_element@IHIauTjRB19tYcmzhu8oUw",
+      "dir": "IN",
+      "port": "transformin.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "transform_element@IHIauTjRB19tYcmzhu8oUw",
+      "dir": "IN",
+      "port": "transformin.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "transform_element@IHIauTjRB19tYcmzhu8oUw",
+      "dir": "IN",
+      "port": "pivotmatrixin.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "transform_element@IHIauTjRB19tYcmzhu8oUw",
+      "dir": "IN",
+      "port": "pivotmatrixin.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "transform_element@IHIauTjRB19tYcmzhu8oUw",
+      "dir": "IN",
+      "port": "pivotmatrixin.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "transform_element@IHIauTjRB19tYcmzhu8oUw",
+      "dir": "IN",
+      "port": "selectiontypein",
+      "type": "Id",
+      "val": "points"
+    },
+    {
+      "node": "transform_element@IHIauTjRB19tYcmzhu8oUw/selectionstringparser",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.accessorclas>cR"
+    },
+    {
+      "node": "split@Lbl5xtyMLB4uAsl4GPP20w",
+      "dir": "IN",
+      "port": "selectionstring",
+      "type": "String",
+      "val": "default"
+    },
+    {
+      "node": "split@Lbl5xtyMLB4uAsl4GPP20w",
+      "dir": "IN",
+      "port": "mode",
+      "type": "InternedId",
+      "val": "polygons"
+    },
+    {
+      "node": "split@Lbl5xtyMLB4uAsl4GPP20w/delete_remainder",
+      "dir": "IN",
+      "port": "delete_unused_in",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "split@Lbl5xtyMLB4uAsl4GPP20w/delete_split",
+      "dir": "IN",
+      "port": "delete_unused_in",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "split@Lbl5xtyMLB4uAsl4GPP20w/selection_parser",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.accessorclas>cR"
+    },
+    {
+      "node": "inversematrix@fxktmdTeJ5Vv2xgCIsZN$0",
+      "dir": "IN",
+      "port": "in.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "inversematrix@fxktmdTeJ5Vv2xgCIsZN$0",
+      "dir": "IN",
+      "port": "in.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "inversematrix@fxktmdTeJ5Vv2xgCIsZN$0",
+      "dir": "IN",
+      "port": "in.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "concat@P0RHY3dtIRRlDDFirccEdx",
+      "dir": "IN",
+      "port": "strings",
+      "type": "Array",
+      "val": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=2)"
+    },
+    {
+      "node": "concat@P0RHY3dtIRRlDDFirccEdx",
+      "dir": "IN",
+      "port": "strings._0",
+      "type": "String",
+      "val": "\""
+    },
+    {
+      "node": "concat@P0RHY3dtIRRlDDFirccEdx",
+      "dir": "OUT",
+      "port": "result",
+      "type": "String",
+      "val": "\""
+    },
+    {
+      "node": "negate@QaEF35OpLREhNS__CdA8Oy",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "float"
+    },
+    {
+      "node": "negate@QaEF35OpLREhNS__CdA8Oy",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Float64",
+      "val": "0.2"
+    },
+    {
+      "node": "extrude@ZHqUpedgC9bo4JNF47DM0y",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.extrude.base.maxangle",
+      "type": "Float64",
+      "val": "1.553"
+    },
+    {
+      "node": "extrude@ZHqUpedgC9bo4JNF47DM0y",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.extrude.base.useislands",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "extrude@ZHqUpedgC9bo4JNF47DM0y",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.extrude.base.inset",
+      "type": "Float64",
+      "val": "100"
+    },
+    {
+      "node": "extrude@ZHqUpedgC9bo4JNF47DM0y",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.extrude.base.offset",
+      "type": "Float64",
+      "val": "0.2"
+    },
+    {
+      "node": "extrude@ZHqUpedgC9bo4JNF47DM0y",
+      "dir": "IN",
+      "port": "selectionstring",
+      "type": "String",
+      "val": "default"
+    },
+    {
+      "node": "extrude@ZHqUpedgC9bo4JNF47DM0y",
+      "dir": "IN",
+      "port": "mode",
+      "type": "InternedId",
+      "val": "polygons"
+    },
+    {
+      "node": "extrude@ZHqUpedgC9bo4JNF47DM0y/selectionstringtoselection",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.accessorclas>cR"
+    },
+    {
+      "node": "extrude@ZHqUpedgC9bo4JNF47DM0y/modelingoperator",
+      "dir": "IN",
+      "port": "commandid",
+      "type": "Id",
+      "val": "net.maxon.command.modeling.extrude"
+    },
+    {
+      "node": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/tangentsName",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.accessorclas>cR"
+    },
+    {
+      "node": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/colorsName",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.accessorclas>cR"
+    },
+    {
+      "node": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/uvsName",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.accessorclas>cR"
+    },
+    {
+      "node": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/uvwsName",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.accessorclas>cR"
+    },
+    {
+      "node": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/normalsName",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.accessorclas>cR"
+    },
+    {
+      "node": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/cornersName",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.accessorclas>cR"
+    },
+    {
+      "node": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/weightsName",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.accessorclas>cR"
+    },
+    {
+      "node": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/colorasName",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.accessorclas>cR"
+    },
+    {
+      "node": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/polySelName",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.accessorclas>cR"
+    },
+    {
+      "node": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/edgeSelName",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.accessorclas>cR"
+    },
+    {
+      "node": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/data3dName",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.accessorclas>cR"
+    },
+    {
+      "node": "getpropertynames@HxA7hBwHBlmo8i9qonUvpx/ptSelName",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.accessorclas>cR"
+    },
+    {
+      "node": "floatingio@fg_1Vy3UDFJsKVKfL82CGy",
+      "dir": "IN",
+      "port": "net.maxon.node.floatingio.portlist",
+      "type": "Array",
+      "val": "(net.maxon.datatype.internedid,net.maxon.interface.datadictionary-C)[], input=1)"
+    },
+    {
+      "node": "floatingio@fg_1Vy3UDFJsKVKfL82CGy",
+      "dir": "IN",
+      "port": "hiddenin1.in@VlgjJD5DL9xmMj7pZWDUjy",
+      "type": "Float64",
+      "val": "0.2"
+    },
+    {
+      "node": "floatingio@fg_1Vy3UDFJsKVKfL82CGy",
+      "dir": "OUT",
+      "port": "in1.in@VlgjJD5DL9xmMj7pZWDUjy",
+      "type": "Float64",
+      "val": "0.2"
+    },
+    {
+      "node": "concat@UWX$hJE4HhOn7Xto8aE4A3",
+      "dir": "IN",
+      "port": "strings",
+      "type": "Array",
+      "val": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=2)"
+    },
+    {
+      "node": "concat@UWX$hJE4HhOn7Xto8aE4A3",
+      "dir": "IN",
+      "port": "strings._0",
+      "type": "String",
+      "val": "\""
+    },
+    {
+      "node": "concat@UWX$hJE4HhOn7Xto8aE4A3",
+      "dir": "IN",
+      "port": "strings._1",
+      "type": "String",
+      "val": "\""
+    },
+    {
+      "node": "concat@UWX$hJE4HhOn7Xto8aE4A3",
+      "dir": "OUT",
+      "port": "result",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "connect_geometries@KCxsyWpTEdWkupZL81wvS3",
+      "dir": "IN",
+      "port": "geometryin",
+      "type": "Array",
+      "val": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=3)"
+    },
+    {
+      "node": "connect_geometries@KCxsyWpTEdWkupZL81wvS3",
+      "dir": "IN",
+      "port": "mergeselectionin",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "connect_geometries@KCxsyWpTEdWkupZL81wvS3",
+      "dir": "IN",
+      "port": "outmodein",
+      "type": "InternedId",
+      "val": "auto"
+    },
+    {
+      "node": "extrude@eJFfiHGyARMvNFeH$GgxI2",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.extrude.base.maxangle",
+      "type": "Float64",
+      "val": "1.553"
+    },
+    {
+      "node": "extrude@eJFfiHGyARMvNFeH$GgxI2",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.extrude.base.useislands",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "extrude@eJFfiHGyARMvNFeH$GgxI2",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.extrude.base.inset",
+      "type": "Float64",
+      "val": "100"
+    },
+    {
+      "node": "extrude@eJFfiHGyARMvNFeH$GgxI2",
+      "dir": "IN",
+      "port": "net.maxon.command.modeling.extrude.base.offset",
+      "type": "Float64",
+      "val": "0.2"
+    },
+    {
+      "node": "extrude@eJFfiHGyARMvNFeH$GgxI2",
+      "dir": "IN",
+      "port": "selectionstring",
+      "type": "String",
+      "val": "default"
+    },
+    {
+      "node": "extrude@eJFfiHGyARMvNFeH$GgxI2",
+      "dir": "IN",
+      "port": "mode",
+      "type": "InternedId",
+      "val": "polygons"
+    },
+    {
+      "node": "extrude@eJFfiHGyARMvNFeH$GgxI2/selectionstringtoselection",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.accessorclas>cR"
+    },
+    {
+      "node": "extrude@eJFfiHGyARMvNFeH$GgxI2/modelingoperator",
+      "dir": "IN",
+      "port": "commandid",
+      "type": "Id",
+      "val": "net.maxon.command.modeling.extrude"
+    },
+    {
+      "node": "split@OwuiJc4PIJwhU8dwGMhkY1",
+      "dir": "IN",
+      "port": "selectionstring",
+      "type": "String",
+      "val": "default"
+    },
+    {
+      "node": "split@OwuiJc4PIJwhU8dwGMhkY1",
+      "dir": "IN",
+      "port": "mode",
+      "type": "InternedId",
+      "val": "polygons"
+    },
+    {
+      "node": "split@OwuiJc4PIJwhU8dwGMhkY1/delete_remainder",
+      "dir": "IN",
+      "port": "delete_unused_in",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "split@OwuiJc4PIJwhU8dwGMhkY1/delete_split",
+      "dir": "IN",
+      "port": "delete_unused_in",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "split@OwuiJc4PIJwhU8dwGMhkY1/selection_parser",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.accessorclas>cR"
+    }
+  ]
+}

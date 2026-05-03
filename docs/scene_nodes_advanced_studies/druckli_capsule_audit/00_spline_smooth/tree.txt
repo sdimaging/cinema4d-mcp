@@ -1,0 +1,12 @@
+Scene: Spline_Smooth_Examples.c4d
+FPS=30 max=90
+
+n-Side  (t=5179)
+  Spline Smooth  (t=180420400)
+Star  (t=5187)
+  Spline Smooth  (t=180420400)
+Linear Arrow  (t=180420700)
+  Spline Smooth  (t=180420400)
+Handwritten  (t=5101)
+  Resample Spline  (t=180420400)
+  Spline Smooth  (t=180420400)

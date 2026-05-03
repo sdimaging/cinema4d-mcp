@@ -1,0 +1,11 @@
+Scene: Splint_Spline_Mask_Example_01.c4d
+FPS=30 max=90
+
+INFO  (t=5140)
+Thicken  (t=1060179)
+  Extrude  (t=5116)
+    Split Spline Mask  (t=180420700)
+      Flower  (t=5176)
+      Rectangle  (t=5186)
+  Bevel  (t=431000028)
+Rectangle Instance  (t=5126)
