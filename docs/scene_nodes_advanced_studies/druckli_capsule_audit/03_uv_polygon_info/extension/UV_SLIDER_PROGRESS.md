@@ -90,3 +90,54 @@ with graph.BeginTransaction() as tx:
 ```
 
 This recipe is the HONEST deliverable — a confirmed-addable node-set + wiring spec ready for the next session to execute.
+
+---
+
+## Iteration 4 (2026-05-02) — set.iteration WEDGES C4D main thread
+
+After cracking the granular DRuckli reference (see `UVTOMESH_GRANULAR_REFERENCE.md`), the next attempt wired the lower-level `net.maxon.neutron.geometry.set` (which DOES have the `.iteration` port) with this minimal scale-only test:
+
+```
+get_lower.array → containeriteration.in
+containeriteration.out → scale.in1 (per-vertex Vec3)
+scale.in2 = 2.0
+scale.out → set_lower.iteration                    ← THE KEY WIRE
+get_lower.topology → set_lower.topology
+root.geometryin → get_lower.geometry
+root.geometryin → set_lower.geometryin
+set_lower.geometryout → root.geometryout
+```
+
+**Result:** C4D main thread wedged. `execute_python_script` timed out at 120s, follow-up `ping` calls timed out at 20s each. Required full C4D restart to recover.
+
+### Hypothesis on the wedge
+
+The `set.iteration` connection likely creates a re-evaluation loop because we wired `set.geometryout → root.geometryout` AND `root.geometryin → set.geometryin` in the same chain. If `set` references `geometryin` while computing the iterated output, and the host's geometry pipeline re-triggers on `geometryout` changes, the evaluation can recurse.
+
+The DRuckli pattern AVOIDS this by wrapping `set` inside `geometry.op` + `filter.op` containers (the 2 extra nodes inside uvtomesh that I initially thought were just utility wrappers). Those op containers establish proper evaluation boundaries that prevent the recursion.
+
+### Next iteration plan
+
+1. **Add `net.maxon.neutron.op.geometry` + `net.maxon.neutron.op.filter` to the chain.** Wire `set.geometryout → geometry.geometry` (NOT directly to root). Then `geometry.output → filter.input → root.geometryout`.
+2. **Test with single-pass static scale FIRST** before adding the slider — to isolate any remaining wedge sources.
+3. **If still wedges:** the safer fallback is to fully replicate uvtomesh as a custom capsule via `CreateCopyOfSelection + Merge` from the original scene (the copy preserves all internal wiring including the op containers). Then add a slider on top.
+
+### Confirmed-good asset IDs (probed this iteration)
+
+| Asset ID | Has .iteration | Notes |
+|---|---|---|
+| `net.maxon.neutron.geometry.set` | ✓ YES | The lower-level set — DRuckli uses this internally |
+| `net.maxon.neutron.geometry.get` | n/a | Lower-level get |
+| `net.maxon.neutron.geometry.set_property` | ✗ no | The wrapper — only has .array |
+| `net.maxon.neutron.geometry.get_property` | n/a | The wrapper |
+| `net.maxon.node.containeriteration` | n/a | datatype port REJECTS maxon.Id("net.maxon.parametrictype.vec<3,float>") with "VALUEKIND::CONTAINER_REF" error — must auto-derive from connection |
+| `net.maxon.node.readvalueatindex` / `readvalueatindex2` | ✗ NOT FOUND | Cannot add as primitive — DRuckli must have a different parallel-array consumer pattern |
+| `net.maxon.pattern.node.conversion.composevector3` / `splitvectorcomponents` | ✓ | DRuckli's actual splitter/composer (matches uvtomesh internals) |
+| `net.maxon.neutron.op.geometry` | not yet tested | Required for safe set.geometryout wrapping |
+| `net.maxon.neutron.op.filter` | not yet tested | Required for safe set.geometryout wrapping |
+
+### Anti-patterns confirmed
+
+1. **Don't wire `set.geometryout` directly to `root.geometryout` when set has `.iteration`** — wedges main thread (this iteration).
+2. **Don't wire whole-array math** (scale.in1 = orig_get.array, blend.in1 = orig_get.array) — silently produces empty geometry (iter 1-3 of v3.x).
+3. **Don't wire dual-consumer of root.geometryin** to both a math chain and a pass-through — likely causes the original wire-surgery failures (iter 1-3 of v3.x).
