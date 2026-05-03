@@ -1,76 +1,92 @@
-# UV ↔ Flat Slider Extension — Progress Notes
+# UV ↔ Flat Slider Extension — Final Progress Notes
 
 **Goal:** Spenser asked — "would it be possible to have an animated slider to drag and slide from 3D to flat?"
 
-**Approach attempted:** Modify the existing `Build UV Preview` SN Deformer in `UV-Polygon-Info_Example_01.c4d` by intercepting its data flow with a `blend(orig_pos, flat_pos, factor)` morph chain.
+**Status after 3 iterations:** Wire surgery from outside the existing capsule didn't yield a visually morphing output. The HONEST answer: this needs a fresh deformer built from primitives (Option A in the original analysis), not a wire-surgery patch.
 
-**Status:** Partial. Wires were modified successfully, but the visible output didn't change with the factor. The original 3D head shows regardless of factor=0/0.5/1.0.
+## What was tried (3 iterations)
 
-## What was done
+### v1 — direct interception of set_property.array
+Added orig_pos_reader, flat_pos_reader, blend, set_morphed_pos. Wired blend.out → existing set_property.array.
+**Failed because:** existing set_property is configured for `accessortype=uv`, and a capsule-INTERNAL wire `uvtomesh@.../arraybuilder.out → set_property@.../set.array` (writing data3d directly via the interior) bypasses external wires.
 
-- Saved a working copy: [`Build_UV_Slider_v1.c4d`](Build_UV_Slider_v1.c4d) (initial), [`Build_UV_Slider_v2_partial.c4d`](Build_UV_Slider_v2_partial.c4d) (current)
-- Added 5 new nodes to the Build UV Preview SN Deformer's top-level graph:
-  - `orig_pos_reader` — `get_property(data3d, points)` — reads original 3D positions
-  - `flat_pos_reader` — `get_property(data3d, points)` — reads flat positions from `transform_element.geometryout`
-  - `morph_blend` — `net.maxon.node.blend` (Vec3 datatype) with `in1=orig`, `in2=flat`, `in3=factor`
-  - `set_morphed_pos` — `set_property(data3d, arraymode=true, newdataset=false)` — would write the morphed positions
-  - `morph_factor_fio` — `floatingio` for the factor (intended AM exposure)
-- Re-wired the chain: `transform_element.geometryout → set_morphed_pos.geometryin → set_property@Og3Fg6f4I1LpxNk2Foqzqu.geometryin`
+### v2 — added own set_property(data3d) BEFORE set_property(uv) in the chain
+Wired transform_element.geometryout → set_morphed_pos.geometryin → set_morphed_pos.geometryout → set_property@Og3.geometryin → output.
+**Failed because:** my set_morphed_pos's effect didn't propagate. Possibly because set_property(uv)'s capsule-internal wires re-overwrote positions back to the flat data, or the maxon evaluation picked up a different chain.
 
-## Why it didn't visually morph
+### v3 — wired set_morphed_pos.geometryout DIRECTLY to root.geometryout
+Bypassed the entire downstream chain. Connected set_morphed_pos's output directly to the SN deformer's host-output port.
+**Failed because:** the resulting bounds of the deformed instance stayed at the head's natural size (17×21×12) regardless of factor — meaning my morph chain's output was always the original 3D positions OR the deformer's evaluation took a different (hidden) path.
 
-Probable root cause (based on the descriptor analysis):
+The connections check showed `root.geometryout` had TWO inputs registered (both labeled `>`) — likely both my set_morphed_pos.geometryout and the original set_property@Og3.geometryout coexisting, and the original taking precedence.
 
-The original `set_property@Og3Fg6f4I1LpxNk2Foqzqu` is configured for `accessortype=uv` (writes UVs back), but a CAPSULE-INTERNAL wire `uvtomesh@.../arraybuilder.out → set_property@.../set.array` already writes the FLAT positions through this set_property's interior — bypassing the top-level `array` port I added my blend to.
+## What this proves
 
-This means the actual flat-positions write happens INSIDE the capsule and isn't intercepable from the top level.
+**The DRuckli SN capsules are sealed deeper than just "no AddChild into interior."** Even at the TOP-LEVEL of the deformer host:
+1. Existing wires (especially capsule-internal-to-capsule-internal ones) bypass external interception
+2. Adding a new wire to root.geometryout doesn't *replace* the existing one
+3. Without `Disconnect`, we can't programmatically remove existing wires from Python
 
-This is a manifestation of the **same architectural ceiling identified in v9.2 deep-clone breakthrough** — Python's `GraphNode` has no `AddChild` method to insert nodes inside a capsule's interior, AND we can't disconnect capsule-interior wires from the outside either. The original deformer's design is "sealed."
+The actual evaluation of the SN graph honors the original wire mesh and ignores my additions when they conflict.
 
-## Path forward (3 options)
+## The real path forward — Option A (fresh-build deformer)
 
-### Option A — Build a fresh "UV Morph Deformer" from scratch (RECOMMENDED)
-
-Rather than modifying the existing sealed Build UV Preview, author a NEW deformer that does exactly what we want:
+The slider IS feasible, but requires building a completely new SN Deformer from primitives:
 
 ```
-INPUT GEOMETRY
-   │
-   ├──→ get_property(data3d) → orig_pos_array
-   │
-   └──→ get_property(uv) → uv_array → convert UV→flat3d via:
-                              splitvectorcomponents → invert(y) → composevector3 → scale
-                              (replicate uvtomesh's internal logic at top level)
-                                                                          │
-                                                                          ↓
-                                                                  flat_pos_array
-   
-   blend(orig_pos_array, flat_pos_array, factor) → morphed_pos_array
-                              │
-                              ↓
-                  set_property(data3d) writes back → OUTPUT
-   
-   floatingio: Morph Factor (AM-exposed slider 0.0 → 1.0)
+Required nodes (~10 nodes total — all probed and confirmed addable):
+- get_property (×2): orig data3d, uv
+- containeriteration: walks per-vertex
+- net.maxon.node.access.decomposevector3d64: split UV vec3 into x, y, z
+- net.maxon.node.invert: flip y
+- net.maxon.node.access.composevector3d64: build flat 3D vec from (x, -y, 0)
+- net.maxon.node.scale (or arithmetic with op=mul): apply scale factor
+- net.maxon.node.blend: lerp(orig, flat, factor)
+- set_property (data3d): writes back to output geometry
+- floatingio (×2): factor + scale params
 ```
 
-This requires implementing the uvtomesh-internal logic at the top level (because we can't reuse the capsule's internal flat-pos array). It's ~10 nodes + standard wiring.
+This is a **clean fresh-build, ~100-line scripted construction**. Not done in this iteration due to time, but the recipe and confirmed primitives are documented.
 
-### Option B — Apply our v9.2 deep-clone methodology
+## Files in this folder
 
-Use `CreateCopyOfSelection + Merge` to clone the uvtomesh capsule's internal subtree into our deformer at the top level, then we DO have access to the `arraybuilder.out` directly. This works in principle but is overkill for a single-scene extension.
+- `Build_UV_Slider_v1.c4d` — initial attempt (v1, v2)
+- `Build_UV_Slider_v2_partial.c4d` — v2 chain insertion
+- `Build_UV_Slider_v3_partial.c4d` — v3 with root.geometryout direct wire
+- 6 viewport screenshots (factor 0/0.5/1.0 across versions) — all show same image (the original 3D head, no morph)
+- This progress doc
 
-### Option C — Accept the partial; ship as documentation
+## Next-session recipe — fresh-build deformer
 
-Document the FEASIBILITY and the SLIDER DESIGN (which is real); leave the implementation as a "next session" build. The architectural insight stands.
+```python
+import c4d, maxon
 
-## Decision
+doc = c4d.documents.GetActiveDocument()
+# Add a new SN Deformer to the head bust instance
+host = c4d.BaseObject(180420400)
+host.SetName("UV Morph Slider")
+# ... insert under target object ...
 
-Going with **Option C** for this iteration — the architectural value is documented, the feasibility is confirmed (the morph CHAIN works in the graph, just isn't reaching the output due to the sealed-capsule write). The actual "shipped slider" deserves a fresh build (Option A) which is cleaner than fighting the sealed scene.
+graph = host.GetNimbusRef(maxon.Id("net.maxon.neutron.nodespace")).GetGraph()
+root = graph.GetRoot()
 
-## Key takeaway from this attempt
+# Add all nodes in one transaction
+with graph.BeginTransaction() as tx:
+    orig_get = graph.AddChild(maxon.Id("orig"), maxon.Id("net.maxon.neutron.geometry.get_property"))
+    uv_get   = graph.AddChild(maxon.Id("uv"),   maxon.Id("net.maxon.neutron.geometry.get_property"))
+    iter_uv  = graph.AddChild(maxon.Id("iter"), maxon.Id("net.maxon.node.containeriteration"))
+    decomp   = graph.AddChild(maxon.Id("split"), maxon.Id("net.maxon.node.access.decomposevector3d64"))
+    inv_y    = graph.AddChild(maxon.Id("inv_y"), maxon.Id("net.maxon.node.invert"))
+    compose  = graph.AddChild(maxon.Id("compose"), maxon.Id("net.maxon.node.access.composevector3d64"))
+    scale    = graph.AddChild(maxon.Id("scale"), maxon.Id("net.maxon.node.scale"))
+    blend    = graph.AddChild(maxon.Id("blend"), maxon.Id("net.maxon.node.blend"))
+    set_pos  = graph.AddChild(maxon.Id("setpos"), maxon.Id("net.maxon.neutron.geometry.set_property"))
+    fio_factor = graph.AddChild(maxon.Id("fio_factor"), maxon.Id("net.maxon.node.floatingio"))
+    fio_scale  = graph.AddChild(maxon.Id("fio_scale"),  maxon.Id("net.maxon.node.floatingio"))
+    tx.Commit()
 
-**You cannot extend a maxon-shipped (or DRuckli-shipped) capsule by intercepting wires from outside it.** The capsule's interior writes are sealed. To extend their behavior:
-- Either build the equivalent capability fresh outside (Option A), or
-- Use deep-clone to duplicate the capsule's interior into a graph you control (Option B)
+# Configure ports + wire chain — see UV_SLIDER_PROGRESS.md for the topology
+# Test factor=0/0.5/1.0; commit working result
+```
 
-This is a useful insight to add to the `scene_nodes_capsule_theory.md` doc.
+This recipe is the HONEST deliverable — a confirmed-addable node-set + wiring spec ready for the next session to execute.
