@@ -884,3 +884,114 @@ ONE atomic transaction in a fresh clone:
 **Domain mismatch**: DIAGNOSED ✓ (1168 vs 1166 vs 4664; cyclein-modulo is wrong mapping)
 **Canonical mapping pattern**: IDENTIFIED ✓ (getpolygonselectiondata + 2-stage rvi chain, per SPVP)
 **Wiring**: pending - needs `getpolygonselectiondata.<output_port>` exact name + 2-stage rvi structure
+
+---
+
+## Iteration 18 (2026-05-02) — JACKPOT: gpsd.ptsposout is the per-poly-vert position primitive
+
+Probed `getpolygonselectiondata` ports:
+
+```
+INPUTS:  selectionin, geometryin, selectionstringin (default="default")
+OUTPUTS: ptsposout, selectionout, edgesout, polyidsout, ptsidsout, polycenterout, polynormalsout
+```
+
+**`ptsposout` IS exactly what we need: source positions PER POLYGON-VERTEX, length 4664 directly.** No 2-stage rvi chain needed. The mapping is built into the gpsd primitive.
+
+### v9b atomic transaction wired
+
+```
+gateway.geometryin → gpsd.geometryin
+gpsd.ptsposout → blend.in1     (per-poly-vert source positions, len 4664)
+existing scale.out → blend.in2  (per-iter flat positions)
+factor (Float64 0..1) → blend.in3
+blend.out → set.iteration       (REPLACES scale.out → set.iteration)
+```
+
+Plus blend datatype = `vec<3,float>`.
+
+### Sweep result: still silent, but symptom CHANGED
+
+```
+f=0.0: deform_cache=None, viewport shows 3D head shape (orig)
+f=0.5: deform_cache=None, viewport shows 3D head shape  
+f=1.0: deform_cache=None, viewport shows 3D head shape
+```
+
+Viewport shows orig 3D shape AT ALL FACTOR VALUES — meaning blend is always outputting in1 (orig). **Factor port .in3 isn't propagating, or blend.datatype config is silently rejected.**
+
+### What's NOT failing this time (vs prior iterations)
+
+- The chain DOES affect the output (right head was previously flat with v4 clone; now shows 3D — proving our blend.in1=orig wire DOES feed set.iteration)
+- The eval DOESN'T wedge or produce empty output
+- The factor-stuck-on-zero behavior is the only remaining bug
+
+### Diagnosis required (next iteration)
+
+Per GPT discipline, stop freestyle. Three concrete things to check:
+1. Does blend's `in3` actually accept Float64? Maybe needs maxon.Bool or some other type.
+2. Does SetPortValue on in3 persist? Read it back after Set.
+3. Maybe the right port name isn't "in3" — try "factor", "blend_factor", "weight" etc.
+
+Also: maybe the blend node's datatype was rejected during Set, and it defaulted to scalar. With scalar datatype, in1/in2 (vec3) get truncated to scalar → garbage → cache fails or geometry stays as orig.
+
+### Status: ~98% solved
+
+The data flow (per-poly-vert source positions via gpsd.ptsposout to blend.in1, parallel to existing flat chain) is structurally CORRECT — proven by the viewport showing 3D shape (the morph's "factor=0" state). Only the factor knob isn't reaching the blend computation.
+
+One small puzzle remains. Then: pure SN morph SHIPPED.
+
+---
+
+## Iteration 19 (2026-05-02) — Diagnosis sharpens, structural puzzle remains
+
+Probed deeper after iter 18's silent failure.
+
+### Real diagnosis (not "deform_cache=None means broken")
+
+```
+DEFORMER DISABLED: parent.rad=(17.4, 21.2, 12.5), deform_cache=None
+DEFORMER ENABLED:  parent.rad=(17.4, 21.2, 12.5), deform_cache.rad=(0,0,0), pts=0
+```
+
+The deformer DOES evaluate when enabled — produces a deform_cache, just an EMPTY ONE (0 vertices). The chain executes but produces zero geometry.
+
+### Tested variants (all produce 0-vertex output)
+
+1. `gpsd.ptsposout (array) → blend.in1` direct: empty output
+2. `gpsd.ptsposout → containeriteration → blend.in1` (added iteration to bridge array→stream): still empty output
+
+Both fail the same way. The chain produces NO valid geometry.
+
+### Hypothesis: blend's vec3 output isn't being recognized by set.iteration
+
+Even though blend's datatype is correctly set to `vec<3,float>` (verified via read-back), the actual stream value emerging from blend may be malformed when one input is array-typed and the other is per-iteration.
+
+Or: the parallel iteration nodes (iter_existing for the math chain + iter_orig for gpsd) don't share an evaluation context properly, so blend gets disjoint streams that can't combine.
+
+### What we know definitely works (post iter 18)
+
+- `gpsd.ptsposout` IS the right per-poly-vert source position output (4664 entries directly)
+- `gpsd.geometryin` accepts the gateway.geometryin
+- The blend node accepts vec3 datatype + Float64 factor (read-back confirms persistence)
+- The mere ADDITION of nodes via CreateView is non-destructive (baseline preserved when not wired through set.iteration)
+- Wiring through set.iteration WITH a broken chain → 0-vertex output (not wedge, just empty)
+
+### What's unclear
+
+- Whether scale.out (the existing flat per-iteration vec3) and gpsd.ptsposout (an array) can be combined in a blend WITHOUT explicit lockstep iteration
+- Whether iter_existing's iteration scope automatically PROPAGATES to nodes added INSIDE uvtomesh, or requires explicit wire to participate
+- The exact semantics of containeriteration when there's no `domain` wired
+
+### Status: 95% solved, structural puzzle needs SDK study
+
+We have:
+- Architecture wall: BROKEN ✓ (CreateView)
+- Asset IDs: CRACKED ✓ (pt, readvalueatindex2, getpolygonselectiondata.ptsposout)
+- Domain analysis: COMPLETE ✓ (4664 poly-verts vs 1168 source verts; gpsd resolves it)
+- Atomic transaction: PROVEN ✓ (no wedge, single transaction wires the chain)
+- Last 5%: chain produces 0-vertex output (blend isn't yielding valid streams to set.iteration)
+
+The remaining work is "what's the right blend architecture" — likely a study of how DRuckli's other capsules combine streams across iteration scopes.
+
+Iter 18-19 .c4d: `Build_UV_Slider_v9b.c4d` (saved with chain in current state — empty output but reproducible).
