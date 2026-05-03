@@ -1,4 +1,72 @@
-# Scene Nodes Advanced Studies — Procedural C4D Scene Nodes Analysis
+# Scene Nodes Advanced Studies — Procedural C4D Scene Nodes Analysis & Rebuild Kit
+
+A 3-phase deep dive into Cinema 4D 2026's Scene Nodes:
+1. **Phase 1 — Document** (Apr 2026): Raw structural dumps of 16 reference artist scenes
+2. **Phase 2 — Tinker** (May 1, 2026): Behavioral decomposition + recipe extraction
+3. **Phase 3 — Rebuild from scratch** (May 2-3, 2026): A generic capsule-aware Python rebuild script that reproduces ANY artist Scene Nodes graph
+
+## ⚡ Phase 3 — start here
+
+A single script that takes any artist's Scene Nodes host and reproduces it from primitives.
+
+**Cross-scene proof: 32 unique host rebuilds across 22 artist scenes — 100% node fidelity, 94.8% mean wire fidelity.** [Full results table →](PHASE3_SWEEP_RESULTS.md)
+
+**The script:** [`scripts/sn_phase3_rebuild.py`](../../scripts/sn_phase3_rebuild.py) (~700 lines)
+
+**The breakthrough:** [Scene Nodes deep-clone via CreateCopyOfSelection + Merge](../scene_nodes_movetogroup_breakthrough.md) — bypasses Python's GraphNode-no-AddChild ceiling so artist-customized capsule body (legacyobjectaccess+matrixop, custom xform/spline/group capsules) can finally be reproduced.
+
+**Quick recipe** — rebuild any artist Scene Nodes host from your own .c4d:
+
+```python
+import sys
+sys.path.insert(0, r"<path>/cinema4d-mcp/scripts")
+import sn_phase3_rebuild as r3
+import c4d, maxon
+
+src = c4d.documents.LoadDocument(r"<your scene>.c4d", c4d.SCENEFILTER_OBJECTS, None)
+c4d.documents.InsertBaseDocument(src); c4d.documents.SetActiveDocument(src)
+
+SN_TYPES = (180420400, 180420500, 180420600, 180420700)
+def find_hosts(o, out=None):
+    if out is None: out = []
+    while o:
+        if o.GetType() in SN_TYPES: out.append(o)
+        find_hosts(o.GetDown(), out)
+        o = o.GetNext()
+    return out
+
+for host in find_hosts(src.GetFirstObject()):
+    desc = r3.capture_scene(host.GetName(), source_doc=src)
+    new_doc, new_host, report = r3.rebuild_scene(
+        desc, target_name=f"{host.GetName()}_rebuilt", source_host=host)
+    print(f"{host.GetName()}: {report['node_fidelity_pct']:.1f}% nodes / "
+          f"{report['wire_fidelity_pct']:.1f}% wires")
+```
+
+**Headline rebuilds** (each got 100% node fidelity):
+- Mycelium V3.1 — 299 nodes / 620 wires → **100% / 98.9%** (the largest tested)
+- Stack Stones — 214 / 385 → **100% / 100%** ✓
+- VoxelMesher Solver — 205 / 341 → **100% / 99.4%**
+- Reaction Diffusion — 181 / 292 → **100% / 92.8%**
+- Plexus (5 host variants) — all 100% nodes / 99-100% wires
+- Spiderweb_Complex — 159 / 255 → **100% / 94.1%**
+
+**Visual proof:** rebuilt Match Size deformer actively scaling its target torus — see [`scenes/21_matchsize_basic_settings/_phase3/v9_2_compare_topdown.png`](scenes/21_matchsize_basic_settings/_phase3/v9_2_compare_topdown.png).
+
+## Documentation map
+
+| Doc | What it covers |
+|---|---|
+| [PHASE3_SWEEP_RESULTS.md](PHASE3_SWEEP_RESULTS.md) | Full 32-host sweep results table |
+| [PHASE3_CROSS_SCENE_RESULTS.md](PHASE3_CROSS_SCENE_RESULTS.md) | The 4-scene calibration set + v7→v9.2 trajectory |
+| [scene_nodes_movetogroup_breakthrough.md](../scene_nodes_movetogroup_breakthrough.md) | The CreateCopyOfSelection+Merge unlock |
+| [scene_nodes_capsule_theory.md](../scene_nodes_capsule_theory.md) | "Capsules are nodes with internal sub-graphs" — the load-bearing insight |
+| [scene_nodes_doctrine.md](../scene_nodes_doctrine.md) | "Tiny ugly correct graph first" methodology |
+| [scenes/](scenes/) | Per-scene Phase 1+2 studies + Phase 3 rebuild artifacts |
+
+---
+
+## Phase 1+2 — original scene analysis (still relevant)
 
 Dissection of 16 advanced Scene Nodes scenes from the reference set. Each
 scene is a self-contained procedural tool — captured here as both raw JSON
