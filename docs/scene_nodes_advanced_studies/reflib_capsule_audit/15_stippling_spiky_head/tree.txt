@@ -1,0 +1,15 @@
+Scene: Surface_Stippling_Example_Spiky-Head.c4d
+FPS=25 max=800
+
+RS Camera  (t=1057516)
+Head  (t=1011010)
+  Generate Point Normals  (t=180420400)
+  Subdivision Surface  (t=1007455)
+    Generic Head Bust  (t=5100)
+Random Vertex Map  (t=440000281)
+Surface Stippling  (t=180420600)
+Clon_onto_Points  (t=1018544)
+  Cone  (t=5162)
+    Geometry Axis  (t=180420400)
+Align along Normals  (t=1018889)
+Scale and Color  (t=1021337)

@@ -1,0 +1,449 @@
+{
+  "source_host": "Spline Smooth",
+  "source_host_type": 180420400,
+  "node_count": 16,
+  "capsule_count": 2,
+  "wire_count": 20,
+  "defaults_count": 29,
+  "nodes": [
+    {
+      "path": "context_externaltimeinput",
+      "id": "context_externaltimeinput",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "context_notime",
+      "id": "context_notime",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "compare@M91lDqluDJ6nW6NoTHWGAk",
+      "id": "compare@M91lDqluDJ6nW6NoTHWGAk",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "scaffold@SjmfA69pIVfq$nO0PHl61n",
+      "id": "scaffold@SjmfA69pIVfq$nO0PHl61n",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "containeriteration@UodgiUXRD5lpsoMqWGGh_h",
+      "id": "containeriteration@UodgiUXRD5lpsoMqWGGh_h",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "getcount@Cyovh0mCMt7nGWm$PD9TGl",
+      "id": "getcount@Cyovh0mCMt7nGWm$PD9TGl",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "floatingio@AmTO9IidMZ5lPcF5FEKyoh",
+      "id": "floatingio@AmTO9IidMZ5lPcF5FEKyoh",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "explode_segments@e7b83x$_It3vC98FzdX4Tm",
+      "id": "explode_segments@e7b83x$_It3vC98FzdX4Tm",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "append2@CO6e0RuROl6g$AzFtB3uPj",
+      "id": "append2@CO6e0RuROl6g$AzFtB3uPj",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "connect_geometries@Z8thdUO2LBrmFrKpop2XRg",
+      "id": "connect_geometries@Z8thdUO2LBrmFrKpop2XRg",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 2
+    },
+    {
+      "path": "connect_geometries@Z8thdUO2LBrmFrKpop2XRg/filter",
+      "id": "filter",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "connect_geometries@Z8thdUO2LBrmFrKpop2XRg/connect",
+      "id": "connect",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "type@P$41v8jPNZbkVRWphQrQq2",
+      "id": "type@P$41v8jPNZbkVRWphQrQq2",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "get_property@ce68WaSIC1ymb6e9$eNetm",
+      "id": "get_property@ce68WaSIC1ymb6e9$eNetm",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 1
+    },
+    {
+      "path": "get_property@ce68WaSIC1ymb6e9$eNetm/get",
+      "id": "get",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "tessellation@EfGZGWvAHpXlvfKe52ZLd0",
+      "id": "tessellation@EfGZGWvAHpXlvfKe52ZLd0",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    }
+  ],
+  "wires": [
+    {
+      "src_path": "compare@M91lDqluDJ6nW6NoTHWGAk",
+      "src_port": "out",
+      "dst_path": "append2@CO6e0RuROl6g$AzFtB3uPj",
+      "dst_port": "countin"
+    },
+    {
+      "src_path": "containeriteration@UodgiUXRD5lpsoMqWGGh_h",
+      "src_port": "out",
+      "dst_path": "append2@CO6e0RuROl6g$AzFtB3uPj",
+      "dst_port": "valuein"
+    },
+    {
+      "src_path": "containeriteration@UodgiUXRD5lpsoMqWGGh_h",
+      "src_port": "out",
+      "dst_path": "get_property@ce68WaSIC1ymb6e9$eNetm",
+      "dst_port": "geometry"
+    },
+    {
+      "src_path": "getcount@Cyovh0mCMt7nGWm$PD9TGl",
+      "src_port": "countout",
+      "dst_path": "compare@M91lDqluDJ6nW6NoTHWGAk",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "floatingio@AmTO9IidMZ5lPcF5FEKyoh",
+      "src_port": "in2.in@dL69ZPe0O9Fl1hEu2zYZJl",
+      "dst_path": "tessellation@EfGZGWvAHpXlvfKe52ZLd0",
+      "dst_port": "tessellationtype"
+    },
+    {
+      "src_path": "floatingio@AmTO9IidMZ5lPcF5FEKyoh",
+      "src_port": "in3.in@NDJDm5RaHFOgelmmdyNmEi",
+      "dst_path": "tessellation@EfGZGWvAHpXlvfKe52ZLd0",
+      "dst_port": "number"
+    },
+    {
+      "src_path": "floatingio@AmTO9IidMZ5lPcF5FEKyoh",
+      "src_port": "in4.in@ZuNBsdmNNp4gKfOHXvrDYi",
+      "dst_path": "tessellation@EfGZGWvAHpXlvfKe52ZLd0",
+      "dst_port": "angle"
+    },
+    {
+      "src_path": "floatingio@AmTO9IidMZ5lPcF5FEKyoh",
+      "src_port": "in5.in@M4la2JrtBpNsVzLocPR79g",
+      "dst_path": "tessellation@EfGZGWvAHpXlvfKe52ZLd0",
+      "dst_port": "length"
+    },
+    {
+      "src_path": "floatingio@AmTO9IidMZ5lPcF5FEKyoh",
+      "src_port": "in1.in@QtkfAdPJIJPl6KyqOCt$6g",
+      "dst_path": "type@P$41v8jPNZbkVRWphQrQq2",
+      "dst_port": "splinetype"
+    },
+    {
+      "src_path": "explode_segments@e7b83x$_It3vC98FzdX4Tm",
+      "src_port": "geometriesout",
+      "dst_path": "containeriteration@UodgiUXRD5lpsoMqWGGh_h",
+      "dst_port": "in"
+    },
+    {
+      "src_path": "append2@CO6e0RuROl6g$AzFtB3uPj",
+      "src_port": "arrayout",
+      "dst_path": "connect_geometries@Z8thdUO2LBrmFrKpop2XRg",
+      "dst_port": "_6"
+    },
+    {
+      "src_path": "connect_geometries@Z8thdUO2LBrmFrKpop2XRg",
+      "src_port": "geometryout",
+      "dst_path": "type@P$41v8jPNZbkVRWphQrQq2",
+      "dst_port": "geometryin"
+    },
+    {
+      "src_path": "connect_geometries@Z8thdUO2LBrmFrKpop2XRg/filter",
+      "src_port": "arrayout",
+      "dst_path": "connect_geometries@Z8thdUO2LBrmFrKpop2XRg/connect",
+      "dst_port": "geometriesin"
+    },
+    {
+      "src_path": "connect_geometries@Z8thdUO2LBrmFrKpop2XRg/connect",
+      "src_port": "geometryout",
+      "dst_path": "connect_geometries@Z8thdUO2LBrmFrKpop2XRg",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "type@P$41v8jPNZbkVRWphQrQq2",
+      "src_port": "geometryout",
+      "dst_path": "tessellation@EfGZGWvAHpXlvfKe52ZLd0",
+      "dst_port": "geometryin"
+    },
+    {
+      "src_path": "get_property@ce68WaSIC1ymb6e9$eNetm",
+      "src_port": "array",
+      "dst_path": "getcount@Cyovh0mCMt7nGWm$PD9TGl",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "get_property@ce68WaSIC1ymb6e9$eNetm/get",
+      "src_port": "arrayout",
+      "dst_path": "get_property@ce68WaSIC1ymb6e9$eNetm",
+      "dst_port": "array"
+    },
+    {
+      "src_path": "get_property@ce68WaSIC1ymb6e9$eNetm/get",
+      "src_port": "accessornameout",
+      "dst_path": "get_property@ce68WaSIC1ymb6e9$eNetm",
+      "dst_port": "accessornameout"
+    },
+    {
+      "src_path": "get_property@ce68WaSIC1ymb6e9$eNetm/get",
+      "src_port": "isaccessorfoundout",
+      "dst_path": "get_property@ce68WaSIC1ymb6e9$eNetm",
+      "dst_port": "isattributefoundout"
+    },
+    {
+      "src_path": "get_property@ce68WaSIC1ymb6e9$eNetm/get",
+      "src_port": "topologyout",
+      "dst_path": "get_property@ce68WaSIC1ymb6e9$eNetm",
+      "dst_port": "topology"
+    }
+  ],
+  "port_defaults": [
+    {
+      "node": "compare@M91lDqluDJ6nW6NoTHWGAk",
+      "dir": "IN",
+      "port": "operation",
+      "type": "Id",
+      "val": "gt"
+    },
+    {
+      "node": "compare@M91lDqluDJ6nW6NoTHWGAk",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "int"
+    },
+    {
+      "node": "compare@M91lDqluDJ6nW6NoTHWGAk",
+      "dir": "IN",
+      "port": "in2",
+      "type": "Int64",
+      "val": "2"
+    },
+    {
+      "node": "compare@M91lDqluDJ6nW6NoTHWGAk",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Int64",
+      "val": "1"
+    },
+    {
+      "node": "floatingio@AmTO9IidMZ5lPcF5FEKyoh",
+      "dir": "IN",
+      "port": "net.maxon.node.floatingio.portlist",
+      "type": "Array",
+      "val": "(net.maxon.datatype.internedid,net.maxon.interface.datadictionary-C)[], input=5)"
+    },
+    {
+      "node": "floatingio@AmTO9IidMZ5lPcF5FEKyoh",
+      "dir": "IN",
+      "port": "hiddenin3.in@NDJDm5RaHFOgelmmdyNmEi",
+      "type": "Int32",
+      "val": "83"
+    },
+    {
+      "node": "floatingio@AmTO9IidMZ5lPcF5FEKyoh",
+      "dir": "IN",
+      "port": "hiddenin5.in@M4la2JrtBpNsVzLocPR79g",
+      "type": "Float64",
+      "val": "5"
+    },
+    {
+      "node": "floatingio@AmTO9IidMZ5lPcF5FEKyoh",
+      "dir": "IN",
+      "port": "hiddenin1.in@QtkfAdPJIJPl6KyqOCt$6g",
+      "type": "Id",
+      "val": "net.maxon.registry.geometryabstraction.curve.types.bspline"
+    },
+    {
+      "node": "floatingio@AmTO9IidMZ5lPcF5FEKyoh",
+      "dir": "IN",
+      "port": "hiddenin4.in@ZuNBsdmNNp4gKfOHXvrDYi",
+      "type": "Float64",
+      "val": "0.087"
+    },
+    {
+      "node": "floatingio@AmTO9IidMZ5lPcF5FEKyoh",
+      "dir": "IN",
+      "port": "hiddenin2.in@dL69ZPe0O9Fl1hEu2zYZJl",
+      "type": "InternedId",
+      "val": "none"
+    },
+    {
+      "node": "floatingio@AmTO9IidMZ5lPcF5FEKyoh",
+      "dir": "OUT",
+      "port": "in2.in@dL69ZPe0O9Fl1hEu2zYZJl",
+      "type": "InternedId",
+      "val": "none"
+    },
+    {
+      "node": "floatingio@AmTO9IidMZ5lPcF5FEKyoh",
+      "dir": "OUT",
+      "port": "in3.in@NDJDm5RaHFOgelmmdyNmEi",
+      "type": "Int32",
+      "val": "83"
+    },
+    {
+      "node": "floatingio@AmTO9IidMZ5lPcF5FEKyoh",
+      "dir": "OUT",
+      "port": "in4.in@ZuNBsdmNNp4gKfOHXvrDYi",
+      "type": "Float64",
+      "val": "0.087"
+    },
+    {
+      "node": "floatingio@AmTO9IidMZ5lPcF5FEKyoh",
+      "dir": "OUT",
+      "port": "in5.in@M4la2JrtBpNsVzLocPR79g",
+      "type": "Float64",
+      "val": "5"
+    },
+    {
+      "node": "floatingio@AmTO9IidMZ5lPcF5FEKyoh",
+      "dir": "OUT",
+      "port": "in1.in@QtkfAdPJIJPl6KyqOCt$6g",
+      "type": "Id",
+      "val": "net.maxon.registry.geometryabstraction.curve.types.bspline"
+    },
+    {
+      "node": "append2@CO6e0RuROl6g$AzFtB3uPj",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "DataType",
+      "val": "<net.maxon.geometryabstraction.interface.object>C[]C"
+    },
+    {
+      "node": "append2@CO6e0RuROl6g$AzFtB3uPj",
+      "dir": "IN",
+      "port": "countin",
+      "type": "Int64",
+      "val": "1"
+    },
+    {
+      "node": "connect_geometries@Z8thdUO2LBrmFrKpop2XRg",
+      "dir": "IN",
+      "port": "geometryin",
+      "type": "Array",
+      "val": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=7)"
+    },
+    {
+      "node": "connect_geometries@Z8thdUO2LBrmFrKpop2XRg",
+      "dir": "IN",
+      "port": "outmodein",
+      "type": "InternedId",
+      "val": "spline"
+    },
+    {
+      "node": "type@P$41v8jPNZbkVRWphQrQq2",
+      "dir": "IN",
+      "port": "splinetype",
+      "type": "Id",
+      "val": "net.maxon.registry.geometryabstraction.curve.types.bspline"
+    },
+    {
+      "node": "get_property@ce68WaSIC1ymb6e9$eNetm",
+      "dir": "IN",
+      "port": "accessorname",
+      "type": "String",
+      "val": "pt"
+    },
+    {
+      "node": "get_property@ce68WaSIC1ymb6e9$eNetm",
+      "dir": "IN",
+      "port": "fallbackmodein",
+      "type": "Id",
+      "val": "none"
+    },
+    {
+      "node": "get_property@ce68WaSIC1ymb6e9$eNetm",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "Id",
+      "val": "net.maxon.geometryabstraction.accessortypes.attributes.data3d"
+    },
+    {
+      "node": "get_property@ce68WaSIC1ymb6e9$eNetm",
+      "dir": "IN",
+      "port": "fallbackvaluein",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "get_property@ce68WaSIC1ymb6e9$eNetm",
+      "dir": "IN",
+      "port": "componentin",
+      "type": "Id",
+      "val": "points"
+    },
+    {
+      "node": "tessellation@EfGZGWvAHpXlvfKe52ZLd0",
+      "dir": "IN",
+      "port": "angle",
+      "type": "Float64",
+      "val": "0.087"
+    },
+    {
+      "node": "tessellation@EfGZGWvAHpXlvfKe52ZLd0",
+      "dir": "IN",
+      "port": "length",
+      "type": "Float64",
+      "val": "5"
+    },
+    {
+      "node": "tessellation@EfGZGWvAHpXlvfKe52ZLd0",
+      "dir": "IN",
+      "port": "tessellationtype",
+      "type": "InternedId",
+      "val": "none"
+    },
+    {
+      "node": "tessellation@EfGZGWvAHpXlvfKe52ZLd0",
+      "dir": "IN",
+      "port": "number",
+      "type": "Int32",
+      "val": "83"
+    }
+  ]
+}

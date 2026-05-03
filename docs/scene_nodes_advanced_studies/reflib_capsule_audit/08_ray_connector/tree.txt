@@ -1,0 +1,11 @@
+Scene: Ray_Connector_Example-Mograph_01.c4d
+FPS=25 max=100
+
+Matrix  (t=1018545)
+Random Rotation  (t=1018643)
+Random Movement  (t=1018643)
+Ray Connector  (t=180420700)
+Clone on Splines  (t=180420500)
+  Sweep  (t=5118)
+    n-Side  (t=5179)
+    Segment  (t=180420700)

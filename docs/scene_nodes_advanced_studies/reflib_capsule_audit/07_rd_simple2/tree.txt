@@ -1,0 +1,8 @@
+Scene: Reaction_Diffusion_Example_Simple2.c4d
+FPS=25 max=350
+
+Helix Chemical  (t=5126)
+  Trim Spline Modifier  (t=180420400)
+Helix Exposure  (t=5185)
+Reaction Diffusion  (t=180420600)
+  Plane  (t=5168)

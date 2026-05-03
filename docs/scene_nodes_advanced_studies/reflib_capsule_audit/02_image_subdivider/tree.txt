@@ -1,0 +1,11 @@
+Scene: Image_Subdivider_Example_01.c4d
+FPS=25 max=75
+
+Random  (t=1018643)
+Fracture  (t=1018791)
+  Image Subdivider  (t=180420600)
+    Select  (t=180420400)
+    Inset  (t=180420400)
+    Split  (t=180420400)
+    Store Selection  (t=180420400)
+    Extrude  (t=180420400)

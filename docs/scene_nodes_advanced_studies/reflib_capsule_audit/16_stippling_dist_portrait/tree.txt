@@ -1,0 +1,15 @@
+Scene: Surface_Stippling_Distribution_Portrait_01.c4d
+FPS=25 max=75
+
+RS Camera.1  (t=1057516)
+Null  (t=5140)
+  RS Area Light  (t=1036751)
+Bouncecard  (t=5168)
+Surface  (t=5168)
+  Shader Field  (t=440000282)
+Surface Stippling Distribution  (t=190000011)
+Cloner  (t=1018544)
+  Sphere  (t=5160)
+Color  (t=1021337)
+Scale  (t=1021337)
+Pos Y  (t=1021337)

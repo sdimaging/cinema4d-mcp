@@ -1,0 +1,11 @@
+Scene: Spiderweb_Example_01.c4d
+FPS=25 max=500
+
+Spiderweb Standard  (t=180420700)
+  Endpoints  (t=5101)
+Spiderweb Tunnel  (t=180420700)
+  Endpoints  (t=5101)
+Center_Point Tunnel  (t=5140)
+Spiderweb Umbrella  (t=180420700)
+  Endpoints  (t=5101)
+Center_Point Umbrella  (t=5140)

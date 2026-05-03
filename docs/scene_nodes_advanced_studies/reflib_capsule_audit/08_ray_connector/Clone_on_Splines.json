@@ -1,0 +1,2562 @@
+{
+  "source_host": "Clone on Splines",
+  "source_host_type": 180420500,
+  "node_count": 75,
+  "capsule_count": 10,
+  "wire_count": 84,
+  "defaults_count": 217,
+  "nodes": [
+    {
+      "path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs",
+      "id": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 9
+    },
+    {
+      "path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.arithmetic@OlT8tI6IFh6jDc4Od5tGZV",
+      "id": "net.maxon.node.arithmetic@OlT8tI6IFh6jDc4Od5tGZV",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU",
+      "id": "asset@RV98dcm1Ad9lrBFw$HZsEU",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 11
+    },
+    {
+      "path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@GjN0HFyULREv5CamEwwiSd",
+      "id": "net.maxon.pattern.node.generator.noise@GjN0HFyULREv5CamEwwiSd",
+      "depth": 2,
+      "is_capsule": true,
+      "inner_count": 2
+    },
+    {
+      "path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@GjN0HFyULREv5CamEwwiSd/_0",
+      "id": "_0",
+      "depth": 3,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@GjN0HFyULREv5CamEwwiSd/_1",
+      "id": "_1",
+      "depth": 3,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.arithmetic@c827L_C8GJfjWLBawjHgnf",
+      "id": "net.maxon.node.arithmetic@c827L_C8GJfjWLBawjHgnf",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.effect.contrast@LnScVUXCIxThRElBzPCXvB",
+      "id": "net.maxon.pattern.node.effect.contrast@LnScVUXCIxThRElBzPCXvB",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.conversion.splitcolorcomponents@btCXi7RBGxAouI60oDMgrF",
+      "id": "net.maxon.pattern.node.conversion.splitcolorcomponents@btCXi7RBGxAouI60oDMgrF",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.smoothstep@Us2elXOPPlKvvdPfgJJtvj",
+      "id": "net.maxon.node.smoothstep@Us2elXOPPlKvvdPfgJJtvj",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.smoothstep@OgOfktxmKFtpD_EmWNUbFj",
+      "id": "net.maxon.node.smoothstep@OgOfktxmKFtpD_EmWNUbFj",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.smoothstep@N0wfOVyLHptkiYMbkh4Y1g",
+      "id": "net.maxon.node.smoothstep@N0wfOVyLHptkiYMbkh4Y1g",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb",
+      "id": "net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb",
+      "depth": 2,
+      "is_capsule": true,
+      "inner_count": 2
+    },
+    {
+      "path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb/_0",
+      "id": "_0",
+      "depth": 3,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb/_1",
+      "id": "_1",
+      "depth": 3,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf",
+      "id": "net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf",
+      "depth": 2,
+      "is_capsule": true,
+      "inner_count": 2
+    },
+    {
+      "path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf/_0",
+      "id": "_0",
+      "depth": 3,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf/_1",
+      "id": "_1",
+      "depth": 3,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.arithmetic@EeNk7mQKL58lGZ_KvDSiHY",
+      "id": "net.maxon.node.arithmetic@EeNk7mQKL58lGZ_KvDSiHY",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.conversion.composecolor@Jlb4gtbhLlynt_FQIb0Gge",
+      "id": "net.maxon.pattern.node.conversion.composecolor@Jlb4gtbhLlynt_FQIb0Gge",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.if@dX7EhCO$DV0gmb6hnjkKFP",
+      "id": "net.maxon.node.if@dX7EhCO$DV0gmb6hnjkKFP",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.arithmetic@b3PQCpmOIdjgY3wOHH0VwS",
+      "id": "net.maxon.node.arithmetic@b3PQCpmOIdjgY3wOHH0VwS",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.render.node.placement2d@AXz_E0wdMdCvCYvy9uJAVN",
+      "id": "net.maxon.render.node.placement2d@AXz_E0wdMdCvCYvy9uJAVN",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "id": "net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.switch@QbhBf33eKB4qHDZABQjx9V",
+      "id": "net.maxon.node.switch@QbhBf33eKB4qHDZABQjx9V",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.type@bL55TUi9LVktC$XAOpUEDv",
+      "id": "net.maxon.node.type@bL55TUi9LVktC$XAOpUEDv",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.arithmetic@XXIohaQqIBbuVrhfhkoOjs",
+      "id": "net.maxon.node.arithmetic@XXIohaQqIBbuVrhfhkoOjs",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "bb@AeyNBMEYKZyn98am5kFJrr",
+      "id": "bb@AeyNBMEYKZyn98am5kFJrr",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "arithmetic@M1Geab_3AlMotnBukB8q0u",
+      "id": "arithmetic@M1Geab_3AlMotnBukB8q0u",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "transformmatrix@PO6RH9ljJ14jwoG7fy99Dt",
+      "id": "transformmatrix@PO6RH9ljJ14jwoG7fy99Dt",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "transform_element@dMs2KUNeJRbrRHzv1JtzVv",
+      "id": "transform_element@dMs2KUNeJRbrRHzv1JtzVv",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 2
+    },
+    {
+      "path": "transform_element@dMs2KUNeJRbrRHzv1JtzVv/transformpoint",
+      "id": "transformpoint",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "transform_element@dMs2KUNeJRbrRHzv1JtzVv/selectionstringparser",
+      "id": "selectionstringparser",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "matrix@arpXH49oLB6p3pOgeu6_Dr",
+      "id": "matrix@arpXH49oLB6p3pOgeu6_Dr",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 5
+    },
+    {
+      "path": "matrix@arpXH49oLB6p3pOgeu6_Dr/combine",
+      "id": "combine",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "matrix@arpXH49oLB6p3pOgeu6_Dr/mat",
+      "id": "mat",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "matrix@arpXH49oLB6p3pOgeu6_Dr/sqrpart",
+      "id": "sqrpart",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "matrix@arpXH49oLB6p3pOgeu6_Dr/vectrans",
+      "id": "vectrans",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "matrix@arpXH49oLB6p3pOgeu6_Dr/sqrtrans",
+      "id": "sqrtrans",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "color@ReKnOCbIOFZtUviBVrz1Su",
+      "id": "color@ReKnOCbIOFZtUviBVrz1Su",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "geometry@d4sc5vEcFl7mjFBb5rFNRo",
+      "id": "geometry@d4sc5vEcFl7mjFBb5rFNRo",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "arithmetic@S$UijG8JNx9v78XUHyswps",
+      "id": "arithmetic@S$UijG8JNx9v78XUHyswps",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "range@ZKq1s3ebA1nli7fvCQOfwo",
+      "id": "range@ZKq1s3ebA1nli7fvCQOfwo",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "arithmetic@EwhY3dvvHhtpEBVw9DIh8q",
+      "id": "arithmetic@EwhY3dvvHhtpEBVw9DIh8q",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "align@LG65pp5oD5GvpCQeGp40Cp",
+      "id": "align@LG65pp5oD5GvpCQeGp40Cp",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "floatingio@H0ZrcnjrN1sjFlR3WZhNyo",
+      "id": "floatingio@H0ZrcnjrN1sjFlR3WZhNyo",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "transformmatrix@Hp7oV9VKMRSoJEUknL$mEo",
+      "id": "transformmatrix@Hp7oV9VKMRSoJEUknL$mEo",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "arithmetic@JAwIUEsXEV1ilny$5cBDCq",
+      "id": "arithmetic@JAwIUEsXEV1ilny$5cBDCq",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "arithmetic@BZJG6UueD5yqFrzOZlU6Jp",
+      "id": "arithmetic@BZJG6UueD5yqFrzOZlU6Jp",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "readvalueatindex2@B4LgHwHmIZpl1jtwt0BV2p",
+      "id": "readvalueatindex2@B4LgHwHmIZpl1jtwt0BV2p",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "blend@AxfB_wFyCBXtglfd2u8y6u",
+      "id": "blend@AxfB_wFyCBXtglfd2u8y6u",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 3
+    },
+    {
+      "path": "blend@AxfB_wFyCBXtglfd2u8y6u/add",
+      "id": "add",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "blend@AxfB_wFyCBXtglfd2u8y6u/sub",
+      "id": "sub",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "blend@AxfB_wFyCBXtglfd2u8y6u/scale",
+      "id": "scale",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "scale@SW$t6ClEHxzipjf0G2maWo",
+      "id": "scale@SW$t6ClEHxzipjf0G2maWo",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "arithmetic@evr25X0hLtcir5KDWMVmAs",
+      "id": "arithmetic@evr25X0hLtcir5KDWMVmAs",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "setshadingcontext@Tvcxx4pVK5roC0e32qbais",
+      "id": "setshadingcontext@Tvcxx4pVK5roC0e32qbais",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "reroute@WG0vi2upIJ5rmzK2ixiPRs",
+      "id": "reroute@WG0vi2upIJ5rmzK2ixiPRs",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "readvalueatindex2@PQ4j2ARlNdcpiRXov3gplv",
+      "id": "readvalueatindex2@PQ4j2ARlNdcpiRXov3gplv",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "scale@aS$L_6C_PhGmzSeTqmzevt",
+      "id": "scale@aS$L_6C_PhGmzSeTqmzevt",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "floatingio@c$X$SbbPHB4k5TFXgQIpVv",
+      "id": "floatingio@c$X$SbbPHB4k5TFXgQIpVv",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "arithmetic@GbNRWV1NO94hhbKqcyxOwp",
+      "id": "arithmetic@GbNRWV1NO94hhbKqcyxOwp",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "getcount@WDRR3gHlPFwmBuqhzfZ$Pv",
+      "id": "getcount@WDRR3gHlPFwmBuqhzfZ$Pv",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "get_property@EjYQ0iOnDpXoNda7k5Tycs",
+      "id": "get_property@EjYQ0iOnDpXoNda7k5Tycs",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 1
+    },
+    {
+      "path": "get_property@EjYQ0iOnDpXoNda7k5Tycs/get",
+      "id": "get",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "context_externaltimeinput",
+      "id": "context_externaltimeinput",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "context_notime",
+      "id": "context_notime",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "builder",
+      "id": "builder",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 1
+    },
+    {
+      "path": "builder/rot",
+      "id": "rot",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "net.maxon.neutron.corenode.multransform_5",
+      "id": "net.maxon.neutron.corenode.multransform_5",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "combine",
+      "id": "combine",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "mat",
+      "id": "mat",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "sqrpart",
+      "id": "sqrpart",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "vectrans",
+      "id": "vectrans",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "sqrtrans",
+      "id": "sqrtrans",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    }
+  ],
+  "wires": [
+    {
+      "src_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs",
+      "src_port": "outport@FHbBmNwPBlVg8FPOMo15Bg",
+      "dst_path": "color@ReKnOCbIOFZtUviBVrz1Su",
+      "dst_port": "color"
+    },
+    {
+      "src_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.arithmetic@OlT8tI6IFh6jDc4Od5tGZV",
+      "src_port": "out",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "dst_port": "spacescale"
+    },
+    {
+      "src_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU",
+      "src_port": "outport@I1BlgsiRIVhrgjMiM9ptRe",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.if@dX7EhCO$DV0gmb6hnjkKFP",
+      "dst_port": "in2"
+    },
+    {
+      "src_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU",
+      "src_port": "outport@KI5Yr081Ot6mjyeRbI5Udd",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.if@dX7EhCO$DV0gmb6hnjkKFP",
+      "dst_port": "in3"
+    },
+    {
+      "src_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@GjN0HFyULREv5CamEwwiSd",
+      "src_port": "result",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.smoothstep@Us2elXOPPlKvvdPfgJJtvj",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@GjN0HFyULREv5CamEwwiSd/_0",
+      "src_port": "noisetable",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb/_1",
+      "dst_port": "noisetable"
+    },
+    {
+      "src_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@GjN0HFyULREv5CamEwwiSd/_1",
+      "src_port": "result",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@GjN0HFyULREv5CamEwwiSd",
+      "dst_port": "result"
+    },
+    {
+      "src_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.arithmetic@c827L_C8GJfjWLBawjHgnf",
+      "src_port": "out",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf",
+      "dst_port": "seed"
+    },
+    {
+      "src_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.arithmetic@c827L_C8GJfjWLBawjHgnf",
+      "src_port": "out",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.arithmetic@EeNk7mQKL58lGZ_KvDSiHY",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.effect.contrast@LnScVUXCIxThRElBzPCXvB",
+      "src_port": "result",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU",
+      "dst_port": "outport@I1BlgsiRIVhrgjMiM9ptRe"
+    },
+    {
+      "src_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.effect.contrast@LnScVUXCIxThRElBzPCXvB",
+      "src_port": "result",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.conversion.splitcolorcomponents@btCXi7RBGxAouI60oDMgrF",
+      "dst_port": "color"
+    },
+    {
+      "src_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.conversion.splitcolorcomponents@btCXi7RBGxAouI60oDMgrF",
+      "src_port": "r",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU",
+      "dst_port": "outport@KI5Yr081Ot6mjyeRbI5Udd"
+    },
+    {
+      "src_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.smoothstep@Us2elXOPPlKvvdPfgJJtvj",
+      "src_port": "out",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.conversion.composecolor@Jlb4gtbhLlynt_FQIb0Gge",
+      "dst_port": "red"
+    },
+    {
+      "src_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.smoothstep@OgOfktxmKFtpD_EmWNUbFj",
+      "src_port": "out",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.conversion.composecolor@Jlb4gtbhLlynt_FQIb0Gge",
+      "dst_port": "green"
+    },
+    {
+      "src_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.smoothstep@N0wfOVyLHptkiYMbkh4Y1g",
+      "src_port": "out",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.conversion.composecolor@Jlb4gtbhLlynt_FQIb0Gge",
+      "dst_port": "blue"
+    },
+    {
+      "src_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb",
+      "src_port": "result",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.smoothstep@N0wfOVyLHptkiYMbkh4Y1g",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb/_0",
+      "src_port": "noisetable",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb/_1",
+      "dst_port": "noisetable"
+    },
+    {
+      "src_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb/_1",
+      "src_port": "result",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb",
+      "dst_port": "result"
+    },
+    {
+      "src_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf",
+      "src_port": "result",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.smoothstep@OgOfktxmKFtpD_EmWNUbFj",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf/_0",
+      "src_port": "noisetable",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb/_1",
+      "dst_port": "noisetable"
+    },
+    {
+      "src_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf/_1",
+      "src_port": "result",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf",
+      "dst_port": "result"
+    },
+    {
+      "src_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.arithmetic@EeNk7mQKL58lGZ_KvDSiHY",
+      "src_port": "out",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb",
+      "dst_port": "seed"
+    },
+    {
+      "src_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.conversion.composecolor@Jlb4gtbhLlynt_FQIb0Gge",
+      "src_port": "result",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.effect.contrast@LnScVUXCIxThRElBzPCXvB",
+      "dst_port": "color"
+    },
+    {
+      "src_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.if@dX7EhCO$DV0gmb6hnjkKFP",
+      "src_port": "out",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs",
+      "dst_port": "outport@FHbBmNwPBlVg8FPOMo15Bg"
+    },
+    {
+      "src_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.arithmetic@b3PQCpmOIdjgY3wOHH0VwS",
+      "src_port": "out",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.render.node.placement2d@AXz_E0wdMdCvCYvy9uJAVN",
+      "dst_port": "locallength"
+    },
+    {
+      "src_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.render.node.placement2d@AXz_E0wdMdCvCYvy9uJAVN",
+      "src_port": "result",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@GjN0HFyULREv5CamEwwiSd/_0",
+      "dst_port": "_0"
+    },
+    {
+      "src_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "src_port": "result",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb/_1",
+      "dst_port": "_1"
+    },
+    {
+      "src_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.switch@QbhBf33eKB4qHDZABQjx9V",
+      "src_port": "out",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU",
+      "dst_port": "inport@HcMTjP1iBhqn_XQ_26NyVb"
+    },
+    {
+      "src_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.type@bL55TUi9LVktC$XAOpUEDv",
+      "src_port": "out",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.arithmetic@XXIohaQqIBbuVrhfhkoOjs",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.arithmetic@XXIohaQqIBbuVrhfhkoOjs",
+      "src_port": "out",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.arithmetic@OlT8tI6IFh6jDc4Od5tGZV",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.arithmetic@XXIohaQqIBbuVrhfhkoOjs",
+      "src_port": "out",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.arithmetic@b3PQCpmOIdjgY3wOHH0VwS",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "bb@AeyNBMEYKZyn98am5kFJrr",
+      "src_port": "max",
+      "dst_path": "arithmetic@M1Geab_3AlMotnBukB8q0u",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "bb@AeyNBMEYKZyn98am5kFJrr",
+      "src_port": "min",
+      "dst_path": "arithmetic@M1Geab_3AlMotnBukB8q0u",
+      "dst_port": "in2"
+    },
+    {
+      "src_path": "arithmetic@M1Geab_3AlMotnBukB8q0u",
+      "src_port": "out",
+      "dst_path": "arithmetic@GbNRWV1NO94hhbKqcyxOwp",
+      "dst_port": "in2"
+    },
+    {
+      "src_path": "transformmatrix@PO6RH9ljJ14jwoG7fy99Dt",
+      "src_port": "out",
+      "dst_path": "transform_element@dMs2KUNeJRbrRHzv1JtzVv",
+      "dst_port": "transformin"
+    },
+    {
+      "src_path": "transform_element@dMs2KUNeJRbrRHzv1JtzVv",
+      "src_port": "geometryout",
+      "dst_path": "geometry@d4sc5vEcFl7mjFBb5rFNRo",
+      "dst_port": "geometry"
+    },
+    {
+      "src_path": "transform_element@dMs2KUNeJRbrRHzv1JtzVv/transformpoint",
+      "src_port": "geometryout",
+      "dst_path": "transform_element@dMs2KUNeJRbrRHzv1JtzVv",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "transform_element@dMs2KUNeJRbrRHzv1JtzVv/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "transform_element@dMs2KUNeJRbrRHzv1JtzVv/transformpoint",
+      "dst_port": "ptsidsin"
+    },
+    {
+      "src_path": "matrix@arpXH49oLB6p3pOgeu6_Dr",
+      "src_port": "net.maxon.neutron.op.output",
+      "dst_path": "color@ReKnOCbIOFZtUviBVrz1Su",
+      "dst_port": "net.maxon.neutron.op.input"
+    },
+    {
+      "src_path": "matrix@arpXH49oLB6p3pOgeu6_Dr/combine",
+      "src_port": "out",
+      "dst_path": "matrix@arpXH49oLB6p3pOgeu6_Dr",
+      "dst_port": "domain"
+    },
+    {
+      "src_path": "matrix@arpXH49oLB6p3pOgeu6_Dr/mat",
+      "src_port": "out",
+      "dst_path": "matrix@arpXH49oLB6p3pOgeu6_Dr",
+      "dst_port": "matrix"
+    },
+    {
+      "src_path": "matrix@arpXH49oLB6p3pOgeu6_Dr/sqrpart",
+      "src_port": "out",
+      "dst_path": "sqrtrans",
+      "dst_port": "in2"
+    },
+    {
+      "src_path": "matrix@arpXH49oLB6p3pOgeu6_Dr/vectrans",
+      "src_port": "out",
+      "dst_path": "matrix@arpXH49oLB6p3pOgeu6_Dr",
+      "dst_port": "translation"
+    },
+    {
+      "src_path": "matrix@arpXH49oLB6p3pOgeu6_Dr/vectrans",
+      "src_port": "out",
+      "dst_path": "mat",
+      "dst_port": "off"
+    },
+    {
+      "src_path": "matrix@arpXH49oLB6p3pOgeu6_Dr/sqrtrans",
+      "src_port": "out",
+      "dst_path": "mat",
+      "dst_port": "sqmat"
+    },
+    {
+      "src_path": "matrix@arpXH49oLB6p3pOgeu6_Dr/sqrtrans",
+      "src_port": "out",
+      "dst_path": "matrix@arpXH49oLB6p3pOgeu6_Dr",
+      "dst_port": "sqrmatrix"
+    },
+    {
+      "src_path": "geometry@d4sc5vEcFl7mjFBb5rFNRo",
+      "src_port": "net.maxon.neutron.op.output",
+      "dst_path": "matrix@arpXH49oLB6p3pOgeu6_Dr",
+      "dst_port": "net.maxon.neutron.op.input"
+    },
+    {
+      "src_path": "arithmetic@S$UijG8JNx9v78XUHyswps",
+      "src_port": "out",
+      "dst_path": "range@ZKq1s3ebA1nli7fvCQOfwo",
+      "dst_port": "end"
+    },
+    {
+      "src_path": "range@ZKq1s3ebA1nli7fvCQOfwo",
+      "src_port": "out",
+      "dst_path": "arithmetic@JAwIUEsXEV1ilny$5cBDCq",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "arithmetic@EwhY3dvvHhtpEBVw9DIh8q",
+      "src_port": "out",
+      "dst_path": "align@LG65pp5oD5GvpCQeGp40Cp",
+      "dst_port": "direction"
+    },
+    {
+      "src_path": "align@LG65pp5oD5GvpCQeGp40Cp",
+      "src_port": "out",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb/_1",
+      "dst_port": "_1"
+    },
+    {
+      "src_path": "floatingio@H0ZrcnjrN1sjFlR3WZhNyo",
+      "src_port": "in1.in@WXVPzWn$L5DlxPgm75Q53v",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb/_1",
+      "dst_port": "*access*scalein"
+    },
+    {
+      "src_path": "transformmatrix@Hp7oV9VKMRSoJEUknL$mEo",
+      "src_port": "out",
+      "dst_path": "matrix@arpXH49oLB6p3pOgeu6_Dr",
+      "dst_port": "matrix"
+    },
+    {
+      "src_path": "arithmetic@JAwIUEsXEV1ilny$5cBDCq",
+      "src_port": "out",
+      "dst_path": "readvalueatindex2@B4LgHwHmIZpl1jtwt0BV2p",
+      "dst_port": "indexin"
+    },
+    {
+      "src_path": "arithmetic@JAwIUEsXEV1ilny$5cBDCq",
+      "src_port": "out",
+      "dst_path": "arithmetic@BZJG6UueD5yqFrzOZlU6Jp",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "arithmetic@BZJG6UueD5yqFrzOZlU6Jp",
+      "src_port": "out",
+      "dst_path": "readvalueatindex2@PQ4j2ARlNdcpiRXov3gplv",
+      "dst_port": "indexin"
+    },
+    {
+      "src_path": "readvalueatindex2@B4LgHwHmIZpl1jtwt0BV2p",
+      "src_port": "valueout",
+      "dst_path": "arithmetic@EwhY3dvvHhtpEBVw9DIh8q",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "readvalueatindex2@B4LgHwHmIZpl1jtwt0BV2p",
+      "src_port": "valueout",
+      "dst_path": "blend@AxfB_wFyCBXtglfd2u8y6u",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "blend@AxfB_wFyCBXtglfd2u8y6u",
+      "src_port": "out",
+      "dst_path": "scale@aS$L_6C_PhGmzSeTqmzevt",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "blend@AxfB_wFyCBXtglfd2u8y6u",
+      "src_port": "out",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@GjN0HFyULREv5CamEwwiSd/_0",
+      "dst_port": "*access*translationin"
+    },
+    {
+      "src_path": "blend@AxfB_wFyCBXtglfd2u8y6u/add",
+      "src_port": "out",
+      "dst_path": "blend@AxfB_wFyCBXtglfd2u8y6u",
+      "dst_port": "out"
+    },
+    {
+      "src_path": "blend@AxfB_wFyCBXtglfd2u8y6u/sub",
+      "src_port": "out",
+      "dst_path": "blend@AxfB_wFyCBXtglfd2u8y6u/scale",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "blend@AxfB_wFyCBXtglfd2u8y6u/scale",
+      "src_port": "out",
+      "dst_path": "blend@AxfB_wFyCBXtglfd2u8y6u/add",
+      "dst_port": "in2"
+    },
+    {
+      "src_path": "scale@SW$t6ClEHxzipjf0G2maWo",
+      "src_port": "out",
+      "dst_path": "arithmetic@evr25X0hLtcir5KDWMVmAs",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "arithmetic@evr25X0hLtcir5KDWMVmAs",
+      "src_port": "out",
+      "dst_path": "setshadingcontext@Tvcxx4pVK5roC0e32qbais",
+      "dst_port": "uvw"
+    },
+    {
+      "src_path": "setshadingcontext@Tvcxx4pVK5roC0e32qbais",
+      "src_port": "result",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs",
+      "dst_port": "context@MVWNhmUoJZpmoelm9GXlWW"
+    },
+    {
+      "src_path": "reroute@WG0vi2upIJ5rmzK2ixiPRs",
+      "src_port": "out",
+      "dst_path": "readvalueatindex2@B4LgHwHmIZpl1jtwt0BV2p",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "reroute@WG0vi2upIJ5rmzK2ixiPRs",
+      "src_port": "out",
+      "dst_path": "readvalueatindex2@PQ4j2ARlNdcpiRXov3gplv",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "readvalueatindex2@PQ4j2ARlNdcpiRXov3gplv",
+      "src_port": "valueout",
+      "dst_path": "arithmetic@EwhY3dvvHhtpEBVw9DIh8q",
+      "dst_port": "in2"
+    },
+    {
+      "src_path": "readvalueatindex2@PQ4j2ARlNdcpiRXov3gplv",
+      "src_port": "valueout",
+      "dst_path": "blend@AxfB_wFyCBXtglfd2u8y6u",
+      "dst_port": "in2"
+    },
+    {
+      "src_path": "scale@aS$L_6C_PhGmzSeTqmzevt",
+      "src_port": "out",
+      "dst_path": "scale@SW$t6ClEHxzipjf0G2maWo",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "floatingio@c$X$SbbPHB4k5TFXgQIpVv",
+      "src_port": "in1.in@LtPgNJWRFl2tdFxpZcs3Vp",
+      "dst_path": "scale@SW$t6ClEHxzipjf0G2maWo",
+      "dst_port": "in2"
+    },
+    {
+      "src_path": "floatingio@c$X$SbbPHB4k5TFXgQIpVv",
+      "src_port": "in2.in1.in@cDBiccUZBlup0encbxDCkp",
+      "dst_path": "arithmetic@evr25X0hLtcir5KDWMVmAs",
+      "dst_port": "in2"
+    },
+    {
+      "src_path": "arithmetic@GbNRWV1NO94hhbKqcyxOwp",
+      "src_port": "out",
+      "dst_path": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@GjN0HFyULREv5CamEwwiSd/_0",
+      "dst_port": "*access*scalein"
+    },
+    {
+      "src_path": "getcount@WDRR3gHlPFwmBuqhzfZ$Pv",
+      "src_port": "countout",
+      "dst_path": "arithmetic@S$UijG8JNx9v78XUHyswps",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "get_property@EjYQ0iOnDpXoNda7k5Tycs",
+      "src_port": "array",
+      "dst_path": "reroute@WG0vi2upIJ5rmzK2ixiPRs",
+      "dst_port": "in"
+    },
+    {
+      "src_path": "get_property@EjYQ0iOnDpXoNda7k5Tycs",
+      "src_port": "array",
+      "dst_path": "getcount@WDRR3gHlPFwmBuqhzfZ$Pv",
+      "dst_port": "arrayin"
+    },
+    {
+      "src_path": "get_property@EjYQ0iOnDpXoNda7k5Tycs/get",
+      "src_port": "arrayout",
+      "dst_path": "get_property@EjYQ0iOnDpXoNda7k5Tycs",
+      "dst_port": "array"
+    },
+    {
+      "src_path": "get_property@EjYQ0iOnDpXoNda7k5Tycs/get",
+      "src_port": "accessornameout",
+      "dst_path": "get_property@EjYQ0iOnDpXoNda7k5Tycs",
+      "dst_port": "accessornameout"
+    },
+    {
+      "src_path": "get_property@EjYQ0iOnDpXoNda7k5Tycs/get",
+      "src_port": "isaccessorfoundout",
+      "dst_path": "get_property@EjYQ0iOnDpXoNda7k5Tycs",
+      "dst_port": "isattributefoundout"
+    },
+    {
+      "src_path": "get_property@EjYQ0iOnDpXoNda7k5Tycs/get",
+      "src_port": "topologyout",
+      "dst_path": "get_property@EjYQ0iOnDpXoNda7k5Tycs",
+      "dst_port": "topology"
+    },
+    {
+      "src_path": "builder/rot",
+      "src_port": "out",
+      "dst_path": "builder",
+      "dst_port": "sqrmatrix"
+    },
+    {
+      "src_path": "sqrpart",
+      "src_port": "out",
+      "dst_path": "sqrtrans",
+      "dst_port": "in2"
+    },
+    {
+      "src_path": "sqrtrans",
+      "src_port": "out",
+      "dst_path": "mat",
+      "dst_port": "sqmat"
+    }
+  ],
+  "port_defaults": [
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs",
+      "dir": "IN",
+      "port": "inport@HUTCREz5N56j4Z2o_YKc1v",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs",
+      "dir": "IN",
+      "port": "seed@UcrLmQLOERSmQX2Oel14Tm",
+      "type": "UInt32",
+      "val": "125"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs",
+      "dir": "IN",
+      "port": "inport@RGgFmpm3Jx7vyEnqzn8fBN",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs",
+      "dir": "IN",
+      "port": "inport@eQfObi4vDtUnno$VAZmspS",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs",
+      "dir": "IN",
+      "port": "index@cFmKuZ35OJ_h2MY7xZj_4X",
+      "type": "Int64",
+      "val": "1"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs",
+      "dir": "IN",
+      "port": "spacescale@EaA_eF$tC9ov3Z2eJSI6HV",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs",
+      "dir": "IN",
+      "port": "spacetype@XJgWmwRkIBBvC3zM7N2$4j",
+      "type": "InternedId",
+      "val": "object"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs",
+      "dir": "IN",
+      "port": "localrepetitions@b6_ar8MEPxroT7LRfR1dkN",
+      "type": "UnknownDataType",
+      "val": "net.maxon.parametrictype.vec<2,float64>"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs",
+      "dir": "IN",
+      "port": "octaves@LrIsHF62L5VrK6oQyoVsjl",
+      "type": "Float64",
+      "val": "6"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs",
+      "dir": "IN",
+      "port": "lacunarity@MKPHkm0oCRlsYFnbjGnwSh",
+      "type": "Float64",
+      "val": "2.1"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs",
+      "dir": "IN",
+      "port": "noisetype@UyzMvTq3O56oH6NFG5lOak",
+      "type": "Id",
+      "val": "net.maxon.render.rendernoiseclass.perlin"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs",
+      "dir": "IN",
+      "port": "gain@f_CrJPoSAd_gIdJY3d1qRn",
+      "type": "Float64",
+      "val": "0.5"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs",
+      "dir": "IN",
+      "port": "inport@Yi4fu1d0IpYgBCnA_9Hc_l",
+      "type": "Float64",
+      "val": "0.28"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs",
+      "dir": "IN",
+      "port": "inport@RPErPiXAFVKncL$Yh54Voi",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs",
+      "dir": "IN",
+      "port": "locallength@eKZInXEdFpnnfEKs97190P",
+      "type": "UnknownDataType",
+      "val": "net.maxon.parametrictype.vec<2,float64>"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs",
+      "dir": "IN",
+      "port": "exponent@bzuLQDReKNAvegfoJ1izlj",
+      "type": "Float64",
+      "val": "2"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs",
+      "dir": "IN",
+      "port": "localoffset@HVMH$Pn8Kx5ll1bsXDlsKK",
+      "type": "UnknownDataType",
+      "val": "net.maxon.parametrictype.vec<2,float64>"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs",
+      "dir": "IN",
+      "port": "localdecalu@DSTPqTS5CpJp$QQnkh2E2P",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs",
+      "dir": "IN",
+      "port": "localdecalv@IyAgn9AgMJ4qSQ8_EDtP3P",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs",
+      "dir": "IN",
+      "port": "localmodeu@WIQqEk0wBFxrWYvZ14BL_P",
+      "type": "InternedId",
+      "val": "extend"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs",
+      "dir": "IN",
+      "port": "localmodev@Zeik3yxKOd7i$HAgcBnt3M",
+      "type": "InternedId",
+      "val": "extend"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs",
+      "dir": "IN",
+      "port": "referencesize@SojWM2YgKxHrxyzEmqIUKV",
+      "type": "Float64",
+      "val": "200"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs",
+      "dir": "IN",
+      "port": "spacerotationorder@Pc2ZsMDjBFJs8Y8LbBcy0T",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs",
+      "dir": "IN",
+      "port": "localpivot@dGL0UqOMA1SvPK_iNN5qwL",
+      "type": "UnknownDataType",
+      "val": "net.maxon.parametrictype.vec<2,float64>"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs",
+      "dir": "OUT",
+      "port": "outport@FHbBmNwPBlVg8FPOMo15Bg",
+      "type": "ColorA64",
+      "val": "R:0.0, G:0.0, B:0.0, Alpha:1.0"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.arithmetic@OlT8tI6IFh6jDc4Od5tGZV",
+      "dir": "IN",
+      "port": "operation",
+      "type": "Id",
+      "val": "Mul"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.arithmetic@OlT8tI6IFh6jDc4Od5tGZV",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "net.maxon.parametrictype.vec<3,float>"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.arithmetic@OlT8tI6IFh6jDc4Od5tGZV",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU",
+      "dir": "IN",
+      "port": "octaves@CzOvTultEh8vMbwOLO4Ugd",
+      "type": "Float64",
+      "val": "6"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU",
+      "dir": "IN",
+      "port": "noisetype@cEtmlAnENJFuSWvelINPoc",
+      "type": "Id",
+      "val": "net.maxon.render.rendernoiseclass.perlin"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU",
+      "dir": "IN",
+      "port": "lacunarity@cgFtb50uKN2hWVomxxjXlb",
+      "type": "Float64",
+      "val": "2.1"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU",
+      "dir": "IN",
+      "port": "gain@bnscpMJ9Ax4r8emd19F3Aa",
+      "type": "Float64",
+      "val": "0.5"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU",
+      "dir": "IN",
+      "port": "seed@HIk5isu5KJbsMNvIDG76MY",
+      "type": "Int64",
+      "val": "123"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU",
+      "dir": "IN",
+      "port": "exponent@boiIqpv1LRTvsqVnsR$LXc",
+      "type": "Float64",
+      "val": "2"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU",
+      "dir": "IN",
+      "port": "inport@KeCoz1QkPJFmxrS9nkSDOf",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU",
+      "dir": "OUT",
+      "port": "outport@I1BlgsiRIVhrgjMiM9ptRe",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@GjN0HFyULREv5CamEwwiSd",
+      "dir": "IN",
+      "port": "seed",
+      "type": "Int64",
+      "val": "123"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@GjN0HFyULREv5CamEwwiSd",
+      "dir": "IN",
+      "port": "octaves",
+      "type": "Float64",
+      "val": "6"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@GjN0HFyULREv5CamEwwiSd",
+      "dir": "IN",
+      "port": "exponent",
+      "type": "Float64",
+      "val": "2"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@GjN0HFyULREv5CamEwwiSd",
+      "dir": "IN",
+      "port": "noisetype",
+      "type": "Id",
+      "val": "net.maxon.render.rendernoiseclass.perlin"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@GjN0HFyULREv5CamEwwiSd",
+      "dir": "IN",
+      "port": "lacunarity",
+      "type": "Float64",
+      "val": "2.1"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@GjN0HFyULREv5CamEwwiSd",
+      "dir": "IN",
+      "port": "gain",
+      "type": "Float64",
+      "val": "0.5"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.arithmetic@c827L_C8GJfjWLBawjHgnf",
+      "dir": "IN",
+      "port": "operation",
+      "type": "Id",
+      "val": "Add"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.arithmetic@c827L_C8GJfjWLBawjHgnf",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "float"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.arithmetic@c827L_C8GJfjWLBawjHgnf",
+      "dir": "IN",
+      "port": "in2",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.arithmetic@c827L_C8GJfjWLBawjHgnf",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Int64",
+      "val": "123"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.effect.contrast@LnScVUXCIxThRElBzPCXvB",
+      "dir": "IN",
+      "port": "maskblend",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.effect.contrast@LnScVUXCIxThRElBzPCXvB",
+      "dir": "IN",
+      "port": "maskred",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.effect.contrast@LnScVUXCIxThRElBzPCXvB",
+      "dir": "IN",
+      "port": "maskgreen",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.effect.contrast@LnScVUXCIxThRElBzPCXvB",
+      "dir": "IN",
+      "port": "maskblue",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.effect.contrast@LnScVUXCIxThRElBzPCXvB",
+      "dir": "OUT",
+      "port": "result",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.smoothstep@Us2elXOPPlKvvdPfgJJtvj",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "float"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.smoothstep@Us2elXOPPlKvvdPfgJJtvj",
+      "dir": "IN",
+      "port": "in3",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.smoothstep@OgOfktxmKFtpD_EmWNUbFj",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "float"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.smoothstep@OgOfktxmKFtpD_EmWNUbFj",
+      "dir": "IN",
+      "port": "in3",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.smoothstep@N0wfOVyLHptkiYMbkh4Y1g",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "float"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.smoothstep@N0wfOVyLHptkiYMbkh4Y1g",
+      "dir": "IN",
+      "port": "in3",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb",
+      "dir": "IN",
+      "port": "seed",
+      "type": "Int64",
+      "val": "123"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb",
+      "dir": "IN",
+      "port": "octaves",
+      "type": "Float64",
+      "val": "6"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb",
+      "dir": "IN",
+      "port": "exponent",
+      "type": "Float64",
+      "val": "2"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb",
+      "dir": "IN",
+      "port": "noisetype",
+      "type": "Id",
+      "val": "net.maxon.render.rendernoiseclass.perlin"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb",
+      "dir": "IN",
+      "port": "lacunarity",
+      "type": "Float64",
+      "val": "2.1"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@JBoIIsz9FZYtNwu5oHCDhb",
+      "dir": "IN",
+      "port": "gain",
+      "type": "Float64",
+      "val": "0.5"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf",
+      "dir": "IN",
+      "port": "seed",
+      "type": "Int64",
+      "val": "123"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf",
+      "dir": "IN",
+      "port": "octaves",
+      "type": "Float64",
+      "val": "6"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf",
+      "dir": "IN",
+      "port": "exponent",
+      "type": "Float64",
+      "val": "2"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf",
+      "dir": "IN",
+      "port": "noisetype",
+      "type": "Id",
+      "val": "net.maxon.render.rendernoiseclass.perlin"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf",
+      "dir": "IN",
+      "port": "lacunarity",
+      "type": "Float64",
+      "val": "2.1"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.pattern.node.generator.noise@VMEqmNKdFhZjqXBDv5UjMf",
+      "dir": "IN",
+      "port": "gain",
+      "type": "Float64",
+      "val": "0.5"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.arithmetic@EeNk7mQKL58lGZ_KvDSiHY",
+      "dir": "IN",
+      "port": "operation",
+      "type": "Id",
+      "val": "Add"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.arithmetic@EeNk7mQKL58lGZ_KvDSiHY",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "float"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.arithmetic@EeNk7mQKL58lGZ_KvDSiHY",
+      "dir": "IN",
+      "port": "in2",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/asset@RV98dcm1Ad9lrBFw$HZsEU/net.maxon.node.arithmetic@EeNk7mQKL58lGZ_KvDSiHY",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Int64",
+      "val": "123"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.if@dX7EhCO$DV0gmb6hnjkKFP",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "net.maxon.parametrictype.col<3,float>"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.if@dX7EhCO$DV0gmb6hnjkKFP",
+      "dir": "IN",
+      "port": "in2",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.if@dX7EhCO$DV0gmb6hnjkKFP",
+      "dir": "OUT",
+      "port": "out",
+      "type": "ColorA64",
+      "val": "R:0.0, G:0.0, B:0.0, Alpha:1.0"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.arithmetic@b3PQCpmOIdjgY3wOHH0VwS",
+      "dir": "IN",
+      "port": "operation",
+      "type": "Id",
+      "val": "Mul"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.arithmetic@b3PQCpmOIdjgY3wOHH0VwS",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "net.maxon.parametrictype.vec<3,float>"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.arithmetic@b3PQCpmOIdjgY3wOHH0VwS",
+      "dir": "IN",
+      "port": "in2",
+      "type": "Vector64",
+      "val": "X:2.0, Y:3.0, Z:4.0"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.arithmetic@b3PQCpmOIdjgY3wOHH0VwS",
+      "dir": "IN",
+      "port": "in1",
+      "type": "Vector64",
+      "val": "X:2.0, Y:3.0, Z:4.0"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.arithmetic@b3PQCpmOIdjgY3wOHH0VwS",
+      "dir": "OUT",
+      "port": "out",
+      "type": "UnknownDataType",
+      "val": "net.maxon.parametrictype.vec<2,float64>"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.render.node.placement2d@AXz_E0wdMdCvCYvy9uJAVN",
+      "dir": "IN",
+      "port": "localmodev",
+      "type": "InternedId",
+      "val": "extend"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.render.node.placement2d@AXz_E0wdMdCvCYvy9uJAVN",
+      "dir": "IN",
+      "port": "localmodeu",
+      "type": "InternedId",
+      "val": "extend"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.render.node.placement2d@AXz_E0wdMdCvCYvy9uJAVN",
+      "dir": "IN",
+      "port": "localrepetitions",
+      "type": "UnknownDataType",
+      "val": "net.maxon.parametrictype.vec<2,float64>"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.render.node.placement2d@AXz_E0wdMdCvCYvy9uJAVN",
+      "dir": "IN",
+      "port": "localpivot",
+      "type": "UnknownDataType",
+      "val": "net.maxon.parametrictype.vec<2,float64>"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.render.node.placement2d@AXz_E0wdMdCvCYvy9uJAVN",
+      "dir": "IN",
+      "port": "locallength",
+      "type": "UnknownDataType",
+      "val": "net.maxon.parametrictype.vec<2,float64>"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "dir": "IN",
+      "port": "localmodev",
+      "type": "InternedId",
+      "val": "extend"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "dir": "IN",
+      "port": "localmodeu",
+      "type": "InternedId",
+      "val": "extend"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "dir": "IN",
+      "port": "spacescale",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "dir": "IN",
+      "port": "enablespacetransformation",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "dir": "IN",
+      "port": "referencesize",
+      "type": "Float64",
+      "val": "200"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "dir": "IN",
+      "port": "localrepetitions",
+      "type": "UnknownDataType",
+      "val": "net.maxon.parametrictype.vec<2,float64>"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "dir": "IN",
+      "port": "localpivot",
+      "type": "UnknownDataType",
+      "val": "net.maxon.parametrictype.vec<2,float64>"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "dir": "IN",
+      "port": "locallength",
+      "type": "UnknownDataType",
+      "val": "net.maxon.parametrictype.vec<2,float64>"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "dir": "IN",
+      "port": "spacetype",
+      "type": "InternedId",
+      "val": "object"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "dir": "IN",
+      "port": "projectiontype",
+      "type": "InternedId",
+      "val": "none"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "dir": "IN",
+      "port": "spacerotationorder",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "dir": "IN",
+      "port": "filmaspect",
+      "type": "Float64",
+      "val": "1.333"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.render.node.projection@Ura$OKL$D9EjU1Y9uwEsLO",
+      "dir": "IN",
+      "port": "pixelaspect",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.switch@QbhBf33eKB4qHDZABQjx9V",
+      "dir": "IN",
+      "port": "in",
+      "type": "Array",
+      "val": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=2)"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.switch@QbhBf33eKB4qHDZABQjx9V",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "net.maxon.render.datatype.shadingcontext"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.type@bL55TUi9LVktC$XAOpUEDv",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "float"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.arithmetic@XXIohaQqIBbuVrhfhkoOjs",
+      "dir": "IN",
+      "port": "operation",
+      "type": "Id",
+      "val": "mul"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.arithmetic@XXIohaQqIBbuVrhfhkoOjs",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "net.maxon.parametrictype.vec<3,float>"
+    },
+    {
+      "node": "mainnoise@BGtBaH_aOJqv1oZ_B2LfNs/net.maxon.node.arithmetic@XXIohaQqIBbuVrhfhkoOjs",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Vector64",
+      "val": "X:2.0, Y:3.0, Z:4.0"
+    },
+    {
+      "node": "arithmetic@M1Geab_3AlMotnBukB8q0u",
+      "dir": "IN",
+      "port": "operation",
+      "type": "Id",
+      "val": "sub"
+    },
+    {
+      "node": "arithmetic@M1Geab_3AlMotnBukB8q0u",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "net.maxon.parametrictype.vec<3,float>"
+    },
+    {
+      "node": "transformmatrix@PO6RH9ljJ14jwoG7fy99Dt",
+      "dir": "IN",
+      "port": "in",
+      "type": "Array",
+      "val": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=2)"
+    },
+    {
+      "node": "transformmatrix@PO6RH9ljJ14jwoG7fy99Dt",
+      "dir": "IN",
+      "port": "in._0.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "transformmatrix@PO6RH9ljJ14jwoG7fy99Dt",
+      "dir": "IN",
+      "port": "in._0.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "transformmatrix@PO6RH9ljJ14jwoG7fy99Dt",
+      "dir": "IN",
+      "port": "in._1.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "transformmatrix@PO6RH9ljJ14jwoG7fy99Dt",
+      "dir": "IN",
+      "port": "in._1.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "transform_element@dMs2KUNeJRbrRHzv1JtzVv",
+      "dir": "IN",
+      "port": "selectionstringin",
+      "type": "String",
+      "val": "default"
+    },
+    {
+      "node": "transform_element@dMs2KUNeJRbrRHzv1JtzVv",
+      "dir": "IN",
+      "port": "transformin.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "transform_element@dMs2KUNeJRbrRHzv1JtzVv",
+      "dir": "IN",
+      "port": "transformin.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "transform_element@dMs2KUNeJRbrRHzv1JtzVv",
+      "dir": "IN",
+      "port": "transformin.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "transform_element@dMs2KUNeJRbrRHzv1JtzVv",
+      "dir": "IN",
+      "port": "pivotmatrixin.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "transform_element@dMs2KUNeJRbrRHzv1JtzVv",
+      "dir": "IN",
+      "port": "pivotmatrixin.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "transform_element@dMs2KUNeJRbrRHzv1JtzVv",
+      "dir": "IN",
+      "port": "pivotmatrixin.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "transform_element@dMs2KUNeJRbrRHzv1JtzVv",
+      "dir": "IN",
+      "port": "selectiontypein",
+      "type": "Id",
+      "val": "points"
+    },
+    {
+      "node": "transform_element@dMs2KUNeJRbrRHzv1JtzVv",
+      "dir": "OUT",
+      "port": "geometryout",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.object>C"
+    },
+    {
+      "node": "transform_element@dMs2KUNeJRbrRHzv1JtzVv/transformpoint",
+      "dir": "OUT",
+      "port": "geometryout",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.object>C"
+    },
+    {
+      "node": "transform_element@dMs2KUNeJRbrRHzv1JtzVv/selectionstringparser",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.accessorclas>cR"
+    },
+    {
+      "node": "matrix@arpXH49oLB6p3pOgeu6_Dr",
+      "dir": "IN",
+      "port": "local",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "matrix@arpXH49oLB6p3pOgeu6_Dr",
+      "dir": "IN",
+      "port": "matrix",
+      "type": "Matrix64",
+      "val": "((0,0,0),((1,0,0),(0,1,0),(0,0,1)))"
+    },
+    {
+      "node": "matrix@arpXH49oLB6p3pOgeu6_Dr",
+      "dir": "IN",
+      "port": "matrix.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "matrix@arpXH49oLB6p3pOgeu6_Dr",
+      "dir": "IN",
+      "port": "matrix.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "matrix@arpXH49oLB6p3pOgeu6_Dr",
+      "dir": "IN",
+      "port": "matrix.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "matrix@arpXH49oLB6p3pOgeu6_Dr",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.translation",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "matrix@arpXH49oLB6p3pOgeu6_Dr",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.sqrmatrix",
+      "type": "SqMat3_64",
+      "val": "((1,0,0),(0,1,0),(0,0,1))"
+    },
+    {
+      "node": "matrix@arpXH49oLB6p3pOgeu6_Dr/mat",
+      "dir": "IN",
+      "port": "in",
+      "type": "Matrix64",
+      "val": "((0,0,0),((1,0,0),(0,1,0),(0,0,1)))"
+    },
+    {
+      "node": "matrix@arpXH49oLB6p3pOgeu6_Dr/sqrpart",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "auto"
+    },
+    {
+      "node": "color@ReKnOCbIOFZtUviBVrz1Su",
+      "dir": "IN",
+      "port": "color",
+      "type": "ColorA64",
+      "val": "R:0.0, G:0.0, B:0.0, Alpha:1.0"
+    },
+    {
+      "node": "color@ReKnOCbIOFZtUviBVrz1Su",
+      "dir": "IN",
+      "port": "color.*access*alphain",
+      "type": "Float64",
+      "val": "1"
+    },
+    {
+      "node": "color@ReKnOCbIOFZtUviBVrz1Su",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.matrix.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "color@ReKnOCbIOFZtUviBVrz1Su",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.matrix.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "color@ReKnOCbIOFZtUviBVrz1Su",
+      "dir": "IN",
+      "port": "net.maxon.neutron.op.input.matrix.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "color@ReKnOCbIOFZtUviBVrz1Su",
+      "dir": "OUT",
+      "port": "net.maxon.neutron.op.output.color",
+      "type": "Color64",
+      "val": "R:inf, G:inf, B:inf"
+    },
+    {
+      "node": "geometry@d4sc5vEcFl7mjFBb5rFNRo",
+      "dir": "IN",
+      "port": "geometry",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.object>C"
+    },
+    {
+      "node": "arithmetic@S$UijG8JNx9v78XUHyswps",
+      "dir": "IN",
+      "port": "operation",
+      "type": "Id",
+      "val": "div"
+    },
+    {
+      "node": "arithmetic@S$UijG8JNx9v78XUHyswps",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "int"
+    },
+    {
+      "node": "arithmetic@S$UijG8JNx9v78XUHyswps",
+      "dir": "IN",
+      "port": "in2",
+      "type": "Int64",
+      "val": "2"
+    },
+    {
+      "node": "arithmetic@EwhY3dvvHhtpEBVw9DIh8q",
+      "dir": "IN",
+      "port": "operation",
+      "type": "Id",
+      "val": "sub"
+    },
+    {
+      "node": "arithmetic@EwhY3dvvHhtpEBVw9DIh8q",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "net.maxon.parametrictype.vec<3,float>"
+    },
+    {
+      "node": "arithmetic@EwhY3dvvHhtpEBVw9DIh8q",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Vector64",
+      "val": "X:0.0, Y:1.0, Z:0.0"
+    },
+    {
+      "node": "align@LG65pp5oD5GvpCQeGp40Cp",
+      "dir": "IN",
+      "port": "direction",
+      "type": "Vector64",
+      "val": "X:0.0, Y:1.0, Z:0.0"
+    },
+    {
+      "node": "align@LG65pp5oD5GvpCQeGp40Cp",
+      "dir": "IN",
+      "port": "axis",
+      "type": "InternedId",
+      "val": "x"
+    },
+    {
+      "node": "align@LG65pp5oD5GvpCQeGp40Cp",
+      "dir": "IN",
+      "port": "secondary",
+      "type": "Vector64",
+      "val": "X:0.0, Y:1.0, Z:0.0"
+    },
+    {
+      "node": "floatingio@H0ZrcnjrN1sjFlR3WZhNyo",
+      "dir": "IN",
+      "port": "net.maxon.node.floatingio.portlist",
+      "type": "Array",
+      "val": "(net.maxon.datatype.internedid,net.maxon.interface.datadictionary-C)[], input=1)"
+    },
+    {
+      "node": "transformmatrix@Hp7oV9VKMRSoJEUknL$mEo",
+      "dir": "IN",
+      "port": "in",
+      "type": "Array",
+      "val": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=2)"
+    },
+    {
+      "node": "transformmatrix@Hp7oV9VKMRSoJEUknL$mEo",
+      "dir": "IN",
+      "port": "in._0.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "transformmatrix@Hp7oV9VKMRSoJEUknL$mEo",
+      "dir": "IN",
+      "port": "in._0.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "transformmatrix@Hp7oV9VKMRSoJEUknL$mEo",
+      "dir": "IN",
+      "port": "in._0.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "transformmatrix@Hp7oV9VKMRSoJEUknL$mEo",
+      "dir": "IN",
+      "port": "in._1.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "transformmatrix@Hp7oV9VKMRSoJEUknL$mEo",
+      "dir": "IN",
+      "port": "in._1.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "transformmatrix@Hp7oV9VKMRSoJEUknL$mEo",
+      "dir": "IN",
+      "port": "in._1.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "transformmatrix@Hp7oV9VKMRSoJEUknL$mEo",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Matrix64",
+      "val": "((0,0,0),((1,0,0),(0,1,0),(0,0,1)))"
+    },
+    {
+      "node": "arithmetic@JAwIUEsXEV1ilny$5cBDCq",
+      "dir": "IN",
+      "port": "operation",
+      "type": "Id",
+      "val": "mul"
+    },
+    {
+      "node": "arithmetic@JAwIUEsXEV1ilny$5cBDCq",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "int"
+    },
+    {
+      "node": "arithmetic@JAwIUEsXEV1ilny$5cBDCq",
+      "dir": "IN",
+      "port": "in2",
+      "type": "Float64",
+      "val": "2"
+    },
+    {
+      "node": "arithmetic@BZJG6UueD5yqFrzOZlU6Jp",
+      "dir": "IN",
+      "port": "operation",
+      "type": "Id",
+      "val": "add"
+    },
+    {
+      "node": "arithmetic@BZJG6UueD5yqFrzOZlU6Jp",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "int"
+    },
+    {
+      "node": "arithmetic@BZJG6UueD5yqFrzOZlU6Jp",
+      "dir": "IN",
+      "port": "in2",
+      "type": "Int64",
+      "val": "1"
+    },
+    {
+      "node": "arithmetic@BZJG6UueD5yqFrzOZlU6Jp",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Int64",
+      "val": "1"
+    },
+    {
+      "node": "readvalueatindex2@B4LgHwHmIZpl1jtwt0BV2p",
+      "dir": "IN",
+      "port": "cyclein",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "blend@AxfB_wFyCBXtglfd2u8y6u",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "net.maxon.parametrictype.vec<3,float>"
+    },
+    {
+      "node": "blend@AxfB_wFyCBXtglfd2u8y6u",
+      "dir": "IN",
+      "port": "in3",
+      "type": "Float64",
+      "val": "0.5"
+    },
+    {
+      "node": "blend@AxfB_wFyCBXtglfd2u8y6u/add",
+      "dir": "IN",
+      "port": "operation",
+      "type": "Id",
+      "val": "add"
+    },
+    {
+      "node": "blend@AxfB_wFyCBXtglfd2u8y6u/add",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "net.maxon.parametrictype.vec<3,float>"
+    },
+    {
+      "node": "blend@AxfB_wFyCBXtglfd2u8y6u/sub",
+      "dir": "IN",
+      "port": "operation",
+      "type": "Id",
+      "val": "sub"
+    },
+    {
+      "node": "blend@AxfB_wFyCBXtglfd2u8y6u/sub",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "net.maxon.parametrictype.vec<3,float>"
+    },
+    {
+      "node": "blend@AxfB_wFyCBXtglfd2u8y6u/scale",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "net.maxon.parametrictype.vec<3,float>"
+    },
+    {
+      "node": "scale@SW$t6ClEHxzipjf0G2maWo",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "net.maxon.parametrictype.vec<3,float>"
+    },
+    {
+      "node": "scale@SW$t6ClEHxzipjf0G2maWo",
+      "dir": "IN",
+      "port": "in2",
+      "type": "Float64",
+      "val": "2"
+    },
+    {
+      "node": "arithmetic@evr25X0hLtcir5KDWMVmAs",
+      "dir": "IN",
+      "port": "operation",
+      "type": "Id",
+      "val": "add"
+    },
+    {
+      "node": "arithmetic@evr25X0hLtcir5KDWMVmAs",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "net.maxon.parametrictype.vec<3,float>"
+    },
+    {
+      "node": "readvalueatindex2@PQ4j2ARlNdcpiRXov3gplv",
+      "dir": "IN",
+      "port": "indexin",
+      "type": "Int64",
+      "val": "1"
+    },
+    {
+      "node": "readvalueatindex2@PQ4j2ARlNdcpiRXov3gplv",
+      "dir": "IN",
+      "port": "cyclein",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "scale@aS$L_6C_PhGmzSeTqmzevt",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "net.maxon.parametrictype.vec<3,float>"
+    },
+    {
+      "node": "scale@aS$L_6C_PhGmzSeTqmzevt",
+      "dir": "IN",
+      "port": "in2",
+      "type": "Float64",
+      "val": "0.001"
+    },
+    {
+      "node": "floatingio@c$X$SbbPHB4k5TFXgQIpVv",
+      "dir": "IN",
+      "port": "net.maxon.node.floatingio.portlist",
+      "type": "Array",
+      "val": "(net.maxon.datatype.internedid,net.maxon.interface.datadictionary-C)[], input=2)"
+    },
+    {
+      "node": "floatingio@c$X$SbbPHB4k5TFXgQIpVv",
+      "dir": "IN",
+      "port": "hiddenin1.in@LtPgNJWRFl2tdFxpZcs3Vp",
+      "type": "Float64",
+      "val": "2"
+    },
+    {
+      "node": "floatingio@c$X$SbbPHB4k5TFXgQIpVv",
+      "dir": "OUT",
+      "port": "in1.in@LtPgNJWRFl2tdFxpZcs3Vp",
+      "type": "Float64",
+      "val": "2"
+    },
+    {
+      "node": "arithmetic@GbNRWV1NO94hhbKqcyxOwp",
+      "dir": "IN",
+      "port": "operation",
+      "type": "Id",
+      "val": "div"
+    },
+    {
+      "node": "arithmetic@GbNRWV1NO94hhbKqcyxOwp",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "net.maxon.parametrictype.vec<3,float>"
+    },
+    {
+      "node": "arithmetic@GbNRWV1NO94hhbKqcyxOwp",
+      "dir": "IN",
+      "port": "in1",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "get_property@EjYQ0iOnDpXoNda7k5Tycs",
+      "dir": "IN",
+      "port": "accessorname",
+      "type": "String",
+      "val": "pt"
+    },
+    {
+      "node": "get_property@EjYQ0iOnDpXoNda7k5Tycs",
+      "dir": "IN",
+      "port": "fallbackmodein",
+      "type": "Id",
+      "val": "none"
+    },
+    {
+      "node": "get_property@EjYQ0iOnDpXoNda7k5Tycs",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "Id",
+      "val": "net.maxon.geometryabstraction.accessortypes.attributes.data3d"
+    },
+    {
+      "node": "get_property@EjYQ0iOnDpXoNda7k5Tycs",
+      "dir": "IN",
+      "port": "fallbackvaluein",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "get_property@EjYQ0iOnDpXoNda7k5Tycs",
+      "dir": "IN",
+      "port": "componentin",
+      "type": "Id",
+      "val": "points"
+    },
+    {
+      "node": "builder",
+      "dir": "IN",
+      "port": "in.color",
+      "type": "Color64",
+      "val": "R:inf, G:inf, B:inf"
+    },
+    {
+      "node": "builder",
+      "dir": "IN",
+      "port": "in.matrix.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "builder",
+      "dir": "IN",
+      "port": "in.matrix.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "builder",
+      "dir": "IN",
+      "port": "in.matrix.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "builder/rot",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "auto"
+    },
+    {
+      "node": "net.maxon.neutron.corenode.multransform_5",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "auto"
+    },
+    {
+      "node": "net.maxon.neutron.corenode.multransform_5",
+      "dir": "IN",
+      "port": "in2.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "net.maxon.neutron.corenode.multransform_5",
+      "dir": "IN",
+      "port": "in2.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "net.maxon.neutron.corenode.multransform_5",
+      "dir": "IN",
+      "port": "in2.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "net.maxon.neutron.corenode.multransform_5",
+      "dir": "IN",
+      "port": "in1.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "net.maxon.neutron.corenode.multransform_5",
+      "dir": "IN",
+      "port": "in1.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "net.maxon.neutron.corenode.multransform_5",
+      "dir": "IN",
+      "port": "in1.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "combine",
+      "dir": "IN",
+      "port": "in2.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "combine",
+      "dir": "IN",
+      "port": "in2.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "combine",
+      "dir": "IN",
+      "port": "in2.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "mat",
+      "dir": "IN",
+      "port": "in",
+      "type": "Matrix64",
+      "val": "((0,0,0),((1,0,0),(0,1,0),(0,0,1)))"
+    },
+    {
+      "node": "mat",
+      "dir": "IN",
+      "port": "in.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "mat",
+      "dir": "IN",
+      "port": "in.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "mat",
+      "dir": "IN",
+      "port": "in.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "mat",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "sqrpart",
+      "dir": "IN",
+      "port": "in.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "sqrpart",
+      "dir": "IN",
+      "port": "in.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "sqrpart",
+      "dir": "IN",
+      "port": "in.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "sqrpart",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "auto"
+    },
+    {
+      "node": "vectrans",
+      "dir": "OUT",
+      "port": "out",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "sqrtrans",
+      "dir": "OUT",
+      "port": "out",
+      "type": "SqMat3_64",
+      "val": "((1,0,0),(0,1,0),(0,0,1))"
+    }
+  ]
+}

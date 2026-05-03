@@ -1,0 +1,541 @@
+{
+  "source_host": "Build UV Preview",
+  "source_host_type": 180420400,
+  "node_count": 23,
+  "capsule_count": 7,
+  "wire_count": 26,
+  "defaults_count": 30,
+  "nodes": [
+    {
+      "path": "get_property@btZ$7yDaM9XmsGyjZr51uo",
+      "id": "get_property@btZ$7yDaM9XmsGyjZr51uo",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 1
+    },
+    {
+      "path": "get_property@btZ$7yDaM9XmsGyjZr51uo/get",
+      "id": "get",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp",
+      "id": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 9
+    },
+    {
+      "path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/set@KWVj7mlENhWo8HOfRdDK6r",
+      "id": "set@KWVj7mlENhWo8HOfRdDK6r",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 2
+    },
+    {
+      "path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/set@KWVj7mlENhWo8HOfRdDK6r/set",
+      "id": "set",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/set@KWVj7mlENhWo8HOfRdDK6r/arraybuilder",
+      "id": "arraybuilder",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/splitvectorcomponents@a3nE3CW7BFAo33zEoZ7oXp",
+      "id": "splitvectorcomponents@a3nE3CW7BFAo33zEoZ7oXp",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/invert@INPWz6BsIlehvXHfvGRb$v",
+      "id": "invert@INPWz6BsIlehvXHfvGRb$v",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/containeriteration@EGGDHxSqLBlobCYtom4gNq",
+      "id": "containeriteration@EGGDHxSqLBlobCYtom4gNq",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/scale@YICGjSYWJFPiS$_K0eyXLk",
+      "id": "scale@YICGjSYWJFPiS$_K0eyXLk",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/composevector3@I5ChQe6JK5Zl1R2S2ivkRs",
+      "id": "composevector3@I5ChQe6JK5Zl1R2S2ivkRs",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/get@GZJeUTHcPJhi$2j0_fSBZs",
+      "id": "get@GZJeUTHcPJhi$2j0_fSBZs",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 1
+    },
+    {
+      "path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/get@GZJeUTHcPJhi$2j0_fSBZs/get",
+      "id": "get",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/geometry@Pyo9PEUUEB_lK82Wcg3cbo",
+      "id": "geometry@Pyo9PEUUEB_lK82Wcg3cbo",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/filter@Ime1$$wdB5qhe69kB5A3xv",
+      "id": "filter@Ime1$$wdB5qhe69kB5A3xv",
+      "depth": 1,
+      "is_capsule": true,
+      "inner_count": 1
+    },
+    {
+      "path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/filter@Ime1$$wdB5qhe69kB5A3xv/or",
+      "id": "or",
+      "depth": 2,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "transform_element@Iw9KeqNmPZ4mKMXpAKrBIq",
+      "id": "transform_element@Iw9KeqNmPZ4mKMXpAKrBIq",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 2
+    },
+    {
+      "path": "transform_element@Iw9KeqNmPZ4mKMXpAKrBIq/transformpoint",
+      "id": "transformpoint",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "transform_element@Iw9KeqNmPZ4mKMXpAKrBIq/selectionstringparser",
+      "id": "selectionstringparser",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "set_property@Og3Fg6f4I1LpxNk2Foqzqu",
+      "id": "set_property@Og3Fg6f4I1LpxNk2Foqzqu",
+      "depth": 0,
+      "is_capsule": true,
+      "inner_count": 1
+    },
+    {
+      "path": "set_property@Og3Fg6f4I1LpxNk2Foqzqu/set",
+      "id": "set",
+      "depth": 1,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "context_externaltimeinput",
+      "id": "context_externaltimeinput",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    },
+    {
+      "path": "context_notime",
+      "id": "context_notime",
+      "depth": 0,
+      "is_capsule": false,
+      "inner_count": 0
+    }
+  ],
+  "wires": [
+    {
+      "src_path": "get_property@btZ$7yDaM9XmsGyjZr51uo",
+      "src_port": "array",
+      "dst_path": "set_property@Og3Fg6f4I1LpxNk2Foqzqu",
+      "dst_port": "array"
+    },
+    {
+      "src_path": "get_property@btZ$7yDaM9XmsGyjZr51uo/get",
+      "src_port": "arrayout",
+      "dst_path": "get_property@btZ$7yDaM9XmsGyjZr51uo",
+      "dst_port": "array"
+    },
+    {
+      "src_path": "get_property@btZ$7yDaM9XmsGyjZr51uo/get",
+      "src_port": "accessornameout",
+      "dst_path": "get_property@btZ$7yDaM9XmsGyjZr51uo",
+      "dst_port": "accessornameout"
+    },
+    {
+      "src_path": "get_property@btZ$7yDaM9XmsGyjZr51uo/get",
+      "src_port": "isaccessorfoundout",
+      "dst_path": "get_property@btZ$7yDaM9XmsGyjZr51uo",
+      "dst_port": "isattributefoundout"
+    },
+    {
+      "src_path": "get_property@btZ$7yDaM9XmsGyjZr51uo/get",
+      "src_port": "topologyout",
+      "dst_path": "get_property@btZ$7yDaM9XmsGyjZr51uo",
+      "dst_port": "topology"
+    },
+    {
+      "src_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp",
+      "src_port": "geometryout",
+      "dst_path": "transform_element@Iw9KeqNmPZ4mKMXpAKrBIq",
+      "dst_port": "geometryin"
+    },
+    {
+      "src_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/set@KWVj7mlENhWo8HOfRdDK6r",
+      "src_port": "geometryout",
+      "dst_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/geometry@Pyo9PEUUEB_lK82Wcg3cbo",
+      "dst_port": "geometry"
+    },
+    {
+      "src_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/set@KWVj7mlENhWo8HOfRdDK6r/set",
+      "src_port": "geometryout",
+      "dst_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/set@KWVj7mlENhWo8HOfRdDK6r",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/set@KWVj7mlENhWo8HOfRdDK6r/arraybuilder",
+      "src_port": "out",
+      "dst_path": "set_property@Og3Fg6f4I1LpxNk2Foqzqu/set",
+      "dst_port": "array"
+    },
+    {
+      "src_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/splitvectorcomponents@a3nE3CW7BFAo33zEoZ7oXp",
+      "src_port": "x",
+      "dst_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/composevector3@I5ChQe6JK5Zl1R2S2ivkRs",
+      "dst_port": "x"
+    },
+    {
+      "src_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/splitvectorcomponents@a3nE3CW7BFAo33zEoZ7oXp",
+      "src_port": "y",
+      "dst_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/invert@INPWz6BsIlehvXHfvGRb$v",
+      "dst_port": "in"
+    },
+    {
+      "src_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/invert@INPWz6BsIlehvXHfvGRb$v",
+      "src_port": "out",
+      "dst_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/composevector3@I5ChQe6JK5Zl1R2S2ivkRs",
+      "dst_port": "y"
+    },
+    {
+      "src_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/containeriteration@EGGDHxSqLBlobCYtom4gNq",
+      "src_port": "out",
+      "dst_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/splitvectorcomponents@a3nE3CW7BFAo33zEoZ7oXp",
+      "dst_port": "vector"
+    },
+    {
+      "src_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/scale@YICGjSYWJFPiS$_K0eyXLk",
+      "src_port": "out",
+      "dst_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/set@KWVj7mlENhWo8HOfRdDK6r",
+      "dst_port": "iteration"
+    },
+    {
+      "src_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/composevector3@I5ChQe6JK5Zl1R2S2ivkRs",
+      "src_port": "result",
+      "dst_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/scale@YICGjSYWJFPiS$_K0eyXLk",
+      "dst_port": "in1"
+    },
+    {
+      "src_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/get@GZJeUTHcPJhi$2j0_fSBZs",
+      "src_port": "topology",
+      "dst_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/set@KWVj7mlENhWo8HOfRdDK6r",
+      "dst_port": "topology"
+    },
+    {
+      "src_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/get@GZJeUTHcPJhi$2j0_fSBZs",
+      "src_port": "array",
+      "dst_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/containeriteration@EGGDHxSqLBlobCYtom4gNq",
+      "dst_port": "in"
+    },
+    {
+      "src_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/get@GZJeUTHcPJhi$2j0_fSBZs/get",
+      "src_port": "topology",
+      "dst_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/get@GZJeUTHcPJhi$2j0_fSBZs",
+      "dst_port": "topology"
+    },
+    {
+      "src_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/get@GZJeUTHcPJhi$2j0_fSBZs/get",
+      "src_port": "array",
+      "dst_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/get@GZJeUTHcPJhi$2j0_fSBZs",
+      "dst_port": "array"
+    },
+    {
+      "src_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/geometry@Pyo9PEUUEB_lK82Wcg3cbo",
+      "src_port": "net.maxon.neutron.op.output",
+      "dst_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/filter@Ime1$$wdB5qhe69kB5A3xv",
+      "dst_port": "net.maxon.neutron.op.input"
+    },
+    {
+      "src_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/filter@Ime1$$wdB5qhe69kB5A3xv",
+      "src_port": "net.maxon.neutron.op.output.geometry",
+      "dst_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/filter@Ime1$$wdB5qhe69kB5A3xv/or",
+      "src_port": "out",
+      "dst_path": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/filter@Ime1$$wdB5qhe69kB5A3xv",
+      "dst_port": "filter"
+    },
+    {
+      "src_path": "transform_element@Iw9KeqNmPZ4mKMXpAKrBIq",
+      "src_port": "geometryout",
+      "dst_path": "set_property@Og3Fg6f4I1LpxNk2Foqzqu",
+      "dst_port": "geometryin"
+    },
+    {
+      "src_path": "transform_element@Iw9KeqNmPZ4mKMXpAKrBIq/transformpoint",
+      "src_port": "geometryout",
+      "dst_path": "transform_element@Iw9KeqNmPZ4mKMXpAKrBIq",
+      "dst_port": "geometryout"
+    },
+    {
+      "src_path": "transform_element@Iw9KeqNmPZ4mKMXpAKrBIq/selectionstringparser",
+      "src_port": "array",
+      "dst_path": "transform_element@Iw9KeqNmPZ4mKMXpAKrBIq/transformpoint",
+      "dst_port": "ptsidsin"
+    },
+    {
+      "src_path": "set_property@Og3Fg6f4I1LpxNk2Foqzqu/set",
+      "src_port": "geometryout",
+      "dst_path": "set_property@Og3Fg6f4I1LpxNk2Foqzqu",
+      "dst_port": "geometryout"
+    }
+  ],
+  "port_defaults": [
+    {
+      "node": "get_property@btZ$7yDaM9XmsGyjZr51uo",
+      "dir": "IN",
+      "port": "accessorname",
+      "type": "String",
+      "val": "UVW"
+    },
+    {
+      "node": "get_property@btZ$7yDaM9XmsGyjZr51uo",
+      "dir": "IN",
+      "port": "fallbackmodein",
+      "type": "Id",
+      "val": "none"
+    },
+    {
+      "node": "get_property@btZ$7yDaM9XmsGyjZr51uo",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "Id",
+      "val": "net.maxon.geometryabstraction.accessortypes.attributes.uv"
+    },
+    {
+      "node": "get_property@btZ$7yDaM9XmsGyjZr51uo",
+      "dir": "IN",
+      "port": "fallbackvaluein",
+      "type": "UnknownDataType",
+      "val": "net.maxon.parametrictype.vec<2,float32>"
+    },
+    {
+      "node": "get_property@btZ$7yDaM9XmsGyjZr51uo",
+      "dir": "IN",
+      "port": "componentin",
+      "type": "Id",
+      "val": "points"
+    },
+    {
+      "node": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp",
+      "dir": "IN",
+      "port": "inport@PxTGkq2oDdAgGRlbBgxn7m",
+      "type": "Float64",
+      "val": "50"
+    },
+    {
+      "node": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/set@KWVj7mlENhWo8HOfRdDK6r",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "Id",
+      "val": "net.maxon.geometryabstraction.accessortypes.attributes.data3d"
+    },
+    {
+      "node": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/set@KWVj7mlENhWo8HOfRdDK6r",
+      "dir": "IN",
+      "port": "newdataset",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/set@KWVj7mlENhWo8HOfRdDK6r",
+      "dir": "OUT",
+      "port": "geometryout",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.object>C"
+    },
+    {
+      "node": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/set@KWVj7mlENhWo8HOfRdDK6r/set",
+      "dir": "OUT",
+      "port": "geometryout",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.object>C"
+    },
+    {
+      "node": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/invert@INPWz6BsIlehvXHfvGRb$v",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "float"
+    },
+    {
+      "node": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/scale@YICGjSYWJFPiS$_K0eyXLk",
+      "dir": "IN",
+      "port": "datatype",
+      "type": "Id",
+      "val": "net.maxon.parametrictype.vec<3,float>"
+    },
+    {
+      "node": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/scale@YICGjSYWJFPiS$_K0eyXLk",
+      "dir": "IN",
+      "port": "in2",
+      "type": "Float64",
+      "val": "100"
+    },
+    {
+      "node": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/get@GZJeUTHcPJhi$2j0_fSBZs",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "Id",
+      "val": "net.maxon.geometryabstraction.accessortypes.attributes.uv"
+    },
+    {
+      "node": "uvtomesh@cPG6cQOOHF3pO3DY4E0SBp/geometry@Pyo9PEUUEB_lK82Wcg3cbo",
+      "dir": "IN",
+      "port": "geometry",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.object>C"
+    },
+    {
+      "node": "transform_element@Iw9KeqNmPZ4mKMXpAKrBIq",
+      "dir": "IN",
+      "port": "selectionstringin",
+      "type": "String",
+      "val": "default"
+    },
+    {
+      "node": "transform_element@Iw9KeqNmPZ4mKMXpAKrBIq",
+      "dir": "IN",
+      "port": "transformin.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "transform_element@Iw9KeqNmPZ4mKMXpAKrBIq",
+      "dir": "IN",
+      "port": "transformin.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "transform_element@Iw9KeqNmPZ4mKMXpAKrBIq",
+      "dir": "IN",
+      "port": "transformin.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "transform_element@Iw9KeqNmPZ4mKMXpAKrBIq",
+      "dir": "IN",
+      "port": "pivotmatrixin.*access*rotationorderin",
+      "type": "Id",
+      "val": "yxzlocal"
+    },
+    {
+      "node": "transform_element@Iw9KeqNmPZ4mKMXpAKrBIq",
+      "dir": "IN",
+      "port": "pivotmatrixin.*access*scalein",
+      "type": "Vector64",
+      "val": "X:1.0, Y:1.0, Z:1.0"
+    },
+    {
+      "node": "transform_element@Iw9KeqNmPZ4mKMXpAKrBIq",
+      "dir": "IN",
+      "port": "pivotmatrixin.*access*shearin",
+      "type": "Vector64",
+      "val": "X:0.0, Y:0.0, Z:0.0"
+    },
+    {
+      "node": "transform_element@Iw9KeqNmPZ4mKMXpAKrBIq",
+      "dir": "IN",
+      "port": "selectiontypein",
+      "type": "Id",
+      "val": "points"
+    },
+    {
+      "node": "transform_element@Iw9KeqNmPZ4mKMXpAKrBIq/selectionstringparser",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "UnknownDataType",
+      "val": "<net.maxon.geometryabstraction.interface.accessorclas>cR"
+    },
+    {
+      "node": "set_property@Og3Fg6f4I1LpxNk2Foqzqu",
+      "dir": "IN",
+      "port": "accessorname",
+      "type": "String",
+      "val": "UVW"
+    },
+    {
+      "node": "set_property@Og3Fg6f4I1LpxNk2Foqzqu",
+      "dir": "IN",
+      "port": "fallbackmodein",
+      "type": "Id",
+      "val": "none"
+    },
+    {
+      "node": "set_property@Og3Fg6f4I1LpxNk2Foqzqu",
+      "dir": "IN",
+      "port": "arraymode",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "set_property@Og3Fg6f4I1LpxNk2Foqzqu",
+      "dir": "IN",
+      "port": "accessortype",
+      "type": "Id",
+      "val": "net.maxon.geometryabstraction.accessortypes.attributes.uv"
+    },
+    {
+      "node": "set_property@Og3Fg6f4I1LpxNk2Foqzqu",
+      "dir": "IN",
+      "port": "newdataset",
+      "type": "Bool",
+      "val": "true"
+    },
+    {
+      "node": "set_property@Og3Fg6f4I1LpxNk2Foqzqu",
+      "dir": "IN",
+      "port": "fallbackvaluein",
+      "type": "UnknownDataType",
+      "val": "net.maxon.parametrictype.vec<2,float32>"
+    }
+  ]
+}

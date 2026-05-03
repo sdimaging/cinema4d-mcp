@@ -1,0 +1,7 @@
+Scene: Closest_Point_on_Spline_Example_Advanced_02.c4d
+FPS=30 max=200
+
+Gradient Intersection 1  (t=180420700)
+  Resample Spline  (t=180420400)
+Gradient Intersection 2  (t=180420700)
+Closest Point on Spline  (t=180420500)

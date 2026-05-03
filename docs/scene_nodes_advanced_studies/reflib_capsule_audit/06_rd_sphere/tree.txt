@@ -1,0 +1,9 @@
+Scene: Reaction_Diffusion_Example_Sphere.c4d
+FPS=25 max=600
+
+Reaction Diffusion  (t=180420600)
+  Sphere  (t=5160)
+    Random Field exp  (t=440000281)
+    Random Field Neighbors  (t=440000281)
+Null  (t=5140)
+  Add Chem to vertex Map  (t=5159)
