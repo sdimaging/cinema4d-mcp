@@ -407,3 +407,65 @@ Two complementary approaches, both demoed and committed.
 - The DRuckli `uvtomesh` capsule + sister `set` + iteration pattern works flawlessly INSIDE the capsule scope — but reproducing that pattern at the top-level of a custom deformer requires understanding op container evaluation semantics that we haven't fully cracked.
 - The path forward for a pure-SN morph: build the entire chain INSIDE a sub-capsule (group via `MoveToGroup`), so the math + set + op wrappers share the same evaluation scope as DRuckli's working uvtomesh.
 - For now, hybrid (SN for procedural geometry generation + Python tag for per-vertex math) is the pragmatic working approach.
+
+---
+
+## Iteration 8 (2026-05-02) — SPLIT-TOPOLOGY morph (Spenser's "weld vs disconnect" insight)
+
+After v5 morph worked but Spenser noted: "things are still welded and connected — sure I could manually disconnect first but that doesn't make much sense — so I would have a disconnect based on UV islands and have the slider functions to UV and then have a connect after the slider position ends."
+
+The insight: a true 3D ↔ flat morph should END at a properly-disconnected UV-island layout (real seams, like uvtomesh produces), not at a seam-averaged welded approximation. Topology should split throughout, but at factor=0 the split vertices should COINCIDE on their source 3D positions so the mesh visually looks welded.
+
+### Architecture
+
+For each (polygon_idx, corner_idx) in source:
+- Allocate a new output vertex
+- Track: `src_vert_for_out[i]` (which source vertex this corner came from) + `uv_for_out[i]` (UV at this exact corner)
+
+Build output mesh:
+- N_corners vertices total (~4664 for the head's 1166 polys × ~4 corners)
+- 1:1 polygon mapping (each source poly → output poly with new vertex indices)
+- Initial positions = source 3D positions per output vertex (split verts coincide)
+
+Cache `(orig_3d_pos, uv_at_corner)` per output vertex. Python tag morphs:
+
+```
+flat_pos = (uv.x * scale, -uv.y * scale, 0)
+new_pos  = orig_3d_pos + (flat_pos - orig_3d_pos) * factor
+```
+
+### Verified result
+
+| Factor | rad bounds | Visual behavior |
+|--:|---|---|
+| 0.0 | (17.438, 21.238, 12.499) | exact original 3D bounds — all split verts coincide → looks like welded source head |
+| 0.5 | (15.853, 22.779, 6.249)  | seams visibly fanning out — face spreads, ears separate, neck opens |
+| 1.0 | (24.82, 24.32, 0)        | proper flat unwrap with real UV-island seams (matches v4 clone bounds) |
+
+### Visual proof
+
+`v6_split_factor_000_b.png`, `v6_split_factor_050_b.png`, `v6_split_factor_100_b.png` — three-up viewport with original head (top-left), v4 clone flat preview (top-right), new SPLIT morph head (bottom-center) sweeping factor 0 → 0.5 → 1.0.
+
+At f=0 the bottom mesh is indistinguishable from a welded head. At f=0.5 you can clearly see the head "exploding" along seams — ears spreading, neck splitting open, hair lifting. At f=1.0 it matches the v4 flat preview exactly (same 24.82×24.32×0 bounds).
+
+### Why this is what Spenser wanted
+
+- Topology is real (split UV islands at f=1, matching `uvtomesh` output)
+- No need to manually run Disconnect or weld back — the morph IS the disconnect/connect, smoothly
+- Same fixed topology throughout (no jumps), so keyframes / animation work
+- f=0 looks identical to source (welded appearance from coincident split verts)
+
+### Recursion gotcha (lesson learned the hard way)
+
+Earlier iter 5 Python tag included `obj.Message(c4d.MSG_UPDATE)` after `SetAllPoints` — this caused infinite re-evaluation:
+SetAllPoints → MSG_UPDATE → tag re-fires → SetAllPoints → MSG_UPDATE → ...
+
+Symptoms: AM doesn't render the slider (main thread tied up), `execute_python_script` times out at 30s, ping still works because it doesn't touch main thread. Fix: don't send MSG_UPDATE; let the standard expression cycle handle propagation.
+
+Documented in the published GH script `c4d-scripts/uv-pipeline/morph_3d_to_flat_slider.py` so it doesn't get re-implemented elsewhere.
+
+### Files
+
+- `Build_UV_Slider_v6_split_topology.c4d` — WORKING split-topology morph slider (gitignored)
+- `v6_split_factor_000_b.png`, `v6_split_factor_050_b.png`, `v6_split_factor_100_b.png` — visual proof of the welded → exploding → flat transition
+- Published as: https://github.com/sdimaging/c4d-scripts/blob/main/uv-pipeline/morph_3d_to_flat_slider.py
