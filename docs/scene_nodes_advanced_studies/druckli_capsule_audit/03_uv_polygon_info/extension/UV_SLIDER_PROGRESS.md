@@ -503,3 +503,42 @@ Even with all three above, hits **"Base nodesystem hasn't been validated"** — 
 ### Status
 
 Pure-SN morph deferred again. Working sliders: v4 SN clone (flat-mesh-size, pure SN), v5/v6 Python tag morph (true 3D↔flat with split topology, hybrid).
+
+---
+
+## Iteration 11 (2026-05-02) — modify-uvtomesh-internals attempt
+
+To bypass MoveToGroup validation issues, tried a different tack: clone the WORKING `Build UV Preview` deformer (which we already proved works as v4), then modify uvtomesh's INNER graph to add a per-vertex blend with original positions. Since uvtomesh's inner scope already broadcasts math correctly, modifying it from inside should preserve evaluation.
+
+### Confirmed-working
+
+- Cloning the WORKING DRuckli deformer via `BaseObject.GetClone()` preserves uvtomesh + its 9 inner nodes + 14 wires + the working evaluation scope (rad (24.82, 24.32, 0), 4664 pts, same as v4 clone)
+- The cloned deformer is functionally identical to the original
+
+### NEW BLOCKER
+
+Cannot add nodes INSIDE uvtomesh from Python:
+- `graph.AddChild(...)` adds nodes at the GRAPH ROOT level, not inside any specific parent capsule (no parent argument in API signature)
+- `uvtomesh.AddChild(...)` doesn't exist — capsule nodes don't expose AddChild
+- Tried `args=DataDictionary({parent: 'uvtomesh'})` — added at root, ignored the parent hint
+
+So the math-chain-INSIDE-an-evaluation-scope approach is blocked at the Python API level. Adding to inner graphs requires either:
+1. **Scene Nodes editor UI** — drag/drop nodes into the capsule visually (not Python-scriptable for our automation goals)
+2. **`GraphDescription.ApplyDescription`** with a complete nested structure declaration — would require significant authoring work to build the description spec and figure out the parent-child syntax
+3. **Modify the asset definition** of uvtomesh in the DRuckli source (the .res files) — works for one asset but doesn't solve the general problem
+
+### Three SDK limits encountered for pure-SN morph
+
+1. **MoveToGroup needs Base nodesystem validation** that we haven't cracked (Validate() is a no-op against this state requirement)
+2. **AddChild has no parent argument** — all adds go to root
+3. **Math nodes don't broadcast over arrays at top-level scope** (the original blocker that pushed us toward grouping in the first place)
+
+Any TWO of these solving would unlock pure-SN morph. As a research project this would require dedicated SDK exploration — likely days/weeks rather than hours. The scope is bigger than this session.
+
+### Decision
+
+Pure-SN morph **deferred to a dedicated SDK research session**. Production deliverables for now:
+- **v7 Python tag morph** (split topology + Centered toggle, GH at `c4d-scripts/uv-pipeline/morph_3d_to_flat_slider.py`) — handles all production use cases
+- **v4 SN clone slider** for flat-mesh-size scaling via uvtomesh.scale (pure SN, drag/drop ready)
+
+Both shipped, documented, and published. The pure-SN morph remains a documented research goal with three concrete blockers identified for future work.
