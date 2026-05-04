@@ -136,3 +136,34 @@ Now that the canonical write contract is proven, the UV morph is straightforward
 3. The remaining puzzle is reading per-vertex UV — likely via a SECOND get node with `accessortype=uv` aggregated to per-vertex via averaging (or use `get_property` with the right `componentin`)
 
 This is a standard extension of the proven pattern, not a new architecture.
+
+## Spine reusability — PROVEN via target swap (v2)
+
+GPT-disciplined extension: lock the spine, swap ONLY the target organ. Replaced the per-vertex math from `(orig.x, 0, orig.z)` to `(orig.x*2, 0, orig.z*2)`. Same spine identical, additional `scale_x` + `scale_z` nodes inserted before composevector3.
+
+**Verified factor sweep:**
+
+| factor | rad | math check |
+|---:|---|---|
+| 0.0 | (17.4, 21.2, 12.5) | orig (no morph) |
+| 0.5 | (26.16, 10.62, 18.75) | (17.4×1.5, 21.2×0.5, 12.5×1.5) ✓ exact |
+| 1.0 | (34.88, 0.00, 25.00)  | (17.4×2, 0, 12.5×2) ✓ exact |
+
+Math precision: 26.156 vs expected 26.1, 10.619 vs 10.6, 18.748 vs 18.75 — sub-millimeter accuracy.
+
+**The pattern is REUSABLE.** Lock spine, swap one organ at a time. This is the canonical authoring discipline for SN deformers.
+
+## Per-vertex UV access (the remaining bridge for actual UV-coord morph)
+
+Pure SN can read UV via:
+- `accessortype=uv, accessorname=""` → 4664-length per-polygon-vertex array
+
+Per-source-vertex UV is NOT directly available as an attribute (UV is fundamentally per-poly-vertex in C4D). To bridge:
+
+**Option A (pure SN):** use `getpolygonselectiondata` (which exposes `ptsidsout` = source vertex IDs per poly-vertex) + `readvalueatindex2` chain to look up. This is the SPVP capsule's pattern.
+
+**Option B (hybrid pre-bake):** Python helper script bakes averaged UV onto a Vertex Color tag (Vec3 per vertex). SN reads it via `accessortype=color, accessorname="<tag-name>"`. Works because Vertex Color is per-vertex when accessed correctly.
+
+**Option C (deformer geo-input swap):** the deformer host's INPUT geometry is replaced with one whose Position attribute IS the averaged UV. Then read "Position" gives the UV-derived flat positions. Most pragmatic for one-off use.
+
+For our PROVEN canonical pattern, all three are valid extensions. The target-swap discipline (v2) demonstrates that swapping in any per-vertex Vec3 source works — once we have that source, the morph chain is identical.
