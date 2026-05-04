@@ -307,3 +307,63 @@ The right primitive is a SN **GENERATOR** (180420500-700), not a deformer (18042
 Or simpler: clone DRuckli's uvtomesh, use it as-is for the flat output, and apply morph at a DIFFERENT level (e.g., between the orig 3D mesh and uvtomesh's flat output via a Pose Morph or geometry-blend pattern).
 
 The user is right: **what we have is a working pure-SN deformer pattern, not a 1-1 reproduction of Build UV Preview.** Two different things.
+
+---
+
+## Iter 27 — User correction: BUV IS a deformer + DOES split topology
+
+User: "drucklis is a deformer and it splits the UV islands just fine"
+
+CORRECT. Build UV Preview is type 180420400 (SN Deformer) AND outputs 4664-vertex split topology. My earlier claim "deformers can't split topology" was wrong.
+
+The mechanism: uvtomesh's inner `set` node has `newdataset = true` which tells set to BUILD a new attribute dataset (and implicitly new vertex set) from the iteration stream. Combined with the splitvectorcomponents expansion in the chain, this produces 4664 output vertices from 1166 source polygons.
+
+So my pattern's `newdataset=False` was the wrong choice — kept topology, got 1168 verts. With `newdataset=True` and the right iteration count, we'd get topology rebuild via the deformer.
+
+### Two clarified targets (per user)
+
+**T1: 1-to-1 with DRuckli Build UV Preview**
+- Same topology (4664 split UV island vertices)
+- Same dimensions (rad ~24.82 × 24.32 × 0)
+- Same plane (XY, Y-up)
+- Same positioning (mp ~24.96, 25.18, 0)
+
+**T2: Match Python morph slider functionality (after T1)**
+- Centered toggle (mp at origin)
+- Factor slider (0=3D, 1=flat, smooth blend)
+
+### T1 STATUS: SOLVED ✓
+
+`BaseObject.GetClone(BUV)` produces bit-identical reproduction:
+
+```
+BUV original: rad=(24.82, 24.32, 0) mp=(24.955, 25.175, 0) pts=4664
+T1 clone:     rad=(24.82, 24.32, 0) mp=(24.955, 25.175, 0) pts=4664
+
+Per-point match:
+  pt[0]    BUV=(43.785, 26.35, 0)  Clone=(43.785, 26.35, 0)  ✓
+  pt[2000] BUV=(39.690, 28.21, 0)  Clone=(39.690, 28.21, 0)  ✓
+  pt[4663] BUV=(33.820,  6.67, 0)  Clone=(33.820,  6.67, 0)  ✓
+```
+
+T1 file: `T1_BUV_CLONE_1to1.c4d`
+
+No new architecture needed. Cloning works.
+
+### T2 STATUS: open puzzle
+
+Adding morph slider on top of cloned uvtomesh. Tried multiple times in iters 11-21 — every blend insertion inside uvtomesh's inner chain produces empty output. The capsule's evaluation is fragile to wire mutations.
+
+Three remaining viable paths:
+
+**Option A: Atomic rebuild of uvtomesh's chain with blend baked in.** Don't modify existing wires; build the FULL chain from scratch in ONE transaction. High precision required, single-shot.
+
+**Option B: Build NEW deformer mirroring uvtomesh's internal pattern.** containeriteration over UV array + splitvectorcomponents expansion + blend per-corner + scale + set with `newdataset=true`. This bypasses uvtomesh entirely while reusing its pattern.
+
+**Option C: Two-tool combo.** T1 clone for static flat display + Python tag morph (already shipped) for the slider. Pragmatic, what artist needs anyway.
+
+### Honest accounting
+
+After 27 iterations:
+- ✓ T1: SHIPPED (BaseObject.GetClone)
+- ⚠ T2: pending — requires either careful one-shot atomic uvtomesh rebuild OR new deformer from scratch with newdataset=True pattern
