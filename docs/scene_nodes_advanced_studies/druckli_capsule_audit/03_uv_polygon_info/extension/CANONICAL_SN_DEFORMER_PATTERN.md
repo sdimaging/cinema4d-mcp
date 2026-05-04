@@ -167,3 +167,18 @@ Per-source-vertex UV is NOT directly available as an attribute (UV is fundamenta
 **Option C (deformer geo-input swap):** the deformer host's INPUT geometry is replaced with one whose Position attribute IS the averaged UV. Then read "Position" gives the UV-derived flat positions. Most pragmatic for one-off use.
 
 For our PROVEN canonical pattern, all three are valid extensions. The target-swap discipline (v2) demonstrates that swapping in any per-vertex Vec3 source works — once we have that source, the morph chain is identical.
+
+## Option C exploration notes (iter 24)
+
+Tried Tvertexcolor in PerPointMode via VariableTag(c4d.Tvertexcolor, n). API surfaced unexpected complexity:
+- `SetPoint(data_ptr, neighbor, polygon_ptr, vertex_idx, vec)` — requires polygon ptr even in per-point mode
+- The Vertex Color tag is fundamentally per-poly-vertex; PerPointMode is a storage hint not an access mode shift
+
+Cleaner Option C variants that need exploration:
+- **3 Vertex Maps** (orig_x, orig_y, orig_z scaled to 0-1, then composed in SN). Vertex Maps ARE per-vertex Float and SN reads cleanly via `accessortype=weight`.
+- **Custom Vec3 attribute** via maxon's MeshAttribute API directly (skips the wrapper tags).
+- **Replace Position via SetAllPoints** to UV-flat, then store orig as Pose Morph base pose — uses C4D's native morph machinery.
+
+The canonical write contract (proven) is the unlocking primitive. Per-vertex source supply is a separate puzzle with multiple valid solutions; pick the one that fits the workflow.
+
+For this session: **canonical pattern + spine reuse SHIPPED**. Per-vertex UV-coord SOURCE is the next concrete step, but the deformer architecture is no longer the blocker.
