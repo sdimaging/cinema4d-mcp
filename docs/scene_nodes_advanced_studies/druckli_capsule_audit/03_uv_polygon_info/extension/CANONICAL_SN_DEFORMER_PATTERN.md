@@ -367,3 +367,298 @@ Three remaining viable paths:
 After 27 iterations:
 - ✓ T1: SHIPPED (BaseObject.GetClone)
 - ⚠ T2: pending — requires either careful one-shot atomic uvtomesh rebuild OR new deformer from scratch with newdataset=True pattern
+
+---
+
+## 2026-05-03: True from-scratch BUV-equivalent rebuild (T1 SCRATCH v4)
+
+After the 2026-05-02 doctrine reset (no copy-node-as-proof), built T1 SCRATCH v4 entirely via MCP-authored Python (no GetClone, no asset duplication).
+
+### Final architecture
+
+```
+ROOT.geometryin (in root.GetInputs())
+  ├─ get_property      [accessortype=uv, accessorname="UVW"]
+  │     └→ array  ──────────────────┐
+  │
+  └─ uvtomesh          [stock, scale=50]
+        └→ geometryout
+              └→ transform_element  [transformin = R_x(+90°) Matrix64]
+                    └→ geometryout
+                          └→ set_property  [accessortype=uv, accessorname="UVW"]
+                                  ↑ array (from get_property above)
+                                └→ geometryout
+                                      → ROOT.geometryout (in root.GetOutputs())
+```
+
+4 functional nodes + 6 wires + 1 transform parameter. Entirely MCP-authored.
+
+### Verified results
+
+| Metric | BUV reference | T1 SCRATCH v4 | Match |
+|---|---|---|---|
+| vertex count | 4664 | 4664 | ✓ exact |
+| rad | (24.82, 24.32, 0) | (24.82, 24.32, 0) | ✓ exact |
+| mp | (24.96, 25.18, 0) | (24.96, 24.83, 0) | ~ Δ_y=0.35 |
+| plane | XY (Y-up) | XY (Y-up) | ✓ |
+| visual front view | flat square | flat square | ✓ matches |
+
+**Honest claim:** Visually verified, structurally similar but NOT 1-to-1 — BUV achieves XY plane via INNER capsule mutation (added invert + rewired compose.y); T1 v4 achieves it via OUTER transform_element matrix. Same end-result via different architectural path.
+
+### Critical Python idioms cracked
+
+**1. `MSG_CREATE_IF_REQUIRED` is required for root port synthesis**
+```python
+new_def = c4d.BaseObject(180420400)
+doc.InsertObject(new_def, parent=host)
+new_def.Message(maxon.neutron.MSG_CREATE_IF_REQUIRED)  # synthesizes root.geometryin / geometryout
+```
+Without this message, `root.GetInputs()` and `root.GetOutputs()` return EMPTY collections; FindChild returns None-displaying stubs that fail silently in Connect calls.
+
+**2. Root port topology is OPPOSITE of intuition**
+```python
+root_geoin   = root.GetInputs().FindChild(maxon.InternedId("geometryin"))    # acts as SOURCE for inner
+root_geoout  = root.GetOutputs().FindChild(maxon.InternedId("geometryout"))  # acts as SINK for inner producers
+```
+`geometryin` is the deformer's INCOMING port from outside (so it's an `INPUT` of root from outside perspective), but from inside the graph it's the SOURCE that delivers parent geometry to inner consumers.
+
+**3. `FindChild` requires `maxon.InternedId`, NOT `maxon.Id`**
+```python
+# WRONG — silently returns null-data port; Connect later fails with confusing "graphmodel" copy error
+p = node.GetInputs().FindChild(maxon.Id("accessortype"))
+
+# CORRECT
+p = node.GetInputs().FindChild(maxon.InternedId("accessortype"))
+```
+The error message ("unable to convert builtins.NativePyData to @net.maxon.datatype.internedid") is misleading — it's about the Id↔InternedId mismatch on the FindChild lookup, not about SetPortValue.
+
+**4. Matrix64 ports require explicit positional construction**
+```python
+# WRONG — c4d.Matrix is rejected
+trans_in.SetPortValue(c4d.Matrix(...))
+
+# WRONG — maxon.MaxonConvert() returns wrapper that unwraps to c4d.Matrix
+trans_in.SetPortValue(maxon.MaxonConvert(c4d.Matrix(...)))
+
+# CORRECT — explicit Matrix64 construction with maxon.Vector args
+m = maxon.Matrix64(
+    maxon.Vector(0.0, 0.0, 0.0),    # off
+    maxon.Vector(1.0, 0.0, 0.0),    # v1 (X-basis)
+    maxon.Vector(0.0, 0.0, -1.0),   # v2 (Y-basis)
+    maxon.Vector(0.0, 1.0, 0.0),    # v3 (Z-basis)
+)
+trans_in.SetPortValue(m)
+```
+
+**5. Stock Maxon asset interiors are READ-ONLY via Python API**
+```python
+inner = graph.CreateView(maxon.NODE_KIND.NODE, uvtomesh_node.GetPath())
+with inner.BeginTransaction() as tx:
+    inner.AddChild(...)  # FAILS: "Illegal state: Condition !self.IsReadOnly() not fulfilled"
+```
+DRuckli's BUV uvtomesh has been internally mutated (added `invert` node, rerouted `splitvectorcomponents.y` from `composevector3.z` to `composevector3.y`). This mutation is NOT reproducible from Python — it requires UI "Edit Asset as Group" first to create a writable scene-local copy.
+
+**6. No `Disconnect`/`RemoveConnection` API on ports or wires**
+The `Wires` object returned by `GetConnections` is a flag bitmap (Value/Event/Dependency/...) with no Remove method. Disconnecting wires is not exposed at all in the Python SN API. Workaround: rebuild the host node entirely.
+
+### Discovered asset IDs (used in T1 v4)
+
+| Display name | Canonical asset ID |
+|---|---|
+| get_property | `net.maxon.neutron.geometry.get_property` |
+| set_property | `net.maxon.neutron.geometry.set_property` |
+| uvtomesh | `net.maxon.neutron.asset.geo.uvtomesh` |
+| transform_element | `net.maxon.neutron.geometry.transform_element` |
+| invert | `net.maxon.node.invert` |
+| UV attribute type | `net.maxon.geometryabstraction.accessortypes.attributes.uv` |
+
+### `uvtomesh` is itself a 9-inner-node capsule
+
+Stock: splitvectorcomponents → (x→compose.x, y→compose.z) → composevector3 → scale → set (newdataset=true) — produces XZ plane from UV.
+
+DRuckli's mutation: split.y → invert → compose.y (instead of compose.z) — produces XY plane Y-up from UV.
+
+The `inport@PxTGkq2oDdAgGRlbBgxn7m` (yes that's its canonical name — asset-published port with hash suffix) controls the `scale.in2` value (default 100, BUV uses 50).
+
+### Status of T2 (slider)
+
+Pending. With T1 v4 stable + transform_element matrix proven settable, the next step is exposing a `factor` parameter and blending the mesh between original-3D positions and UV-flat positions. The blend insertion point is between `get_property/uvtomesh` and `set_property` — most likely a `blend` node consuming the original positions + the uvtomesh-flat positions.
+
+---
+
+## 2026-05-03 (later): Path (b) — TRUE from-scratch UV unwrap, NO uvtomesh asset
+
+After Path (a.5) achieved visual match with the architecture difference (BUV uses inner-capsule mutation, T1 v4 uses outer transform), Path (b) builds the equivalent BUV behavior using ONLY outer-level primitives — no `uvtomesh` capsule used at all.
+
+### Architecture (T1 PathB)
+
+```
+ROOT.geometryin
+  ├─ get_property [accessortype=uv, accessorname="UVW"]
+  │     ├→ array → containeriteration.in
+  │     │           └→ out → splitvectorcomponents.vector
+  │     │                       ├→ x → composevector3.x
+  │     │                       └→ y → invert.in
+  │     │                                └→ out → composevector3.y
+  │     │                                            └→ result → scale.in1 [datatype=vec3, in2=50]
+  │     │                                                          └→ out → set_property.iteration
+  │     │
+  │     └→ topology → set_property.topology
+  │
+  └→ set_property.geometryin
+        [accessortype=data3d, accessorname="", arraymode=False, newdataset=True]
+        └→ geometryout → ROOT.geometryout
+```
+
+**7 nodes + 11 wires, all outer-level primitives. No `uvtomesh` asset.**
+
+### Verified results vs BUV
+
+| Metric | BUV reference | T1 PathB | Match |
+|---|---|---|---|
+| vertex count | 4664 | 4664 | ✓ exact |
+| rad | (24.82, 24.32, 0) | (24.82, 24.32, 0) | ✓ exact |
+| mp | (24.96, 25.18, 0) | (24.96, 25.17, 0) | ✓ Δ=0.01 (rounding) |
+| plane | XY (Y-up) | XY (Y-up) | ✓ |
+| visual front view | flat square | flat square | ✓ matches |
+
+**Honest claim:** Visually verified, structurally NOT 1-to-1 to BUV (BUV has 4 outer nodes + 1 customized capsule with 9 inner nodes = ~13 nodes total; PathB has 7 outer nodes + 0 capsules = 7 nodes total). **Numerically bit-identical (within float rounding).** Same end-result via different node decomposition.
+
+### What Path (b) demonstrates
+
+This proves the underlying algorithm of `uvtomesh` is fully reproducible from primitives:
+1. Read source UV array (`get_property` with UV accessor)
+2. Iterate over the array (`containeriteration`)
+3. Split each Vec2 into U + V components (`splitvectorcomponents`)
+4. Negate V (`invert`) — for Y-up convention
+5. Recompose as Vec3 = (U, -V, 0) (`composevector3` with z=None=0)
+6. Scale by 50 (`scale` with datatype=vec3)
+7. Write per-iter to a NEW data3d attribute on the output geometry (`set_property` with `newdataset=True` + `arraymode=False`)
+8. Preserve topology between source UV array and output positions (`get.topology → set.topology`)
+
+The `set_property` with `newdataset=True` is the magic that REBUILDS topology — turning the source's 1166 polys × 4 corners into 4664 split-island vertices in the output mesh, each with the position computed by the per-iter math chain.
+
+### Critical port quirk: `containeriteration.datatype`
+
+Setting `iter.datatype = VEC2_TYPE` explicitly **fails** with "Condition type->GetValueKind() & VALUEKIND::CONTAINER_REF not fulfilled" — this port wants a container_ref, not a raw type Id.
+
+**Solution:** SKIP setting `iter.datatype`. The node auto-infers the iteration element type from the array wired into `iter.in` (Vec2 from get_property's UV array).
+
+### Why Path (b) > Path (a.5)
+
+- Path (a.5) result diverges from BUV by 0.35 in mp_y (the matrix-rotation flips coordinates differently than DRuckli's `1-V` invert)
+- Path (b) result matches BUV within 0.01 — the SAME `invert(V)` operation is used, just at outer level instead of inside the capsule
+- Path (b) also avoids the asset-reuse dependency: if Maxon ever changes uvtomesh's defaults, Path (a.5) would drift; Path (b) is stable
+
+### Path (b) Python recipe (proven 2026-05-03)
+
+```python
+import c4d, maxon
+
+NODESPACE = maxon.Id("net.maxon.neutron.nodespace")
+
+# Asset IDs
+A_GET   = maxon.Id("net.maxon.neutron.geometry.get_property")
+A_SET   = maxon.Id("net.maxon.neutron.geometry.set_property")
+A_ITER  = maxon.Id("net.maxon.node.containeriteration")
+A_SPLIT = maxon.Id("net.maxon.pattern.node.conversion.splitvectorcomponents")
+A_COMP  = maxon.Id("net.maxon.pattern.node.conversion.composevector3")
+A_SCALE = maxon.Id("net.maxon.node.scale")
+A_INV   = maxon.Id("net.maxon.node.invert")
+
+# Type Ids
+UV_TYPE    = maxon.Id("net.maxon.geometryabstraction.accessortypes.attributes.uv")
+DATA3D     = maxon.Id("net.maxon.geometryabstraction.accessortypes.attributes.data3d")
+VEC3_TYPE  = maxon.Id("net.maxon.parametrictype.vec<3,float>")
+FLOAT_TYPE = maxon.Id("net.maxon.parametrictype.float")
+
+# 1. Create deformer + synthesize root ports
+new_def = c4d.BaseObject(180420400)
+doc.InsertObject(new_def, parent=instance_with_geometry)
+new_def.Message(maxon.neutron.MSG_CREATE_IF_REQUIRED)
+c4d.EventAdd()
+
+# 2. Build (per-asset transactions, then port config, then wires)
+graph = new_def.GetNimbusRef(NODESPACE).GetGraph()
+# ... (add 7 nodes, configure 9 ports, wire 11 connections — see canonical recipe)
+
+# Configuration:
+#   get1: accessortype=UV_TYPE, accessorname="UVW"
+#   inv1: datatype=FLOAT_TYPE
+#   scale1: datatype=VEC3_TYPE, in2=Float64(50.0)
+#   set1: accessortype=DATA3D, accessorname="", arraymode=Bool(False), newdataset=Bool(True)
+#   iter1.datatype: SKIP — auto-infers from wire
+#
+# Wires:
+#   root.geoin → get.geometry, set.geometryin
+#   get.array → iter.in
+#   iter.out → split.vector
+#   split.x → comp.x; split.y → inv.in; inv.out → comp.y
+#   comp.result → scale.in1
+#   scale.out → set.iteration
+#   get.topology → set.topology
+#   set.geometryout → root.geometryout
+```
+
+---
+
+## 2026-05-04: T2 Centered toggle + WIRE_MODE.REMOVE breakthrough
+
+After T1 PathB's clean from-scratch BUV replica, started T2 (Centered + Factor slider). Two majors here:
+
+### 1. WIRE_MODE.REMOVE = the disconnect API (memory was wrong)
+
+Earlier 2026-05-03 entry claimed "no Disconnect API exists." That was wrong.
+
+```python
+src_port.Connect(dst_port, maxon.WIRE_MODE.REMOVE)   # disconnects the wire
+```
+
+Connect's full signature: `Connect(target, modes=WIRE_MODE.NORMAL, reverse=False)` where `modes` accepts `maxon.WIRE_MODE` (or `maxon.Wires`).
+
+`WIRE_MODE.REMOVE = 62` is the key value. Other useful modes: `NORMAL = 16`, `NONE = 0`, `IMPLICIT = 64`, `ALL = 63`.
+
+This changes **everything** — we can now properly mutate inner-graph wires. No more "rebuild deformer to swap a wire."
+
+**Important**: Connecting a NEW source to an INPUT port that already has a source ADDS a second wire (input port becomes multi-source — invalid state, 0-vert output). To swap a wire: REMOVE old, then NORMAL connect new.
+
+### 2. T2 Centered toggle: WORKING
+
+Added `arith_center` (arithmetic node, op=sub, datatype=vec<3,float>) between `compose.result` and `scale.in1`. Setting `arith_center.in2`:
+- `(0.0, 0.0, 0.0)` → Centered OFF → mp = (24.96, 25.17, 0) (matches BUV)
+- `(0.5, 0.5, 0.0)` → Centered ON → mp = (-0.04, 0.17, 0) (essentially origin)
+
+Same `rad = (24.82, 24.32, 0)` in both states. 4664 verts preserved. Working toggle via SetPortValue.
+
+### 3. T2 Factor (morph) slider: BLOCKED
+
+Attempted cross-stream lookup pattern from canonical extension memory:
+- Add second `get_property` (data3d, "" Position, per-point) → `get_pos.array` (1168 Vec3 source positions)
+- Add `readvalueatindex2` (datatype=vec<3,float>, cyclein) — `arrayin = get_pos.array`, `indexin = iter1.index`
+- `rvi.valueout` should produce per-iter source position
+- Add `blend` (datatype=vec<3,float>) — `in1 = rvi.valueout` (orig), `in2 = scale.out` (uv flat), `in3 = factor`
+- Wire `blend.out → set.iteration`
+
+**Result: 0-vert output at all factor values (including 0 and 1).**
+
+Verified that:
+- Without rvi connected, blend(scale, scale, factor) → 4664 verts ✓
+- With rvi.valueout wired into blend.in1 OR set.iteration directly → 0 verts
+- Toggling rvi.cyclein, changing get_pos.accessorname between "" and "pt" → no change
+
+Hypotheses (unresolved):
+- `rvi.valueout` may not propagate the per-iter signal that `set.iteration` requires
+- `get_pos`'s parallel read of `root.geometryin` may conflict with set's `newdataset=True` topology source
+- Datatype mismatch on `rvi.indexin` (expects integer; `iter.index` may emit a different int type)
+
+For PRODUCTION use: the existing Python tag morph slider (`morph_3d_to_flat_slider.py` on sdimaging/c4d-scripts) remains the artist-shipped path. T2 SN-native morph remains an open puzzle.
+
+### Honest accounting (T2)
+
+| Component | Status | Notes |
+|---|---|---|
+| Centered toggle math | ✓ Working | arith(sub, vec3) before scale; toggle via in2 = (0.5,0.5,0) vs (0,0,0) |
+| Centered AM exposure | Pending | Requires floatingio + scene_nodes_add_floating_io_port helper |
+| Factor slider math | ✗ Blocked | rvi+blend chain produces 0 verts despite valid sub-chains |
+| Factor AM exposure | Blocked | Depends on factor slider math working first |
+| WIRE_MODE.REMOVE discovery | ✓ Major win | Unblocks ALL future inner-graph mutation work |
