@@ -182,3 +182,80 @@ Cleaner Option C variants that need exploration:
 The canonical write contract (proven) is the unlocking primitive. Per-vertex source supply is a separate puzzle with multiple valid solutions; pick the one that fits the workflow.
 
 For this session: **canonical pattern + spine reuse SHIPPED**. Per-vertex UV-coord SOURCE is the next concrete step, but the deformer architecture is no longer the blocker.
+
+## ITER 25 — PURE-SN UV-COORD MORPH SHIPPED via 3-vertex-map approach
+
+GPT picked Option C variant: **3 Vertex Maps storing target XYZ**, read in SN via `accessortype=weight`, composed into Vec3, blended with orig pos.
+
+### The pattern (extends canonical spine)
+
+```
+SPINE (locked):
+  get_pos(data3d, "")
+    → containeriteration
+      → blend(orig_per_iter, target_per_iter, factor)
+        → set(data3d, "", arraymode=False).iteration
+
+PER-VERTEX TARGET COMPOSITION (the new organ):
+  get_x(weight, "uv_target_x") ─┐
+  get_y(weight, "uv_target_y") ─┼─ readvalueatindex2(arr, iter.index) → composevector3 → blend.in2
+  get_z(weight, "uv_target_z") ─┘
+```
+
+The **single-iter + readvalueatindex2** pattern bridges domains: iter_pos drives the iteration, rvi looks up the per-vertex weight at that index. Two parallel iters DO NOT auto-align — single iter + rvi is the right pattern for cross-stream lookup.
+
+### Preprocessing step (one-time, hybrid)
+
+```python
+# Compute averaged UV per source vertex
+uvw_sum = [c4d.Vector(0,0,0) for _ in range(n)]
+uvw_cnt = [0] * n
+for poly_idx in range(src.GetPolygonCount()):
+    poly = src.GetPolygon(poly_idx)
+    uv = uvtag.GetSlow(poly_idx)
+    for ci, vidx in enumerate([poly.a, poly.b, poly.c, poly.d]):
+        uvw_sum[vidx] += [uv["a"], uv["b"], uv["c"], uv["d"]][ci]
+        uvw_cnt[vidx] += 1
+
+SCALE = 50.0
+target_x = []; target_y = []; target_z = []
+for i in range(n):
+    a = uvw_sum[i] / uvw_cnt[i] if uvw_cnt[i] > 0 else c4d.Vector(0,0,0)
+    target_x.append((a.x - 0.5) * SCALE)
+    target_y.append(0.0)
+    target_z.append(-(a.y - 0.5) * SCALE)
+
+# Bake as 3 Vertex Maps via SetAllHighlevelData
+for name, data in [("uv_target_x", target_x), ("uv_target_y", target_y), ("uv_target_z", target_z)]:
+    vm = c4d.VariableTag(c4d.Tvertexmap, n)
+    vm.SetName(name)
+    vm.SetAllHighlevelData(data)
+    mesh.InsertTag(vm)
+```
+
+**Vertex maps store RAW Float values** (not clamped 0-1). Verified roundtrip: target_x[0]=17.675 → vmap.GetAllHighlevelData()[0]=17.675.
+
+### Verified result on Generic Head Bust
+
+```
+f=0.00 → rad (17.4, 21.2, 12.5)  mp (0,    21.22, -1.9)  ← orig 3D head
+f=0.25 → rad (14.6, 15.9, 10.9)  mp (-.01, 15.91,  .01)
+f=0.50 → rad (14.4, 10.6, 14.2)  mp (-.02, 10.61, -.58)  ← halfway morph
+f=0.75 → rad (17.2,  5.3, 18.6)  mp (-.03,  5.31, -.32)
+f=1.00 → rad (21.9,  0.0, 23.8)  mp (-.04,  0.00,  .70)  ← FULL UV LAYOUT (Y=0 plane)
+```
+
+Topology preserved (1168 verts throughout). Linear factor sweep. Pure Scene Nodes deformer (after one-time Python preprocessing for vmap baking).
+
+### Files
+
+- `PURE_SN_UV_MORPH_3VMAP.c4d` — working scene with 3-vmap UV morph
+- `PURE_SN_3vmap_factor_1.png` — viewport at f=1 (head fully flattened to UV layout)
+- This doc — canonical pattern + 3vmap extension
+
+### Why this is the right shipped form
+
+- **Pure SN at runtime**: deformer is 100% Scene Nodes, no Python tag eval per frame
+- **Reusable preprocessing pattern**: any per-vertex Vec3 source can be packed into 3 vmaps + read same way
+- **Vertex maps are first-class C4D data**: render-safe, scene-saved, editable in C4D's vmap tools
+- **Same canonical spine**: the `get → iter → math → set` contract is reused identically
