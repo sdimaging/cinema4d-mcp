@@ -1,0 +1,1414 @@
+{
+  "name": "HISTORY_STATE_relax_spline_memory_v1",
+  "version": 1,
+  "captured_from": "Relax-Spline_01_Tutorial.c4d / doc-level SN graph / memory@WUtnkL0zF92mHEKQPG0OQK",
+  "captured_at": "2026-05-04",
+  "c4d_version": "2026.2.0",
+  "nodes": [
+    {
+      "instance_id": "compare@HdEkKKbuM1FjCLQfXew4Uu",
+      "basename": "compare",
+      "instance_hash": "HdEkKKbuM1FjCLQfXew4Uu",
+      "inputs": [
+        {
+          "port": "operation",
+          "value": "lt",
+          "sources": []
+        },
+        {
+          "port": "datatype",
+          "value": "float",
+          "sources": []
+        },
+        {
+          "port": "in2",
+          "value": "5",
+          "sources": [
+            {
+              "src_basename": "memory",
+              "src_hash": "WUtnkL0zF92mHEKQPG0OQK",
+              "src_port": "in@f7Z3Gg9CAx0qNKmkVrlByP"
+            }
+          ]
+        },
+        {
+          "port": "in1",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "distance",
+              "src_hash": "WpBtMglYCltm52ArPeNd1D",
+              "src_port": "out"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "instance_id": "erase@CSsVQYm6EBPhfA9ZPa$ZtJ",
+      "basename": "erase",
+      "instance_hash": "CSsVQYm6EBPhfA9ZPa$ZtJ",
+      "inputs": [
+        {
+          "port": "datatype",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "arrayin",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "append",
+              "src_hash": "SBXSnepBCVKt5FD4jlLIXO",
+              "src_port": "arrayout"
+            }
+          ]
+        },
+        {
+          "port": "countin",
+          "value": "1",
+          "sources": [
+            {
+              "src_basename": "compare",
+              "src_hash": "HdEkKKbuM1FjCLQfXew4Uu",
+              "src_port": "out"
+            }
+          ]
+        },
+        {
+          "port": "indexin",
+          "value": "0",
+          "sources": [
+            {
+              "src_basename": "containeriteration",
+              "src_hash": "ZUeC2ziwEF_toZK9B9qdQL",
+              "src_port": "index"
+            }
+          ]
+        },
+        {
+          "port": "maintainorderin",
+          "value": "true",
+          "sources": []
+        },
+        {
+          "port": "innerdomain",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "outerdomain",
+          "value": "None",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "instance_id": "erase@Ej65BeH3G9Ti$_bLNNZLnJ",
+      "basename": "erase",
+      "instance_hash": "Ej65BeH3G9Ti$_bLNNZLnJ",
+      "inputs": [
+        {
+          "port": "datatype",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "arrayin",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "container",
+              "src_hash": "QQ556IL2ChKj8$yustky_I",
+              "src_port": "out"
+            }
+          ]
+        },
+        {
+          "port": "countin",
+          "value": "1",
+          "sources": [
+            {
+              "src_basename": "compare",
+              "src_hash": "HdEkKKbuM1FjCLQfXew4Uu",
+              "src_port": "out"
+            }
+          ]
+        },
+        {
+          "port": "indexin",
+          "value": "0",
+          "sources": [
+            {
+              "src_basename": "containeriteration",
+              "src_hash": "ZUeC2ziwEF_toZK9B9qdQL",
+              "src_port": "index"
+            }
+          ]
+        },
+        {
+          "port": "maintainorderin",
+          "value": "true",
+          "sources": []
+        },
+        {
+          "port": "innerdomain",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "outerdomain",
+          "value": "None",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "instance_id": "pushapart@Zk5zarCrNJrj3c34$QgZqP",
+      "basename": "pushapart",
+      "instance_hash": "Zk5zarCrNJrj3c34$QgZqP",
+      "inputs": [
+        {
+          "port": "pointsin",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "erase",
+              "src_hash": "Ej65BeH3G9Ti$_bLNNZLnJ",
+              "src_port": "arrayout"
+            }
+          ]
+        },
+        {
+          "port": "minseparationin",
+          "value": "26",
+          "sources": [
+            {
+              "src_basename": "memory",
+              "src_hash": "WUtnkL0zF92mHEKQPG0OQK",
+              "src_port": "in@PZCNe_CdIZik8QPd45CpgN"
+            }
+          ]
+        },
+        {
+          "port": "strengthin",
+          "value": "1",
+          "sources": []
+        },
+        {
+          "port": "maxiterations",
+          "value": "30",
+          "sources": [
+            {
+              "src_basename": "memory",
+              "src_hash": "WUtnkL0zF92mHEKQPG0OQK",
+              "src_port": "in@N2BxabrJHlenAfqs10CPKM"
+            }
+          ]
+        },
+        {
+          "port": "jigglein",
+          "value": "false",
+          "sources": []
+        },
+        {
+          "port": "axisenablexin",
+          "value": "true",
+          "sources": []
+        },
+        {
+          "port": "axisenableyin",
+          "value": "true",
+          "sources": []
+        },
+        {
+          "port": "axisenablezin",
+          "value": "true",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "instance_id": "containeriteration@Y7y1NgH2G1En_Zz9FnmRtM",
+      "basename": "containeriteration",
+      "instance_hash": "Y7y1NgH2G1En_Zz9FnmRtM",
+      "inputs": [
+        {
+          "port": "domain",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "in",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "pushapart",
+              "src_hash": "Zk5zarCrNJrj3c34$QgZqP",
+              "src_port": "pointsout"
+            }
+          ]
+        },
+        {
+          "port": "datatype",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "independent",
+          "value": "None",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "instance_id": "erase@QmVyTJKfFtYhgpATgLZGbO",
+      "basename": "erase",
+      "instance_hash": "QmVyTJKfFtYhgpATgLZGbO",
+      "inputs": [
+        {
+          "port": "datatype",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "arrayin",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "container",
+              "src_hash": "QQ556IL2ChKj8$yustky_I",
+              "src_port": "out"
+            }
+          ]
+        },
+        {
+          "port": "countin",
+          "value": "1",
+          "sources": [
+            {
+              "src_basename": "compare",
+              "src_hash": "e58fn9RHNlVrQuqs2gpz$s",
+              "src_port": "out"
+            }
+          ]
+        },
+        {
+          "port": "indexin",
+          "value": "0",
+          "sources": [
+            {
+              "src_basename": "containeriteration",
+              "src_hash": "ZUeC2ziwEF_toZK9B9qdQL",
+              "src_port": "index"
+            }
+          ]
+        },
+        {
+          "port": "maintainorderin",
+          "value": "true",
+          "sources": []
+        },
+        {
+          "port": "innerdomain",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "outerdomain",
+          "value": "None",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "instance_id": "length@NX2EBm1IKRUuQZoHhbF9wI",
+      "basename": "length",
+      "instance_hash": "NX2EBm1IKRUuQZoHhbF9wI",
+      "inputs": [
+        {
+          "port": "segment",
+          "value": "0",
+          "sources": []
+        },
+        {
+          "port": "geometryin",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "memory",
+              "src_hash": "WUtnkL0zF92mHEKQPG0OQK",
+              "src_port": "current._0"
+            }
+          ]
+        },
+        {
+          "port": "allsegmentsin",
+          "value": "false",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "instance_id": "concat@VhsuPNu7G9wng$ZYs6mbaL",
+      "basename": "concat",
+      "instance_hash": "VhsuPNu7G9wng$ZYs6mbaL",
+      "inputs": [
+        {
+          "port": "in",
+          "value": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=1)",
+          "sources": []
+        },
+        {
+          "port": "datatype",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "arraybasein",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "container",
+              "src_hash": "EOLMrvLoMRaspBht3OMFLM",
+              "src_port": "out"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "instance_id": "arithmetic@DWk_Cp2bLhaowqkEByFsnN",
+      "basename": "arithmetic",
+      "instance_hash": "DWk_Cp2bLhaowqkEByFsnN",
+      "inputs": [
+        {
+          "port": "operation",
+          "value": "div",
+          "sources": []
+        },
+        {
+          "port": "datatype",
+          "value": "int",
+          "sources": []
+        },
+        {
+          "port": "in2",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "memory",
+              "src_hash": "WUtnkL0zF92mHEKQPG0OQK",
+              "src_port": "in@f7Z3Gg9CAx0qNKmkVrlByP"
+            }
+          ]
+        },
+        {
+          "port": "in1",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "length",
+              "src_hash": "NX2EBm1IKRUuQZoHhbF9wI",
+              "src_port": "outlength"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "instance_id": "assembler@dYVLHI0gDt_i_OKCI3_tiK",
+      "basename": "assembler",
+      "instance_hash": "dYVLHI0gDt_i_OKCI3_tiK",
+      "inputs": [
+        {
+          "port": "splinetypein",
+          "value": "net.maxon.registry.geometryabstraction.curve.types.bezier",
+          "sources": []
+        },
+        {
+          "port": "segments",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "controlpointsin",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "writevalueatindex",
+              "src_hash": "E8yNPQpkDdZvBARz$FNlWN",
+              "src_port": "arrayout"
+            }
+          ]
+        },
+        {
+          "port": "curveclosedin",
+          "value": "false",
+          "sources": []
+        },
+        {
+          "port": "tangentsin",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "cornersin",
+          "value": "None",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "instance_id": "containeriteration@ZUeC2ziwEF_toZK9B9qdQL",
+      "basename": "containeriteration",
+      "instance_hash": "ZUeC2ziwEF_toZK9B9qdQL",
+      "inputs": [
+        {
+          "port": "domain",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "in",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "container",
+              "src_hash": "QQ556IL2ChKj8$yustky_I",
+              "src_port": "out"
+            }
+          ]
+        },
+        {
+          "port": "datatype",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "independent",
+          "value": "None",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "instance_id": "closestpointonsurface@Xf2B107tJtRhCN4oVkVWEC",
+      "basename": "closestpointonsurface",
+      "instance_hash": "Xf2B107tJtRhCN4oVkVWEC",
+      "inputs": [
+        {
+          "port": "object",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "position",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "containeriteration",
+              "src_hash": "ZUeC2ziwEF_toZK9B9qdQL",
+              "src_port": "out"
+            }
+          ]
+        },
+        {
+          "port": "maxdistance",
+          "value": "9999",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "instance_id": "distance@WpBtMglYCltm52ArPeNd1D",
+      "basename": "distance",
+      "instance_hash": "WpBtMglYCltm52ArPeNd1D",
+      "inputs": [
+        {
+          "port": "operation",
+          "value": "distance",
+          "sources": []
+        },
+        {
+          "port": "datatype",
+          "value": "net.maxon.parametrictype.vec<3,float>",
+          "sources": []
+        },
+        {
+          "port": "in2",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "closestpointonsurface",
+              "src_hash": "Xf2B107tJtRhCN4oVkVWEC",
+              "src_port": "closestpoint"
+            }
+          ]
+        },
+        {
+          "port": "in1",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "containeriteration",
+              "src_hash": "ZUeC2ziwEF_toZK9B9qdQL",
+              "src_port": "out"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "instance_id": "append@SBXSnepBCVKt5FD4jlLIXO",
+      "basename": "append",
+      "instance_hash": "SBXSnepBCVKt5FD4jlLIXO",
+      "inputs": [
+        {
+          "port": "datatype",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "arrayin",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "buildfromvalue",
+              "src_hash": "NtIN3ew9BFItRG87RxXthO",
+              "src_port": "arrayout"
+            }
+          ]
+        },
+        {
+          "port": "_0",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "containeriteration",
+              "src_hash": "ZUeC2ziwEF_toZK9B9qdQL",
+              "src_port": "index"
+            }
+          ]
+        },
+        {
+          "port": "countin",
+          "value": "1",
+          "sources": []
+        },
+        {
+          "port": "innerdomain",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "outerdomain",
+          "value": "None",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "instance_id": "erase@Q_7jg7uvChEsEhv5vxqmZO",
+      "basename": "erase",
+      "instance_hash": "Q_7jg7uvChEsEhv5vxqmZO",
+      "inputs": [
+        {
+          "port": "datatype",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "arrayin",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "append",
+              "src_hash": "SBXSnepBCVKt5FD4jlLIXO",
+              "src_port": "arrayout"
+            }
+          ]
+        },
+        {
+          "port": "countin",
+          "value": "1",
+          "sources": [
+            {
+              "src_basename": "compare",
+              "src_hash": "e58fn9RHNlVrQuqs2gpz$s",
+              "src_port": "out"
+            }
+          ]
+        },
+        {
+          "port": "indexin",
+          "value": "0",
+          "sources": [
+            {
+              "src_basename": "containeriteration",
+              "src_hash": "ZUeC2ziwEF_toZK9B9qdQL",
+              "src_port": "index"
+            }
+          ]
+        },
+        {
+          "port": "maintainorderin",
+          "value": "true",
+          "sources": []
+        },
+        {
+          "port": "innerdomain",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "outerdomain",
+          "value": "None",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "instance_id": "readvalueatindex@Ptgg$Co$Dh9uGsm_NMMJBL",
+      "basename": "readvalueatindex",
+      "instance_hash": "Ptgg$Co$Dh9uGsm_NMMJBL",
+      "inputs": [
+        {
+          "port": "datatype",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "arrayin",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "concat",
+              "src_hash": "VhsuPNu7G9wng$ZYs6mbaL",
+              "src_port": "arrayout"
+            }
+          ]
+        },
+        {
+          "port": "indexin",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "containeriteration",
+              "src_hash": "ZUeC2ziwEF_toZK9B9qdQL",
+              "src_port": "index"
+            }
+          ]
+        },
+        {
+          "port": "cyclein",
+          "value": "true",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "instance_id": "readvalueatindex@RPAZJgQRD5kmrGTYZxqSvM",
+      "basename": "readvalueatindex",
+      "instance_hash": "RPAZJgQRD5kmrGTYZxqSvM",
+      "inputs": [
+        {
+          "port": "datatype",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "arrayin",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "concat",
+              "src_hash": "M0gnEV7rL9hrXS602h5toN",
+              "src_port": "arrayout"
+            }
+          ]
+        },
+        {
+          "port": "indexin",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "containeriteration",
+              "src_hash": "ZUeC2ziwEF_toZK9B9qdQL",
+              "src_port": "index"
+            }
+          ]
+        },
+        {
+          "port": "cyclein",
+          "value": "true",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "instance_id": "buildfromsinglevalue@Csz6zcuhDlqn3DeTayYe$M",
+      "basename": "buildfromsinglevalue",
+      "instance_hash": "Csz6zcuhDlqn3DeTayYe$M",
+      "inputs": [
+        {
+          "port": "explicitdatatypein",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "fillvaluein",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "arraylengthin",
+          "value": "100",
+          "sources": [
+            {
+              "src_basename": "containeriteration",
+              "src_hash": "ZUeC2ziwEF_toZK9B9qdQL",
+              "src_port": "count"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "instance_id": "compare@e58fn9RHNlVrQuqs2gpz$s",
+      "basename": "compare",
+      "instance_hash": "e58fn9RHNlVrQuqs2gpz$s",
+      "inputs": [
+        {
+          "port": "operation",
+          "value": "gt",
+          "sources": []
+        },
+        {
+          "port": "datatype",
+          "value": "float",
+          "sources": []
+        },
+        {
+          "port": "in2",
+          "value": "5",
+          "sources": [
+            {
+              "src_basename": "memory",
+              "src_hash": "WUtnkL0zF92mHEKQPG0OQK",
+              "src_port": "in@f7Z3Gg9CAx0qNKmkVrlByP"
+            }
+          ]
+        },
+        {
+          "port": "in1",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "distance",
+              "src_hash": "WpBtMglYCltm52ArPeNd1D",
+              "src_port": "out"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "instance_id": "writevalueatindex@XNq1jNsPPRdo1aaGZiR3HN",
+      "basename": "writevalueatindex",
+      "instance_hash": "XNq1jNsPPRdo1aaGZiR3HN",
+      "inputs": [
+        {
+          "port": "datatype",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "arrayin",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "buildfromsinglevalue",
+              "src_hash": "Csz6zcuhDlqn3DeTayYe$M",
+              "src_port": "arrayout"
+            }
+          ]
+        },
+        {
+          "port": "_0",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "readvalueatindex",
+              "src_hash": "Ptgg$Co$Dh9uGsm_NMMJBL",
+              "src_port": "_0"
+            }
+          ]
+        },
+        {
+          "port": "indexin",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "readvalueatindex",
+              "src_hash": "RPAZJgQRD5kmrGTYZxqSvM",
+              "src_port": "_0"
+            }
+          ]
+        },
+        {
+          "port": "innerdomain",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "outerdomain",
+          "value": "None",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "instance_id": "buildfromvalue@Caz2yz08F1mqv3omlSrO7M",
+      "basename": "buildfromvalue",
+      "instance_hash": "Caz2yz08F1mqv3omlSrO7M",
+      "inputs": [
+        {
+          "port": "in",
+          "value": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=0)",
+          "sources": []
+        },
+        {
+          "port": "datatypein",
+          "value": "net.maxon.parametrictype.vec<3,float>",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "instance_id": "typeof@a41XxUiuKJ7kSRU5pDXPJP",
+      "basename": "typeof",
+      "instance_hash": "a41XxUiuKJ7kSRU5pDXPJP",
+      "inputs": [
+        {
+          "port": "in",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "buildfromvalue",
+              "src_hash": "Caz2yz08F1mqv3omlSrO7M",
+              "src_port": "arrayout"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "instance_id": "concat@M0gnEV7rL9hrXS602h5toN",
+      "basename": "concat",
+      "instance_hash": "M0gnEV7rL9hrXS602h5toN",
+      "inputs": [
+        {
+          "port": "in",
+          "value": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=1)",
+          "sources": []
+        },
+        {
+          "port": "datatype",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "arraybasein",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "erase",
+              "src_hash": "CSsVQYm6EBPhfA9ZPa$ZtJ",
+              "src_port": "arrayout"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "instance_id": "writevalueatindex@E8yNPQpkDdZvBARz$FNlWN",
+      "basename": "writevalueatindex",
+      "instance_hash": "E8yNPQpkDdZvBARz$FNlWN",
+      "inputs": [
+        {
+          "port": "datatype",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "arrayin",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "writevalueatindex",
+              "src_hash": "XNq1jNsPPRdo1aaGZiR3HN",
+              "src_port": "arrayout"
+            }
+          ]
+        },
+        {
+          "port": "_0",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "closestpointonsurface",
+              "src_hash": "NpAX5q$0GBIikh9mryrglO",
+              "src_port": "closestpoint"
+            }
+          ]
+        },
+        {
+          "port": "indexin",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "containeriteration",
+              "src_hash": "S4CzIvLaHJEqxEG5ykHT3I",
+              "src_port": "index"
+            }
+          ]
+        },
+        {
+          "port": "innerdomain",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "outerdomain",
+          "value": "None",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "instance_id": "closestpointonsurface@NpAX5q$0GBIikh9mryrglO",
+      "basename": "closestpointonsurface",
+      "instance_hash": "NpAX5q$0GBIikh9mryrglO",
+      "inputs": [
+        {
+          "port": "object",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "legacyobjectaccess",
+              "src_hash": "ZcL8lEnGBdnvG_GjT233sN",
+              "src_port": "net.maxon.neutron.op.output"
+            }
+          ]
+        },
+        {
+          "port": "position",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "containeriteration",
+              "src_hash": "S4CzIvLaHJEqxEG5ykHT3I",
+              "src_port": "out"
+            }
+          ]
+        },
+        {
+          "port": "maxdistance",
+          "value": "11",
+          "sources": [
+            {
+              "src_basename": "memory",
+              "src_hash": "WUtnkL0zF92mHEKQPG0OQK",
+              "src_port": "in@PZCNe_CdIZik8QPd45CpgN"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "instance_id": "container@QQ556IL2ChKj8$yustky_I",
+      "basename": "container",
+      "instance_hash": "QQ556IL2ChKj8$yustky_I",
+      "inputs": [
+        {
+          "port": "in",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "evaluate",
+              "src_hash": "A2ID4mKcNxHsBwfyjKv5OI",
+              "src_port": "outpoint"
+            }
+          ]
+        },
+        {
+          "port": "datatype",
+          "value": "float64[]C",
+          "sources": [
+            {
+              "src_basename": "typeof",
+              "src_hash": "a41XxUiuKJ7kSRU5pDXPJP",
+              "src_port": "out"
+            }
+          ]
+        },
+        {
+          "port": "innerdomain",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "outerdomain",
+          "value": "None",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "instance_id": "arithmetic@C0E9cgt3Pxks0ExeOaNu3L",
+      "basename": "arithmetic",
+      "instance_hash": "C0E9cgt3Pxks0ExeOaNu3L",
+      "inputs": [
+        {
+          "port": "operation",
+          "value": "sub",
+          "sources": []
+        },
+        {
+          "port": "datatype",
+          "value": "float",
+          "sources": []
+        },
+        {
+          "port": "in2",
+          "value": "1",
+          "sources": []
+        },
+        {
+          "port": "in1",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "arithmetic",
+              "src_hash": "DWk_Cp2bLhaowqkEByFsnN",
+              "src_port": "out"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "instance_id": "range@f8ZBMd3TOtovodkfxeZZXL",
+      "basename": "range",
+      "instance_hash": "f8ZBMd3TOtovodkfxeZZXL",
+      "inputs": [
+        {
+          "port": "end",
+          "value": "10",
+          "sources": [
+            {
+              "src_basename": "arithmetic",
+              "src_hash": "DWk_Cp2bLhaowqkEByFsnN",
+              "src_port": "out"
+            }
+          ]
+        },
+        {
+          "port": "domain",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "start",
+          "value": "None",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "instance_id": "decomposematrix@R7RKp$FoLV$hFcKe5QkpRP",
+      "basename": "decomposematrix",
+      "instance_hash": "R7RKp$FoLV$hFcKe5QkpRP",
+      "inputs": [
+        {
+          "port": "matrix",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "containeriteration",
+              "src_hash": "Y7y1NgH2G1En_Zz9FnmRtM",
+              "src_port": "out"
+            }
+          ]
+        },
+        {
+          "port": "rotationorder",
+          "value": "yxzlocal",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "instance_id": "container@EOLMrvLoMRaspBht3OMFLM",
+      "basename": "container",
+      "instance_hash": "EOLMrvLoMRaspBht3OMFLM",
+      "inputs": [
+        {
+          "port": "in",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "decomposematrix",
+              "src_hash": "R7RKp$FoLV$hFcKe5QkpRP",
+              "src_port": "translation"
+            }
+          ]
+        },
+        {
+          "port": "datatype",
+          "value": "net.maxon.parametrictype.vec<3,float64>[]C",
+          "sources": []
+        },
+        {
+          "port": "innerdomain",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "outerdomain",
+          "value": "None",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "instance_id": "evaluate@A2ID4mKcNxHsBwfyjKv5OI",
+      "basename": "evaluate",
+      "instance_hash": "A2ID4mKcNxHsBwfyjKv5OI",
+      "inputs": [
+        {
+          "port": "segment",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "uniform",
+          "value": "true",
+          "sources": []
+        },
+        {
+          "port": "geometryin",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "memory",
+              "src_hash": "WUtnkL0zF92mHEKQPG0OQK",
+              "src_port": "current._0"
+            }
+          ]
+        },
+        {
+          "port": "evaluationparam",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "arithmetic",
+              "src_hash": "Ebcl07j0P5Qn8KaO_9_eqK",
+              "src_port": "out"
+            }
+          ]
+        },
+        {
+          "port": "allsegments",
+          "value": "None",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "instance_id": "arithmetic@Ebcl07j0P5Qn8KaO_9_eqK",
+      "basename": "arithmetic",
+      "instance_hash": "Ebcl07j0P5Qn8KaO_9_eqK",
+      "inputs": [
+        {
+          "port": "operation",
+          "value": "div",
+          "sources": []
+        },
+        {
+          "port": "datatype",
+          "value": "float",
+          "sources": []
+        },
+        {
+          "port": "in2",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "arithmetic",
+              "src_hash": "C0E9cgt3Pxks0ExeOaNu3L",
+              "src_port": "out"
+            }
+          ]
+        },
+        {
+          "port": "in1",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "range",
+              "src_hash": "f8ZBMd3TOtovodkfxeZZXL",
+              "src_port": "out"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "instance_id": "legacyobjectaccess@ZcL8lEnGBdnvG_GjT233sN",
+      "basename": "legacyobjectaccess",
+      "instance_hash": "ZcL8lEnGBdnvG_GjT233sN",
+      "inputs": [
+        {
+          "port": "timedependent",
+          "value": "true",
+          "sources": []
+        },
+        {
+          "port": "baselistlink",
+          "value": "2CF05D04-2262-1A05-E3E4-BA3300000000",
+          "sources": []
+        },
+        {
+          "port": "matrixmode",
+          "value": "0",
+          "sources": []
+        },
+        {
+          "port": "net.maxon.neutron.op.objectbase.matrix",
+          "value": "((0,0,0),((1,0,0),(0,1,0),(0,0,1)))",
+          "sources": []
+        },
+        {
+          "port": "net.maxon.neutron.op.objectbase.children",
+          "value": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=0)",
+          "sources": []
+        },
+        {
+          "port": "net.maxon.node.bypassable.bypass",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "net.maxon.neutron.op.input",
+          "value": "None",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "instance_id": "containeriteration@S4CzIvLaHJEqxEG5ykHT3I",
+      "basename": "containeriteration",
+      "instance_hash": "S4CzIvLaHJEqxEG5ykHT3I",
+      "inputs": [
+        {
+          "port": "domain",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "in",
+          "value": "None",
+          "sources": [
+            {
+              "src_basename": "writevalueatindex",
+              "src_hash": "XNq1jNsPPRdo1aaGZiR3HN",
+              "src_port": "arrayout"
+            }
+          ]
+        },
+        {
+          "port": "datatype",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "independent",
+          "value": "None",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "instance_id": "legacyobjectaccess@deXihN6HORTkBqbNpk8I7H",
+      "basename": "legacyobjectaccess",
+      "instance_hash": "deXihN6HORTkBqbNpk8I7H",
+      "inputs": [
+        {
+          "port": "timedependent",
+          "value": "true",
+          "sources": []
+        },
+        {
+          "port": "baselistlink",
+          "value": "58FA7DAD-9D35-45E1-A317-A1573D24D0A8",
+          "sources": []
+        },
+        {
+          "port": "matrixmode",
+          "value": "0",
+          "sources": []
+        },
+        {
+          "port": "net.maxon.neutron.op.objectbase.matrix",
+          "value": "((0,0,0),((1,0,0),(0,1,0),(0,0,1)))",
+          "sources": []
+        },
+        {
+          "port": "net.maxon.neutron.op.objectbase.children",
+          "value": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=0)",
+          "sources": []
+        },
+        {
+          "port": "net.maxon.node.bypassable.bypass",
+          "value": "None",
+          "sources": []
+        },
+        {
+          "port": "net.maxon.neutron.op.input",
+          "value": "None",
+          "sources": []
+        }
+      ]
+    },
+    {
+      "instance_id": "buildfromvalue@NtIN3ew9BFItRG87RxXthO",
+      "basename": "buildfromvalue",
+      "instance_hash": "NtIN3ew9BFItRG87RxXthO",
+      "inputs": [
+        {
+          "port": "in",
+          "value": "(net.maxon.datatype.id,net.maxon.interface.datadictionary-C)[], input=0)",
+          "sources": []
+        },
+        {
+          "port": "datatypein",
+          "value": "int",
+          "sources": []
+        }
+      ]
+    }
+  ],
+  "wires": [],
+  "outer_ports_used": {
+    "initial._0": "expects geometry from external legacyobjectaccess (the seed Spline)",
+    "current._0": "self-feedback wire (handled by stock memory scaffold)",
+    "in@PZCNe_CdIZik8QPd45CpgN": "Float, default 8.4 \u2014 POINT_SIZE",
+    "in@N2BxabrJHlenAfqs10CPKM": "Int, default 15 \u2014 MAX_ITERATIONS",
+    "in@f7Z3Gg9CAx0qNKmkVrlByP": "Float, default 8 \u2014 RELAX_SIZE",
+    "next._0": "outputs evolved geometry per frame",
+    "nextout._0": "external-facing output mirroring next._0"
+  }
+}
