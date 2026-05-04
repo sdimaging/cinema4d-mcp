@@ -1115,3 +1115,82 @@ If/when continuing: focus on studying a DRuckli capsule that DOES blend two cros
 - `feedback_domain_alignment_doctrine.md` (GPT-5.5 review crystallization)
 - `feedback_capsule_mutation_fragility.md` (iter 20 hard lesson)
 - `reference_sn_create_view_inner_mutation.md` (CreateView mechanism + asset IDs)
+
+---
+
+## Iteration 22 (2026-05-02) — 🎉🎉🎉 SOLVED. Pure-SN morph SHIPPED.
+
+GPT review's diagnosis was correct: we'd never proven the canonical "geometry-in → modified positions → geometry-out" write contract. We were copying uvtomesh's pattern, but uvtomesh is a topology GENERATOR, not a position MODIFIER.
+
+### The real journey
+
+1. **Walked Spline Smooth deformer** (a real position modifier on splines) — found NO `set_property` or `set` node. Spline output uses `append2 + connect_geometries + spline.tessellation`.
+2. **Walked Reaction Diffusion** (a position-modifier-style operation on mesh) — IT uses `set` with `.iteration`. AND its `set` has `accessorname = ""` (empty string), NOT "Position" or "pt".
+3. **Built minimal cube +10Y deformer** with this exact pattern → IMMEDIATELY WORKED. Cube moved up by exactly 10 units, vertex count preserved.
+4. **Extended to head morph slider** (Y-flatten) → IMMEDIATELY WORKED. Linear factor sweep verified across 5 stops.
+
+### The single-character unlock
+
+After 21 iterations of failed attempts, the missing piece was:
+
+```python
+get_port(s, "accessorname", True).SetPortValue(maxon.String(""))   # NOT "pt", NOT "Position"
+```
+
+Empty string = default attribute of the accessortype. Reaction Diffusion uses this convention. We'd been specifying "pt" or "Position" which was either silently rejected or wrote to a non-default attribute, producing 0-vertex deform_cache.
+
+### The canonical pattern (now PROVEN)
+
+```
+get(data3d, "", points)
+  → containeriteration
+    → [per-vertex math]
+      → set(data3d, "", arraymode=False).iteration
+
+root.geometryin → get.geometry
+root.geometryin → set.geometryin
+get.topology → set.topology
+set.geometryout → root.geometryout
+```
+
+### Verified results
+
+**Minimal cube test:** rad=(50,50,50), mp=(0,10,0), 98pts (was mp=(0,0,0))
+
+**Head Y-flatten morph slider, 5-stop linear sweep:**
+
+| factor | rad | mp |
+|---:|---|---|
+| 0.00 | (17.4, 21.2, 12.5) | (0, 21.22, -1.9) |
+| 0.25 | (17.4, 15.9, 12.5) | (0, 15.91, -1.9) |
+| 0.50 | (17.4, 10.6, 12.5) | (0, 10.61, -1.9) |
+| 0.75 | (17.4,  5.3, 12.5) | (0,  5.31, -1.9) |
+| 1.00 | (17.4,  0.0, 12.5) | (0,  0.00, -1.9) |
+
+Topology preserved (1168 verts throughout). Linear interpolation perfect.
+
+### Status
+
+**PURE-SN MORPH DEFORMER: SHIPPED ✓**
+
+Canonical pattern documented in `CANONICAL_SN_DEFORMER_PATTERN.md`.
+Proof files: `MIN_PURE_SN_DEFORMER.c4d`, `PURE_SN_MORPH_WORKING.c4d`.
+
+### Next (still in scope)
+
+The current proof is "head ↔ Y=0 plane" morph (uses (orig.x, 0, orig.z) as flat target). 
+
+To extend to actual **UV-coord** morph:
+- Replace `composev.y = 0` constant with per-vertex UV-derived value
+- Read per-vertex UV via second get node + averaging (UV array is 4664-poly-vertex, need 1168-source-vertex average)
+- Apply scale factor to the UV → flat position computation
+
+This is a standard extension of the proven pattern, not a new architecture. The hard part (canonical write contract) is solved.
+
+### What was actually wrong (corrected diagnosis)
+
+Iter 11/12: claimed "API limits" — WRONG. Just wrong write convention.
+Iter 16: claimed "deeper SDK study needed" — WRONG. Just hadn't found Reaction Diffusion's empty-name pattern.
+Iter 20-21: claimed "structural SDK puzzle" — WRONG. Pattern discovery + minimal test would have caught it.
+
+The lesson: when stuck, the answer is almost always "find a working example of the exact thing you're trying to do, copy its contract." Not "try wire variants."
