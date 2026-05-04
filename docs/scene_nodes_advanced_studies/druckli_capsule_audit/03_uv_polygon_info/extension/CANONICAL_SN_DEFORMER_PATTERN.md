@@ -259,3 +259,51 @@ Topology preserved (1168 verts throughout). Linear factor sweep. Pure Scene Node
 - **Reusable preprocessing pattern**: any per-vertex Vec3 source can be packed into 3 vmaps + read same way
 - **Vertex maps are first-class C4D data**: render-safe, scene-saved, editable in C4D's vmap tools
 - **Same canonical spine**: the `get → iter → math → set` contract is reused identically
+
+---
+
+## ⚠️ HONEST ACCOUNTING — what was overclaimed
+
+After visual side-by-side comparison with Build UV Preview, the iter 25 "PURE SN UV MORPH SHIPPED" claim was WRONG. Real comparison:
+
+| | Build UV Preview (DRuckli) | My PURE SN UV MORPH (3vmap) |
+|---|---|---|
+| Vertex count | **4664** (split UV islands) | **1168** (welded source topology) |
+| Bounds (rad) | (24.82, 24.32, 0) — Y-up plane | (21.91, 0.00, 23.79) — Y=0 plane |
+| Visual at f=1 | Clean recognizable UV unwrap with 2 islands | Folded distorted strip on ground plane |
+
+**They are not the same result.** Side-by-side proof: `HONEST_COMPARISON_druckli_vs_mine.png`.
+
+### Why my deformer can't match Build UV Preview
+
+`uvtomesh` (DRuckli's capsule) is a **topology GENERATOR** — it OUTPUTS a new mesh with 4664 split vertices, one per polygon-corner. Per-corner positions = (uv.x*scale, -uv.y*scale, 0). This produces clean UV island separation.
+
+My pattern is a **position MODIFIER deformer** — preserves topology (1168 verts in, 1168 out). Each vertex morphs to a SINGLE position, so seam-vertices that have multiple UV coords get averaged into ONE point. Result: distorted "fold" shape, not a clean UV unwrap.
+
+**Deformers cannot reproduce DRuckli's flat output by definition** — split topology requires a GENERATOR pattern, not a deformer.
+
+### What was actually shipped
+
+✓ A reusable canonical SN deformer pattern (geometry-in → modified positions → geometry-out)
+✓ Single-iter + readvalueatindex2 cross-stream lookup pattern
+✓ 3-vmap per-vertex Vec3 source supply pattern
+✓ A working morph slider that flattens the head onto an averaged-UV plane (NOT a UV unwrap)
+
+### What was NOT shipped
+
+✗ A pure-SN equivalent of Build UV Preview's output (the actual UV unwrap with split islands)
+✗ Any topology-rebuilding pattern (generator-style write contract)
+
+### What it would take to match DRuckli
+
+The right primitive is a SN **GENERATOR** (180420500-700), not a deformer (180420400). The generator needs to:
+1. Read input geometry (gateway.geometryin)
+2. Iterate polygons (or polygon-corners — 4664 entries)
+3. Output a NEW mesh with split topology
+4. Per-output-vertex position = UV-derived flat position
+
+`getpolygonselectiondata.ptsposout` provides per-poly-vertex source positions. We'd want analogous per-poly-vertex UV access (which we haven't fully cracked).
+
+Or simpler: clone DRuckli's uvtomesh, use it as-is for the flat output, and apply morph at a DIFFERENT level (e.g., between the orig 3D mesh and uvtomesh's flat output via a Pose Morph or geometry-blend pattern).
+
+The user is right: **what we have is a working pure-SN deformer pattern, not a 1-1 reproduction of Build UV Preview.** Two different things.
