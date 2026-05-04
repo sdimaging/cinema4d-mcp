@@ -1052,3 +1052,66 @@ v7 Python tag morph slider continues as the artist-shipping tool. Pure-SN morph 
 2. Custom capsule from scratch with our own evaluation scope
 
 Documentation now contains 20 iterations of findings — the recipe is in this doc + the GPT doctrine + the asset ID memory.
+
+---
+
+## Iteration 21 (2026-05-02) — Three blend variants, all empty (definitive checkpoint)
+
+After locking in clean checkpoint via full doc reload (KillDocument → LoadDocument fresh), tried three variants of the blend wiring on three FRESH clones, each in ONE atomic transaction:
+
+### v11: gpsd → iter_orig → blend.in1 (parallel iteration)
+- gateway.geo → gpsd.geo → ptsposout
+- ptsposout → containeriteration.in → .out → blend.in1
+- scale.out → blend.in2
+- blend.out → set.iteration
+- **Result: empty (0 pts, rad 0,0,0)**
+
+### v12: gpsd direct to blend.in1 (no iteration)
+- gateway.geo → gpsd.geo → ptsposout (4664-array)
+- ptsposout → blend.in1 directly
+- scale.out → blend.in2
+- blend.out → set.iteration
+- **Result: deform_cache=None**
+
+### v13: blend BETWEEN composevector3 and scale (preserve scale.out → set.iteration)
+- gpsd.ptsposout → blend.in1
+- composevector3.result → blend.in2 (the unscaled flat per-iter)
+- blend.out → scale.in1 (replaces composevector3.result wire)
+- scale.out → set.iteration UNCHANGED (the original DRuckli wire preserved)
+- **Result: empty (0 pts, rad 0,0,0)**
+
+### Diagnosis
+
+Three variants, all produce empty/null geometry. The blend's vec3 output when combined with gpsd.ptsposout's array doesn't yield valid per-iteration values for set.iteration regardless of where in the chain the blend is inserted.
+
+Hypotheses (none verified):
+- blend may need its inputs pre-bridged into the SAME iteration scope; we haven't identified the right scope-bridging primitive
+- gpsd.ptsposout's array might not be iteration-broadcast-compatible with iter_existing's scope (despite being inside uvtomesh)
+- May require a different aggregation pattern (e.g., loopcarriedvalue, or another custom op container)
+
+### What's confirmed
+
+After 21 iterations, definitively:
+- ✓ `graph.CreateView(filter=3, rootPath=capsule.GetPath())` enables inner-capsule mutation
+- ✓ Asset IDs all cracked (`pt`, `net.maxon.node.array.readvalueatindex2`, `getpolygonselectiondata` with `ptsposout`)
+- ✓ Domain mismatch identified and resolved at the data level (gpsd gives 4664-length per-poly-vert positions)
+- ✓ Atomic-transaction discipline + clone-discard-on-failure pattern validated
+- ✓ Capsule mutation fragility doctrine memory'd
+- ✗ Blend wiring across iteration scopes — three structural variants tried, all empty
+
+### Definitive conclusion
+
+The pure-SN morph requires a deeper SDK study of iteration scope semantics than 21 hands-on iterations can yield. Specifically: how `set.iteration` actually consumes its source stream when that stream involves cross-array reads.
+
+The PRACTICAL recommendation: ship the v7 Python tag morph slider as production tool (already done — at GH `c4d-scripts/uv-pipeline/morph_3d_to_flat_slider.py`). Pure-SN remains a documented research goal with all building blocks identified; the missing piece is the right iteration-scope-bridging pattern.
+
+If/when continuing: focus on studying a DRuckli capsule that DOES blend two cross-domain streams to a per-vertex result. That working pattern, decoded, is the missing recipe.
+
+### Files (iter 21)
+- `Build_UV_Slider_v9b.c4d`, v11/v12/v13 — all variant attempts saved (gitignored)
+- This doc — full 21-iteration recipe + recipe + doctrine library
+
+### Memory artifacts
+- `feedback_domain_alignment_doctrine.md` (GPT-5.5 review crystallization)
+- `feedback_capsule_mutation_fragility.md` (iter 20 hard lesson)
+- `reference_sn_create_view_inner_mutation.md` (CreateView mechanism + asset IDs)
