@@ -17916,9 +17916,10 @@ class SocketServerPlugin(c4d.plugins.CommandData):
 
 # ============================================================
 # module-level plugin instance + auto-start hook.
-# When C4D finishes loading, automatically open the dialog and click
-# "Start Server" so the socket comes up without manual intervention.
-# Disable by setting env var C4D_MCP_NO_AUTOSTART=1 before launching C4D.
+# DEFAULT: manual-start only — open the dialog from the Plugins menu and
+# click "Start Server" when you actually want the socket up.
+# OPT-IN AUTO-START: set env var C4D_MCP_AUTOSTART=1 before launching C4D.
+# (Flipped 2026-05-04 from default-on to default-off per user request.)
 # ============================================================
 _socket_server_plugin = SocketServerPlugin()
 
@@ -17928,8 +17929,8 @@ def PluginMessage(msg_id, data):
     try:
         program_started_const = getattr(c4d, "C4DPL_PROGRAM_STARTED", None)
         if program_started_const is not None and msg_id == program_started_const:
-            if os.environ.get("C4D_MCP_NO_AUTOSTART"):
-                mcp_log_append("mcp", "Socket auto-start skipped (C4D_MCP_NO_AUTOSTART env set)")
+            if not os.environ.get("C4D_MCP_AUTOSTART"):
+                mcp_log_append("mcp", "Socket auto-start skipped (default; set C4D_MCP_AUTOSTART=1 to enable)")
                 return True
             try:
                 doc = c4d.documents.GetActiveDocument()
@@ -17937,7 +17938,7 @@ def PluginMessage(msg_id, data):
                 dlg = _socket_server_plugin.dialog
                 if dlg:
                     dlg.StartServer()
-                    mcp_log_append("mcp", "Socket auto-started on C4DPL_PROGRAM_STARTED")
+                    mcp_log_append("mcp", "Socket auto-started on C4DPL_PROGRAM_STARTED (C4D_MCP_AUTOSTART set)")
                 else:
                     mcp_log_append("mcp", "Auto-start: dialog not allocated after Execute()")
             except Exception as e:
