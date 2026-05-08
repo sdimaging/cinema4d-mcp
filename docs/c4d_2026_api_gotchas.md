@@ -9,6 +9,183 @@ anyone building agent integrations against C4D 2026.
 
 ---
 
+## 80. `maxon::Block<T>` view lifetimes do NOT survive `ExecutePasses` / scene re-evaluation
+
+**Discovered 2026-05-08** while researching a C++ particle ingestion path. Modern C4D APIs return `maxon::Block<const T>` (and `maxon::StridedBlock<>`) — a `(T* ptr, Int size)` view into internal C4D-owned storage. They're zero-copy (great for performance) but the underlying buffer can reallocate / move during the next scene evaluation, particle solver tick, or generator rebuild.
+
+**Wrong assumption:** treat the Block return like a `std::span` you can hold across calls. Cache it on a member, read from it later.
+
+**Actual behavior:** the Block is only valid until the next scene-mutating call. Evaluators (`ExecutePasses`, `GetVirtualObjects` of any generator, `EventAdd`-triggered reevaluations) can invalidate the pointer.
+
+**Pattern:** acquire → finish copy → release. Never hold across an eval boundary.
+
+```cpp
+// CORRECT
+const maxon::Block<const Vector> pos = pg->GetParticlePositionsR();
+const Vector* src = pos.GetFirst();
+const Int N = pos.GetCount();
+// ... copy or process all N elements RIGHT NOW ...
+// Block goes out of scope; no problem.
+
+// WRONG
+class MyState {
+    maxon::Block<const Vector> _cached;  // ← BAD: can dangle after next eval
+};
+state._cached = pg->GetParticlePositionsR();
+doc->ExecutePasses(...);                  // ← _cached pointer may now be stale
+```
+
+**How it surfaced:** the C++ ingestion path for particle position bulk reads. The block is fine within a single GVO call or SceneHook tick. Caching it on a member of the consumer plugin would have produced rare crashes-on-frame-change bugs that are hard to trace.
+
+---
+
+## 79. `maxon::Block<T>` is the modern C4D bulk-data idiom — many APIs return it
+
+**Discovered 2026-05-08.** When looking for "is there a bulk version of `GetSomething(i)` that doesn't loop per element," check the corresponding `c4d_libs/lib_*.h` header — most modern (2024+) C4D APIs expose a `Block<>` accessor returning a zero-copy view.
+
+**Where to look:**
+- `frameworks/cinema.framework/source/c4d_libs/lib_*.h` — the lib-wrapped public APIs
+- `frameworks/core.framework/source/maxon/block.h` — the Block primitive itself
+- Convention: `*R()` returns `const Block<const T>` (read), `*W()` returns `Block<T>` (write)
+
+**Block API:**
+```cpp
+maxon::Block<T> blk = ...;
+const Int  count = blk.GetCount();   // alive / active count
+T*         data  = blk.GetFirst();   // pointer to first element
+// Range-iterable
+for (auto& x : blk) { ... }
+```
+
+**StridedBlock variant:** `(T* ptr, Int size, Int stride)` — used when underlying storage isn't tightly packed. Use iterators rather than direct pointer arithmetic on these.
+
+**Concrete examples found in 2026 SDK:**
+- `ParticleGroupObject::GetParticlePositionsR() → Block<const Vector>`
+- `ParticleGroupObject::GetParticleAlignmentsR() → Block<const Quaternion<Float32>>`
+- `ParticleGroupObject::GetParticleVelocitiesR() → StridedBlock<const Vector32>`
+- ...8 more on ParticleGroupObject alone
+- Plus parallel APIs on PointObject, mesh attribute channels, etc.
+
+**Why it matters for plugin dev:** if your plugin reads bulk per-frame data (positions, colors, point attributes, particle state), assuming "I need to loop with `GetX(i)` per element" silently wastes 50–500× the time of the bulk pattern. Always check the lib header for a Block-returning sibling first.
+
+**Why it matters for MCP:** MCP tools that expose particle / point-cloud / vertex data to agents should call the C++ Block API on the C4D side and `memcpy` the contents into a Python `bytes` / `numpy` buffer in one shot. Looping `GetParticle(i).GetPosition()` from Python is the classical anti-pattern — even if every individual call is "fast," the overhead of N round-trips through the C-Python boundary kills the bulk-data use case.
+
+---
+
+## 78. Public `ParticleGroupObject` C++ API has zero-copy bulk accessors — most plugin docs don't cover it
+
+**Discovered 2026-05-08** while looking for a C++ replacement for Python's `pg.GetParticlePositionsR()`. The C++ API is fully public, lives in the standard `cinema.framework`, and returns zero-copy `maxon::Block<>` views.
+
+**Header:** `frameworks/cinema.framework/source/c4d_libs/lib_particlegroupobject.h`
+**Type IDs** (in `ge_prepass.h`):
+- `Ofpgroup        = 1060887` — ParticleGroupObject
+- `Ofpmeshemitter  = 1062577` — Mesh Emitter (parent)
+
+**Cast pattern:**
+```cpp
+#include "c4d_libs/lib_particlegroupobject.h"
+
+if (op->GetType() == Ofpgroup) {
+    auto* pg = static_cast<ParticleGroupObject*>(op);
+    const maxon::Block<const Vector> pos = pg->GetParticlePositionsR();
+    const Int alive = pos.GetCount();              // alive count
+    const Vector* src = pos.GetFirst();            // Float64 xyz, contiguous
+    // copy / convert / SIMD ...
+}
+```
+
+**Full read API** (all `R()` suffix; matching `W()` writers exist):
+| Method | Returns |
+|---|---|
+| `GetParticleUniqueIdsR()` | `Block<const UInt32>` |
+| `GetParticlePositionsR()` | `Block<const Vector>` (Float64 xyz) |
+| `GetParticleColorsR()` | `Block<const ColorA32>` |
+| `GetParticleVelocitiesR()` | `StridedBlock<const Vector32>` |
+| `GetParticleAgesR()` | `Block<const Float32>` |
+| `GetParticleLifetimesR()` | `Block<const Float32>` |
+| `GetParticleRadiiR()` | `Block<const Float32>` |
+| `GetParticleDistancesTraversedR()` | `Block<const Float32>` |
+| `GetParticleAlignmentsR()` | `Block<const Quaternion<Float32>>` |
+| `GetParticleAngularVelocitiesR()` | `StridedBlock<const Vector32>` |
+
+**Eval timing:** populated during `ExecutePasses(EXECUTIONFLAGS::ANIMATION | ::EXPRESSIONS | ::CACHES)`. Reading before any eval returns a 0-count block. SceneHooks at `EXECUTIONPRIORITY_GENERATOR` (or just after the particle solver's priority) get fresh data for the current frame.
+
+**Wrong assumption:** "particle access in C++ requires the older `ParticleObject::GetParticleR(i)` per-particle API or going through Python."
+
+**Actual behavior:** the new C4D Native Particles (2024+ Mesh Emitter system) exposes a fully bulk C++ surface with zero-copy reads. Per-particle calls are unnecessary.
+
+**Why it matters for MCP:** an MCP tool that returns particle positions should use `ParticleGroupObject::GetParticlePositionsR()` server-side and ship the buffer to the agent as a single `bytes`/numpy payload. Avoid the per-particle loop pattern entirely.
+
+**Doesn't apply to:** X-Particles (Insydium plugin, separate SDK gated by partner agreement). For XP, fall back to the Python proxy or ask Insydium for SDK access.
+
+---
+
+## 77. Custom GPU rendering needs `GeDialog`+`GeUserArea`+private Win32 child window — bypass `Draw()` entirely
+
+**Discovered 2026-05-08** while researching custom point-cloud / particle / GPU-instanced viewport renderers (sibling problem to gotcha #76).
+
+**Wrong assumption:** "I'll add `glDrawArrays`/VBOs to my `ObjectData::Draw()` callback for fast custom rendering."
+
+**Actual behavior:** see #76 — `Draw()` runs without a current GL context in 2026, so raw GL silently fails. The fix is **don't draw in `Draw()`**.
+
+**Pattern that works (Octane Live Viewer / V-Ray Frame Buffer):**
+```
+ObjectData (data + sim + scene state)
+    │  Draw() returns SKIP — pixels are not its job
+    ▼
+GeDialog (dockable, registered as CommandData menu entry)
+    └─ GeUserArea (reserves screen real estate)
+         └─ Win32 child window (CreateWindowEx, parent = dialog HWND)
+              └─ HDC + HGLRC (wglCreateContext succeeds here — normal Win32 surface)
+                   └─ VAO + VBO + GLSL shaders + glDrawArrays / glDrawElements
+                        → pixels at hardware speed (200–300fps for 500K points on RTX 3090)
+```
+
+**Why this works:** the Win32 child window has a normal surface with a normal HDC. `wglCreateContext` succeeds; `wglMakeCurrent` makes a context current that survives across calls; modern GL extension loading via `wglGetProcAddress` works as documented.
+
+**Position the child window inside the GeUserArea bounds:** track `Sized()` messages on the user area and call `MoveWindow(childHwnd, x, y, w, h)`.
+
+**Camera sync:** read C4D's active viewport via `BaseDraw::GetMg()` (camera matrix) + `GetSafeFrame()` for FOV → upload to a uniform buffer per frame.
+
+**Why it matters for MCP:** MCP tools that screenshot custom viewports need to know about this pattern. Plugins using it will not appear in C4D's `viewport_screenshot` output (they're separate Win32 surfaces). MCP tooling for custom-viewer plugins would need a separate "screenshot the custom viewer dialog" tool that targets the dialog's HWND directly.
+
+---
+
+## 76. `drawport.framework` is a private partner SDK — forward-declared types are unusable in public plugins
+
+**Discovered 2026-05-08** while researching custom GPU viewport rendering. C4D 2026's public SDK exposes `BaseDraw` methods that return `maxon::DrawportRef`, `maxon::DrawportContextRef`, `maxon::DrawportRedrawHelperRef`, `maxon::ViewportRenderRef` — but these types are **forward-declared only**. No class definition exists in the public headers, so you can call `bd->GetDrawport(...)` but you cannot `.method()` the returned reference.
+
+**Smoke-test the partner-SDK boundary:** GSL/GSLGPU (the splat-rendering plugin by Alpha Pixel) ships strings in its binary like `DRAWPORT_STATE_DEPTH_TEST_MODE`, `SORT_32BIT/24/16`, `RENDER_MODE_GAUSSIAN`. These are flags passed to drawport-API entry points. Alpha Pixel has a Maxon developer partner relationship — they have the `drawport.framework` headers; public-SDK plugins do not.
+
+**Wrong assumption:** "If `BaseDraw::GetDrawport()` is in the public SDK, the result is usable in a public-SDK plugin."
+
+**Actual behavior:** the API surface is half-exposed. Calls compile, but consumers can't materialize the return type. This is intentional — Maxon controls who can render at the GPU level.
+
+**Public-SDK alternative:** see #77 — host your own GL context in a `GeDialog`+`GeUserArea`+private Win32 child window. Doesn't require partner status.
+
+**Why it matters for MCP:** any MCP tool that promises GPU-resident geometry buffers / custom render passes needs to use the public-SDK alternative. Don't write tools that silently depend on `drawport.framework` symbols — they won't link without the partner SDK.
+
+---
+
+## 75. `wglGetCurrentContext()` returns NULL inside `ObjectData::Draw()` in C4D 2026
+
+**Discovered 2026-05-08.** C4D 2026 changed the viewport rendering pipeline to a **deferred command-buffer model**. The thread that calls your `ObjectData::Draw()` callback owns no current GL context. Raw `glXxx` / `wglGetProcAddress` calls silently fail and your custom rendering falls through to whatever `BaseDraw::DrawXxx()` calls you make as fallback.
+
+**Diagnostic:** add this to `ObjectData::Draw()`:
+```cpp
+HGLRC ctx = wglGetCurrentContext();   // returns NULL in C4D 2026
+```
+
+**Wrong assumption (carryover from C4D 2024 and earlier):** `Draw()` is called with the viewport's GL context current; raw GL calls work; you can load extensions via `wglGetProcAddress` and use VBOs / shaders directly.
+
+**Actual behavior:** the deferred pipeline submits draw commands; `Draw()` is invoked in a state where querying GL gives you no usable context. `wglGetProcAddress` returns NULL (it needs a current context to work). VBO uploads silently no-op. Your custom GL pipeline never runs.
+
+**Path forward:** see #76 (drawport.framework is private) and #77 (the GeDialog+GeUserArea workaround).
+
+**Why it matters for MCP:** if a user reports "my custom GL plugin worked in 2024 and renders nothing in 2026," this is the diagnosis. MCP tools that introspect render-engine state should be aware that ObjectData-based custom rendering doesn't work the way it used to.
+
+---
+
 ## 74. Bulk SN graph mutation in one Python script triggers `pythonvm.module.xdl64` crash under memory pressure
 
 **Discovered 2026-05-02** while attempting to bulk-swap 92 nodes in one mega-script (in-place parallel replacement methodology on Match Size practice file). C4D crashed with `ACCESS_VIOLATION` in `pythonvm.module.xdl64`. Memory peaked at 36.7 GB across 10-hour session + 5 open scenes.
