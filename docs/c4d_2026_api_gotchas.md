@@ -9,6 +9,206 @@ anyone building agent integrations against C4D 2026.
 
 ---
 
+## 86. `GetPixelRatio()` is NOT always 1.0 on Windows — returns the actual logical→physical scale
+
+**Discovered 2026-05-09** while debugging a custom GL window inside a `GeDialog`. The SDK comment in `c4d_gui.h:858` says:
+
+> "Always returns 1.0 except for user areas shown on OS X Retina displays, where it returns 2.0."
+
+That's wrong as of C4D 2026 on Windows HighDPI. Real measurement on a Windows 11 machine with 150% display scaling: `GeUserArea::GetPixelRatio()` returned `1.5`. On 200% scaling it returns `2.0`. The function exposes the per-monitor effective DPI scale on Windows too — Maxon updated the implementation but didn't update the doc comment.
+
+**Implications:**
+
+- For sizing your own native HWND inside a GeUserArea, multiply logical sizes by `GetPixelRatio()` to convert to physical pixels.
+- This makes `GetPixelRatio()` the right cross-platform DPI helper. Don't reach for raw `GetDpiForWindow` / `MonitorFromWindow` Win32 calls — the C4D API already abstracts it.
+- If you wrote code that assumed `ratio == 1.0` on Windows, your child windows / framebuffers / mouse-coord conversions are silently wrong on HighDPI displays.
+
+**How it surfaced:** SplatFlow custom GPU viewer was creating a GL child window sized via `GeUserArea::GetWidth/GetHeight` (which return logical pixels). The result was visibly cropped to ~67% of the GeUserArea — that's `1/1.5`. Logging confirmed `GetPixelRatio() == 1.5`. Multiplying size by ratio fixed the cropping.
+
+```cpp
+// Sizing a native HWND child to fill a GeUserArea, DPI-correct:
+const Int32 logW = userArea.GetWidth();
+const Int32 logH = userArea.GetHeight();
+const Float r   = userArea.GetPixelRatio();   // 1.5 on Win HighDPI, 1.0 on standard, 2.0 on Retina
+const Int32 physW = (Int32)(logW * r);
+const Int32 physH = (Int32)(logH * r);
+MoveWindow(childHWND, x, y, physW, physH, FALSE);
+```
+
+---
+
+## 85. `GeUserArea::Local2Global` returns APP-WINDOW coords, not screen and not parent-client
+
+**Discovered 2026-05-09**, again while embedding GL in a GeDialog.
+
+**Wrong assumption:** the SDK doc says "global window coordinates" so I assumed it returned Win32 screen coords (origin at desktop top-left).
+
+**Actual behavior:** "global" here means **the C4D application window**, not the OS desktop. Both `GeUserArea::Local2Global` and `GeDialog::Local2Global` answer in the same coordinate space — relative to the C4D app window's top-left. To position a Win32 child of a GeDialog (which expects parent-client coords), you have to subtract:
+
+```cpp
+// Convert userArea position to dialog-client coords
+Int32 ux = 0, uy = 0; userArea.Local2Global(&ux, &uy);
+Int32 dx = 0, dy = 0; dialog.Local2Global(&dx, &dy);
+const Int32 childX = ux - dx;
+const Int32 childY = uy - dy;
+MoveWindow(childHWND, childX, childY, w, h, FALSE);  // ← parent-client coords
+```
+
+If you skip the dialog subtraction and pass the userArea-app coords directly to `MoveWindow`, the child window ends up offset by the dialog's position-within-app — making it land *outside* the dialog (sometimes outside the C4D window entirely, in the top-left of the C4D app).
+
+If you reach for `ScreenToClient(parentHwnd, &p)`, you over-correct because `Local2Global` was never in screen space to begin with. (We tried this; child ended up in the upper-left of the actual desktop.)
+
+---
+
+## 84. C++ `GePrint` is invisible to MCP `get_console_log` — only Python's `c4d.GePrint` is hooked
+
+**Discovered 2026-05-08** while debugging a C++ plugin via cinema4d-mcp.
+
+**Wrong assumption:** `GePrint("foo")` from C++ shows up in the same log buffer that `mcp.get_console_log()` returns.
+
+**Actual behavior:** the MCP's `c4d.GePrint hook installed` line refers to a **Python-side hook** monkey-patched onto the `c4d` module's `GePrint` binding. C4D's *native* (C++) `GePrint` writes directly to the desktop console window (Window → Console) without going through Python — the hook never sees it.
+
+**Implications for plugin debugging via MCP:**
+
+- Output from C++ plugins is not retrievable via `get_console_log` — you have to look at C4D's native console (Window → Console) directly, or copy-paste it.
+- Workaround: write diagnostics to a file path the MCP server can read back, OR have the user paste console contents.
+- For pure plugin development this matters less, but for agent-driven dev loops where you want full automated read-back, you need to extend MCP with a native-console hook OR a file-tail tool.
+
+**MCP feature gap:** ideally MCP would also hook native `GePrint` (likely via `MaxonLogger` interception or the application-log file). Logged as an enhancement candidate.
+
+---
+
+## 83. `GeDialog` close destroys child HWNDs but singleton dialog instances keep dead handles
+
+**Discovered 2026-05-08** in a custom-viewer plugin that creates a private GL child HWND inside a GeDialog.
+
+**Wrong assumption:** if you keep a `GeDialog` singleton alive across close/reopen cycles, the underlying HWNDs persist too. `EnsureContext()` can short-circuit on `if (_hRC) return true;` because everything is still valid.
+
+**Actual behavior:** when the user closes the dialog (X button), Windows destroys the dialog's HWND **and all of its child HWNDs**. Your singleton still holds the same `_hwnd` pointer but it's now a dangling handle. `MoveWindow`, `GetClientRect`, etc. silently fail or return zero. Your GL context (if you cached `_hRC`) was bound to a destroyed drawable — `wglMakeCurrent` calls on it produce undefined behavior.
+
+**Pattern:** detect a stale HWND with `IsWindow()` at the top of your bring-up function. If the cached HWND is dead, null out the entire GL state and let the bring-up path run fresh.
+
+```cpp
+Bool MyArea::EnsureContext()
+{
+    if (_hwnd && !IsWindow((HWND)_hwnd)) {
+        // Dialog was closed — Windows destroyed our child HWND.
+        _hRC = nullptr;
+        _hDC = nullptr;
+        _hwnd = nullptr;
+        _program = 0;
+        _vao = _vboPos = _vboCol = 0;
+        g_gl.loaded = false;  // force re-load on the new context
+    }
+    if (_hRC) return true;
+    // ... fresh CreateWindowExW + wglCreateContext + LoadAllGLFns ...
+}
+```
+
+**How it surfaced:** SplatFlow viewer rendered correctly on first dialog open. After closing + reopening the dialog, every `GetClientRect(child)` returned `0x0` — the visible symptom was a permanently-stuck black render area with no splats visible despite a fresh splat being bound.
+
+---
+
+## 82. Embedding a private OpenGL surface inside `GeDialog` — known-good pattern (Windows)
+
+**Discovered 2026-05-08, refined 2026-05-09.** C4D 2026's `Draw()` runs in a deferred-command-buffer model where `wglGetCurrentContext()==NULL` (gotcha #75), so you cannot do real GL inside `ObjectData::Draw`. The way to get a true GL pipeline (for splat viewers, custom render engines, etc.) without partner-SDK access is to host it in a separate `GeDialog`.
+
+The full pattern, after four debug rounds:
+
+**1. Create a Win32 child window of the dialog HWND:**
+
+```cpp
+HWND parent = (HWND)dialog->GetWindowHandle();  // public, despite @markPrivate
+
+// One-time class registration with custom WndProc that:
+//   - returns 1 on WM_ERASEBKGND (do nothing — we own the pixels)
+//   - BeginPaint+EndPaint no-op on WM_PAINT (trust SwapBuffers)
+auto wndProc = +[](HWND h, UINT m, WPARAM w, LPARAM l) -> LRESULT {
+    if (m == WM_ERASEBKGND) return 1;
+    if (m == WM_PAINT) { PAINTSTRUCT ps; BeginPaint(h, &ps); EndPaint(h, &ps); return 0; }
+    return DefWindowProcW(h, m, w, l);
+};
+
+WNDCLASSW wc = {};
+wc.style = CS_OWNDC;                  // private DC required for wgl
+wc.lpfnWndProc = wndProc;
+wc.hInstance = GetModuleHandleW(nullptr);
+wc.hbrBackground = nullptr;            // never paint background
+wc.lpszClassName = L"MyGLChild";
+RegisterClassW(&wc);
+
+HWND child = CreateWindowExW(0, L"MyGLChild", L"",
+    WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
+    0, 0, 100, 100, parent, nullptr, GetModuleHandleW(nullptr), nullptr);
+```
+
+**2. Set up GL on the child's DC:**
+
+```cpp
+HDC dc = GetDC(child);
+PIXELFORMATDESCRIPTOR pfd = { sizeof(pfd), 1,
+    PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,
+    PFD_TYPE_RGBA, 32, 0,0,0,0,0,0, 0,0,0,0,0,0,0,
+    24, 8, 0, PFD_MAIN_PLANE, 0, 0, 0, 0 };
+int pf = ChoosePixelFormat(dc, &pfd);
+SetPixelFormat(dc, pf, &pfd);
+HGLRC rc = wglCreateContext(dc);
+wglMakeCurrent(dc, rc);
+// Load modern-GL function pointers via wglGetProcAddress here.
+```
+
+**3. Single render owner — Timer drives, DrawMsg passes:**
+
+The dialog's `SetTimer(16)` (60Hz) is the **only** entry point that calls render. The `GeUserArea::DrawMsg` override handles `EnsureContext` on the first call and otherwise returns immediately. Having both DrawMsg and Timer call render produces flicker (you get redraw races between C4D's paint pipeline and our timer). Pick one. Timer is more reliable.
+
+**4. Position via dialog-relative subtraction (gotcha #85):**
+
+```cpp
+Int32 ux = 0, uy = 0; userArea.Local2Global(&ux, &uy);
+Int32 dx = 0, dy = 0; dialog->Local2Global(&dx, &dy);
+const Float ratio = userArea.GetPixelRatio();  // see gotcha #86
+MoveWindow(child, (Int32)((ux-dx)*ratio), (Int32)((uy-dy)*ratio),
+                  (Int32)(GetWidth()*ratio), (Int32)(GetHeight()*ratio), FALSE);
+```
+
+**5. Use `GetClientRect(child)` for `glViewport`** — never trust your cached size variables. The HWND is authoritative.
+
+**6. HWND lifecycle (gotcha #83)** — check `IsWindow()` on dialog reopen.
+
+This pattern delivered the perf breakthrough: switching SplatFlow's render target from "viewport" to "custom viewer" took the C4D viewport from 16fps to 150–200fps with 161K splats by removing the splat-display cost from the in-place Draw path entirely. The custom viewer renders the same data via private GL.
+
+**Why GeDialog and not a `WS_OVERLAPPEDWINDOW` standalone:** the dialog gives you the surrounding UI (LINK widgets, mode dropdowns, status bar) for free without needing your own message pump. Tradeoff: tighter coupling to C4D's window hierarchy, hence gotchas #83-#86. For ship-quality work, GeDialog wins.
+
+---
+
+## 81. `GePrint` in C++ does NOT support `@`-formatted format strings — single `maxon::String` only
+
+**Discovered 2026-05-08.** `DiagnosticOutput("foo @ bar @", x, y)` works (variadic, `@` is a placeholder). `GePrint` with the same syntax fails to compile because `GePrint`'s only signature is:
+
+```cpp
+void GePrint(const maxon::String& str);
+```
+
+To log structured data, build the string yourself:
+
+```cpp
+GePrint("Foo "_s + maxon::String::IntToString(n)
+         + " bar "_s + maxon::String::FloatToString(f));
+```
+
+When mixing in C-strings from external APIs (e.g. `glGetString` returns `const char*`):
+
+```cpp
+const char* vendor = (const char*)glGetString(GL_VENDOR);
+GePrint("vendor: "_s + maxon::String(vendor ? vendor : "?"));
+```
+
+Avoid `String((const Char*)...)` form because the type alias `cinema::String` vs `maxon::String` operator+ overloads can be ambiguous — be explicit with `maxon::String(...)` everywhere.
+
+**Use `DiagnosticOutput` for templated/formatted logs**, or build maxon strings manually for `GePrint`. They go to different destinations: `GePrint` → C4D's Window→Console; `DiagnosticOutput` → maxon application log file. Choose based on visibility you need — see also gotcha #84 about MCP capture differences.
+
+---
+
 ## 80. `maxon::Block<T>` view lifetimes do NOT survive `ExecutePasses` / scene re-evaluation
 
 **Discovered 2026-05-08** while researching a C++ particle ingestion path. Modern C4D APIs return `maxon::Block<const T>` (and `maxon::StridedBlock<>`) — a `(T* ptr, Int size)` view into internal C4D-owned storage. They're zero-copy (great for performance) but the underlying buffer can reallocate / move during the next scene evaluation, particle solver tick, or generator rebuild.
