@@ -9,6 +9,146 @@ anyone building agent integrations against C4D 2026.
 
 ---
 
+## 90. `SplineHelp.GetPosition(offset)` takes a NORMALIZED [0, 1] offset, NOT arc-length cm
+
+**Discovered 2026-05-11** while building a Python Generator that scatters bubbles along a spline source.
+
+The intuitive read of the API is that `GetPosition(offset)` takes arc-length cm because `GetSplineLength()` also returns cm. So the natural code is:
+
+```python
+sp = c4d.utils.SplineHelp()
+sp.InitSplineWith(spline, c4d.SPLINEHELPFLAGS_GLOBALSPACE)
+length = sp.GetSplineLength()         # 2211 cm for a 552×552 rectangle
+ofs = rng.uniform(0.0, length)         # e.g. 1105 (midway)
+p = sp.GetPosition(ofs)                # expects (-276, -276, 0) for that midpoint
+```
+
+**Actual behavior:** `GetPosition` takes a normalized parameter `t ∈ [0, 1]`. Any value > 1.0 gets clamped to the start of the spline. All samples land at one point.
+
+```python
+sp.GetPosition(0.00) → Vector(276.4, 276.4, 0)    # start corner
+sp.GetPosition(0.25) → Vector(-276.4, 276.4, 0)   # next corner
+sp.GetPosition(0.50) → Vector(-276.4, -276.4, 0)  # opposite corner
+sp.GetPosition(1.00) → Vector(276.4, 276.4, 0)    # back to start
+sp.GetPosition(1105) → Vector(276.4, 276.4, 0)    # ← clamped to start (silent)
+```
+
+**Fix:** Always sample with `rng.uniform(0.0, 1.0)`. If you specifically need arc-length-based sampling (uniform spacing along path), use `sp.GetOffsetFromReal(real_cm)` to convert cm → normalized param first.
+
+**Why this is non-obvious:** `GetSplineLength()` and `GetSegmentLength()` both return cm, and `Real`/`Length` SDK types usually map to absolute scene units. Only `GetPosition`/`GetTangent` use the normalized convention.
+
+---
+
+## 89. `c4d.FieldList` (top-level c4d) is the container; `FieldInput/FieldOutput/FieldLayer/FieldObject` live under `c4d.modules.mograph`
+
+**Discovered 2026-05-11** while adding field-driven density gating to a scatter generator. The class split is non-obvious — agents often look for everything under `c4d.modules.mograph` because that's the historical home.
+
+```python
+# Container — top-level c4d
+fl = c4d.FieldList()                       # ← top-level
+print(c4d.modules.mograph.FieldList)       # ← AttributeError: module has no attribute 'FieldList'
+
+# Sampling infrastructure — under c4d.modules.mograph
+import c4d.modules.mograph as mograph
+fi = mograph.FieldInput(positions, count)   # WORLD positions, count
+out = fl.SampleListSimple(gen_op, fi)       # returns FieldOutput
+values = [out.GetValue(i) for i in range(count)]   # [0..1] each
+```
+
+**Working pattern for a UD field-link param:**
+
+```python
+# Add UD
+bc = c4d.GetCustomDataTypeDefault(c4d.CUSTOMDATATYPE_FIELDLIST)
+bc[c4d.DESC_CUSTOMGUI] = c4d.CUSTOMGUI_FIELDLIST
+host.AddUserData(bc)
+
+# Read + sample
+field_list = host[c4d.ID_USERDATA, IDX]   # type c4d.FieldList
+if field_list and field_list.HasContent():
+    fi = c4d.modules.mograph.FieldInput(positions, len(positions))
+    out = field_list.SampleListSimple(host, fi)
+    if out:
+        values = [out.GetValue(i) for i in range(len(positions))]
+```
+
+**Empty FieldList:** `SampleListSimple` still returns a valid `FieldOutput` with `GetValue()` = 0.0 for every position. Check `field_list.HasContent()` first to distinguish "no field set" from "field present and gives zero here."
+
+**Sampling space:** `FieldInput(positions, count)` expects WORLD positions. The field's own falloff is evaluated against its own world matrix — no manual transform needed.
+
+---
+
+## 88. Primitive spline generators do NOT pass `IsInstanceOf(c4d.Ospline)` — use `OBJECT_ISSPLINE` classification flag
+
+**Discovered 2026-05-11** while detecting whether a user-linked source object is spline-like.
+
+The intuitive detection logic is:
+
+```python
+if source.IsInstanceOf(c4d.Ospline) or source.GetType() == c4d.Ospline:
+    # treat as spline
+```
+
+**This is wrong for primitive spline generators**, because they have their own type IDs:
+
+| Object | Type ID | `IsInstanceOf(c4d.Ospline)` |
+|---|---|---|
+| `c4d.Ospline` (generic SplineObject) | 5101 | True |
+| Rectangle spline | 5186 | **False** |
+| Circle spline | 5181 | **False** |
+| Helix spline | 5147 | **False** |
+| Star spline | 5172 | **False** |
+| Text spline | 5178 | **False** |
+| LineObject (cache of any of the above) | 5137 | **False** |
+
+The cache walk doesn't help either — `source.GetCache()` for a primitive spline returns a `LineObject` (5137), which **also** doesn't pass `IsInstanceOf(c4d.Ospline)`.
+
+**Correct detection — `OBJECT_ISSPLINE` classification flag on `BaseObject.GetInfo()`:**
+
+```python
+def is_spline_like(obj):
+    if obj is None: return False
+    return bool(obj.GetInfo() & c4d.OBJECT_ISSPLINE)
+```
+
+This flag is set on **every** spline generator, primitive spline, MoSpline, Text spline, Sweep, etc. — anything carrying spline-shaped data.
+
+**Bonus:** `SplineHelp.InitSplineWith(source, flags)` accepts spline generators directly. No need to extract the cache — SplineHelp handles it internally.
+
+**Failure mode of the wrong detection:** code returns `None`, falls through to mesh-mode scatter, which then no-ops because the cache is a `LineObject` (no polygons). Generator silently produces empty output. Symptom: clicking a Rectangle source link does nothing. Time-to-debug: ~30 min the first time.
+
+---
+
+## 87. `gen[c4d.OPYTHON_CODE] = new_code` is the canonical live-patch for Python Generators
+
+**Discovered 2026-05-09 through 2026-05-11** while iterating on a Python Generator (`c4d.Opython`, type 1023866) without restarting C4D every time.
+
+For a Python Generator object `gen`, the source code is stored at parameter `OPYTHON_CODE = 400` as a string. Setting that parameter swaps the code that runs on next evaluation:
+
+```python
+gen[c4d.OPYTHON_CODE] = updated_code_string
+gen.Message(c4d.OPYTHON_MAKEDIRTY)
+gen.SetDirty(c4d.DIRTYFLAGS_DATA)
+c4d.EventAdd()
+```
+
+**For surgical patches** (small edits to a large existing code blob), read-string-replace-write is faster than full re-deploy and avoids hitting the MCP token budget:
+
+```python
+code = gen[c4d.OPYTHON_CODE]
+code = code.replace(old_block, new_block)
+gen[c4d.OPYTHON_CODE] = code
+```
+
+**MCP token budget gotcha:** `execute_python_script` echoes back all script-scope variables in the response. If your script reads a large generator source into a `code` variable (e.g. 30-50 KB), the response blows past the 60-80 KB MCP token limit and gets truncated. Workaround: assign the patched code straight into the generator (`gen[c4d.OPYTHON_CODE] = patched`) and `print` only short status — don't keep the full code string in a top-level variable after assignment, or reuse a small local function scope.
+
+**Other live-patch behaviors worth knowing:**
+
+- UserData group adds (`DTYPE_GROUP` via `AddUserData`) consume a UD slot index, shifting subsequent indices by one. Easy to lose 30 min on this; symptom is "my Cluster Overlap slider value is going to a different field."
+- `gen[c4d.ID_USERDATA, N] = float_value` can fail with `__setitem__ expected int or bool, not float` even when the DescID reports `dtype=19` (REAL). Cause unconfirmed — possibly inherited state from a prior wrong-typed `AddUserData`. Workaround: assign an int and use `float()` in the generator's read.
+
+---
+
 ## 86. `GetPixelRatio()` is NOT always 1.0 on Windows — returns the actual logical→physical scale
 
 **Discovered 2026-05-09** while debugging a custom GL window inside a `GeDialog`. The SDK comment in `c4d_gui.h:858` says:
