@@ -9,6 +9,117 @@ anyone building agent integrations against C4D 2026.
 
 ---
 
+## 93. MoGraph Python Effector `md.SetArray(MODATA_COLOR/SIZE)` does NOT propagate in C4D 2026
+
+**Discovered 2026-05-17** wiring per-clone state-driven coloring for a MoGraph prototype.
+
+**Symptom:** A Python Effector calls
+`mo.GeGetMoData(op).SetArray(c4d.MODATA_COLOR, carr, True)` per the
+standard pattern that has worked since R20. The call returns without
+error, the effector is wired into the cloner, `COLOR_MODE = 1 (Custom
+Color)`, `EditorMode = MODE_ON`, the material has a MoGraph Color Shader
+in the color channel — and clones render uniform with no per-clone
+variation. Same effect with `MODATA_SIZE`.
+
+**Verification it's not the surrounding pipeline:** Drop the Python
+Effector, replace with a Plain Effector (same `COLOR_MODE = 1`, same
+strength, color set to red on the effector). Clones go red. So the
+shader + cloner + material chain is correct; only Python's SetArray
+writes are silently dropped.
+
+**Workarounds:**
+
+1. **World-projected bitmap texture.** Most flexible. Create a small
+   bitmap (1 pixel per clone in a grid), assign as the material's color
+   texture with cubic/flat projection in world space scaled to cover
+   the grid extents. Each clone naturally samples its own pixel.
+   Update state by repainting pixels, no MoGraph color pipeline
+   involved.
+
+2. **Multiple Plain Effectors with selection groups.** One effector per
+   state, each restricted to its own MoGraph Selection. Heavy if you
+   have many states.
+
+3. **MoGraph Multi Shader (`Xmgmulti`)** with sub-shader per state. Still
+   needs a per-clone index source — another Plain/Random effector or a
+   carefully-driven MoGraph Selection.
+
+The Python Effector still works for **rotation** writes via the matrix
+array — that channel propagates fine. Only color/size are affected, as
+far as I've verified.
+
+**Symbol info:** `c4d.Xmgcolor = 1018767`. Its `Channel` parameter (id
+1000) has only two valid values in 2026: `0 (Color)` and `8 (Index
+Ratio)`. The shader description's cycle dropdown confirms this — the
+older "Weight / Falloff / Random / etc." options are gone.
+
+---
+
+## 92. MoGraph Effector `Color Mode` (id 1014) — `1 (Custom Color)` is the working value, not `3 (Effector Color)`; default is `5 (Fields Color)`
+
+Cycle dropdown values for the standard `ID_MG_BASEEFFECTOR_COLOR_MODE`
+on Plain / Random / Python effectors:
+
+```
+0  Off
+1  Custom Color
+3  Effector Color
+5  Fields Color   ← DEFAULT for newly-created effectors
+```
+
+Two non-obvious things:
+
+1. **The default is 5 (Fields Color)**, not 0 or 3. Newly-instantiated
+   effectors have NO visible color contribution until you set this. If
+   you create an effector and its color won't show, this is almost
+   certainly why.
+
+2. **"Custom Color" (1) is what you want for an effector that applies
+   its own COLOR param.** "Effector Color" (3) sounds like the right
+   one but renders gray in testing — its actual semantic seems to be a
+   blend mode that requires additional setup. Just use `1`.
+
+`c4d.ID_MG_BASEEFFECTOR_COLORMODE_EFFECTOR` symbol is missing in 2026;
+use the literal `1` (Custom Color) for the standard use case.
+
+---
+
+## 91. Cloner Mode integer values — `3` is Grid Array; `0` produces zero clones silently
+
+`cloner[c4d.ID_MG_MOTIONGENERATOR_MODE]` in C4D 2026:
+
+```
+0  (invalid / produces 0 clones, NO warning)
+1  Linear
+2  Radial
+3  Grid Array
+4  Honeycomb
+5+ (invalid)
+```
+
+If you build a Cloner with mode `0` (the natural Python default for a
+freshly-created BaseObject in some workflows), no clones are produced
+and `cloner.GetCache().GetDown()` is `None`. The Cloner just shows
+nothing, no warning. Default mode for a Cloner created via the UI is
+`3` (Grid).
+
+Verify by counting cache children: `cache = cloner.GetCache(); n = 0;
+ch = cache.GetDown(); while ch: n += 1; ch = ch.GetNext()` should match
+your expected resolution.
+
+Related: `mo.GeGetMoData(cloner)` called from outside an effector's
+`main()` (e.g., from `execute_python_script`) returns `None` even after
+`ExecutePasses` — MoData is only readable inside an effector context.
+Use cache traversal or screenshots for outside-the-effector
+verification.
+
+Also: newly-created effector BaseObjects default to `EditorMode = 2
+(MODE_OFF)`. The cloner silently skips disabled effectors. Always call
+`SetEditorMode(c4d.MODE_ON)` + `SetRenderMode(c4d.MODE_ON)` after
+instantiating.
+
+---
+
 ## 90. `SplineHelp.GetPosition(offset)` takes a NORMALIZED [0, 1] offset, NOT arc-length cm
 
 **Discovered 2026-05-11** while building a Python Generator that scatters bubbles along a spline source.
