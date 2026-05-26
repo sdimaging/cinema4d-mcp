@@ -9,6 +9,203 @@ anyone building agent integrations against C4D 2026.
 
 ---
 
+## 99. WSL → MSVC build interop pattern (no manual Dev Prompt needed)
+
+**Discovered 2026-05-25** building a C++ kernel DLL for the SWEAT plugin from WSL.
+
+**Wrong assumption:** to build a Windows DLL with MSVC, the developer must manually open the "x64 Native Tools Command Prompt for VS" and run the build there.
+
+**Actual behavior:** WSL has full Windows-binary interop. `cmd.exe`, `powershell.exe`, and any Windows executable can be invoked from a WSL bash session via absolute paths. With one batch-file wrapper that activates the MSVC environment via `vcvars64.bat`, you can drive the whole Windows build from WSL — no manual prompt, no per-build user action.
+
+**The pattern:**
+
+```bash
+# 1. Find the VS installation (also works on machines with full VS,
+#    not just BuildTools — vswhere is shipped with the VS installer)
+"/mnt/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe" \
+    -latest -property installationPath
+
+# 2. Wrapper batch (build_msvc.bat in the project) calls vcvars64
+#    then the actual build.bat. Critical: use the 8.3 short-name
+#    PROGRA~2 for "Program Files (x86)" — the parens in the long
+#    form break cmd.exe batch parsing inside if/then blocks.
+cat > build_msvc.bat <<'EOF'
+@echo off
+setlocal
+set "VCVARS=C:\PROGRA~2\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+call "%VCVARS%" >nul
+cd /d "%~dp0"
+call build.bat %*
+endlocal
+EOF
+
+# 3. Run from WSL
+cmd.exe /c build_msvc.bat
+```
+
+The `(x86)` parens are the only real footgun. Without `PROGRA~2`, you get cryptic `\Microsoft was unexpected at this time.` errors that look like batch syntax bugs but are actually cmd parsing the parens as expression grouping.
+
+**Why it matters:** lets a dev agent drive Windows MSVC builds from WSL/Linux without making the human switch to a Dev Prompt for every iteration. Build → test → fix → rebuild loop stays in one terminal.
+
+---
+
+## 98. Python Generator `import` caches modules; reload pattern needs re-stuffing `OPYTHON_CODE`
+
+**Discovered 2026-05-24** during SWEAT V1.5 dev iteration.
+
+**Wrong assumption:** at the top of `GENERATOR_CODE`, `del sys.modules[k]` + `importlib.invalidate_caches()` is enough to force the Python Generator to re-import your edited algorithm modules on next rebuild.
+
+**Actual behavior:** the Python Generator runs its top-level body ONCE at script-load. Subsequent rebuilds call `main()` but DON'T re-execute the body — so the `del sys.modules` block only runs the first time. Edits to imported modules don't pick up until the generator's body re-parses.
+
+**Fix:** to force a true reimport, re-stuff the code:
+
+```python
+code = op[c4d.OPYTHON_CODE]
+op[c4d.OPYTHON_CODE] = ""      # invalidate
+op[c4d.OPYTHON_CODE] = code    # forces re-parse + body re-execution
+```
+
+Setting OPYTHON_CODE to itself doesn't trigger a re-parse; you have to set it to something else first. The blank-then-restore pattern works reliably.
+
+For full algorithmic isolation, also drop sys.modules from outside the generator before triggering rebuild:
+
+```python
+for k in list(sys.modules.keys()):
+    if k.startswith("MYPLUGIN"):
+        del sys.modules[k]
+import importlib; importlib.invalidate_caches()
+op[c4d.OPYTHON_CODE] = ""; op[c4d.OPYTHON_CODE] = code
+op.SetDirty(c4d.DIRTYFLAGS_DATA)
+```
+
+This is the only reliable dev-loop for Python Generator algorithm work.
+
+---
+
+## 97. C4D MCP `execute_python` timeout on busy main thread is NOT a script bug
+
+**Discovered 2026-05-25** testing a C++ DLL load from C4D Python via MCP.
+
+**Wrong assumption:** an `execute_python` command that hangs for 30 seconds and times out with "Main thread execution timed out" means the script itself deadlocked or hit an error in the loaded code.
+
+**Actual behavior:** the MCP plugin queues all `execute_python` calls onto C4D's main thread. If the main thread is busy (Octane render starting up, a viewport rebuild in progress, a long-running script, a modal dialog), MCP commands wait in queue. After 30s the wait times out — but the script never ran. No error in the script, no DLL fault. C4D is just busy.
+
+**How to diagnose:** call `get_console_log` after the timeout. If you see:
+
+```
+[plugin] [C4D] Waiting for main thread execution (29.0s elapsed)
+[plugin] [C4D] Main thread execution timed out after 30.00s
+```
+
+— the script never executed. The DLL/script under test is fine.
+
+**Workaround:** wait for C4D to finish whatever it's doing (close dialogs, let renders finish), or paste the script into C4D's Script Manager → Python Console directly (bypasses the MCP queue, runs synchronously in the foreground thread).
+
+The MCP itself is healthy — restart Stop→Start the socket if the queue gets fully wedged. Sometimes a hung script earlier in the session leaves the queue in a bad state and a socket restart clears it.
+
+---
+
+## 96. Python `int(x)` and C++ `std::floor(x)` are NOT equivalent for negative values
+
+**Discovered 2026-05-25** porting `TriSpatialHash` from Python to C++ and getting 100% query misses at negative coordinates.
+
+**Wrong assumption:** when porting a Python hash function that computes integer cell keys via `int(value * inv)` to C++, `std::floor()` is the equivalent.
+
+**Actual behavior:** `int()` truncates toward zero. `std::floor()` rounds toward negative infinity. They diverge for negative values:
+
+| `x` | Python `int(x)` | C++ `std::floor(x)` |
+|---|---|---|
+| 0.5 | 0 | 0 |
+| -0.5 | **0** | **-1** |
+| -1.5 | **-1** | **-2** |
+
+In a spatial hash, this means triangles with centroid x = -0.5 go to cell 0 in Python and cell -1 in C++. Query at the same negative position misses 100% of the time.
+
+**Fix in C++:** `static_cast<int>(value)` truncates toward zero, matching Python:
+
+```cpp
+const int kx = static_cast<int>(p.x * inv);   // matches Python int()
+// NOT: static_cast<int>(std::floor(p.x * inv));  // matches Python math.floor()
+```
+
+**Test pattern that catches this:** any C++ port of a coordinate-keyed Python function needs a fuzz test that queries across the signed range (e.g. uniform random `[-20, +20]`), not just positive coordinates. The bug is invisible to tests that only exercise positive space.
+
+The Python `int()` truncation behavior is technically buggy (asymmetric cell-grid centered on origin), but for parity ports it's the reference. Document the asymmetry and plan a consistent fix later (would be its own kernel ABI bump).
+
+---
+
+## 95. ctypes + C ABI is the right Python ↔ C++ bridge for C4D-hosted plugins (NOT pybind11)
+
+**Discovered 2026-05-25** scoping a hot-kernel C++ port for SWEAT.
+
+**Wrong assumption:** pybind11 is the standard modern way to bridge Python and C++; use it for C4D plugins that want to call native code.
+
+**Actual behavior:** pybind11 links against `Python.h` and depends on the Python ABI matching the host's Python interpreter. C4D 2026 bundles its own Python (3.11.x as of testing). If your pybind11 module was built against a different patch version, or with a different `_DEBUG` macro setting, or with a different MSVC runtime mode (`/MD` vs `/MT`), it either won't load or will load and crash on first call. C4D version bumps to a new Python micro-version can break previously-working pybind11 plugins.
+
+**Better default for C4D-hosted Python ↔ C++ bridges:** plain `extern "C"` functions with C-ABI types (`float*`, `int*`, sizes, opaque `void*` handles) loaded via `ctypes.CDLL`. The DLL has zero Python dependency — same `.dll` loadable from Windows Python 3.11, 3.12, even non-C4D hosts (Houdini, Blender, standalone tools).
+
+**Build flags that matter for C4D-loaded DLLs:**
+
+| Flag | What it does | Use this |
+|---|---|---|
+| `/MD` | Link the dynamic MSVC CRT | **YES** — matches C4D's runtime |
+| `/MT` | Statically embed the CRT | NO — runtime mismatch crashes |
+| `/EHsc` | Standard C++ exception model | YES — C++ stdlib needs it |
+| `/LD` | Build a DLL | YES |
+| `/std:c++17` | Pin language standard | YES — reproducible builds |
+
+**Cost:** Python wrapper has to marshal data manually via `ctypes.c_float`, `(c_float * N)()` buffers, etc. ~10-15 lines of wrapper per kernel. Worth it for zero-version-pin portability.
+
+**Pattern for handle-based APIs** (e.g. spatial hash with internal state):
+
+```cpp
+// C++ side
+SWEAT_API void* sweat_make_hash(...) { return new MyHash(...); }
+SWEAT_API void sweat_destroy_hash(void* h) { delete (MyHash*)h; }
+SWEAT_API int sweat_query_hash(void* h, ...) { return ((MyHash*)h)->query(...); }
+```
+
+```python
+# Python side — wrap in a class with __del__ for cleanup
+class MyHash:
+    def __init__(self, ...):
+        self._handle = _lib.sweat_make_hash(...)
+    def __del__(self):
+        if self._handle: _lib.sweat_destroy_hash(self._handle)
+```
+
+ctypes treats opaque pointers as `c_void_p`; bind that as the argument/return type and you get full handle-based lifecycle without ABI churn.
+
+---
+
+## 94. Volume Builder/Mesher don't evaluate inside another generator's cache output
+
+**Discovered 2026-05-24** building a streak meshing pipeline inside SWEAT's `GetVirtualObjects`.
+
+**Wrong assumption:** if you construct a `c4d.Ovolumebuilder` + `c4d.Ovolumemesher` chain and return it as part of your generator's cache hierarchy, C4D will evaluate it and the Volume Mesher will produce meshed polygons just like it does at scene level.
+
+**Actual behavior:** Volume Builder and Volume Mesher only run their internal generation pass when they live in the document. Inside another generator's `GetVirtualObjects` return value, C4D treats them as inert cached display geometry — they exist in the hierarchy but `vm.GetCache().GetPointCount()` returns **0**.
+
+**Empirical proof:**
+
+| Setup | Volume Mesher.GetCache().GetPointCount() |
+|---|---|
+| 2 spheres at scene level → Volume Builder → Volume Mesher (in doc) | 13,134 ✓ |
+| Raw PolygonObject at scene level → same chain (in doc) | 3,906 ✓ |
+| Same chain inside a Python Generator's returned cache | **0** ✗ |
+
+This is a C4D evaluation architecture decision (`ExecutePasses` only re-evaluates generators at one level), not a Python binding issue. **Same limitation applies to C++ ObjectData generators.**
+
+**Workaround (Python prototype):** the parent generator creates+maintains a scene-level Volume Mesher chain in the document (not in its cache). Hide via a layer with `manager=False, view=True, render=True` so OM stays clean but eval+render stay on. Update the chain's source PolygonObject in place on each rebuild. Idempotent via stable naming (use a persistent UUID stored on the parent op, not its display name — names collide on rename/duplicate).
+
+**Escape hatch (C++ port):** call `maxon::VolumeInterface` or OpenVDB directly via the Maxon SDK and produce raw polygons (marching cubes) inside the generator's `GetVirtualObjects`. No Volume Builder/Mesher plugin objects needed. Fastest, no scene clutter. Python doesn't have access to these low-level APIs.
+
+**Key debug habit:** verifying the cache HIERARCHY (`cache.GetDown()` walks) is NOT the same as verifying the Volume Mesher produced output. Always check `vm.GetCache().GetPointCount()` to confirm meshed geometry. The hierarchy can be correct while the output is empty.
+
+**LayerObject API note:** `LayerObject.GetLayerData(doc, rawdata=True)` returns a **dict with string keys** (`'manager'`, `'view'`, `'render'`, `'solo'`, `'locked'`, ...), **NOT** a `BaseContainer` with `c4d.ID_LAYER_*` int constants. Setting numeric keys via `bc[c4d.ID_LAYER_MANAGER] = False` silently writes a bogus dict entry that has no effect. Use string keys directly.
+
+---
+
 ## 93. MoGraph Python Effector `md.SetArray(MODATA_COLOR/SIZE)` does NOT propagate in C4D 2026
 
 **Discovered 2026-05-17** wiring per-clone state-driven coloring for a MoGraph prototype.
