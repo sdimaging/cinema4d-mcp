@@ -9,6 +9,30 @@ anyone building agent integrations against C4D 2026.
 
 ---
 
+## 100. `CallCommand(11605)` "Reload Python Plugins" crashes C4D when registering a NEW .pyp
+
+**Discovered 2026-05-26** deploying a new `.pyp` plugin and calling reload from MCP to avoid a C4D restart.
+
+**Wrong assumption:** `CallCommand(11605)` (Reload Python Plugins) re-scans the plugins folder and loads any newly-added .pyp files cleanly, equivalent to a fresh C4D startup.
+
+**Actual behavior:** reload works for EDITING an already-loaded .pyp, but for registering a NEW .pyp (one that wasn't loaded at startup), reload triggers an interpreter teardown-and-reinit cycle that races against worker threads holding the GIL. Crash signature:
+
+```
+ExceptionText = "ACCESS_VIOLATION"
+Address       = python311.dll → PyThread_tss_create
+Call stack    = PyGILState_Ensure during c4d_base teardown
+```
+
+The crash happens DURING the reload command, before the new plugin's `RegisterCommandPlugin` even runs. The .pyp itself is not the bug — it's the reload mechanism.
+
+**Fix:** for NEW .pyp registration, always do a full C4D restart. Reload-only path is safe for code edits to plugins that were already loaded once at startup.
+
+**Detection:** if `CallCommand(11605)` returns but C4D becomes unresponsive (MCP `ping` times out, console doesn't respond), inspect `%APPDATA%/Maxon/Maxon Cinema 4D <ver>_<hash>/_bugreports/_BugReport.zip` — newest one in `_bugreports/` is the crash trace.
+
+Related: gotcha #98 (OPYTHON_CODE re-stuff for Python Generator module reload) addresses the per-generator case; this entry covers the per-plugin case.
+
+---
+
 ## 99. WSL → MSVC build interop pattern (no manual Dev Prompt needed)
 
 **Discovered 2026-05-25** building a C++ kernel DLL for the SWEAT plugin from WSL.
