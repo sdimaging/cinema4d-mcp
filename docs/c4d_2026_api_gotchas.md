@@ -9,7 +9,48 @@ anyone building agent integrations against C4D 2026.
 
 ---
 
-## 103. `c4d.Osweep` child order is load-bearing — profile FIRST, path SECOND
+## 105. `c4d.documents.RenderDocument` produces all-black PNGs on Octane-installed C4D — override `RDATA_RENDERENGINE` to `PREVIEWHARDWARE`
+
+**Discovered 2026-05-26** building a batch-screenshot system for procedural board variants. `RenderDocument` was producing fully black PNGs even though the scene rendered fine in the viewport.
+
+**Wrong assumption:** `c4d.documents.RenderDocument(doc, doc.GetActiveRenderData().GetData(), bmp, RENDERFLAGS_EXTERNAL | RENDERFLAGS_PREVIEWRENDER)` uses the C4D Standard renderer when no special render engine is configured, and Standard always produces valid output for a scene with materials + camera.
+
+**Actual behavior:** on a C4D install where Octane (or any third-party render plugin) is registered, the Standard renderer path is intercepted by the plugin's hooks. RenderDocument runs to completion (returns `RENDERRESULT_OK`), the bitmap is initialized, the PNG is saved — but the bitmap contents are all `(0,0,0,255)`. Same gotcha as the MCP `viewport_screenshot` Standard-mode issue (gotcha hidden in `reference_c4d_mcp_viewport_limitations`): Octane's intercepts catch the Standard pipeline.
+
+**Fix:** clone the render data, override `RDATA_RENDERENGINE` to the hardware previewer (`300796274` aka `RDATA_RENDERENGINE_PREVIEWHARDWARE`), then render through that clone — the original document's render settings are unchanged:
+
+```python
+rd = doc.GetActiveRenderData()
+rd_data = rd.GetDataInstance().GetClone(c4d.COPYFLAGS_NONE)
+rd_data[c4d.RDATA_RENDERENGINE] = 300796274  # PREVIEWHARDWARE
+rd_data[c4d.RDATA_XRES] = 1200
+rd_data[c4d.RDATA_YRES] = 750
+bmp = c4d.bitmaps.BaseBitmap()
+bmp.Init(1200, 750)
+rc = c4d.documents.RenderDocument(doc, rd_data, bmp,
+    c4d.RENDERFLAGS_EXTERNAL | c4d.RENDERFLAGS_PREVIEWRENDER)
+if rc == c4d.RENDERRESULT_OK:
+    bmp.Save(out_path, c4d.FILTER_PNG)
+```
+
+`PREVIEWHARDWARE` is the same engine the MCP plugin's `viewport_screenshot` uses internally (per `reference_c4d_mcp_viewport_limitations`). It bypasses Octane's hooks because Octane doesn't subscribe to the hardware-preview pipeline.
+
+**When this bites:** any batch / unattended render system (variant exports, baking, animation frame dumps) running on an artist's machine that has Octane (or Redshift) installed will produce all-black output. The dev never notices because the viewport looks correct.
+
+**Detection:** if `RenderDocument` returns OK but `bmp.Save()` writes a file that's suspiciously small (~20KB for 1200×750 is typical for all-black PNG) and looks black when opened, the renderer hook is the culprit. Hardware override fixes it.
+
+Related: `cinema4d-mcp` ships a viewport_screenshot auto-detect that watches for all-black output and falls back to hardware. The equivalent auto-detect can be folded into your own bake pipeline:
+
+```python
+# Detect all-black output and fallback if needed
+mid_pixel = bmp.GetPixel(bmp.GetBw()//2, bmp.GetBh()//2)
+if sum(mid_pixel) < 3:  # essentially black
+    print("warning: black render — confirm renderer override applied")
+```
+
+---
+
+## 104. `c4d.Osweep` child order is load-bearing — profile FIRST, path SECOND
 
 **Discovered 2026-05-26** building a procedural PCB-trace generator (CircuitBoardTool) and emitting Sweep generators from `execute_python_script`.
 
@@ -43,7 +84,7 @@ The `InsertAfter(rect)` line is the defensive write — without it, `path.Insert
 
 ---
 
-## 102. Iterating on a disk Python file from MCP requires `del sys.modules[...]` before re-import
+## 103. Iterating on a disk Python file from MCP requires `del sys.modules[...]` before re-import
 
 **Discovered 2026-05-26** during a long iteration loop editing a `CircuitBoardGenerator.py` file on disk and re-running it via `execute_python_script` after each edit.
 
@@ -83,7 +124,7 @@ import MyPackage   # reloads the whole tree
 
 ---
 
-## 101. `execute_python_script` heavy compute: bound work per call with explicit budgets, not naive loops
+## 102. `execute_python_script` heavy compute: bound work per call with explicit budgets, not naive loops
 
 **Discovered 2026-05-26** scaling a Dijkstra-based PCB-trace router from 80 routes per board to 200+ and hitting `Execution on main thread timed out after 30s`.
 
@@ -126,6 +167,40 @@ This is a different failure mode from gotcha #97 (main thread already busy, scri
 **Diagnostics when you hit this:** the script's print output up to the timeout point is gone (no stdout flush before the abort). The fastest way to find where it died is to add cheap progress prints (`if k % 100 == 0: print(k)`) before scaling — if you see "100, 200, 300, ..." stop at 800 with no completion message, you know each iteration costs about (30s / 800) = 38ms and your budget per iteration needs to drop or your iteration count needs to cap.
 
 **Related:** gotcha #97 covers the *queued-behind-busy-main-thread* case (script never starts). This covers the *script-runs-but-doesn't-finish-in-30s* case. Both surface the same error message but have opposite causes and fixes.
+
+---
+
+## 101. `SetDirty()` from a `MessageData.CoreMessage` during an active draw tool crashes C4D via recursive cache eval
+
+**Discovered 2026-05-26** building a scene-level watcher that auto-rebuilds a Python generator when a linked spline's data dirty count changes. The watcher worked correctly for programmatic edits (`SetPoint`/`ResizeObject` from a script). But the first interactive test — drawing a new point onto the spline with the Bézier/Pen tool — crashed C4D instantly.
+
+**Crash:** `ACCESS_VIOLATION in VCRUNTIME140.dll!memmove`, with ~50 frames of recursive `c4d_base.xdl64` cache-evaluation in the stack underneath (the same recursive pattern that fires when an Opython generator is configured with Optimize Cache OFF).
+
+**Mechanism:** during an active draw stroke, the tool dispatches `EVMSG_CHANGE` per click. The watcher's `CoreMessage` fires on each, calls `op.SetDirty(DIRTYFLAGS_DATA)` on the heavy generator, and C4D enters a generator-rebuild pass IMMEDIATELY — still inside the same event chain. The rebuild itself runs more scene-graph evaluation, which dirties more objects, which triggers more recursive eval. If the generator takes >100ms to rebuild AND the tool keeps firing events, the recursive stack grows until `memmove` (or any other allocation path) hits a buffer past the stack limit.
+
+**Fix (defense in depth):**
+
+1. Skip the watcher entirely while a non-default tool is active. The default Move/Select/Scale/Rotate tools are safe; everything else (Bezier, Pen, Sketch, paint tools, etc.) means "interactive in-progress, do not interrupt." When the user exits the tool back to Move/Select, one more `EVMSG_CHANGE` fires and the watcher catches up.
+2. Heavy debounce (e.g. 1.5s) so even safe paths can't fire dirty faster than the generator can rebuild.
+3. Session-fatal exception kill-switch: any uncaught exception in the watcher disables it for the rest of the session so a transient failure doesn't keep crashing on every subsequent `EVMSG_CHANGE`.
+
+Pattern:
+
+```python
+SAFE_TOOL_IDS = frozenset({
+    c4d.ID_MODELING_LIVE_SELECTION_TOOL,
+    c4d.Tmove, c4d.Tscale, c4d.Trotate,
+})
+
+class MyWatcher(plugins.MessageData):
+    def CoreMessage(self, mid, bc):
+        if mid != c4d.EVMSG_CHANGE: return True
+        if c4d.modules.tools.GetActiveTool().GetType() not in SAFE_TOOL_IDS:
+            return True   # interactive tool — do NOT dirty heavy generators
+        # ... safe to SetDirty here ...
+```
+
+The general principle: **MessageData on EVMSG_CHANGE is delivered SYNCHRONOUSLY on the main thread inside whatever event handler caused the change.** `SetDirty` there isn't queued; it triggers immediate recursive evaluation. Treat MessageData like a render-thread context — only do cheap, idempotent work.
 
 ---
 
