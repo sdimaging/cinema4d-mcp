@@ -9,6 +9,67 @@ anyone building agent integrations against C4D 2026.
 
 ---
 
+## 111. `CSegment` doesn't exist in C4D 2026 — `SplineObject::GetSegmentW()` returns `Segment*`
+
+**Discovered 2026-06-10** building a managed SplineObject output (SplatFlow Filaments). Older tribal knowledge / forum code says spline segments are `CSegment`. In the 2026 cinema API the struct is plain `Segment` (`c4d_baseobject.h`, `struct Segment { Int32 cnt; Bool closed; }`), accessed via `spline->GetSegmentW()` after `SplineObject::ResizeObject(pointCnt, segCnt)`. `CSegment` is a hard compile error (C2065).
+
+---
+
+## 110. New C4D particle system: freshly-shot particles are INVISIBLE to expression tags for one evaluation (1-frame lag)
+
+**Discovered 2026-06-05** debugging why a particle->splat binding cache never built (exports silently wrote the un-deformed rest splat).
+
+**Wrong assumption:** a Mesh Emitter (1062577) in Shot mode emits at frame 1, so a Python expression tag evaluating frame 1 can read the new particles from the ParticleGroupObject.
+
+**Actual behavior:** at the frame-1 expression evaluation `pg.GetParticlePositionsR()` returns empty. The particles only become readable at the NEXT evaluation (frame 2) — where they still sit at rest for a frame or two before forces move them.
+
+**When this bites:** any "capture state at the spawn frame" logic hard-gated to the shot frame (`frame <= 1`) can NEVER fire — the capture window never coincides with readable data. The failure is silent: no error, the cache just never exists, and downstream consumers fall back to stale/rest data.
+
+**Fix:** widen the capture window across the early frames (`frame <= 5`) AND validate the captured data really is rest state before persisting (SplatFlow uses a nearest-neighbor miss-rate check: at true rest every particle sits on a source point, ~0 misses; a moved frame produces mass misses and is rejected, retried next frame).
+
+---
+
+## 109. Scripted timeline control of the new particle sim: `SetTime(0)` resets, `SetTime(movedFrame)` does NOT rewind
+
+**Discovered 2026-06-05** (same session as #110), verified live via MCP.
+
+- `doc.SetTime(BaseTime(0, fps))` + `ExecutePasses` **resets/re-emits** the sim (particle count drops to 0, re-shoots at frame 1).
+- `SetTime` to a *moved* frame does **not** rewind live sim state — the sim stays wherever playback left it (jumping 36 -> 1 leaves particles deformed).
+- Forward stepping (`SetTime(f)` + `ExecutePasses` per frame) advances the sim deterministically, and the sim **survives scripted ExecutePasses** (it does not reset like some legacy systems).
+
+**Consequence:** batch exporters can safely rewind-to-0 and re-simulate forward to rebuild spawn-frame state, but "jump to frame N" does not mean "state as if played to N".
+
+---
+
+## 108. Hidden child (`NBIT::OHIDE`) leaves a lingering '+' fold arrow on the parent in the Object Manager
+
+**Discovered 2026-06-09.** A SceneHook-managed helper object parented under a generator and hidden with `ChangeNBit(NBIT::OHIDE, NBITCONTROL::SET)` disappears from the OM — but the parent keeps a phantom expand arrow.
+
+**Fix pattern:** keep managed helpers at **document root** and make them follow the owner manually from the SceneHook each pass:
+- transform: `if (!(helper->GetMg() == owner->GetMg())) helper->SetMg(owner->GetMg());` — the compare-first matters: unconditional `SetMg` dirties the object every pass and re-triggers scene evaluation forever.
+- visibility: root objects no longer inherit the owner's OM dots — mirror the owner's EFFECTIVE mode (walk up the parent chain for the first non-`MODE_UNDEF` `GetEditorMode()`, default `MODE_ON`).
+
+---
+
+## 107. ObjectData GVO container-write rules: `SetString` from a static/viewer GVO path = infinite GVO loop — SceneHook must own UI readouts
+
+**Hard rule (from GSL analysis, re-confirmed 2026-06-09):** `bc->SetString()` (or any container write) inside `GetVirtualObjects` marks the object DATA-dirty, which schedules another GVO, which writes again — an infinite evaluation loop on static scenes. Consequence: STATICTEXT info readouts (point counts, format info) can never be populated from a viewer-mode GVO, and stay permanently blank on objects that never enter a sim path.
+
+**Pattern that works:** a SceneHook (`RegisterSceneHookPlugin`, `EXECUTIONPRIORITY_GENERATOR`) runs on the main thread every pass and may write the container freely — gate every write behind a change-compare and call `EventAdd()` only on actual transitions. One-shot writes from GVO are survivable ONLY if change-guarded (write only when the value differs → converges after one extra GVO).
+
+---
+
+## 106. Python expression tag's BaseContainer is a usable C++<->tag contract (status, blobs, versioned auto-upgrading code)
+
+**Discovered/established 2026-06-09** (SplatFlow bridge tag v7).
+
+- A Python tag can `op.GetDataInstance().SetString/SetInt32` private IDs (10000+) on **itself** during expression execution; C++ reads them via `tag->GetDataInstance()` — a clean status channel (e.g. machine-readable `"BOUND|count|frame"` + human display string).
+- Binary payloads survive as **base64 strings** in the tag container (Python `BaseContainer` can't store raw bytes) — a 125k-int32 index map is ~667KB of base64 and travels INSIDE the .c4d scene file, surviving reboots/machine moves that kill `%TEMP%` caches.
+- `tag[c4d.TPYTHON_CODE]` / `SetString(400, code)` replaces the tag code, recompiles, and **resets the tag's module-level globals** — useful as a deliberate state-clear (e.g. a "clear cache" button that must drop the tag's in-memory copy too).
+- Stamp a **code-version int** in the tag container; a SceneHook compares it against the plugin's current version and rewrites the embedded code when stale — saved scenes auto-inherit every tag fix without user action. Keep the tag source in ONE C++ raw-string function (`R"PY(...)PY"_s`) shared by setup, upgrade, and reset paths.
+
+---
+
 ## 105. `c4d.documents.RenderDocument` produces all-black PNGs on Octane-installed C4D — override `RDATA_RENDERENGINE` to `PREVIEWHARDWARE`
 
 **Discovered 2026-05-26** building a batch-screenshot system for procedural board variants. `RenderDocument` was producing fully black PNGs even though the scene rendered fine in the viewport.
