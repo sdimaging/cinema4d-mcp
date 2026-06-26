@@ -9,6 +9,307 @@ anyone building agent integrations against C4D 2026.
 
 ---
 
+## 113. A C4D Python plugin running a background thread MUST stop+join it on `C4DPL_ENDACTIVITY`, or it crashes C4D at shutdown (`PyGILState_Ensure`)
+
+**Discovered 2026-06-26.** The MCP bridge plugin (`.pyp`) runs a TCP socket server in a `threading.Thread` and spawns a per-client handler thread per connection. C4D closes produced intermittent crash minidumps with this stack:
+
+```
+python311.dll: PyThread_tss_create
+python311.dll: PyGILState_Ensure
+python.xdl64 ...
+```
+
+**Cause:** at shutdown C4D finalizes the embedded Python interpreter. Any background thread still blocked in a C call (`socket.accept()`, `socket.recv()`) gets torn down *mid-GIL-acquire* — `PyGILState_Ensure` runs against thread-state that's already gone → crash. **`thread.daemon = True` does NOT save you**: daemon threads are killed abruptly at finalization, which is exactly when they're mid-call.
+
+**The two-part fix:**
+1. **Actually stop the threads on shutdown.** C4D sends `C4DPL_ENDACTIVITY` (module-level `PluginMessage(msg_id, data)`) *before* finalizing Python — that's the hook. Most plugins only handle `C4DPL_PROGRAM_STARTED` and never register a shutdown path, so the threads are never stopped.
+2. **Make stop() unblock and join, not just set a flag.** Setting `running = False` is useless against a thread blocked in `accept()`/`recv()` — those don't re-check the flag until they return. You must **close the sockets to force the blocking calls to raise**, then join:
+   - close the listening socket → `accept()` raises `OSError` → server loop exits
+   - track every client socket + handler thread; close each client socket → its `recv()` raises → handler exits
+   - `join(timeout=...)` every thread (bounded, so a wedged handler can't hang C4D's shutdown)
+
+```python
+def PluginMessage(msg_id, data):
+    if msg_id == getattr(c4d, "C4DPL_ENDACTIVITY", None):
+        srv = _get_running_server()
+        if srv: srv.stop()      # closes listen+client sockets, joins all threads
+    return True
+```
+
+**Detection:** intermittent `_bugreports/minidump.dmp` on close with `PyGILState_Ensure` near the top of a non-main thread. Applies to ANY `.pyp` with a socket server, file watcher, or polling thread.
+
+---
+
+## 112. Migrating a plugin to the 2026.3 SDK breaks on the BUILD system, not the code — stock CMake presets pin a Windows SDK you may not have
+
+**Discovered 2026-06-26** migrating a generator+scenehook+spline+particle plugin from the 2026.2 SDK to 2026.3.
+
+**The code side is a non-event.** Source written against 2026.2 (ObjectData, SceneHook, SplineObject, VertexColorTag, ParticleGroupObject, `maxon::ParallelFor`) compiled **clean against 2026.3 frameworks — zero API breaks**, one pre-existing benign `C4244` warning. The 190 cinema.framework changes are additive for mainstream usage, and 2026.2-compiled plugins keep loading on 2026.3.x (ABI stable within the major version).
+
+**The friction is entirely the new build system.** 2026.3 is pure-CMake (top-level `CMakeLists.txt` + `CMakePresets.json`, no project-tool exe); plugins are globbed from `plugins/*/` with `projectdefinition.txt` in a `<plugin>/project/` subfolder; the projectdefinition format changed (lowercase `Platform=windows;...`, `stylecheck.level` must follow `C4D=true`).
+
+**The trap:** stock presets pin an exact Windows SDK, e.g. `windows_vs2022_v143_x64` → `"architecture": "x64,version=10.0.20348.0"`. If that version isn't installed, configure dies: *"no Windows SDK with that version was found."* And a failed configure poisons the cache (*"does not match the platform used previously"*) so you must `rm -rf <binaryDir>` before retrying.
+
+**Fix:** machine-local `CMakeUserPresets.json` at the C++ SDK root inheriting the stock preset but overriding `architecture` to your installed Win SDK (`...\Windows Kits\10\Include\`). Full validated runbook: [c4d_2026_3_sdk_migration_guide.md](c4d_2026_3_sdk_migration_guide.md).
+
+---
+
+## 111. `CSegment` doesn't exist in C4D 2026 — `SplineObject::GetSegmentW()` returns `Segment*`
+
+**Discovered 2026-06-10** building a managed SplineObject output (SplatFlow Filaments). Older tribal knowledge / forum code says spline segments are `CSegment`. In the 2026 cinema API the struct is plain `Segment` (`c4d_baseobject.h`, `struct Segment { Int32 cnt; Bool closed; }`), accessed via `spline->GetSegmentW()` after `SplineObject::ResizeObject(pointCnt, segCnt)`. `CSegment` is a hard compile error (C2065).
+
+---
+
+## 110. New C4D particle system: freshly-shot particles are INVISIBLE to expression tags for one evaluation (1-frame lag)
+
+**Discovered 2026-06-05** debugging why a particle->splat binding cache never built (exports silently wrote the un-deformed rest splat).
+
+**Wrong assumption:** a Mesh Emitter (1062577) in Shot mode emits at frame 1, so a Python expression tag evaluating frame 1 can read the new particles from the ParticleGroupObject.
+
+**Actual behavior:** at the frame-1 expression evaluation `pg.GetParticlePositionsR()` returns empty. The particles only become readable at the NEXT evaluation (frame 2) — where they still sit at rest for a frame or two before forces move them.
+
+**When this bites:** any "capture state at the spawn frame" logic hard-gated to the shot frame (`frame <= 1`) can NEVER fire — the capture window never coincides with readable data. The failure is silent: no error, the cache just never exists, and downstream consumers fall back to stale/rest data.
+
+**Fix:** widen the capture window across the early frames (`frame <= 5`) AND validate the captured data really is rest state before persisting (SplatFlow uses a nearest-neighbor miss-rate check: at true rest every particle sits on a source point, ~0 misses; a moved frame produces mass misses and is rejected, retried next frame).
+
+---
+
+## 109. Scripted timeline control of the new particle sim: `SetTime(0)` resets, `SetTime(movedFrame)` does NOT rewind
+
+**Discovered 2026-06-05** (same session as #110), verified live via MCP.
+
+- `doc.SetTime(BaseTime(0, fps))` + `ExecutePasses` **resets/re-emits** the sim (particle count drops to 0, re-shoots at frame 1).
+- `SetTime` to a *moved* frame does **not** rewind live sim state — the sim stays wherever playback left it (jumping 36 -> 1 leaves particles deformed).
+- Forward stepping (`SetTime(f)` + `ExecutePasses` per frame) advances the sim deterministically, and the sim **survives scripted ExecutePasses** (it does not reset like some legacy systems).
+
+**Consequence:** batch exporters can safely rewind-to-0 and re-simulate forward to rebuild spawn-frame state, but "jump to frame N" does not mean "state as if played to N".
+
+---
+
+## 108. Hidden child (`NBIT::OHIDE`) leaves a lingering '+' fold arrow on the parent in the Object Manager
+
+**Discovered 2026-06-09.** A SceneHook-managed helper object parented under a generator and hidden with `ChangeNBit(NBIT::OHIDE, NBITCONTROL::SET)` disappears from the OM — but the parent keeps a phantom expand arrow.
+
+**Fix pattern:** keep managed helpers at **document root** and make them follow the owner manually from the SceneHook each pass:
+- transform: `if (!(helper->GetMg() == owner->GetMg())) helper->SetMg(owner->GetMg());` — the compare-first matters: unconditional `SetMg` dirties the object every pass and re-triggers scene evaluation forever.
+- visibility: root objects no longer inherit the owner's OM dots — mirror the owner's EFFECTIVE mode (walk up the parent chain for the first non-`MODE_UNDEF` `GetEditorMode()`, default `MODE_ON`).
+
+---
+
+## 107. ObjectData GVO container-write rules: `SetString` from a static/viewer GVO path = infinite GVO loop — SceneHook must own UI readouts
+
+**Hard rule (from GSL analysis, re-confirmed 2026-06-09):** `bc->SetString()` (or any container write) inside `GetVirtualObjects` marks the object DATA-dirty, which schedules another GVO, which writes again — an infinite evaluation loop on static scenes. Consequence: STATICTEXT info readouts (point counts, format info) can never be populated from a viewer-mode GVO, and stay permanently blank on objects that never enter a sim path.
+
+**Pattern that works:** a SceneHook (`RegisterSceneHookPlugin`, `EXECUTIONPRIORITY_GENERATOR`) runs on the main thread every pass and may write the container freely — gate every write behind a change-compare and call `EventAdd()` only on actual transitions. One-shot writes from GVO are survivable ONLY if change-guarded (write only when the value differs → converges after one extra GVO).
+
+---
+
+## 106. Python expression tag's BaseContainer is a usable C++<->tag contract (status, blobs, versioned auto-upgrading code)
+
+**Discovered/established 2026-06-09** (SplatFlow bridge tag v7).
+
+- A Python tag can `op.GetDataInstance().SetString/SetInt32` private IDs (10000+) on **itself** during expression execution; C++ reads them via `tag->GetDataInstance()` — a clean status channel (e.g. machine-readable `"BOUND|count|frame"` + human display string).
+- Binary payloads survive as **base64 strings** in the tag container (Python `BaseContainer` can't store raw bytes) — a 125k-int32 index map is ~667KB of base64 and travels INSIDE the .c4d scene file, surviving reboots/machine moves that kill `%TEMP%` caches.
+- `tag[c4d.TPYTHON_CODE]` / `SetString(400, code)` replaces the tag code, recompiles, and **resets the tag's module-level globals** — useful as a deliberate state-clear (e.g. a "clear cache" button that must drop the tag's in-memory copy too).
+- Stamp a **code-version int** in the tag container; a SceneHook compares it against the plugin's current version and rewrites the embedded code when stale — saved scenes auto-inherit every tag fix without user action. Keep the tag source in ONE C++ raw-string function (`R"PY(...)PY"_s`) shared by setup, upgrade, and reset paths.
+
+---
+
+## 105. `c4d.documents.RenderDocument` produces all-black PNGs on Octane-installed C4D — override `RDATA_RENDERENGINE` to `PREVIEWHARDWARE`
+
+**Discovered 2026-05-26** building a batch-screenshot system for procedural board variants. `RenderDocument` was producing fully black PNGs even though the scene rendered fine in the viewport.
+
+**Wrong assumption:** `c4d.documents.RenderDocument(doc, doc.GetActiveRenderData().GetData(), bmp, RENDERFLAGS_EXTERNAL | RENDERFLAGS_PREVIEWRENDER)` uses the C4D Standard renderer when no special render engine is configured, and Standard always produces valid output for a scene with materials + camera.
+
+**Actual behavior:** on a C4D install where Octane (or any third-party render plugin) is registered, the Standard renderer path is intercepted by the plugin's hooks. RenderDocument runs to completion (returns `RENDERRESULT_OK`), the bitmap is initialized, the PNG is saved — but the bitmap contents are all `(0,0,0,255)`. Same gotcha as the MCP `viewport_screenshot` Standard-mode issue (gotcha hidden in `reference_c4d_mcp_viewport_limitations`): Octane's intercepts catch the Standard pipeline.
+
+**Fix:** clone the render data, override `RDATA_RENDERENGINE` to the hardware previewer (`300796274` aka `RDATA_RENDERENGINE_PREVIEWHARDWARE`), then render through that clone — the original document's render settings are unchanged:
+
+```python
+rd = doc.GetActiveRenderData()
+rd_data = rd.GetDataInstance().GetClone(c4d.COPYFLAGS_NONE)
+rd_data[c4d.RDATA_RENDERENGINE] = 300796274  # PREVIEWHARDWARE
+rd_data[c4d.RDATA_XRES] = 1200
+rd_data[c4d.RDATA_YRES] = 750
+bmp = c4d.bitmaps.BaseBitmap()
+bmp.Init(1200, 750)
+rc = c4d.documents.RenderDocument(doc, rd_data, bmp,
+    c4d.RENDERFLAGS_EXTERNAL | c4d.RENDERFLAGS_PREVIEWRENDER)
+if rc == c4d.RENDERRESULT_OK:
+    bmp.Save(out_path, c4d.FILTER_PNG)
+```
+
+`PREVIEWHARDWARE` is the same engine the MCP plugin's `viewport_screenshot` uses internally (per `reference_c4d_mcp_viewport_limitations`). It bypasses Octane's hooks because Octane doesn't subscribe to the hardware-preview pipeline.
+
+**When this bites:** any batch / unattended render system (variant exports, baking, animation frame dumps) running on an artist's machine that has Octane (or Redshift) installed will produce all-black output. The dev never notices because the viewport looks correct.
+
+**Detection:** if `RenderDocument` returns OK but `bmp.Save()` writes a file that's suspiciously small (~20KB for 1200×750 is typical for all-black PNG) and looks black when opened, the renderer hook is the culprit. Hardware override fixes it.
+
+Related: `cinema4d-mcp` ships a viewport_screenshot auto-detect that watches for all-black output and falls back to hardware. The equivalent auto-detect can be folded into your own bake pipeline:
+
+```python
+# Detect all-black output and fallback if needed
+mid_pixel = bmp.GetPixel(bmp.GetBw()//2, bmp.GetBh()//2)
+if sum(mid_pixel) < 3:  # essentially black
+    print("warning: black render — confirm renderer override applied")
+```
+
+---
+
+## 104. `c4d.Osweep` child order is load-bearing — profile FIRST, path SECOND
+
+**Discovered 2026-05-26** building a procedural PCB-trace generator (CircuitBoardTool) and emitting Sweep generators from `execute_python_script`.
+
+**Wrong assumption:** `c4d.Osweep` is forgiving about which child is the profile vs. which is the path — C4D will figure it out from the children's types (spline-primitive shapes vs. linear SplineObjects).
+
+**Actual behavior:** Sweep walks its children **strictly in order**. The first child is the profile (the cross-section), the second is the path (the spline being swept along). Reverse the order and Sweep silently produces zero geometry — no error, no warning, no console message. The Sweep node appears in the Object Manager but renders nothing in the viewport.
+
+Bit me when adding traces to a chip-routing pipeline: I created the path spline first (because that's the order I computed them in), then the rectangle profile. The Sweep showed up empty until I realized the insertion order was wrong.
+
+**Fix:** insert profile FIRST, then path, into the Sweep:
+
+```python
+sweep = c4d.BaseObject(c4d.Osweep)
+rect = c4d.BaseObject(c4d.Osplinerectangle)
+rect[c4d.PRIM_RECTANGLE_WIDTH]  = 1.2
+rect[c4d.PRIM_RECTANGLE_HEIGHT] = 0.5
+path = c4d.SplineObject(N, c4d.SPLINETYPE_LINEAR)
+for i, (x, y, z) in enumerate(points):
+    path.SetPoint(i, c4d.Vector(x, y, z))
+path.Message(c4d.MSG_UPDATE)
+
+# ORDER MATTERS: profile first, path second
+rect.InsertUnder(sweep)
+path.InsertUnder(sweep)
+path.InsertAfter(rect)   # belt-and-braces — guarantees path is below rect
+```
+
+The `InsertAfter(rect)` line is the defensive write — without it, `path.InsertUnder(sweep)` puts `path` at the top of sweep's child list (above `rect`), and you're back to silent-empty-Sweep land. With `InsertAfter`, the order is enforced regardless of Insert semantics.
+
+**Detection:** if a Sweep generator shows up in the OM with the expected name but the viewport shows nothing where the swept geometry should be, check `sweep.GetDown().GetType()` — if it's `c4d.Ospline` (or your SplineObject type) instead of `c4d.Osplinerectangle` (or whatever your profile is), order is reversed.
+
+---
+
+## 103. Iterating on a disk Python file from MCP requires `del sys.modules[...]` before re-import
+
+**Discovered 2026-05-26** during a long iteration loop editing a `CircuitBoardGenerator.py` file on disk and re-running it via `execute_python_script` after each edit.
+
+**Wrong assumption:** Each `execute_python_script` call gets a fresh interpreter scope, so `import MyModule` at the top of every script picks up whatever's on disk now.
+
+**Actual behavior:** `execute_python_script` calls all share **one Python interpreter** — C4D's bundled one. Once `import MyModule` runs, `MyModule` is cached in `sys.modules`. Subsequent `import MyModule` calls in later MCP scripts return the *cached* module object, NOT a fresh read of the edited disk file. Edits silently don't apply. You'll see the old behavior for hours and chase phantom bugs that don't exist in the on-disk code.
+
+This is normal Python module-caching behavior, but the failure mode is invisible: there's no warning that you're running stale code. The script "succeeds" against an obsolete version.
+
+**Fix:** the canonical preamble for iterating on a disk-resident `.py` file via MCP:
+
+```python
+import sys
+src = r"C:\path\to\your\module\folder"
+if src not in sys.path:
+    sys.path.insert(0, src)
+if "MyModule" in sys.modules:
+    del sys.modules["MyModule"]
+import MyModule
+MyModule.main()
+```
+
+The `del sys.modules["MyModule"]` line is the only thing that forces a true re-read of the disk file. `importlib.reload()` also works but only after the module has been imported once — `del + re-import` is safer because it doesn't care about prior state.
+
+For multi-module packages, walk the modules dict and drop everything matching a prefix:
+
+```python
+for name in [n for n in sys.modules if n.startswith("MyPackage")]:
+    del sys.modules[name]
+import MyPackage   # reloads the whole tree
+```
+
+**Related:**
+- Gotcha #98 covers a different but adjacent case: re-stuffing `OPYTHON_CODE` for Python Generators specifically. That's needed because the generator's *body* doesn't re-execute on rebuild — distinct from the `sys.modules` caching issue which affects any `import` regardless of caller.
+
+**When this bites hardest:** long debugging sessions iterating on a single algorithm file. You "fix" something, re-run, see the broken behavior, "fix" it differently, re-run, see broken behavior again — never realizing none of your edits ran. Adding the `del sys.modules` preamble to every iteration script turns this from a 30-minute confusion into a non-event.
+
+---
+
+## 102. `execute_python_script` heavy compute: bound work per call with explicit budgets, not naive loops
+
+**Discovered 2026-05-26** scaling a Dijkstra-based PCB-trace router from 80 routes per board to 200+ and hitting `Execution on main thread timed out after 30s`.
+
+**Wrong assumption:** if a Python loop is doing legitimate work (no deadlock, no infinite recursion, just expensive computation), the MCP 30s timeout is mostly informational — the script will finish, and worst case you wait.
+
+**Actual behavior:** the timeout is **hard**. After 30s the MCP returns an error and the in-flight C4D main-thread work is abandoned mid-state. Anything the script had already mutated (objects inserted into the doc, parameters set, materials created) stays partially applied — leaving a corrupt half-built scene that requires `clear_previous()` or a fresh doc. The script doesn't "finish in the background" — it stops.
+
+This is a different failure mode from gotcha #97 (main thread already busy, script never started). Here the script DOES start, runs for a while, then gets cut off mid-execution.
+
+**Fix:** for any compute-heavy work submitted via `execute_python_script`, **bound the work per call** with explicit budgets so the loop bails before the timer expires. Three patterns that worked:
+
+1. **Visit budget on graph searches** (the one that solved CircuitBoardTool):
+
+   ```python
+   def dijkstra(start, goals, ..., max_visits=4000):
+       visits = 0
+       while pq:
+           ...
+           visits += 1
+           if visits > max_visits:
+               return None    # bail — caller decides whether to retry
+           ...
+   ```
+
+   Failed/hopeless searches cost the cap (4000 pq pops) instead of exhausting the grid. A multi-thousand-route fill pass that used to time out at ~80 routes completes cleanly at 200+ because no single search blows the budget.
+
+2. **Iteration cap on retry loops:**
+
+   ```python
+   placed = 0; tries = 0
+   while placed < target and tries < target * 12:   # cap retries
+       tries += 1
+       ...
+   ```
+
+   The `target * 12` cap means if scatter-placement is starving (too many rejections), the loop exits and the caller decides whether to relax constraints — instead of spinning forever.
+
+3. **Per-call yield to C4D event loop:** for genuinely-long pipelines (heavy MoGraph rebuilds, voxel ops), split work into multiple `execute_python_script` calls and let MCP serialize them. State that needs to persist across calls goes in `sys.modules` (a module-level dict survives between calls; module-local globals do too).
+
+**Diagnostics when you hit this:** the script's print output up to the timeout point is gone (no stdout flush before the abort). The fastest way to find where it died is to add cheap progress prints (`if k % 100 == 0: print(k)`) before scaling — if you see "100, 200, 300, ..." stop at 800 with no completion message, you know each iteration costs about (30s / 800) = 38ms and your budget per iteration needs to drop or your iteration count needs to cap.
+
+**Related:** gotcha #97 covers the *queued-behind-busy-main-thread* case (script never starts). This covers the *script-runs-but-doesn't-finish-in-30s* case. Both surface the same error message but have opposite causes and fixes.
+
+---
+
+## 101. `SetDirty()` from a `MessageData.CoreMessage` during an active draw tool crashes C4D via recursive cache eval
+
+**Discovered 2026-05-26** building a scene-level watcher that auto-rebuilds a Python generator when a linked spline's data dirty count changes. The watcher worked correctly for programmatic edits (`SetPoint`/`ResizeObject` from a script). But the first interactive test — drawing a new point onto the spline with the Bézier/Pen tool — crashed C4D instantly.
+
+**Crash:** `ACCESS_VIOLATION in VCRUNTIME140.dll!memmove`, with ~50 frames of recursive `c4d_base.xdl64` cache-evaluation in the stack underneath (the same recursive pattern that fires when an Opython generator is configured with Optimize Cache OFF).
+
+**Mechanism:** during an active draw stroke, the tool dispatches `EVMSG_CHANGE` per click. The watcher's `CoreMessage` fires on each, calls `op.SetDirty(DIRTYFLAGS_DATA)` on the heavy generator, and C4D enters a generator-rebuild pass IMMEDIATELY — still inside the same event chain. The rebuild itself runs more scene-graph evaluation, which dirties more objects, which triggers more recursive eval. If the generator takes >100ms to rebuild AND the tool keeps firing events, the recursive stack grows until `memmove` (or any other allocation path) hits a buffer past the stack limit.
+
+**Fix (defense in depth):**
+
+1. Skip the watcher entirely while a non-default tool is active. The default Move/Select/Scale/Rotate tools are safe; everything else (Bezier, Pen, Sketch, paint tools, etc.) means "interactive in-progress, do not interrupt." When the user exits the tool back to Move/Select, one more `EVMSG_CHANGE` fires and the watcher catches up.
+2. Heavy debounce (e.g. 1.5s) so even safe paths can't fire dirty faster than the generator can rebuild.
+3. Session-fatal exception kill-switch: any uncaught exception in the watcher disables it for the rest of the session so a transient failure doesn't keep crashing on every subsequent `EVMSG_CHANGE`.
+
+Pattern:
+
+```python
+SAFE_TOOL_IDS = frozenset({
+    c4d.ID_MODELING_LIVE_SELECTION_TOOL,
+    c4d.Tmove, c4d.Tscale, c4d.Trotate,
+})
+
+class MyWatcher(plugins.MessageData):
+    def CoreMessage(self, mid, bc):
+        if mid != c4d.EVMSG_CHANGE: return True
+        if c4d.modules.tools.GetActiveTool().GetType() not in SAFE_TOOL_IDS:
+            return True   # interactive tool — do NOT dirty heavy generators
+        # ... safe to SetDirty here ...
+```
+
+The general principle: **MessageData on EVMSG_CHANGE is delivered SYNCHRONOUSLY on the main thread inside whatever event handler caused the change.** `SetDirty` there isn't queued; it triggers immediate recursive evaluation. Treat MessageData like a render-thread context — only do cheap, idempotent work.
+
+---
+
 ## 100. `CallCommand(11605)` "Reload Python Plugins" crashes C4D when registering a NEW .pyp
 
 **Discovered 2026-05-26** deploying a new `.pyp` plugin and calling reload from MCP to avoid a C4D restart.
