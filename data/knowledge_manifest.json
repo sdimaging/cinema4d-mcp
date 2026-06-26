@@ -1,6 +1,6 @@
 {
  "version": "1.0.0",
- "generated_at": "2026-06-11",
+ "generated_at": "2026-06-26",
  "description": "Curated cinema4d-mcp knowledge layer. Production-grade C4D 2026 reference material that's not in any LLM's training data. Query via cinema4d_knowledge_index / get / search.",
  "size_budget_bytes": 5242880,
  "categories": [
@@ -162,6 +162,19 @@
       "Redshift Live replaces RT",
       "OCIO ACEScg default",
       "recently-rewritten-subsystem risk map"
+     ]
+    },
+    {
+     "path": "docs/c4d_2026_3_sdk_migration_guide.md",
+     "title": "C4D 2026.2 -> 2026.3 SDK plugin migration guide (validated runbook + build gotchas)",
+     "type": "markdown",
+     "topics": [
+      "pure-CMake build system",
+      "new projectdefinition.txt format",
+      "CMakeUserPresets Windows SDK pin fix",
+      "stale CMakeCache",
+      "zero API breaks for mainstream Cinema API",
+      "custom_paths.txt"
      ]
     }
    ]

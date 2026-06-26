@@ -9,6 +9,20 @@ anyone building agent integrations against C4D 2026.
 
 ---
 
+## 112. Migrating a plugin to the 2026.3 SDK breaks on the BUILD system, not the code — stock CMake presets pin a Windows SDK you may not have
+
+**Discovered 2026-06-26** migrating a generator+scenehook+spline+particle plugin from the 2026.2 SDK to 2026.3.
+
+**The code side is a non-event.** Source written against 2026.2 (ObjectData, SceneHook, SplineObject, VertexColorTag, ParticleGroupObject, `maxon::ParallelFor`) compiled **clean against 2026.3 frameworks — zero API breaks**, one pre-existing benign `C4244` warning. The 190 cinema.framework changes are additive for mainstream usage, and 2026.2-compiled plugins keep loading on 2026.3.x (ABI stable within the major version).
+
+**The friction is entirely the new build system.** 2026.3 is pure-CMake (top-level `CMakeLists.txt` + `CMakePresets.json`, no project-tool exe); plugins are globbed from `plugins/*/` with `projectdefinition.txt` in a `<plugin>/project/` subfolder; the projectdefinition format changed (lowercase `Platform=windows;...`, `stylecheck.level` must follow `C4D=true`).
+
+**The trap:** stock presets pin an exact Windows SDK, e.g. `windows_vs2022_v143_x64` → `"architecture": "x64,version=10.0.20348.0"`. If that version isn't installed, configure dies: *"no Windows SDK with that version was found."* And a failed configure poisons the cache (*"does not match the platform used previously"*) so you must `rm -rf <binaryDir>` before retrying.
+
+**Fix:** machine-local `CMakeUserPresets.json` at the C++ SDK root inheriting the stock preset but overriding `architecture` to your installed Win SDK (`...\Windows Kits\10\Include\`). Full validated runbook: [c4d_2026_3_sdk_migration_guide.md](c4d_2026_3_sdk_migration_guide.md).
+
+---
+
 ## 111. `CSegment` doesn't exist in C4D 2026 — `SplineObject::GetSegmentW()` returns `Segment*`
 
 **Discovered 2026-06-10** building a managed SplineObject output (SplatFlow Filaments). Older tribal knowledge / forum code says spline segments are `CSegment`. In the 2026 cinema API the struct is plain `Segment` (`c4d_baseobject.h`, `struct Segment { Int32 cnt; Bool closed; }`), accessed via `spline->GetSegmentW()` after `SplineObject::ResizeObject(pointCnt, segCnt)`. `CSegment` is a hard compile error (C2065).
