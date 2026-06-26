@@ -449,6 +449,13 @@ class C4DSocketServer(threading.Thread):
         self.running = False
         self.msg_queue = msg_queue  # Queue to communicate with UI
         self.daemon = True  # Ensures cleanup on shutdown
+        # Track active client sockets + handler threads so stop() can close and
+        # join them on shutdown. Without this, threads blocked in recv()/accept()
+        # are torn down mid-call by Python finalization at C4D close ->
+        # PyGILState_Ensure crash (the dirty-shutdown minidump).
+        self._clients = []
+        self._client_threads = []
+        self._clients_lock = threading.Lock()
 
         # --- ADDED FOR CONTEXT AWARENESS ---
         self._object_name_registry = (
@@ -678,9 +685,26 @@ class C4DSocketServer(threading.Thread):
                 )
 
             while self.running:
-                client, addr = self.socket.accept()
+                try:
+                    client, addr = self.socket.accept()
+                except OSError:
+                    # Listening socket was closed by stop() — exit the accept loop cleanly.
+                    break
+                if not self.running:
+                    try:
+                        client.close()
+                    except Exception:
+                        pass
+                    break
                 self.log(f"[C4D] Client connected from {addr}")
-                threading.Thread(target=self.handle_client, args=(client,)).start()
+                t = threading.Thread(target=self.handle_client, args=(client,))
+                t.daemon = True
+                with self._clients_lock:
+                    # prune finished handlers so the lists stay bounded over a long session
+                    self._client_threads = [x for x in self._client_threads if x.is_alive()]
+                    self._clients.append(client)
+                    self._client_threads.append(t)
+                t.start()
 
         except Exception as e:
             self.log(f"[C4D] Server Error: {str(e)}")
@@ -1078,10 +1102,42 @@ class C4DSocketServer(threading.Thread):
             self.log("[C4D] Client disconnected")
 
     def stop(self):
-        """Stop the server."""
+        """Stop the server cleanly: break accept(), close client sockets so their
+        recv() loops exit, then JOIN every thread before returning. This must
+        finish before Python is finalized at C4D shutdown — otherwise threads
+        blocked in accept()/recv() are torn down mid-GIL-call (PyGILState_Ensure
+        crash, the dirty-shutdown minidump)."""
         self.running = False
-        if self.socket:
-            self.socket.close()
+        # 1) close the listening socket -> unblocks accept() in run()
+        try:
+            if self.socket:
+                self.socket.close()
+        except Exception:
+            pass
+        # 2) snapshot + clear tracked clients/threads under the lock
+        with self._clients_lock:
+            clients = list(self._clients)
+            threads = list(self._client_threads)
+            self._clients = []
+            self._client_threads = []
+        # 3) close every client socket -> unblocks recv() so handle_client() returns
+        for c in clients:
+            try:
+                c.close()
+            except Exception:
+                pass
+        # 4) join client handler threads (bounded — never hang C4D's shutdown)
+        for t in threads:
+            try:
+                t.join(timeout=1.0)
+            except Exception:
+                pass
+        # 5) join the accept thread itself (unless stop() was called from it)
+        try:
+            if self.is_alive() and threading.current_thread() is not self:
+                self.join(timeout=2.0)
+        except Exception:
+            pass
         self.update_status("Offline")
         self.log("[C4D] Server stopped")
         self._delete_ready_marker()
@@ -17943,6 +17999,28 @@ def PluginMessage(msg_id, data):
                     mcp_log_append("mcp", "Auto-start: dialog not allocated after Execute()")
             except Exception as e:
                 mcp_log_append("mcp", f"Auto-start failed: {e}\n{traceback.format_exc()[-400:]}")
+
+        # Clean shutdown: C4D sends C4DPL_ENDACTIVITY *before* finalizing the Python
+        # interpreter. Stop the socket server here so its accept thread + per-client
+        # recv() threads are closed and joined, instead of being torn down mid-GIL-call
+        # (the PyGILState_Ensure crash that produced the dirty-shutdown minidump).
+        endactivity_const = getattr(c4d, "C4DPL_ENDACTIVITY", None)
+        if endactivity_const is not None and msg_id == endactivity_const:
+            try:
+                srv = None
+                dlg = getattr(_socket_server_plugin, "dialog", None)
+                if dlg is not None:
+                    srv = getattr(dlg, "server", None)
+                if srv is None:
+                    srv = globals().get("_g_ui_log_server")
+                if srv is not None:
+                    srv.stop()
+                    mcp_log_append("mcp", "Socket stopped cleanly on C4DPL_ENDACTIVITY")
+            except Exception as e:
+                try:
+                    mcp_log_append("mcp", f"Shutdown stop error: {e}")
+                except Exception:
+                    pass
     except Exception as e:
         # Never let PluginMessage crash C4D
         try:

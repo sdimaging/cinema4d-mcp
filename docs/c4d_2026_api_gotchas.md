@@ -9,6 +9,37 @@ anyone building agent integrations against C4D 2026.
 
 ---
 
+## 113. A C4D Python plugin running a background thread MUST stop+join it on `C4DPL_ENDACTIVITY`, or it crashes C4D at shutdown (`PyGILState_Ensure`)
+
+**Discovered 2026-06-26.** The MCP bridge plugin (`.pyp`) runs a TCP socket server in a `threading.Thread` and spawns a per-client handler thread per connection. C4D closes produced intermittent crash minidumps with this stack:
+
+```
+python311.dll: PyThread_tss_create
+python311.dll: PyGILState_Ensure
+python.xdl64 ...
+```
+
+**Cause:** at shutdown C4D finalizes the embedded Python interpreter. Any background thread still blocked in a C call (`socket.accept()`, `socket.recv()`) gets torn down *mid-GIL-acquire* — `PyGILState_Ensure` runs against thread-state that's already gone → crash. **`thread.daemon = True` does NOT save you**: daemon threads are killed abruptly at finalization, which is exactly when they're mid-call.
+
+**The two-part fix:**
+1. **Actually stop the threads on shutdown.** C4D sends `C4DPL_ENDACTIVITY` (module-level `PluginMessage(msg_id, data)`) *before* finalizing Python — that's the hook. Most plugins only handle `C4DPL_PROGRAM_STARTED` and never register a shutdown path, so the threads are never stopped.
+2. **Make stop() unblock and join, not just set a flag.** Setting `running = False` is useless against a thread blocked in `accept()`/`recv()` — those don't re-check the flag until they return. You must **close the sockets to force the blocking calls to raise**, then join:
+   - close the listening socket → `accept()` raises `OSError` → server loop exits
+   - track every client socket + handler thread; close each client socket → its `recv()` raises → handler exits
+   - `join(timeout=...)` every thread (bounded, so a wedged handler can't hang C4D's shutdown)
+
+```python
+def PluginMessage(msg_id, data):
+    if msg_id == getattr(c4d, "C4DPL_ENDACTIVITY", None):
+        srv = _get_running_server()
+        if srv: srv.stop()      # closes listen+client sockets, joins all threads
+    return True
+```
+
+**Detection:** intermittent `_bugreports/minidump.dmp` on close with `PyGILState_Ensure` near the top of a non-main thread. Applies to ANY `.pyp` with a socket server, file watcher, or polling thread.
+
+---
+
 ## 112. Migrating a plugin to the 2026.3 SDK breaks on the BUILD system, not the code — stock CMake presets pin a Windows SDK you may not have
 
 **Discovered 2026-06-26** migrating a generator+scenehook+spline+particle plugin from the 2026.2 SDK to 2026.3.
