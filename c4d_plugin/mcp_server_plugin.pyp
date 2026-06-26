@@ -18021,6 +18021,15 @@ def PluginMessage(msg_id, data):
                     mcp_log_append("mcp", f"Shutdown stop error: {e}")
                 except Exception:
                     pass
+            # Restore the ORIGINAL c4d.GePrint before Python finalizes. Our monkeypatch
+            # leaves a Python callable in the GePrint path; a native C4D/Redshift teardown
+            # thread calling it after interpreter finalization begins is another
+            # PyGILState_Ensure crash vector (distinct from the socket threads).
+            try:
+                mcp_uninstall_geprint_hook()
+                mcp_log_append("mcp", "GePrint hook restored on C4DPL_ENDACTIVITY")
+            except Exception:
+                pass
     except Exception as e:
         # Never let PluginMessage crash C4D
         try:
