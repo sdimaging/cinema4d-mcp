@@ -9,6 +9,78 @@ anyone building agent integrations against C4D 2026.
 
 ---
 
+## 118. `GeRayCollider.GetNearestIntersection()` — the key is misspelled `barrycoords`, and on QUADS it's unreliable; compute your own barycentric from `face_id` + `hitpos`
+
+**Discovered 2026-06-29** building a surface-bound stroke tool (raycast paint onto 3D, must stick through deformation). The hit dict from `c4d.utils.GeRayCollider.GetNearestIntersection()` (and `GetIntersection`) has these keys:
+
+```
+face_id, tri_face_id, hitpos, distance, s_normal, f_normal, barrycoords, backface
+```
+
+Three traps:
+1. **The barycentric key is spelled `barrycoords` (double-r)** — `hit["barycoords"]` raises `KeyError`. Easy to miss.
+2. **On quad polygons `tri_face_id` comes back `-1`** (not 0/1 for the triangle half), and the 3 `barrycoords` weights do **not** reconstruct the hit position from any 3 of the quad's 4 corners. Brute-forcing all `(triple, permutation)` combos against known hits gave a *minimum* avg error of ~63 scene units — i.e. there is no triangle-corner assignment that works. The reported barycentric is not usable triangle-barycentric over the quad's vertices.
+3. **`f_normal` and `s_normal` are equal and NOT normalized** (`s_normal` is a reserved/unimplemented phong slot — same caveat as the C++ `GeRayColResult`). Normalize before use; interpolate your own smooth normal if you need one.
+
+**Fix — ignore C4D's `barrycoords`/`tri_face_id` entirely.** Use only `face_id` + `hitpos` from the collider, then compute your own barycentric against a triangle you pick from the quad:
+
+```python
+def bary(A, B, C, P):
+    v0=B-A; v1=C-A; v2=P-A
+    d00=v0.Dot(v0); d01=v0.Dot(v1); d11=v1.Dot(v1); d20=v2.Dot(v0); d21=v2.Dot(v1)
+    den=d00*d11-d01*d01
+    v=(d11*d20-d01*d21)/den; w=(d00*d21-d01*d20)/den; return (1-v-w, v, w)
+
+# bind: pick tri (a,b,c) else (a,c,d) by which gives in-range weights; store (face_id, tri, u,v,w)
+# reconstruct on the DEFORMED mesh (plane.GetDeformCache()) with the same weights
+```
+
+Verified: this reconstructs bound points with **0.0 error** on the rest mesh and sticks exactly through a 689-unit Bend deformation (read back via `GetDeformCache()` + `ExecutePasses`). The collider is correct for *hit position/face* — just not for barycentric on quads.
+
+---
+
+## 117. Vertex colors do NOT render in the Hardware/Standard material pipeline — there is no RGB "Vertex Color" channel shader; use per-bucket flat materials
+
+**Discovered 2026-06-29** rendering vertex-colored ribbon geometry with the Hardware preview renderer (`RDATA_RENDERENGINE = 300001061`). A `VertexColorTag` (per-point RGB) shows in the editor viewport but renders **flat gray** in the Hardware/Standard pipeline.
+
+**Cause:** there is no standard-material channel shader that reads `VertexColorTag` RGB. Scanning `FilterPluginList(PLUGINTYPE_SHADER)` for "vertex"/"color" yields only **`Vertex Map` (1011137)** — *scalar*, reads Vertex *Map* tags, not RGB — and **`Display Color` (1033961)**, which **also renders flat gray** (it does not pull VertexColorTag RGB). There is no `Xvertexcolor`. Per-point/gradient vertex color along a stroke is a **nodal-material / Redshift / Octane vertex-attribute** feature, not available in Standard/Hardware preview.
+
+**Fix:** for color in Hardware render, bake color into the **material**, one flat material per color bucket, and assign via texture tag (`MATERIAL_COLOR_COLOR`). Confirmed clean red/green/blue strokes render this way. Implication for any stroke/GP-style tool: batch geometry by color bucket; flat-per-stroke color is the render-correct path, smooth per-point color is deferred to a nodal/3rd-party renderer.
+
+---
+
+## 116. `VertexColorTag` per-point write: `SetPerPointMode(True)` then `SetColor(data, None, None, i, c4d.Vector(rgb))` — a dict (per-polygon form) is rejected
+
+**Discovered 2026-06-29.** Writing per-point vertex colors in Python:
+
+```python
+vct = c4d.VertexColorTag(pointCount)
+vct.SetPerPointMode(True)           # MUST set before writing per-point
+obj.InsertTag(vct)
+data = vct.GetDataAddressW()
+for i, col in enumerate(colors):
+    c4d.VertexColorTag.SetColor(data, None, None, i, c4d.Vector(r, g, b))
+```
+
+The per-polygon form `SetColor(data, None, None, polyIdx, {"a":Vec4d, "b":..., "c":..., "d":...})` (seen in older snippets) raises **`argument 5 must be c4d.Vector, not dict`** in 2026. In per-point mode arg 5 is a plain `c4d.Vector` (RGB) and the index is the *point* index. `GetDataAddressW()` returns a write handle that must be re-fetched if you toggle per-point mode.
+
+---
+
+## 115. `c4d.utils` has no `Sin` / `Cos` — use Python's `math`
+
+**Discovered 2026-06-29.** `c4d.utils.Sin(x)` raises `AttributeError: module 'c4d.utils' has no attribute 'Sin'`. The trig helpers tribal knowledge expects there don't exist; `c4d.utils` does have `DegToRad`/`RadToDeg`/`VectorToHPB`/`HPBToMatrix`. Just `import math` and use `math.sin`/`math.cos` (allowed through the MCP bridge — only `os`/`subprocess`/`exec`/`eval` are blocked).
+
+---
+
+## 114. MCP `execute_python_script`: globals do NOT persist across calls; offscreen `RenderDocument` works on a temp doc but can drop the bridge
+
+**Discovered 2026-06-29.** Two bridge behaviors worth knowing for multi-step agent work:
+
+1. **No global persistence between calls.** Each `execute_python_script` runs in a fresh namespace — functions/vars defined in one call are GONE in the next. Multi-step harnesses must be **self-contained per call** (inline every helper) rather than "define once, call later."
+2. **Offscreen render is safe but not free.** `documents.RenderDocument(tempDoc, rd.GetData(), bmp, RENDERFLAGS_EXTERNAL)` on a throwaway `BaseDocument` renders without touching the user's active doc — `GetRenderBaseDraw()`/`SetSceneCamera()` are valid on an *uninserted* doc. This is the way to render previews without disturbing the live scene. **Caveat:** an offscreen `RenderDocument` was observed to drop the socket once mid-run (`Connection reset by peer` → `Not connected`). Prefer modest resolutions, and have a reconnect/retry path. The Hardware preview render **background is dark viewport gray, not white/transparent** — image-diff/coverage metrics must sample the actual corner pixel, not assume a white background.
+
+---
+
 ## 113. A C4D Python plugin running a background thread MUST stop+join it on `C4DPL_ENDACTIVITY`, or it crashes C4D at shutdown (`PyGILState_Ensure`)
 
 **Discovered 2026-06-26.** The MCP bridge plugin (`.pyp`) runs a TCP socket server in a `threading.Thread` and spawns a per-client handler thread per connection. C4D closes produced intermittent crash minidumps with this stack:
