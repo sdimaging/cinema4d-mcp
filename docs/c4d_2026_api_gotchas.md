@@ -9,6 +9,27 @@ anyone building agent integrations against C4D 2026.
 
 ---
 
+## 119. Driving an external app (e.g. a headless renderer) from a C4D C++ plugin — write a `.cmd` launcher + `std::system`, don't fight `GeExecuteProgram` or Windows quote-hell
+
+**Discovered 2026-07-18** wiring a one-click "bake to external format" action into a generator plugin: after exporting a per-frame file bucket, the plugin shells out to a headless renderer to bundle it. Two traps:
+
+1. **`GeExecuteProgram(const Filename& program, const Filename& file)` only passes ONE file argument** — you cannot append flags like `--no-gui --script foo.lua --stop-after-script`. It's for "open this file in that program", not "run this command line". `GeExecuteFile(path)` is even more limited (shell-open by association).
+
+2. **`std::system()` on Windows is `cmd /c <string>`, and multi-token quoted command lines hit the infamous double-quote rule** — `system("\"C:/a b/app.exe\" --flag \"C:/c d/in.lua\"")` gets mis-parsed because `cmd /c` strips quotes unpredictably when there's more than one quoted token. Paths with spaces (`C:\Users\First Last\...`) make this bite every time.
+
+**Fix — write a tiny `.cmd` next to your output that owns all the quoting, then `std::system` just the (single, quoted) `.cmd` path.** `cmd /c "C:\x y\bake.cmd"` has exactly two quote chars → cmd runs the batch cleanly. Inside the `.cmd` you control quoting fully:
+
+```cpp
+// bake.cmd  ->  @echo off\r\n "app.exe" --no-gui --script "bake.lua" --stop-after-script\r\n
+std::string cmd = "@echo off\r\n\"" + appExe + "\" --no-gui --script \"" + luaPath + "\" --stop-after-script\r\n";
+WriteTextFile(cmdPath, cmd);            // fopen/fwrite; Filename::GetString().GetCString(buf, sz) for the path
+std::system(("\"" + cmdPath + "\"").c_str());   // blocks until the app exits; then fopen-probe the output to verify
+```
+
+Bonus robustness for *scripted* targets (a Lua/Python the external app runs): **bake the config as literals into the emitted script** rather than passing them as CLI `-a` args — then spaced paths never touch the shell's arg parser at all. Verify success by `fopen`-probing the expected output file (no dependency on `GeFExist`). This is exactly how SplatFlow's "ORBX (animated, Octane)" export drives headless Octane (`octane.exe --no-gui --script <lua> --stop-after-script`).
+
+---
+
 ## 118. `GeRayCollider.GetNearestIntersection()` — the key is misspelled `barrycoords`, and on QUADS it's unreliable; compute your own barycentric from `face_id` + `hitpos`
 
 **Discovered 2026-06-29** building a surface-bound stroke tool (raycast paint onto 3D, must stick through deformation). The hit dict from `c4d.utils.GeRayCollider.GetNearestIntersection()` (and `GetIntersection`) has these keys:
