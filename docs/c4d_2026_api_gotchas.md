@@ -9,6 +9,71 @@ anyone building agent integrations against C4D 2026.
 
 ---
 
+## 124. Hot-swapping a compiled plugin (`.xdl64`) while C4D is running — rename the loaded file to a NON-`.xdl64` stash, then copy the new build in; you can't delete the stash until C4D unloads
+
+**Discovered 2026-07-15** iterating a C++ deformer with C4D open. Compiled plugins load once at startup, so a rebuild needs the binary replaced then C4D relaunched — but the OS has the running `.xdl64` memory-mapped and a plain `cp` over it fails/partially-writes.
+
+**Wrong assumption:** you must close C4D before touching the plugin binary.
+**Actual behavior (Windows):** you can *rename* a memory-mapped DLL/plugin even while it's loaded; you just can't overwrite or delete it in place. So: `mv Plugin.xdl64 Plugin.stash<timestamp>` (the running instance keeps executing from the renamed file), then `cp NewBuild.xdl64 Plugin.xdl64`. The relaunch loads the fresh one.
+
+**Two traps:**
+1. **The stash name must NOT end in `.xdl64`** — C4D scans the plugins tree for `*.xdl64` at startup and would try to load your stash as a second copy (duplicate registration / ID collision). Use `.stash`, `.old`, etc.
+2. **Deleting the stash fails with an I/O error until C4D exits** — it's still memory-mapped by the running process. Don't chain `&& rm stash` into your deploy (the failing `rm` aborts the rest of the script). Sweep old stashes at the *start* of the next deploy, or after C4D closes.
+
+**When it bites:** any compile-deploy-test loop against C4D 2026 with the app kept open.
+
+---
+
+## 123. `.res`: `ANIM OFF;` makes a parameter non-animatable — but `ANIM ON` is an INVALID token that silently kills the ENTIRE description panel
+
+**Discovered 2026-07-21** making recipe-affecting plugin parameters non-keyframable (they're hashed into a sim cache; animating them would clear+re-sim every frame).
+
+**Wrong assumption:** to control animatability you write `ANIM ON;` / `ANIM OFF;` symmetrically.
+**Actual behavior:** description parameters are **keyframable by default** — there is no `ANIM ON`, and writing it is an unknown token. Like any unknown `.res` keyword (the classic `FLOATLINE` trap), a single bad token makes C4D's resource parser **silently fail the whole CONTAINER** — the Attribute Manager then shows only Basic/Coordinates and none of your params, with no error in the console. `ANIM OFF;` *is* valid (used in SDK examples) and correctly makes a param static/non-animatable.
+
+**Fix:** to make a param non-animatable, add `ANIM OFF;` inside its block. To keep it animatable, write nothing (that's the default). Never write `ANIM ON`. Preflight new `.res` tokens against the SDK `.res` corpus before shipping — an ALL-CAPS keyword that appears in zero SDK files is suspect.
+
+**When it bites:** adding any parameter attribute you half-remember; the failure mode (whole panel blanks) looks like a build/registration problem, not a one-token typo.
+
+---
+
+## 122. Adding a NEW source file to a CMake-generated SDK plugin needs a reconfigure (`cmake -S . -B build`) — `cmake --build` alone silently omits it
+
+**Discovered 2026-07-21** splitting a plugin into more `.cpp` files. Added `foo.cpp`, rebuilt, and the new class's `RegisterFooPlugin()` link-errored / the plugin element never appeared.
+
+**Wrong assumption:** the Maxon CMake setup globs `source/` so a new `.cpp` is picked up by the next build.
+**Actual behavior:** the generated `.vcxproj` lists source files **explicitly** (from a `MaxonFileList.txt` captured at configure time). `cmake --build <dir>` compiles that fixed list; a newly-added file isn't in it. You must **re-run the configure step** — `cmake.exe -S . -B _build_x64_v143` — which re-scans `source/` and regenerates the project, *then* `--build`. (Verify the file landed with `grep foo.cpp _build.../<proj>.vcxproj`.)
+
+**When it bites:** every time you add a file rather than editing existing ones; symptom is an unresolved-external link error or a plugin element that just doesn't register, with no compile error on the new file (it was never compiled).
+
+---
+
+## 121. A generator that queries its linked deformer via node `Message()` runs on a PARALLEL cache-build thread — it can race the deformer's `ModifyObject`; publish an immutable snapshot under a mutex
+
+**Discovered 2026-07-22** with a generator (`GetVirtualObjects`) that sends a private `Message` to a linked deformer to read the deformer's rolling per-frame state, then draws geometry from it.
+
+**Wrong assumption:** the two objects evaluate serially, so the message handler can hand back a reference/copy of the deformer's live member directly.
+**Actual behavior:** modern C4D builds independent objects' caches **concurrently**. The deformer's `ModifyObject` (itself a `const` method invoked on a worker thread) may be *rewriting* that shared member (`clear()` + `push_back`, i.e. reallocating a `std::vector`) at the exact moment the generator's message handler copies it out — a data race → UB (crash or garbage geometry). This is not exotic: any scene with both objects present hits it, and enabling the feature often auto-adds the generator.
+
+**Fix (publish/snapshot):** keep the live working buffer thread-local to `ModifyObject`, and after each rebuild copy it into a separate *published* member under a `std::mutex`; the message handler reads only the published copy under the same lock. The hot per-element loop that also reads the working buffer stays lock-free (same thread as the rebuild). One copy-under-lock per eval; contention is negligible.
+
+**When it bites:** any cross-object "generator asks deformer/other-node for live state via `Message`" design in 2026's parallel evaluation.
+
+---
+
+## 120. A deformer must NEVER derive its parameters from the deform cache's stored bbox (`op->GetRad()/GetMp()`) — that reflects the DEFORMED result of the *previous* eval → positive-feedback loop
+
+**Discovered 2026-07-03** adding an "auto" mode to a deformer that sized itself to "the top of the host mesh" via `op->GetRad()`/`GetMp()` (bounding-box centre/half-size of the object being deformed).
+
+**Wrong assumption:** `op->GetRad()/GetMp()` inside `ModifyObject` give the *input* mesh's bounds.
+**Actual behavior:** the deform cache's stored bbox is updated from the deformer's OWN output (via the `MSG_UPDATE` the deformer sends after writing points). So on frame N it reflects frame N−1's **deformed** shape. Deriving a parameter from it (e.g. a water level = "top of mesh") makes the parameter chase the previous frame's peak displacement → the surface climbs into itself → runaway "mountains". Symptom: "I just touch the object and everything explodes."
+
+**Fix:** measure from the **entry point positions** the deformer is handed — loop the incoming `PointObject::GetPointW()`/`GetPointR()` array and compute your own min/max — never from `GetRad()/GetMp()`-derived bboxes. In a `Message` handler that needs the undeformed shape, read `host->GetCache()` (the pre-deform cache), not `GetRad()`. General rule: **a deformer parameter must never be a function of the deformer's own output.**
+
+**When it bites:** any "auto-fit / auto-level / adaptive" deformer parameter computed from object bounds; the feedback is invisible on a flat host (whose bbox top is already 0) and only explodes on a solid/thick one.
+
+---
+
 ## 119. Driving an external app (e.g. a headless renderer) from a C4D C++ plugin — write a `.cmd` launcher + `std::system`, don't fight `GeExecuteProgram` or Windows quote-hell
 
 **Discovered 2026-07-18** wiring a one-click "bake to external format" action into a generator plugin: after exporting a per-frame file bucket, the plugin shells out to a headless renderer to bundle it. Two traps:
