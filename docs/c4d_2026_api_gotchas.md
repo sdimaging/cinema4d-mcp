@@ -258,7 +258,7 @@ def PluginMessage(msg_id, data):
 
 **Hard rule (from GSL analysis, re-confirmed 2026-06-09):** `bc->SetString()` (or any container write) inside `GetVirtualObjects` marks the object DATA-dirty, which schedules another GVO, which writes again — an infinite evaluation loop on static scenes. Consequence: STATICTEXT info readouts (point counts, format info) can never be populated from a viewer-mode GVO, and stay permanently blank on objects that never enter a sim path.
 
-**Pattern that works:** a SceneHook (`RegisterSceneHookPlugin`, `EXECUTIONPRIORITY_GENERATOR`) runs on the main thread every pass and may write the container freely — gate every write behind a change-compare and call `EventAdd()` only on actual transitions. One-shot writes from GVO are survivable ONLY if change-guarded (write only when the value differs → converges after one extra GVO).
+**Correction (2026-09-04):** SceneHook Execute is documented as threaded context in the pinned 2026.3 SDK. The earlier claim that it always runs on the main thread and may write freely was too broad. Publish immutable GVO results, use an explicitly scheduled consumer, and obey the thread/document-access rules for the actual callback. Change guards prevent dirty loops; they do not make an unsafe document write thread-safe.
 
 ---
 
@@ -571,7 +571,7 @@ This is the only reliable dev-loop for Python Generator algorithm work.
 
 **Wrong assumption:** an `execute_python` command that hangs for 30 seconds and times out with "Main thread execution timed out" means the script itself deadlocked or hit an error in the loaded code.
 
-**Actual behavior:** the MCP plugin queues all `execute_python` calls onto C4D's main thread. If the main thread is busy (Octane render starting up, a viewport rebuild in progress, a long-running script, a modal dialog), MCP commands wait in queue. After 30s the wait times out — but the script never ran. No error in the script, no DLL fault. C4D is just busy.
+**Correction (2026-09-04):** a timeout alone proves neither that the script never started nor that it stopped. The old queue could execute it AFTER the timeout. See #128 for the new queued-cancellation/running-status protocol; do not repeat mutations based on a timeout message alone.
 
 **How to diagnose:** call `get_console_log` after the timeout. If you see:
 
@@ -580,7 +580,7 @@ This is the only reliable dev-loop for Python Generator algorithm work.
 [plugin] [C4D] Main thread execution timed out after 30.00s
 ```
 
-— the script never executed. The DLL/script under test is fine.
+— the waiter expired. Execution outcome is still unknown without queue-state evidence.
 
 **Workaround:** wait for C4D to finish whatever it's doing (close dialogs, let renders finish), or paste the script into C4D's Script Manager → Python Console directly (bypasses the MCP queue, runs synchronously in the foreground thread).
 
@@ -3287,3 +3287,80 @@ exactly why those exist.
 If you're building against C4D 2026 and hit something that contradicts
 the C4D Python docs, please open an issue or PR with the discovery —
 keeping this list current saves everyone time.
+
+## 125. A scripted parameter check is not an Attribute Manager acceptance test
+
+Weavr (2026-09-04): SetParameter + ExecutePasses passed while artists still saw
+keyboard commits, cycle changes and InExclude drops wait for a slider drag.
+Exercise all three actual UI paths and observe the managed child WITHOUT a
+manual second evaluation. Report API and UI results separately.
+
+ObjectData receives MSG_DESCRIPTION_CHECKUPDATE for custom-GUI/container edits;
+POSTSETPARAMETER alone is insufficient coverage. Call the superclass before
+adjusting its drawflags and explicitly mark DATA dirty on the common commit
+path. SYNC means interactive refresh; it is not a substitute for dirtying a
+final commit. This is a candidate fix until the real UI path is checked.
+
+A SceneHook AddToExecution priority must explicitly follow generator execution
+when consuming a published snapshot. The pinned 2026.3 SDK also documents
+SceneHook Execute as threaded context: do not treat this as general permission
+to mutate the document hierarchy from arbitrary execution callbacks.
+
+## 126. Distinguish ineffective controls from stale evaluation
+
+Weavr Sheet hid a six-samples-PER-SOURCE floor, making small requested counts
+indistinguishable. Its free junctions also depended on surplus anchor samples;
+removing the floor revealed a nearly empty low-count sheet. Test both value
+commit and a meaningful geometric response. Interior structure and attachment
+sampling must be independent. Width-map multipliers do not change the line
+thickness of an unrendered spline viewport; label them accordingly.
+
+## 127. Null axis display is not a local +Z arrow
+
+The 2026.3 Null description has no arrow display enum. AXIS with default SCREEN
+orientation is a screen-facing bracket, not a directional target. A generator/
+scene-hook viewport glyph can draw a shaft and arrowhead using the target's Mg
+without adding rendered child geometry. Rotate the target and visually verify
+the arrow; checking its enum alone is not acceptance.
+
+## 128. Transport timeout does not mean cancellation
+
+The old queue wrapper returned a timeout while leaving its closure executable.
+A late mutation could run after a retry, causing duplicated objects or edits.
+The bridge now atomically cancels QUEUED work before start; RUNNING work cannot
+be interrupted safely. Its timeout returns execution_id + execution_state.
+Poll get_execution_status; never blindly retry a running/unknown mutation.
+Only 64 recent timed-out operations are retained; expired is NOT never-ran.
+Repro: python -B tests/test_transport_safety.py (queued and running cases).
+
+## 129. Bound wire frames and script output; do not log raw requests
+
+TCP recv boundaries can split UTF-8 characters. Accumulate bytes and decode
+complete newline frames. Enforce the 5 MiB request limit even before a newline;
+bound responses to 8 MiB. The former raw-request log exposed auth_token and
+script bodies before authentication. Log command metadata only.
+
+execute_python now captures at most 65,536 stdout characters. Variable previews
+are opt-in (include_variables), at most 64 names, and never stringify large
+containers/user-defined repr. Truncation is explicit. Use files for large data.
+This is trusted arbitrary Python, NOT a sandbox or a keyword blacklist.
+
+## 130. Screenshot and reload hygiene
+
+Screenshots are file-first (explicit save_path or a unique host temp PNG).
+inline=True is opt-in and capped at 384 KiB of PNG; dimensions are 1..2048.
+A failed file save reports an error, not an unexpected base64 dump. Frame and
+active RenderData are restored in finally, including renderer failure. Stateful
+simulation caches may still need resetting after frame-override captures.
+
+Install into an EXPLICIT plugins directory. Backups must live OUTSIDE scanned
+plugin directories, or use non-plugin extensions, to avoid duplicate plugin
+registration. Use scripts/sync_to_installed.ps1; it refuses dirty documents,
+quits normally, verifies copied hashes and checks ping's process_id + loaded
+source SHA256 after restart. Never substitute Reload Python Plugins for a clean
+socket-thread/plugin restart. C4D_MCP_AUTOSTART=1 is opt-in, not default-on.
+
+BaseDocument.SetChanged(False) is invalid in Python 2026.3: SetChanged() only
+marks changed. Do not invent a dirty-flag clearing API. C4D may auto-close an
+empty untitled document during a document switch; retained Python wrappers can
+then be dead. Preserve real artist documents and isolate test ownership.
