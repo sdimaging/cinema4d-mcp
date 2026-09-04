@@ -53,6 +53,16 @@ _g_ui_log_server = None
 # into a single execute_python script). 5MB is generous for any reasonable
 # command including base64 bitmaps.
 MCP_MAX_COMMAND_BYTES = 5 * 1024 * 1024
+MCP_MAX_RESPONSE_BYTES = 8 * 1024 * 1024
+MCP_MAX_OUTPUT_CHARS = 65536
+MCP_BUILD_ID = '2026-09-04-transport-controls-1'
+# Capture at LOAD, not ping: replacing the disk file does not update live code.
+try:
+    import hashlib as _mcp_hashlib
+    with open(__file__, 'rb') as _mcp_source:
+        MCP_LOADED_SOURCE_SHA256 = _mcp_hashlib.sha256(_mcp_source.read()).hexdigest()
+except Exception:
+    MCP_LOADED_SOURCE_SHA256 = None
 
 # ============================================================
 # MCP extensions — module-level console log buffer
@@ -456,6 +466,8 @@ class C4DSocketServer(threading.Thread):
         self._clients = []
         self._client_threads = []
         self._clients_lock = threading.Lock()
+        self._execution_lock = threading.Lock()
+        self._executions = {}  # bounded status history, no script payloads
 
         # --- ADDED FOR CONTEXT AWARENESS ---
         self._object_name_registry = (
@@ -590,10 +602,25 @@ class C4DSocketServer(threading.Thread):
         self.log(f"[C4D] Main thread execution will timeout after {timeout}s")
 
         # Create a thread-safe container for the result
-        result_container = {"result": None, "done": False}
+        import uuid
+        execution_id = uuid.uuid4().hex
+        result_container = {"result": None, "done": False, "state": "queued"}
+        with self._execution_lock:
+            for key in list(self._executions):
+                if len(self._executions) < 64:
+                    break
+                if self._executions[key]["done"]:
+                    del self._executions[key]
+            if len(self._executions) >= 64:
+                return {"error": "Main-thread queue is full", "execution_state": "not_queued"}
+            self._executions[execution_id] = result_container
 
         # Define a wrapper that will be executed on the main thread
         def main_thread_exec():
+            with self._execution_lock:
+                if result_container["state"] == "cancelled_before_start":
+                    return True
+                result_container["state"] = "running"
             try:
                 self.log(
                     f"[C4D] Starting main thread execution of {func.__name__ if hasattr(func, '__name__') else 'function'}"
@@ -610,7 +637,9 @@ class C4DSocketServer(threading.Thread):
                 )
                 result_container["result"] = {"error": str(e)}
             finally:
-                result_container["done"] = True
+                with self._execution_lock:
+                    result_container["done"] = True
+                    result_container["state"] = "completed"
             return True
 
         # Queue the request and signal the main thread
@@ -619,7 +648,7 @@ class C4DSocketServer(threading.Thread):
         c4d.SpecialEventAdd(PLUGIN_ID)  # Notify UI thread
 
         # Wait for the function to complete (with timeout)
-        start_time = time.time()
+        start_time = time.monotonic()
         poll_interval = 0.01  # Small sleep to prevent CPU overuse
         progress_interval = 1.0  # Log progress every second
         last_progress = 0
@@ -628,7 +657,7 @@ class C4DSocketServer(threading.Thread):
             time.sleep(poll_interval)
 
             # Calculate elapsed time
-            elapsed = time.time() - start_time
+            elapsed = time.monotonic() - start_time
 
             # Log progress periodically for long-running operations
             if int(elapsed) > last_progress:
@@ -640,9 +669,20 @@ class C4DSocketServer(threading.Thread):
 
             # Check for timeout
             if elapsed > timeout:
-                self.log(f"[C4D] Main thread execution timed out after {elapsed:.2f}s")
-                return {"error": f"Execution on main thread timed out after {timeout}s"}
+                with self._execution_lock:
+                    if result_container["done"]:
+                        break
+                    if result_container["state"] == "queued":
+                        result_container.update(state="cancelled_before_start", done=True)
+                    state = result_container["state"]
+                return {"error": f"Main-thread wait expired after {timeout}s; state={state}. "
+                        "If running, do not retry; poll get_execution_status.",
+                        "execution_id": execution_id, "execution_state": state,
+                        "may_have_executed": state == "running"}
 
+        # Successful synchronous results do not need a retained duplicate.
+        with self._execution_lock:
+            self._executions.pop(execution_id, None)
         # Improved result handling
         if result_container["result"] is None:
             self.log(
@@ -713,7 +753,7 @@ class C4DSocketServer(threading.Thread):
 
     def handle_client(self, client):
         """Handle incoming client connections."""
-        buffer = ""
+        buffer = b""
         try:
             while self.running:
                 data = client.recv(4096)
@@ -721,11 +761,17 @@ class C4DSocketServer(threading.Thread):
                     break
 
                 # Add received data to buffer
-                buffer += data.decode("utf-8")
+                buffer += data
+                # recv may split a UTF-8 character; decode complete frames only.
+                # Bound unterminated frames as well as newline-ended messages.
+                if len(buffer.split(b"\n", 1)[0]) > MCP_MAX_COMMAND_BYTES:
+                    client.sendall(b'{"ok":false,"error":"payload too large"}\n')
+                    self.log("[C4D] [transport] rejected oversized frame")
+                    break
 
                 # Process complete messages (separated by newlines)
-                while "\n" in buffer:
-                    message, buffer = buffer.split("\n", 1)
+                while b"\n" in buffer:
+                    message, buffer = buffer.split(b"\n", 1)
                     request_start = time.time()
 
                     # Bounded payload check — refuse oversize commands before
@@ -743,17 +789,21 @@ class C4DSocketServer(threading.Thread):
                         self.log(f"[C4D] [transport] rejected oversize msg ({len(message)} bytes)")
                         continue
 
-                    self.log(f"[C4D] Received: {message}")
-
                     try:
                         # Parse the command
-                        command = json.loads(message)
+                        command = json.loads(message.decode("utf-8"))
+                        if not isinstance(command, dict):
+                            raise ValueError("Command must be a JSON object")
                         command_type = command.get("command", "")
+                        if not isinstance(command_type, str) or len(command_type) > 96:
+                            raise ValueError("Invalid command name")
                         # request_id is an optional client-supplied correlator
                         # (any string). Echoed back on the response so async
                         # clients can pair responses to requests. Has no
                         # semantic effect on the dispatcher.
                         request_id = command.get("request_id")
+                        if request_id is not None and (not isinstance(request_id, str) or len(request_id) > 128):
+                            raise ValueError("request_id must be a string of at most 128 characters")
 
                         # Auth gate: if MCP_AUTH_TOKEN is set, every command must
                         # carry a matching auth_token field. The 'ping' / capability
@@ -776,6 +826,10 @@ class C4DSocketServer(threading.Thread):
                                 client.sendall((json.dumps(response) + "\n").encode("utf-8"))
                                 self.log(f"[C4D] [auth] rejected command={command_type!r} (bad/missing token)")
                                 continue
+
+                        # No raw requests, auth tokens or script bodies in logs.
+                        log_command = command_type if command_type in self._SUPPORTED_COMMANDS else '<unknown>'
+                        self.log(f"[C4D] Received command={log_command!r}, bytes={len(message)}")
 
                         # Safe-mode gate: if MCP_SAFE_MODE is set, refuse any
                         # command not in the SAFE allowlist (mutating ops,
@@ -805,6 +859,8 @@ class C4DSocketServer(threading.Thread):
                             response = self.handle_group_objects(command)
                         elif command_type == "execute_python":
                             response = self.handle_execute_python(command)
+                        elif command_type == "get_execution_status":
+                            response = self.handle_get_execution_status(command)
                         elif command_type == "save_scene":
                             response = self.handle_save_scene(command)
                         elif command_type == "load_scene":
@@ -1071,11 +1127,22 @@ class C4DSocketServer(threading.Thread):
                                     pass
 
                         # Send the response as JSON
-                        response_json = json.dumps(response) + "\n"
-                        client.sendall(response_json.encode("utf-8"))
+                        chunks, size = [], 0
+                        for piece in json.JSONEncoder().iterencode(response):
+                            encoded = piece.encode("utf-8")
+                            size += len(encoded)
+                            if size > MCP_MAX_RESPONSE_BYTES:
+                                chunks = [json.dumps({
+                                    "ok": False, "error": "Response exceeds transport limit. Use a file or smaller query. Do not retry mutations blindly.",
+                                    "response_truncated": True, "may_have_executed": True,
+                                    "request_id": request_id,
+                                }).encode("utf-8")]
+                                break
+                            chunks.append(encoded)
+                        client.sendall(b"".join(chunks) + b"\n")
                         self.log(f"[C4D] Sent response for {command_type}")
 
-                    except json.JSONDecodeError:
+                    except (json.JSONDecodeError, UnicodeDecodeError):
                         error_response = {
                             "ok": False,
                             "error": "Invalid JSON format",
@@ -3753,6 +3820,18 @@ class C4DSocketServer(threading.Thread):
         )
         return result
 
+    def handle_get_execution_status(self, command):
+        """Read execution state without waiting for the main thread. History is bounded."""
+        execution_id = command.get("execution_id", "")
+        if not isinstance(execution_id, str):
+            return {"error": "execution_id must be a string"}
+        with self._execution_lock:
+            record = self._executions.get(execution_id)
+            if record is None:
+                return {"error": "Unknown or expired execution_id; this does not mean it never ran."}
+            return {"execution_id": execution_id, "execution_state": record["state"],
+                    "result": record["result"] if record["done"] else None}
+
     def handle_execute_python(self, command):
         """Handle execute_python command with improved output capturing and error handling."""
         code = command.get("code", "")
@@ -3781,18 +3860,36 @@ class C4DSocketServer(threading.Thread):
         import traceback
         from io import StringIO
 
+        class BoundedOutput(StringIO):
+            def __init__(self):
+                super().__init__()
+                self.total_chars = 0
+            def write(self, value):
+                remaining = max(0, MCP_MAX_OUTPUT_CHARS - self.tell())
+                self.total_chars += len(value)
+                super().write(value[:remaining])
+                return len(value)
+
+        def preview(value):
+            # Do not call user-defined repr or expand scene-scale containers.
+            if type(value) in (str, int, float, bool, type(None)):
+                return str(value)[:1024] if type(value) != int or value.bit_length() < 2048 else '<large int>'
+            if type(value) in (list, tuple, dict, set, bytes, bytearray):
+                return f'<{type(value).__name__}: {len(value)} items>'
+            return f'<{type(value).__name__[:64]} object>'
+
         # Execute the code on the main thread
         def execute_code():
             # Save original stdout
             original_stdout = sys.stdout
             # Create a StringIO object to capture output
-            string_io = StringIO()
+            string_io = BoundedOutput()
 
             try:
                 # Redirect stdout to our capture object
                 sys.stdout = string_io
 
-                # Create a new namespace with limited globals
+                # Fresh request namespace, full Python builtins (not a sandbox).
                 sandbox = {
                     "c4d": c4d,
                     "math": __import__("math"),
@@ -3824,13 +3921,10 @@ class C4DSocketServer(threading.Thread):
 
                 # Process variables to make them serializable
                 processed_vars = {}
-                for k, v in result_vars.items():
+                for k, v in list(result_vars.items())[:64] if command.get("include_variables", False) else []:
                     try:
                         # Try to make the value JSON-serializable
-                        if hasattr(v, "__dict__"):
-                            processed_vars[k] = f"<{type(v).__name__} object>"
-                        else:
-                            processed_vars[k] = str(v)
+                        processed_vars[k[:128]] = preview(v)
                     except:
                         processed_vars[k] = f"<{type(v).__name__} object>"
 
@@ -3839,6 +3933,9 @@ class C4DSocketServer(threading.Thread):
                     "success": True,
                     "output": full_output,
                     "variables": processed_vars,
+                    "output_truncated": string_io.total_chars > MCP_MAX_OUTPUT_CHARS,
+                    "output_chars": string_io.total_chars,
+                    "variables_truncated": bool(command.get("include_variables")) and len(result_vars) > 64,
                 }
 
             except Exception as e:
@@ -3856,6 +3953,7 @@ class C4DSocketServer(threading.Thread):
                     "error": error_msg,
                     "traceback": tb,
                     "output": captured,
+                    "output_truncated": string_io.total_chars > MCP_MAX_OUTPUT_CHARS,
                 }
             finally:
                 # Restore original stdout
@@ -3865,7 +3963,8 @@ class C4DSocketServer(threading.Thread):
                 string_io.close()
 
         # Execute on main thread with extended timeout
-        result = self.execute_on_main_thread(execute_code, _timeout=30)
+        timeout = max(0.1, min(110.0, float(command.get("timeout_seconds", 60.0))))
+        result = self.execute_on_main_thread(execute_code, _timeout=timeout)
 
         # Check for empty output and add warning
         if result.get("success") and not result.get("output").strip():
@@ -8805,11 +8904,19 @@ class C4DSocketServer(threading.Thread):
 
         width = int(command.get("width", 800))
         height = int(command.get("height", 450))
+        if not (1 <= width <= 2048 and 1 <= height <= 2048):
+            return {"error": "Screenshot dimensions must be 1..2048 pixels"}
         # Default changed from 'standard' to 'hardware' — Standard renderer is
         # broken in installs with Octane hooks, Hardware always works.
         renderer_pref = (command.get("renderer") or "hardware").lower()
         frame_override = command.get("frame")
         save_path = command.get("save_path")  # if set, write PNG to disk and return path
+        if self.safe_mode and (save_path or not command.get("inline", False)):
+            return {"error": "safe-mode screenshots require inline=True and no save_path (file writes disabled)"}
+        if not save_path and not command.get("inline", False):
+            import tempfile
+            import uuid
+            save_path = os.path.join(tempfile.gettempdir(), 'cinema4d-mcp', 'screenshots', uuid.uuid4().hex + '.png')
 
         def _resolve_renderer_id(pref):
             if pref == "standard":
@@ -8826,6 +8933,7 @@ class C4DSocketServer(threading.Thread):
                 raise RuntimeError("No active RenderData")
             clone = rd.GetClone()
             doc.InsertRenderData(clone)
+            original_time = doc.GetTime()
             try:
                 doc.SetActiveRenderData(clone)
                 # Set engine on the clone OBJECT directly (not on a GetData() copy
@@ -8855,10 +8963,11 @@ class C4DSocketServer(threading.Thread):
             finally:
                 # Correct cleanup: BaseList2D.Remove() (BaseDocument has no
                 # RemoveRenderData method in C4D 2026).
-                try:
-                    clone.Remove()
-                except Exception:
-                    pass
+                doc.SetActiveRenderData(rd)
+                clone.Remove()
+                if doc.GetTime() != original_time:
+                    doc.SetTime(original_time)
+                    doc.ExecutePasses(None, True, True, True, c4d.BUILDFLAGS_INTERNALRENDERER)
                 c4d.EventAdd()
 
         def _is_black(bmp, w, h):
@@ -8883,6 +8992,8 @@ class C4DSocketServer(threading.Thread):
             data, _ = mem_file.GetData()
             if not data:
                 raise RuntimeError("PNG encode produced empty data")
+            if len(data) > 384 * 1024:
+                raise RuntimeError("Inline PNG exceeds 384 KiB; use save_path or inline=False")
             return base64.b64encode(data).decode("ascii")
 
         def _render():
@@ -8891,6 +9002,8 @@ class C4DSocketServer(threading.Thread):
 
             primary_rid = _resolve_renderer_id(renderer_pref)
             warnings = []
+            if frame_override is not None:
+                warnings.append('Timeline/render settings are restored; stateful simulation caches may need a reset after frame changes.')
             try:
                 bmp, settings = _do_one_render(primary_rid)
             except Exception as e:
@@ -8933,9 +9046,7 @@ class C4DSocketServer(threading.Thread):
                         os.makedirs(parent_dir, exist_ok=True)
                     save_result = bmp.Save(save_path, c4d.FILTER_PNG)
                     if save_result != c4d.IMAGERESULT_OK:
-                        # Fall back to b64 if direct save fails
-                        warnings.append(f"direct PNG save returned {save_result}, falling back to base64")
-                        response["image_data"] = _bmp_to_b64(bmp)
+                        return {"error": f"PNG save failed ({save_result}); no inline fallback", "path": save_path}
                     else:
                         response["path"] = save_path
                         try:
@@ -8959,11 +9070,7 @@ class C4DSocketServer(threading.Thread):
                         except Exception as e:
                             warnings.append(f"image_stats failed: {e}")
                 except Exception as e:
-                    warnings.append(f"PNG file save failed: {e}")
-                    try:
-                        response["image_data"] = _bmp_to_b64(bmp)
-                    except Exception as e2:
-                        return {"error": f"file save failed ({e}) AND base64 fallback failed ({e2})", "warnings": warnings}
+                    return {"error": f"PNG file save failed: {e}; no inline fallback", "path": save_path}
             else:
                 try:
                     response["image_data"] = _bmp_to_b64(bmp)
@@ -11500,7 +11607,7 @@ class C4DSocketServer(threading.Thread):
     # Build a static set of supported command types from the dispatcher at
     # class-load time. Easier than reflection at request-time.
     _SUPPORTED_COMMANDS = (
-        "get_scene_info", "list_objects", "group_objects", "execute_python",
+        "get_scene_info", "list_objects", "group_objects", "execute_python", "get_execution_status",
         "save_scene", "load_scene", "set_keyframe",
         "add_primitive", "modify_object", "create_abstract_shape",
         "create_material", "apply_material", "apply_shader",
@@ -11536,7 +11643,7 @@ class C4DSocketServer(threading.Thread):
         "scene_nodes_atlas_lookup", "scene_nodes_classify_graph",
         "scene_nodes_apply_pattern", "scene_nodes_connect_ports",
         "scene_nodes_describe_node_template",
-        "scene_nodes_create_capsule_with_pattern",
+        "scene_nodes_create_capsule_with_pattern", "scene_nodes_bulk_swap_nodes",
         "scene_nodes_save_as_asset", "scene_nodes_load_asset",
         "scene_nodes_helper_ping", "scene_nodes_helper_logger",
         "scene_nodes_add_floating_io_port",
@@ -11564,7 +11671,7 @@ class C4DSocketServer(threading.Thread):
     # UNSAFE = mutates scene, executes arbitrary code, writes to disk,
     #          installs plugins, or otherwise has side effects.
     _SAFE_COMMANDS = frozenset({
-        "get_scene_info", "list_objects",
+        "get_scene_info", "list_objects", "get_execution_status",
         "inspect_redshift_materials",
         "find_objects", "get_object_info", "list_render_engines",
         "get_active_renderer", "list_installed_plugins",
@@ -17318,6 +17425,9 @@ class C4DSocketServer(threading.Thread):
             "plugin_version": "0.2.0",
             "c4d_version": c4d.GetC4DVersion(),
             "echo": echo,
+            "process_id": os.getpid(),
+            "build_id": MCP_BUILD_ID,
+            "loaded_source_sha256": MCP_LOADED_SOURCE_SHA256,
         }
 
     def handle_doctor(self, command):

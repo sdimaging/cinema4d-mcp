@@ -249,10 +249,10 @@ if __name__ == "__main__":
     ]:
         try:
             fn()
-            print(f"  ✓ {fn.__name__}")
+            print(f"  PASS {fn.__name__}")
         except AssertionError as e:
             failures.append((fn.__name__, str(e)))
-            print(f"  ✗ {fn.__name__}")
+            print(f"  FAIL {fn.__name__}")
             print(f"      {e}")
 
     if failures:
