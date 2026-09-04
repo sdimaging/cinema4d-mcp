@@ -4,13 +4,15 @@ Production-grade Cinema 4D ↔ Claude bridge over [Model Context Protocol](https
 
 This is a **substantially extended fork** of [`ttiimmaacc/cinema4d-mcp`](https://github.com/ttiimmaacc/cinema4d-mcp) hardened for daily-driver and public-deployment use:
 
-- **+70 new tools** beyond upstream (95 total) — capability discovery, scene snapshot/diff, UV ops, viewport perception, undo grouping, doctor, ping, **Scene Nodes authoring + dissection + classification + gesture differ + typed-port synthesis**, Octane OSL, fields, deformers, volume builders
+- **110 routed command types** (see get_capabilities and the contract tests) — scene inspection/editing, plugin development, Scene Nodes, fields, renderers and execution-status polling.
 - **Scene Nodes knowledge layer** — a comprehensive [practical guide](docs/scene_nodes_guide.md) + 22 codified patterns + 802 categorized template asset IDs + 40 verified `$type` labels + port-type taxonomy. The MCP can now dissect any capsule, classify any graph, and synthesize artist-ready capsules with one call (`create_capsule_with_pattern`).
 - **Scene Nodes gesture differ + typed-port synthesizer** ([findings](docs/gesture_differ_findings.md)) — `scene_nodes_record_gesture` snapshots graph state before/after a manual editor gesture and returns the precise structural diff. `scene_nodes_synthesize_port` then packages the recipe into a single call: `AddPort + SetPortValue + Connect to typed inner port` — produces a fully draggable AM-exposed parameter wired through to the inner node, with widget binding inferred at runtime from the connection. End-to-end programmatic Scene Nodes capsule parameter exposure, no manual Resource Editor pass needed.
 - **Auth-token gate** + **safe-mode env gate** + **constant-time token compare** — exposes the bridge to less-trusted contexts safely
 - **Standardized response envelope** — every response carries `ok`, `duration_ms`, `request_id`, `warnings`
 - **Bounded payload check** + **request correlation** — production-grade transport
 - **AST-based contract tests** — every tool guaranteed to have a real handler before commit
+- **Bounded script output and timeout state** — stdout capped at 65,536 characters; variable previews opt-in. A queued timeout is cancelled before start; a running timeout returns an execution ID to poll instead of repeating mutations.
+- **File-first screenshots** — unique host-temp PNG or explicit save_path; inline=True is capped. Captures restore frame/render settings; failed saves do not dump base64 into the reply.
 - **C4D 2026 compatibility** — verified against the current Python API, with explicit fixes for renderer integration, modeling commands, BaseDraw shading, and the C4D 2026 Scene Nodes maxon-frameworks API surface
 
 ---
@@ -44,7 +46,9 @@ Copy `c4d_plugin/mcp_server_plugin.pyp` to your Cinema 4D plugins folder:
 - **Windows**: `%APPDATA%\Maxon\Maxon Cinema 4D <version>_<hash>\plugins\`
 - **macOS**: `~/Library/Preferences/Maxon/Maxon Cinema 4D <version>_<hash>/plugins/`
 
-Then restart C4D — the plugin auto-starts its socket on launch (or use `Extensions → Socket Server Plugin → Start Server` to start manually).
+Then restart C4D. Socket startup is **opt-in**: launch with `C4D_MCP_AUTOSTART=1`, or use `Extensions → Socket Server Plugin → Start Server`.
+
+For repeatable Windows/WSL development, use `scripts/sync_to_installed.ps1 -PluginsDirectory '<exact plugins path>' -Restart` (or the WSL `.sh` wrapper with that explicit path). It refuses unsaved documents, quits normally, keeps backups outside the scanned plugin directory, verifies file hashes, and checks the new process's loaded source hash. Save documents first. Do not use Reload Python Plugins for socket/plugin updates.
 
 ### 2. Configure your MCP client
 
@@ -88,7 +92,7 @@ WSL-style paths (`/mnt/c/...`) passed in tool args are auto-translated to native
 | `MCP_SAFE_MODE` | unset | When truthy (`1`/`true`/`yes`/`on`), the dispatcher rejects every command not in the SAFE allowlist. ~28 read-only commands (inspect/find/dump/screenshot/snapshot) remain available. |
 | `C4D_HOST` | auto | Windows host IP for WSL→C4D socket. Auto-detected from default gateway when unset. |
 | `C4D_PORT` | `5555` | Plugin socket port. |
-| `C4D_MCP_NO_AUTOSTART` | unset | When set, plugin will NOT auto-start its socket on C4D launch (manual menu start required). |
+| `C4D_MCP_AUTOSTART` | unset/off | Set to `1` to start the socket with C4D; otherwise start it manually. |
 
 ### Standardized response envelope
 
@@ -124,11 +128,11 @@ AST walks `server.py` + `mcp_server_plugin.pyp` and asserts:
 4. No "phantom" advertised commands without real branches
 5. Every MCP tool is in the advertised set
 
-Run before every commit. Currently: **93 tools / 93 branches / 93 advertised**, all 5 tests pass.
+Run before every commit. Currently: **110 command types / 110 branches / 110 advertised**. Also run `python -B tests/test_transport_safety.py` for framing, timeout-state and output-limit regressions.
 
 ---
 
-## Tool inventory (95 total)
+## Tool inventory
 
 ### Scene Nodes (the C4D 2026 node-graph authoring surface)
 
@@ -319,7 +323,7 @@ pip install mcp                                 # If "module not found"
 npx @modelcontextprotocol/inspector uv --directory /path/to/cinema4d-mcp run cinema4d-mcp
 ```
 
-**Plugin not auto-starting socket?** Check `mcp_server_plugin.pyp` is in the right plugins folder. Set `C4D_MCP_NO_AUTOSTART=1` if you want manual start instead.
+**Plugin not auto-starting socket?** Check the exact plugins folder and launch with `C4D_MCP_AUTOSTART=1`. The default is manual start. A listening port alone is not build verification: compare ping's PID and loaded_source_sha256.
 
 **"Reload Python Plugins" doesn't pick up new tools?** Stop→Start the socket server, OR full C4D restart for class-definition changes. The .pyp's class is parsed once at startup.
 
