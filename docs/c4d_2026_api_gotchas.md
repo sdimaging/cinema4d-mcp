@@ -3301,6 +3301,10 @@ adjusting its drawflags and explicitly mark DATA dirty on the common commit
 path. SYNC means interactive refresh; it is not a substitute for dirtying a
 final commit. This is a candidate fix until the real UI path is checked.
 
+2026-09-05 correction: the artist disproved that candidate on Weavr 8D928030.
+The value and real spline HAD updated; the downstream Oline cache had not.
+See #131. Adding more DATA dirtiness to the input was not the missing step.
+
 A SceneHook AddToExecution priority must explicitly follow generator execution
 when consuming a published snapshot. The pinned 2026.3 SDK also documents
 SceneHook Execute as threaded context: do not treat this as general permission
@@ -3364,3 +3368,27 @@ BaseDocument.SetChanged(False) is invalid in Python 2026.3: SetChanged() only
 marks changed. Do not invent a dirty-flag clearing API. C4D may auto-close an
 empty untitled document during a document switch; retained Python wrappers can
 then be dead. Preserve real artist documents and isolate test ownership.
+
+## 131. A real managed spline can be current while its viewport line cache is stale
+
+Weavr, C4D 2026.3.1: the artist typed 17 Radials and committed without touching
+a slider. A read-only probe found Radials=17 and 2,894 real spline points, but
+`spline.GetCache()` (Oline, type 5137) still had the previous 956 points.
+One ordinary EventAdd, without editing a value, repaired the line cache.
+
+The SceneHook published new points after C4D had already built that child's
+line representation. Checking GetAllPoints/GetPointCount alone falsely passed
+the earlier gates. A new multi-request test (commit, return to the event loop,
+read only) reproduced the old cache on five consecutive numeric/mode edits.
+For a linear spline without extra interpolation, compare real/cache point
+counts AND hashes. B-Spline caches have different tessellation and need an
+evaluated-curve check, not a point-count equality assertion.
+
+Candidate: queue `EventAdd(EVENT::ENQUEUE_REDRAW)` after changed managed output,
+including transitions to empty. Make output publication idempotent first, or
+the follow-up evaluation can rewrite identical points and loop indefinitely.
+The pinned 2026.3 c4d_general.h documents EventAdd as thread-safe; ge_prepass.h
+documents ENQUEUE_REDRAW as deferring until the current redraw completes.
+Do not overwrite C4D-owned caches or recursively ExecutePasses from a scene hook.
+This candidate is compiled but still awaiting a safe reload/live acceptance;
+it is not a solution claim for external-render frame lag or hierarchy-thread safety.
