@@ -3406,3 +3406,8 @@ Also test sheet/read, clear_sources/read, restore_sources/read. Never insert
 ExecutePasses/DrawViews to make this check pass. These are event-loop/cache
 checks, NOT OS keyboard/drop acceptance. This is not a solution claim for
 external-render frame lag or hierarchy-thread safety.
+
+Artist acceptance, 2026-09-05: after the above DLL was installed, Spenser
+reported "nice type values work like a charm". This closes the typed-value
+refresh defect with hands-on confirmation, not just scripted cache checks.
+Do not extend that report to unconfirmed Web Type menu or object-drop paths.
