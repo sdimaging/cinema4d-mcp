@@ -3384,11 +3384,25 @@ For a linear spline without extra interpolation, compare real/cache point
 counts AND hashes. B-Spline caches have different tessellation and need an
 evaluated-curve check, not a point-count equality assertion.
 
-Candidate: queue `EventAdd(EVENT::ENQUEUE_REDRAW)` after changed managed output,
+Fix: queue `EventAdd(EVENT::ENQUEUE_REDRAW)` after changed managed output,
 including transitions to empty. Make output publication idempotent first, or
 the follow-up evaluation can rewrite identical points and loop indefinitely.
 The pinned 2026.3 c4d_general.h documents EventAdd as thread-safe; ge_prepass.h
 documents ENQUEUE_REDRAW as deferring until the current redraw completes.
 Do not overwrite C4D-owned caches or recursively ExecutePasses from a scene hook.
-This candidate is compiled but still awaiting a safe reload/live acceptance;
-it is not a solution claim for external-render frame lag or hierarchy-thread safety.
+
+Verified 2026-09-05 on C4D 2026.3.1, Weavr source 94705db / DLL 7412E5A0...966AC5:
+all five previously failing numeric/mode edits now produce identical real/Oline
+point hashes after returning to the event loop, without a second edit or forced
+evaluation. Source-list clear/restore also passes (4,004 -> 0/no cache -> 4,004,
+exact original hash restored). Idle read-only snapshots 1.2 seconds apart retain
+the same geometry and dirty counter; no endless redraw observed. Existing 72
+native product/lifecycle/single-pass/control checks remain green.
+
+Repro: Weavr's `scripts/weavr_native_viewport_gate.py`, actions start/read,
+radials/read, turns/read, sheet/read, volume/read, orb/read, then cleanup in
+finally; separate requests with an event-loop return between commit and read.
+Also test sheet/read, clear_sources/read, restore_sources/read. Never insert
+ExecutePasses/DrawViews to make this check pass. These are event-loop/cache
+checks, NOT OS keyboard/drop acceptance. This is not a solution claim for
+external-render frame lag or hierarchy-thread safety.
