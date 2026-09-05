@@ -35,7 +35,7 @@ C4D_MCP_AUTOSTART=1 is opt-in. The obsolete NO_AUTOSTART documentation was wrong
 The installer never uses Reload Python Plugins or force-kills C4D. If a document
 is dirty, save it and release C4D from other automation before requesting restart.
 
-## Verification / open gate
+## Verification / remaining gate
 
 - python -B tests/test_contract.py: **5/5**, 110 tool command types / dispatcher
   branches / advertised commands.
@@ -48,8 +48,30 @@ is dirty, save it and release C4D from other automation before requesting restar
 - Live dirty-document guard: PASS; refused an unsaved Circuitry validation scene
   before any quit or file replacement.
 
-Full installation, new ping identity, success-path screenshots and restart/reopen
-acceptance are **pending a safe C4D window**. The currently running C4D session
-still has the previous MCP build. This is a review candidate, not a claim of
-completed live deployment.
+On 2026-09-04, after the artist released a clean C4D session, the normal Quit /
+install / Start cycle completed. C4D 2026.3.1 returned as PID 6708 with build
+`2026-09-04-transport-controls-1` and loaded-source SHA256
+`ca395ad975cdb7d69a260e02cad05089b25cb68e8b593361ca02454812003932`.
+The installer verified the expected process and loaded hash, not just disk files.
+Backups are outside plugin discovery in `mcp-backups/20260904_231440_562`.
 
+Live checks on that process:
+
+- Unicode script output (em dash / web emoji / check mark) round-tripped, and the
+  supplied request ID was echoed.
+- A 70,000-character print stored exactly 65,536 characters and reported truncation;
+  an opt-in 100,000-element list became `<list: 100000 items>`, not expanded data.
+- A 0.1-second wait on a read-only 0.3-second script returned `running`; polling
+  the same execution ID later returned `completed` and its final output.
+- A second read-only script queued behind a one-second busy main thread timed out
+  as `cancelled_before_start`; it remained cancelled after the first completed.
+- An 800 x 800 screenshot with no path returned a unique PNG path (38,210 bytes),
+  not base64. Frame override 7 restored the original document, frame 0 and the exact
+  active RenderData object. This was an empty-scene transport test, not visual QA.
+- The 16 unit tests and five command-contract checks were rerun and passed.
+
+Remaining: saved multi-document reopen acceptance (this cycle began empty),
+broader application soak, and actual keyboard/drop-box acceptance for Weavr.
+The Computer Use native pipe is still unavailable after the PC reboot. API
+parameter tests are explicitly not evidence that keyboard/Tab/Enter or UI drops
+work. The hardening branch remains draft PR #2, not a claim of merge to main.
