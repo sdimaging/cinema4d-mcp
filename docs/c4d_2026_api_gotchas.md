@@ -7,6 +7,12 @@ assumption, the actual behavior, and how it was discovered.
 Maintained as bugs surface during MCP plugin development. Useful for
 anyone building agent integrations against C4D 2026.
 
+Entries preserve historical discoveries, including superseded recipes. Match
+their version and evidence to the task; check the project's pinned SDK. For
+normal deployment prefer the saved-scene quit/replace/relaunch workflow in
+#130 over #124's loaded-file rename mechanism. For current managed-spline UI
+refresh, read #132–133 together with #125 and #131.
+
 ---
 
 ## 124. Hot-swapping a compiled plugin (`.xdl64`) while C4D is running — rename the loaded file to a NON-`.xdl64` stash, then copy the new build in; you can't delete the stash until C4D unloads
@@ -3411,3 +3417,112 @@ Artist acceptance, 2026-09-05: after the above DLL was installed, Spenser
 reported "nice type values work like a charm". This closes the typed-value
 refresh defect with hands-on confirmation, not just scripted cache checks.
 Do not extend that report to unconfirmed Web Type menu or object-drop paths.
+
+## 132. A no-op main-thread publisher can cancel the very viewport draw it is meant to refresh
+
+**Weavr, C4D 2026.3.1, 2026-09-06.** Artist QC: typed values and Seed steppers
+appeared frozen, sometimes briefly blank; a camera nudge revealed the web.
+Real spline AND Oline buffers could already agree. This was not established
+loss of Volume topology: seed 204 had 439 segments / 4,829 finite points in
+view, and 41 nearby seeds evaluated nonempty in a private clone.
+
+The guarded native publication architecture introduced another failure after #131:
+every worker SceneHook Execute queued a main-thread publisher, including
+already-synchronized output. That callback **unconditionally called
+StopAllThreads()**, interrupting a viewport draw. Sync then found no work and
+requested no replacement redraw. Safe-thread dispatch alone was insufficient.
+
+**Correction:** use a read-only revision/ownership/geometry preflight before
+queuing publication, then rebuild the pending worklist before stopping any
+threads. An already-current output must not cancel drawing. Keep synced
+revision/dirty counters safe for worker reads. Still guard needed loaded-scene
+hierarchy writes; this is NOT advice to mutate the document from SceneHook
+worker callbacks. Avoid recursive ExecutePasses/DrawViews from those callbacks.
+
+An initial event-wake + GetDimension-bounds candidate (F78043A5) was rejected
+by the artist. The no-op guard candidate, SHA256
+`70716EFE839EB8044E893D53EC7B4CE21D64A8DC28D1B22B5AC21C404FA1C788`, was installed
+and Spenser reported **"nice seems to work"** after actual Seed/slider testing.
+A passive native trace recorded seeds 205–211 publishing without subsequent
+no-op cancellation. Native product 26/26, single-pass 7/7, controls 10/10,
+private-worker 9/9, lifecycle 32/32 pass. Mode/empty/restore caches settle.
+Evidence/repro: Weavr `docs/gate/ui_refresh_20260906/` and
+`scripts/weavr_native_ui_probe.py`. This is bounded artist acceptance, not a
+certificate for every control, renderer, simulation or hardware configuration.
+
+## 133. Even a read-only MCP probe can supply the missing event that hides a UI refresh bug
+
+The bridge posts SpecialEventAdd to get execute_python work onto C4D's main
+thread. Consequently, a script with **no** EventAdd/ExecutePasses/DrawViews is
+read-only for scene data, but is not timing-neutral. Its arrival can wake a
+deferred publisher before the script inspects it. Earlier scripted checks
+also explicitly called EventAdd after SetParameter.
+
+Distinguish four layers: committed parameter, generated/managed geometry,
+evaluated line cache, and the actual presented frame. Equality of the middle
+two after a bridge event does not prove that the artist saw a fresh frame.
+
+Record keyboard/stepper/drop behavior before the next bridge request, using
+artist feedback or an authorized native capture. A bounded opt-in native trace
+written during callbacks can be read from disk without waking C4D; disable it
+for ordinary launches. viewport_screenshot is a new RenderDocument operation,
+not an untouched framebuffer capture: it evaluates the scene and posts events.
+Do not use it to certify the previously frozen frame.
+
+Asynchronous cache checks also need a genuine event-loop interval: a back-to-
+back socket read can land before the queued publication/line rebuild. Preserve
+early observations, then check bounded convergence and stable idle. Matching
+old real/Oline buffers immediately after a new parameter is not a pass either;
+require the expected new geometry. Do not keep injecting events until a failing
+actual UI test disappears and then call it fixed.
+
+## 134. An inner PASS does not override an outer execution or cleanup error
+
+A Weavr visual gate printed successful render results, then its wrapper raised
+ReferenceError during cleanup: double isolation had let C4D retire the empty
+outer document. The host parser initially extracted the inner PASS and missed
+the outer failed execution. The rejected response was retained, isolation was
+fixed, then visual and lifecycle checks were rerun successfully.
+
+Require transport/execution success **and** the scenario's assertions **and**
+clean cleanup. Preserve raw responses, DLL/source provenance and rejected
+attempts. Reacquire objects after Undo/Redo: even a stock Cube can have a new
+Python wrapper/live identity. Only destroy test-owned documents and objects;
+keep artist data out of public fixture commits. See #128 and #130 for timeout
+outcomes and empty-document retirement.
+
+## 135. Evaluated mesh support must cover the entire hierarchy, in every consumer
+
+Weavr's source reader supported evaluated Text/Extrude, but its collider reader
+still used a first-polygon shortcut: Text was ignored, split caps were omitted,
+and Bend-deformed editables used undeformed coordinates. Testing only source
+inputs had not exercised Avoid/Cut/Adhesion readers. The audit found 24/27
+collider parity failures against independently flattened evaluated references.
+
+Use the project's pinned SDK hierarchy/deformation contract, preserve transforms,
+and account for all mesh parts. Declare/track linked-child and cache dependencies
+so edits invalidate consumers. Reuse ingestion across roles where appropriate,
+but retain role-specific behavior. Evaluate vertex-map/selection correspondence
+against the actual resulting topology; never silently map original indices onto
+incompatible generated geometry.
+
+All 27 collider comparisons and 27 live child-edit cases passed on Weavr's
+0ECE7165 build; `docs/gate/audit_fixes_20260905/` records the fixtures and remaining
+limits. Separately, point-only cutting missed outside-to-outside chords through
+thin/disconnected bodies; finite-segment intersection tests closed the three
+zero-gap failures. Neither result proves arbitrary mesh/B-Spline/renderer safety.
+
+## 136. Knowledge section extraction can mistake a body hash/reference for a heading
+
+The bridge build `2026-09-04-transport-controls-1` uses a simple leading-`#`
+section parser. A line starting `#131:` in entry 132 was treated as a level-one
+heading, so knowledge_get returned only 545 bytes with `truncated: false`,
+omitting the actual correction and acceptance. C/C++ `#include` lines and
+Markdown-looking headings inside fenced examples can cause the same issue.
+
+For authoritative reading use the canonical local archive (the skill's
+knowledge.py helper returns complete numbered entries), or fetch the full
+file with a sufficient limit and verify completion. The new entry was
+rewrapped so its live MCP retrieval works; that is not a parser-code fix.
+Parser hardening should recognize real ATX headings and fenced code, with
+regression fixtures. Bridge code is unchanged in this documentation update.

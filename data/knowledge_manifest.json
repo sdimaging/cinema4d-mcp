@@ -91,7 +91,7 @@
    "entries": [
     {
      "path": "docs/c4d_2026_api_gotchas.md",
-     "title": "47 runtime gotchas (each contradicting older docs / training data)",
+      "title": "136 runtime gotchas with historical corrections and evidence limits",
      "type": "markdown",
      "topics": [
       "GetNimbusRef 1-arg",
