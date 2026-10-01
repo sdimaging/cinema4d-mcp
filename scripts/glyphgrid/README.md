@@ -32,34 +32,90 @@ For a one-shot bake onto an editable mesh, without a generator:
 G.bake_object(doc, poly_obj, grid=4, seed=7, orient=0)
 ```
 
-## Controls (generator user data)
+## Controls: one tab each, with a built-in "? How this tab works" panel
 
-| Group | Parameter | What it does |
+Every tab in the generator starts with a collapsed **? How this tab works** group: plain-English help for that tab, right inside Cinema 4D. The same text is below.
+
+Cells are numbered **top-left first, left to right, row by row**:
+
+```
+4-up:  1 2      9-up:  1 2 3      16-up:  1  2  3  4
+       3 4             4 5 6              5  6  7  8
+                       7 8 9              9 10 11 12
+                                         13 14 15 16
+```
+
+### Grid
+- **Grid (N x N)**: 1 = 1-up (one glyph everywhere), 2 = 4-up, 3 = 9-up, 4 = 16-up. It must match the plate (the Plate tab swaps the plate for you).
+- **Seed**: re-deals which polygon gets which cell.
+- **Cell Shift**: moves every polygon N cells forward. Animate it for a global glyph cycle.
+- **Source Object**: optional. Drag any object here instead of putting it under GlyphGrid.
+
+### Islands
+- **Island Mode**: Polygon = every polygon is one glyph. Ngon = ngons stay one glyph (default). Cluster = one big glyph across neighbouring polygons, sized by Cluster Size in scene units.
+- **Fit Auto**: square-ish quads fill the cell edge to edge. Triangles, ngons and long thin polygons are scaled uniformly and centred, with no stretching.
+- **Flush Aspect Limit**: how stretched a quad can be and still fill the cell (1.35 = 35 % longer than wide).
+- **Gutter**: empty border in every cell, which stops neighbouring glyphs bleeding in. **Glyph Scale** shrinks or grows every glyph.
+
+### Orientation
+- **Orient**: Up Axis = glyphs stand upright. Random 90 = each glyph turned 0/90/180/270. Random Free = any angle (glyphs shrink to fit). Edge Flow = follows each polygon's first edge.
+- **Up Space**: World = "up" stays world-up while the object rotates. Object = "up" turns with the object.
+- **Rotation Jitter**, **Random Mirror** (flips about half the glyphs), **Flip Mirror** (use if every glyph reads backwards).
+
+### Distribution
+| Mode | What happens |
+|---|---|
+| **Even Random** | Random, with exactly the same count in every cell. Value Source is ignored. |
+| **Weighted Random** | Random, but cells share polygons according to **Weights** |
+| **Value** | The Value tab picks the cell: low values go to the first cell (top-left), high values to the last (bottom-right). Use a sparse→dense plate. |
+| **Value Equalized** | Same order as Value, but every cell gets the same count. Maximum contrast, less literal. |
+
+**Weights** are *relative amounts* per cell, in plate order. On a 4-up, `8,1,1,1` means top-left 8 parts, top-right 1, bottom-left 1, bottom-right 1, which gives **73 % / 9 % / 9 % / 9 %** (verified: 1629 / 204 / 204 / 203 polygons). Cells without an entry count as 1, so `8` on a 16-up makes cell 1 eight times as common as each of the others. Weights are only used by Weighted Random.
+
+### Value
+- **Value Source**:
+  - **Light / Lambert** = brightness from **Target Object** (any null).
+    - **Directional Light** off = a bulb at the null's position.
+    - **Directional Light** on = a sun along the null's −Z axis (rotate it; its position is ignored).
+    - **Light Wrap** softens the shadow line.
+  - **Field** = the Fields list.
+  - **Height** = position along the Up Axis.
+  - **Camera Facing** = surfaces facing the camera score high.
+  - **Curvature** = convex scores high, concave low.
+  - **Distance** = from the Target (**Distance Period** repeats it as rings).
+- **Invert / Gamma / Contrast / Offset** reshape the value. **Wrap Values** with an animated **Offset** makes the glyphs ripple across the surface.
+- **Random Mix**: 0 = pure value, 1 = pure random.
+- **Dither**: jitters each value before it picks a cell, which breaks hard bands of one glyph into a smooth mix. Try 0.3–0.6.
+- **Rebuild Every Frame**: turn on when lights, fields or Offset are animated.
+
+### Plate (style × grid library, auto-swapped)
+Library files are named `<style>_<cells>up.png` in `plates/library/`. **Plate Style picks the row and Grid picks the column**: 7 styles × 4 grids = 28 ready plates (see `plates/contact_sheet.png`). With **Auto Swap Plate** on, changing Grid or Style re-points the texture in this object's material. That works for Redshift texture nodes, Octane ImageTexture and C4D Bitmap shaders, but only for textures that already point at a plate file (or the RS node named `gg_plate`).
+
+| # | Style | Notes |
 |---|---|---|
-| Grid | **Grid (N x N)** | 1 = 1up (all stacked), 2 = 4up, 3 = 9up, 4 = 16up … up to 8 |
-| | Seed | Re-deals every polygon |
-| | Cell Shift | Integer. Animate it so every polygon steps to the next cell (global glyph cycle) |
-| | Source Object | Optional link that is used instead of the first child |
-| Islands & Fit | Island Mode | Polygon / **Ngon** (keeps ngons whole) / Cluster (one glyph spans many polygons) |
-| | Cluster Size | World size of a cluster. Gives big letters across many quads |
-| | Fit | **Auto**: near-square quads snap flush to the cell corners; triangles, ngons and long thin polygons are kept **uniform and centred**. Also Uniform-all or Flush-all |
-| | Flush Aspect Limit | Quads up to this aspect ratio count as square |
-| | Gutter / Glyph Scale | Empty border per cell (stops mip bleed) and glyph size |
-| Orientation | Orient | **Up Axis** (glyphs read upright on the model), Random 90°, Random Free, Edge Flow |
-| | Up Axis / Up Space | +Y +Z +X −Y, world or object |
-| | Rotation Jitter, Random Mirror, Flip Mirror | Variation and a handedness fix |
-| Distribution | Distribute | **Even Random**: shuffled, so counts differ by at most 1 (2M polygons at 16up gives 125,000 per cell). Weighted Random takes `Weights` (e.g. `8,1,1,1`). **Value** picks the cell from a value. **Value Equalized** picks by value order but keeps exact even counts |
-| | Value Source | Random, Vertex Map, **Field**, Height, **Light / Lambert**, Camera Facing, Curvature, Polygon Index, Distance |
-| | Fields / Target Object | Field list. Light, camera or distance origin |
-| | Invert, Gamma, Contrast, Offset, Wrap Values | Value remap. Animate **Offset** with **Wrap** on to make glyphs cycle across the surface |
-| | Random Mix, Dither | Blend toward random. Noise before quantising, which gives smooth tonal ramps |
-| | Rebuild Every Frame | Turn on for animated offsets, keyframed lights and time-based fields |
-| Output | UV Mode | **Atlas** (grid baked into UVs, works in every renderer) or **Encoded** (for `glyphgrid_atlas.osl`) |
-| | Write ID Tag | Adds a 2nd UVW tag `GlyphGrid ID` holding (value, random) per polygon, for custom shaders |
-| | Cell Selection Tags | One polygon selection per cell (`GG_cell_00` …), for multi-material looks |
-| | Merge Objects | One mesh means one global distribution (Cloners, hierarchies) |
+| 1 | ASCII ramp | characters sorted sparse → dense |
+| 2 | Bayer dither | 4×4 Bayer: 16-up = 16 exact levels |
+| 3 | Halftone dots | round, area-correct |
+| 4 | Halftone squares | |
+| 5 | Noise | stochastic dither levels |
+| 6 | Hex digits | 0–F |
+| 7 | Binary 0/1 | |
+| 8 | **Custom** | type your own characters |
 
-**The ASCII-shading trick:** use a plate sorted sparse→dense (`glyphgrid_plates.py ascii`), set Value Source = Light and Distribute = Value, and add a little Dither. Glyph density then follows the lighting, so you get ASCII shading in 3D straight out of the render.
+**Custom glyphs:** pick style 8 and type characters into **Custom Glyphs**, e.g. `SDIMAGING`, `0123456789` or `.:-=+*#%@`.
+- **Sort by Ink** orders them sparse → dense, so they shade correctly in the Value modes.
+- **Font** is a PostScript name (`Menlo-Bold`, `Courier`, `HelveticaNeue-Bold`, `SFMono-Heavy`).
+- The plate is drawn inside Cinema 4D (GeClipMap, no extra installs) and saved as `custom_<cells>up_<hash>.png` in the Plate Folder.
+- **Apply Plate Now** forces the swap.
+
+### Output
+- **UV Mode**: Atlas is the normal mode and works in every renderer. Encoded is experimental and only for `glyphgrid_atlas.osl`.
+- **Write ID Tag**: an extra UV tag (value, random) per polygon, for custom shaders.
+- **Cell Selection Tags**: one polygon selection per cell (`GG_cell_00`…), so each glyph cell can get its own material.
+- **Keep Source UVs**: keep the object's original UV tags as well.
+- **Merge Objects**: several objects or clones become one mesh with one global even split.
+
+**The ASCII-shading recipe:** Plate Style 1 (ASCII), Value Source = Light / Lambert, Target = a null, Distribute = Value, Dither ≈ 0.35. Move the null and the glyph density follows the light.
 
 ## Plates
 
@@ -72,7 +128,8 @@ python glyphgrid_plates.py bayer    --grid 4 --dots 8 --out bayer16.png       # 
 python glyphgrid_plates.py halftone --grid 3 --shape round --out dots9.png
 python glyphgrid_plates.py logo     --grid 2 --images a.png b.png c.png d.png --out logos4.png
 python glyphgrid_plates.py ascii    --grid 4 --frames 12 --shimmer --flipbook --out seq/ascii16
-python glyphgrid_plates.py sheet    --out contact.png
+python glyphgrid_plates.py library  --out plates/library               # all styles x 1/4/9/16-up
+python glyphgrid_plates.py sheet    --out contact.png                 # style x grid matrix
 ```
 
 `--shimmer` re-picks every cell, every frame, from characters of **similar ink density**. A value-driven layout keeps its tone while the glyphs boil. `--flipbook` packs all frames into one atlas for the OSL shader.
