@@ -649,17 +649,45 @@ def collections_dir(plate_folder):
     return os.path.join(os.path.dirname(os.path.abspath(plate_folder)), "collections")
 
 
+def plate_dirs(root):
+    """Plates Folder -> (library dir, collections dir). Forgiving: if you browse to library/,
+    collections/ or a single collection folder, it walks up to the folder that holds them."""
+    import os
+    if not root:
+        return "", ""
+    p = os.path.abspath(str(root).rstrip("/\\"))
+    cand = p
+    for _ in range(4):
+        if os.path.isdir(os.path.join(cand, "library")) or os.path.isdir(os.path.join(cand, "collections")):
+            p = cand
+            break
+        parent = os.path.dirname(cand)
+        if parent == cand:
+            break
+        cand = parent
+    lib = os.path.join(p, "library")
+    return (lib if os.path.isdir(lib) else p), os.path.join(p, "collections")
+
+
+def font_name(v):
+    """Font user-data value (c4d.FontData or str) -> PostScript name for the plate renderer."""
+    if v is None:
+        return "Menlo-Bold"
+    if isinstance(v, str):
+        return v or "Menlo-Bold"
+    try:
+        bc = v.GetFont()
+        return bc[c4d.GE_FONT_NAME_POSTSCRIPT] or bc[c4d.GE_FONT_NAME_DISPLAY] or "Menlo-Bold"
+    except Exception:
+        return "Menlo-Bold"
+
+
 def open_in_finder(path):
     import os
     import subprocess
     import sys
     os.makedirs(path, exist_ok=True)
-    try:
-        c4d.storage.ShowInFinder(path, True)
-        return
-    except Exception:
-        pass
-    if sys.platform == "darwin":
+    if sys.platform == "darwin":   # ShowInFinder only reveals the item in its parent: open the folder itself
         subprocess.Popen(["open", path])
     elif sys.platform.startswith("win"):
         os.startfile(path)  # noqa
