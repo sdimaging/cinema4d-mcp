@@ -226,24 +226,38 @@ def build_rd_growth(doc, host, name="RD_Growth"):
     _set_props(g, "sp", "Position")   # newdataset=False wants "Position" (newdataset=True wants "")
     g.ws([("subd.geometryout", "gnrm.geometryin"), ("gnrm.geometryout", "gpn.geometry"),
           ("gp.array", "it1.in"), ("mem.nextout._0", "rvS.arrayin"), ("it1.index", "rvS.indexin"),
-          ("rvS._0", "spS.vector"), ("gpn.array", "rvN.arrayin"), ("it1.index", "rvN.indexin")])
+          ("rvS._0", "spS.vector")])
     # crisp tube profile: rd = smoothstep(c-0.06, c+0.06, B), c = 0.36 - 0.22*Thickness  (same as the Blender build)
     g.add("rdss", "ss")
     g.expose("thickness", "Thickness", maxon.Float64(0.5), [])
     g.math("thk", "mul", "ROOT.thickness", -0.22); g.math("ctr", "add", "thk.out", 0.36)
-    g.math("lo", "sub", "ctr.out", 0.06); g.math("hi", "add", "ctr.out", 0.06)
+    g.math("lo", "sub", "ctr.out", 0.08); g.math("hi", "add", "ctr.out", 0.08)
     g.ws([("spS.y", "rdss.in1"), ("lo.out", "rdss.in2"), ("hi.out", "rdss.in3")])
-    g.math("hgt", "mul", "rdss.out", 20.0)
-    g.ws([("hgt.out", "hv.x"), ("hgt.out", "hv.y"), ("hgt.out", "hv.z")])
+    # softness: one self-inclusive neighbour blur of rd -> anti-aliased edges at vertex resolution.
+    # rd is collected into an array (stream it1), then re-read per point in a second stream (it2).
+    for lbl, k in (("bldR", "bld"), ("wrR", "wr"), ("it2", "iter"), ("nbR", "nbr"), ("itR", "iter"),
+                   ("rvR", "rv"), ("sumR", "sum"), ("rvR0", "rv")):
+        g.add(lbl, k)
+    g.ws([("it1.count", "bldR.arraylengthin"), ("bldR.arrayout", "wrR.arrayin"), ("it1.index", "wrR.indexin")])
+    g.w("rdss.out", "wrR._0")
+    g.ws([("gp.array", "it2.in"), ("it2.index", "nbR.index"), ("subd.geometryout", "nbR.geometryin"),
+          ("nbR.neighborids", "itR.in"), ("wrR.arrayout", "rvR.arrayin"), ("itR.out", "rvR.indexin"),
+          ("rvR._0", "sumR.values"), ("itR.innerdomain", "sumR.innerdomain"), ("itR.outerdomain", "sumR.outerdomain"),
+          ("wrR.arrayout", "rvR0.arrayin"), ("it2.index", "rvR0.indexin")])
+    g.math("sumRS", "add", "sumR.out", "rvR0._0"); g.math("cntR", "add", "itR.count", 1.0)
+    g.math("rdsoft", "div", "sumRS.out", "cntR.out")
+    # displacement + attribute now live in the it2 stream
+    g.math("hgt", "mul", "rdsoft.out", 20.0)
+    g.ws([("hgt.out", "hv.x"), ("hgt.out", "hv.y"), ("hgt.out", "hv.z"), ("gpn.array", "rvN.arrayin"), ("it2.index", "rvN.indexin")])
     g.math("offN", "mul", "rvN._0", "hv.result", vec=True)
-    g.math("newp", "add", "it1.out", "offN.out", vec=True)
+    g.math("newp", "add", "it2.out", "offN.out", vec=True)
     g.ws([("subd.geometryout", "sp.geometryin"), ("gp.topology", "sp.topology"), ("newp.out", "sp.iteration")])
     # rd (0..1) as a weight attribute -> shows up as a Vertex Map tag named "rd" on the deformed cache,
     # readable by Redshift's Vertex Attribute node (attribute = "rd") for the white-on-black look.
     g.add("sw", "set", accessortype=WEIGHT, accessorname=maxon.String("rd"),
           arraymode=maxon.Bool(False), newdataset=maxon.Bool(False))
     g.ws([("sp.geometryout", "sw.geometryin"), ("gp.topology", "sw.topology"),
-          ("rdss.out", "sw.iteration"), ("sw.geometryout", "ROOT.geometryout")])
+          ("rdsoft.out", "sw.iteration"), ("sw.geometryout", "ROOT.geometryout")])
 
     # --- AM parameters
     F, I = maxon.Float64, maxon.Int64
@@ -309,6 +323,24 @@ def build_rd_lookdev(doc, host, frame_target=None):
     doc.GetActiveBaseDraw().SetSceneCamera(cam)
     c4d.EventAdd()
     return mat
+
+
+def step_sim(doc, host, budget=45.0, until=None):
+    """Advance a Memory sim sequentially from the current frame, inside a wall-clock budget (MCP calls cap at 60 s).
+    Hides the host in the editor while stepping: the viewport drawing the cache mid-rebuild crashed C4D (gotcha #116)."""
+    import time
+    fps = doc.GetFps()
+    vis = host[c4d.ID_BASEOBJECT_VISIBILITY_EDITOR]
+    host[c4d.ID_BASEOBJECT_VISIBILITY_EDITOR] = 1
+    t, f = time.time(), doc.GetTime().GetFrame(fps)
+    try:
+        while time.time() - t < budget and (until is None or f < until):
+            f += 1
+            doc.SetTime(c4d.BaseTime(f, fps))
+            doc.ExecutePasses(None, False, True, True, c4d.BUILDFLAGS_NONE)
+    finally:
+        host[c4d.ID_BASEOBJECT_VISIBILITY_EDITOR] = vis
+    return f
 
 
 if __name__ == "__main__":
