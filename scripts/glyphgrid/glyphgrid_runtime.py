@@ -273,8 +273,9 @@ def apply_to_object(po, mg, params, src=SRC_RANDOM, opts=None, caller=None, doc=
     prm["up"], prm["fallback_up"] = _vec_t(up), _vec_t(fb)
     t1 = time.time()
     vals = sample_values(po, mg, P, F, src, opts, caller, doc) if isinstance(values, str) else values
-    if vals is not None and prm.get("assign", 0) == 0:
+    if vals is not None and prm.get("assign", 0) == 0 and not prm.get("knockout"):
         prm["assign"] = 3  # a value source with "Even" distribution -> value-driven, still exact counts
+        # (with Knockout on, Even stays random: the value then only masks where glyphs appear)
     if vals is None and prm.get("assign", 0) >= 2:
         prm["assign"] = 0
     t2 = time.time()
