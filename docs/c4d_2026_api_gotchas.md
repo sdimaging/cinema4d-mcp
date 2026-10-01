@@ -2896,3 +2896,7 @@ Upscaling raises `ValueError: The destination image has to be smaller`. To upsca
 ## 130. Pillow inside Cinema 4D 2026 (macOS arm64)
 
 The same trick as numpy (#125): `pip install --target ~/Library/Preferences/Maxon/python/python311/libs --python-version 3.11 --platform macosx_14_0_arm64 --implementation cp --only-binary=:all: --no-deps pillow==11.3.0`. Fonts resolve from `/System/Library/Fonts/*.ttc` with `ImageFont.truetype(path, size, index=k)`. Match `getname()` → (family, style) to pick Menlo Bold out of `Menlo.ttc`.
+
+## 131. Cache objects inherit the generator's visibility. Reset it on anything you re-emit
+
+A Python Generator that clones another object's cache (e.g. a hidden SDS linked as the source) gets polygon objects whose `ID_BASEOBJECT_VISIBILITY_RENDER` is the source's "off". The viewport uses editor visibility, so it looks fine there, while Redshift silently drops the mesh and the render is black. Set `ID_BASEOBJECT_VISIBILITY_RENDER/EDITOR = c4d.OBJECT_UNDEF` on every object you return.

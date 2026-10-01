@@ -72,6 +72,9 @@ DEFAULTS = dict(
     contrast=1.0,           # around 0.5
     offset=0.0,
     wrap=False,
+    knockout=0,             # 0 off, 1 hide below knock_thr, 2 hide above (needs a value source)
+    knock_thr=0.5,
+    knock_soft=0.0,         # random jitter on the threshold edge (0..1) -> dissolve-like border
     cell_shift=0,           # integer, rotates every island's cell (animatable)
     random_mix=0.0,         # blend value toward per-island random
     dither=0.0,             # 0..1, +/- half a cell of noise before quantising
@@ -883,6 +886,29 @@ def compute(points, polys, params=None, ngon_map=None, poly_values=None, progres
             if progress and k % step == 0:
                 progress(k / len(groups))
 
+    # ---- knockout: islands past the threshold show no glyph, on ANY plate. Their UVs collapse onto
+    # the top-left corner of the atlas, which is black on every GlyphGrid plate (cell margin / empty
+    # first level), so hologram opacity = 0 and emission = 0 there.
+    knocked = 0
+    kmode = int(prm.get("knockout") or 0)
+    if kmode and isl_value is not None and not encoded:
+        thr = float(prm.get("knock_thr", 0.5))
+        soft = float(prm.get("knock_soft", 0.0))
+        kn = [False] * n_isl
+        for i in range(n_isl):
+            v = _remap_value(isl_value[i], prm) + (isl_rand[i] - 0.5) * soft
+            kn[i] = (v < thr) if kmode == 1 else (v > thr)
+        e = 0.002
+        if isinstance(uv, list):
+            for pi in range(npoly):
+                if kn[island[pi]]:
+                    o = pi * 8
+                    uv[o:o + 8] = [e] * 8
+        else:
+            mask = _np.asarray(kn, bool)[_np.asarray(island, _np.int64)]
+            uv.reshape(-1, 8)[mask] = e
+        knocked = sum(kn)
+
     for i in range(npoly):
         isl = island[i]
         cell_out[i] = isl_cell[isl]
@@ -891,4 +917,4 @@ def compute(points, polys, params=None, ngon_map=None, poly_values=None, progres
     for isl in range(n_isl):
         counts[isl_cell[isl]] += 1
     return dict(uv=uv, cell=cell_out, value=val_out, rand=rand_out, island=island,
-                counts=counts, islands=n_isl, grid=N, mixed=mixed)
+                counts=counts, islands=n_isl, grid=N, mixed=mixed, knocked=knocked)

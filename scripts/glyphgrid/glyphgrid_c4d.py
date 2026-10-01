@@ -105,6 +105,14 @@ HELP = {
         "Distance: from Target (Distance Period repeats rings).",
         "Invert / Gamma / Contrast / Offset reshape the value.",
         "  Wrap Values + animated Offset = glyphs ripple across.",
+        "Knockout: hide glyphs where the value is below (or above)",
+        "  the threshold - works the same on EVERY plate. In Value",
+        "  mode the field only picks WHICH cell; plates whose first",
+        "  cell is empty (ASCII, Bayer, dots) look knocked out, hex /",
+        "  collections never do. Knockout makes it explicit.",
+        "  With Distribute = Even Random + Knockout: random glyphs,",
+        "  the field is just a reveal mask (animate it to wipe on).",
+        "  Knockout Softness = dissolve-style ragged edge.",
         "Random Mix: 0 = pure value, 1 = pure random.",
         "Dither: jitter before choosing -> breaks hard bands of",
         "  one glyph into a smooth mix (try 0.3 - 0.6).",
@@ -206,6 +214,9 @@ UD_SPEC = [
     ("Contrast", "float", 1.0, dict(min=0.0, max=10.0, step=0.05)),
     ("Offset", "float", 0.0, dict(min=-10.0, max=10.0, step=0.01)),
     ("Wrap Values", "bool", False, {}),
+    ("Knockout", "cycle", 0, dict(items=["Off", "Hide below threshold", "Hide above threshold"])),
+    ("Knockout Threshold", "pct", 0.5, dict(min=0.0, max=1.0)),
+    ("Knockout Softness", "pct", 0.0, dict(min=0.0, max=1.0)),
     ("Random Mix", "pct", 0.0, dict(min=0.0, max=1.0)),
     ("Dither", "pct", 0.0, dict(min=0.0, max=1.0)),
     ("Rebuild Every Frame", "bool", False, {}),
@@ -362,6 +373,8 @@ def _gg_params():
         invert=bool(g("Invert", False)), gamma=float(g("Gamma", 1.0)), contrast=float(g("Contrast", 1.0)),
         offset=float(g("Offset", 0.0)), wrap=bool(g("Wrap Values", False)),
         random_mix=float(g("Random Mix", 0.0)), dither=float(g("Dither", 0.0)),
+        knockout=int(g("Knockout", 0)), knock_thr=float(g("Knockout Threshold", 0.5)),
+        knock_soft=float(g("Knockout Softness", 0.0)),
         uv_mode=int(g("UV Mode", 0)),
     )
     src = int(g("Value Source", 0))
@@ -383,6 +396,24 @@ def _count_polys(o):
         n += _count_polys(o.GetDown())
         o = o.GetNext()
     return n
+
+
+def _gg_eval_private(src_obj, inv, CF):
+    """Build src_obj's geometry in a throw-away document (render flags, visibility forced on)."""
+    try:
+        tmp = c4d.documents.BaseDocument()
+        cp = src_obj.GetClone(c4d.COPYFLAGS_NONE)
+        cp.SetMg(src_obj.GetMg())
+        cp[c4d.ID_BASEOBJECT_VISIBILITY_RENDER] = 2
+        cp[c4d.ID_BASEOBJECT_VISIBILITY_EDITOR] = 2
+        tmp.InsertObject(cp)
+        tmp.ExecutePasses(None, False, False, True, c4d.BUILDFLAGS_EXTERNALRENDERER)
+        found = [(o.GetClone(CF), inv * mg) for o, mg in collect_polys(cp)]
+        c4d.documents.KillDocument(tmp)
+        return found
+    except Exception as e:
+        print("GlyphGrid: private build failed:", e)
+        return []
 
 
 def main():
@@ -438,6 +469,10 @@ def main():
         ssig = root_signature(src_obj)
         if ssig != _GG_STATE.get("src_sig") or not _GG_STATE.get("geo"):
             found = [(o.GetClone(CF), inv * mg) for o, mg in collect_polys(src_obj)]
+            if not found:
+                # hidden / render-invisible sources (or a fresh render document) have no caches:
+                # evaluate a copy of the linked object (with its children) in a private document
+                found = _gg_eval_private(src_obj, inv, CF)
             if found:
                 _GG_STATE["geo"] = found
                 _GG_STATE["src_sig"] = ssig
@@ -454,6 +489,11 @@ def main():
     _GG_STATE["own_sig"] = own_sig
     _GG_STATE["frame"] = frame
     parts = [(o.GetClone(CF), gmg * ml) for o, ml in geo]   # (clone, world matrix)
+    for o, _ in parts:
+        # cache objects inherit the SOURCE's visibility: a hidden source (e.g. a linked SDS with
+        # render visibility off) would make our output invisible to the renderer -> reset to default
+        o[c4d.ID_BASEOBJECT_VISIBILITY_RENDER] = c4d.OBJECT_UNDEF
+        o[c4d.ID_BASEOBJECT_VISIBILITY_EDITOR] = c4d.OBJECT_UNDEF
 
     root = c4d.BaseObject(c4d.Onull)
     root.SetName("GlyphGrid")
@@ -511,7 +551,6 @@ def _gg_apply_plate(force=False):
         return
     folder = g("Plate Folder", "") or ""
     if not folder:
-        print("GlyphGrid: set Plate Folder first")
         return
     if int(g("Plate Style", 0)) == 8 and not cycle_text(op, "Collection").strip("() none"):
         return   # no collection picked yet
