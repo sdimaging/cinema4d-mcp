@@ -59,7 +59,8 @@ DEFAULTS = dict(
     glyph_scale=1.0,        # 1 = fill the cell (inside the gutter)
     island=ISLAND_NGON,
     cluster_size=0.0,       # world units, ISLAND_CLUSTER only
-    qt_size=100.0,          # ISLAND_QUADTREE: largest block (world units)
+    qt_cells=8,             # ISLAND_QUADTREE: largest block in POLYGONS (power of two, snapped to the mesh grid)
+    qt_size=100.0,          #   world-unit block size, used only when qt_cells = 0
     qt_levels=3,            #   block sizes qt_size, /2, /4 ... then single polygons
     qt_split=0.5,           #   chance a block splits into its 4 children
     grid_mode=GRID_SINGLE,  # GRID_MIXED: polygons draw from 1/4/9/16-up at once (composite atlas)
@@ -141,25 +142,134 @@ def _h01(*key):
     return ((h ^ (h >> 16)) & 0xFFFFFF) / float(0x1000000)
 
 
+def quad_grid_coords(polys, return_rot=False):
+    """Integer (component, i, j) per quad by walking the quad mesh: neighbours across an edge get
+    i +/- 1 or j +/- 1, carried through each quad's local orientation. Regular quad regions
+    (planes, cylinders, tori, sphere bands, cube faces) come out as clean row/column grids
+    whatever their transform or curvature. Triangles/ngons get None."""
+    n = len(polys)
+    emap = {}
+    for pi, p in enumerate(polys):
+        a, b, c, d = p
+        if c == d:
+            continue
+        vs = (a, b, c, d)
+        for k in range(4):
+            v0, v1 = vs[k], vs[(k + 1) % 4]
+            emap.setdefault((v0, v1) if v0 < v1 else (v1, v0), []).append((pi, k))
+    coord = [None] * n
+    rot = [0] * n
+    DIRS = ((0, -1), (1, 0), (0, 1), (-1, 0))
+    comp = 0
+    for seed in range(n):
+        if coord[seed] is not None or polys[seed][2] == polys[seed][3]:
+            continue
+        coord[seed] = (comp, 0, 0)
+        rot[seed] = 0
+        stack = [seed]
+        while stack:
+            pi = stack.pop()
+            _, ci, cj = coord[pi]
+            a, b, c, d = polys[pi]
+            vs = (a, b, c, d)
+            for k in range(4):
+                v0, v1 = vs[k], vs[(k + 1) % 4]
+                side = (k - rot[pi]) % 4
+                for qj, m in emap.get((v0, v1) if v0 < v1 else (v1, v0), ()):
+                    if qj == pi or coord[qj] is not None:
+                        continue
+                    di, dj = DIRS[side]
+                    coord[qj] = (comp, ci + di, cj + dj)
+                    rot[qj] = (m - (side + 2)) % 4
+                    stack.append(qj)
+        comp += 1
+    # shift every component so its minimum is (0, 0)
+    mins = {}
+    for c in coord:
+        if c is not None:
+            k, i, j = c
+            mi, mj = mins.get(k, (i, j))
+            mins[k] = (min(mi, i), min(mj, j))
+    coord = [None if c is None else (c[0], c[1] - mins[c[0]][0], c[2] - mins[c[0]][1]) for c in coord]
+    if return_rot:
+        return coord, rot
+    return coord
+
+
 def build_islands(points, polys, mode=ISLAND_POLY, ngon_map=None, cluster_size=0.0,
-                  qt_size=100.0, qt_levels=3, qt_split=0.5, seed=0):
+                  qt_size=100.0, qt_levels=3, qt_split=0.5, seed=0, qt_cells=0, info=None):
     """Returns island id per polygon (list) and the island count."""
     n = len(polys)
-    if mode == ISLAND_QUADTREE and qt_size > 0.0:
-        # world-space quadtree: a block of size S either stays one island or splits into its
-        # 2x2x2 children (S/2) with chance qt_split; after qt_levels the leaves are single polys.
+    if mode == ISLAND_QUADTREE and qt_cells > 0:
+        # topology quadtree: blocks of qt_cells x qt_cells quads in the mesh's own rows/columns
+        gc, grot = quad_grid_coords(polys, return_rot=True)
+        blk = 1 << max(0, int(round(math.log(max(1, qt_cells), 2))))
+        blocks = {}
+        L = min(max(1, int(qt_levels)), int(round(math.log(blk, 2))) + 1)
         remap, out = {}, [0] * n
-        L = max(1, int(qt_levels))
-        for i, p in enumerate(polys):
-            cx, cy, cz, dom = _centroid_dir(points, p)
+        for i in range(n):
+            c = gc[i]
             key = None
-            size = float(qt_size)
+            if c is not None:
+                comp, ci, cj = c
+                size = blk
+                for lvl in range(L):
+                    k = (lvl, comp, ci // size, cj // size)
+                    if _h01(seed, *k) >= qt_split:
+                        key = k
+                        blocks[k] = ((ci // size) * size, (cj // size) * size, size)
+                        break
+                    size //= 2
+                    if size < 1:
+                        break
+            if key is None:
+                key = ("p", i)
+            out[i] = remap.setdefault(key, len(remap))
+        if info is not None:   # grid data for decal-style UVs on blocks (see compute)
+            info["gc"], info["rot"] = gc, grot
+            info["block"] = {remap[k]: v for k, v in blocks.items() if v[2] > 1}
+        return out, len(remap)
+    if mode == ISLAND_QUADTREE and (qt_cells > 0 or qt_size > 0.0):
+        # Quadtree snapped to the mesh's own polygon grid (object space): the polygon size per axis
+        # is measured from the edges, blocks start at the bounding-box minimum and hold
+        # qt_cells x qt_cells polygons (power of two), so on a regular grid every block boundary
+        # is a polygon edge. A block stays one island or splits into its 2x2x2 children with
+        # chance qt_split, down to single polygons.
+        remap, out = {}, [0] * n
+        cen = [_centroid_dir(points, p) for p in polys]
+        if qt_cells > 0:
+            buckets = ([], [], [])
+            step = max(1, n // 4000)
+            for p in polys[::step]:
+                ids = _poly_ids(p)
+                for q in range(len(ids)):
+                    a_, b_ = points[ids[q]], points[ids[(q + 1) % len(ids)]]
+                    d = (abs(b_[0] - a_[0]), abs(b_[1] - a_[1]), abs(b_[2] - a_[2]))
+                    ax = max(range(3), key=lambda k: d[k])
+                    if d[ax] > 1e-9:
+                        buckets[ax].append(d[ax])
+            allv = sorted(v for bk in buckets for v in bk) or [1.0]
+            med_all = allv[len(allv) // 2]
+            cell = [sorted(bk)[len(bk) // 2] if bk else med_all for bk in buckets]
+            blk = 1 << max(0, int(round(math.log(max(1, qt_cells), 2))))     # nearest power of two
+            size0 = [cell[k] * blk for k in range(3)]
+            L = min(max(1, int(qt_levels)), int(round(math.log(blk, 2))) + 1)
+        else:
+            size0 = [float(qt_size)] * 3
+            L = max(1, int(qt_levels))
+        org = [min(pt[k] for pt in points) for k in range(3)] if points else [0.0, 0.0, 0.0]
+        for i in range(n):
+            cx, cy, cz, dom = cen[i]
+            key = None
+            f = 1.0
             for lvl in range(L):
-                k = (lvl, int(math.floor(cx / size)), int(math.floor(cy / size)), int(math.floor(cz / size)), dom)
+                k = (lvl, int(math.floor((cx - org[0]) / (size0[0] * f) + 1e-6)),
+                     int(math.floor((cy - org[1]) / (size0[1] * f) + 1e-6)),
+                     int(math.floor((cz - org[2]) / (size0[2] * f) + 1e-6)), dom)
                 if _h01(seed, *k) >= qt_split:
                     key = k
                     break
-                size *= 0.5
+                f *= 0.5
             if key is None:
                 key = ("p", i)
             out[i] = remap.setdefault(key, len(remap))
@@ -474,8 +584,10 @@ def compute(points, polys, params=None, ngon_map=None, poly_values=None, progres
     npoly = len(polys)
     rng = random.Random(int(prm["seed"]))
 
+    qt_info = {}
     island, n_isl = build_islands(points, polys, prm["island"], ngon_map, prm["cluster_size"],
-                                  prm["qt_size"], prm["qt_levels"], prm["qt_split"], int(prm["seed"]))
+                                  prm["qt_size"], prm["qt_levels"], prm["qt_split"], int(prm["seed"]),
+                                  int(prm.get("qt_cells") or 0), info=qt_info)
     mixed = int(prm.get("grid_mode") or 0) == GRID_MIXED and prm["uv_mode"] != UVMODE_ENCODED
 
     # per-island random (stable for a given seed), value = mean of poly values
@@ -593,6 +705,65 @@ def compute(points, polys, params=None, ngon_map=None, poly_values=None, progres
         sc = span * (isl_cs[isl] if isl_cs is not None else 1.0)
         return ((isl_cx[isl] + (s - 0.5) * sc) * unit_mul, (isl_cy[isl] + (t - 0.5) * sc) * unit_mul)
 
+    def solve_block(isl, plist):
+        """Quadtree block: UVs from the quad grid coordinates (decal-like, no projection), so a big
+        glyph follows curved surfaces. Glyph up = the grid direction closest to the Up axis."""
+        gc, grot = qt_info["gc"], qt_info["rot"]
+        i0, j0, S = qt_info["block"][isl]
+        p0 = plist[0]
+        vs = _poly_ids(polys[p0])
+        r0 = grot[p0]
+        P0 = points[vs[r0]]
+        di = _sub(points[vs[(r0 + 1) % 4]], P0)
+        dj = _sub(points[vs[(r0 + 3) % 4]], P0)
+        nn = _norm(_cross(di, dj))[0]
+        # candidate glyph-up axes in grid space: (axis 0 = i / 1 = j, sign)
+        if orient == ORIENT_EDGE:
+            upax = (1, 1)
+        else:
+            uu = _sub(up, tuple(nn[q] * _dot(up, nn) for q in range(3)))
+            if _norm(uu)[1] < 1e-4:
+                uu = _sub(fb, tuple(nn[q] * _dot(fb, nn) for q in range(3)))
+            cands = [((0, 1), _dot(_norm(di)[0], uu)), ((0, -1), -_dot(_norm(di)[0], uu)),
+                     ((1, 1), _dot(_norm(dj)[0], uu)), ((1, -1), -_dot(_norm(dj)[0], uu))]
+            upax = max(cands, key=lambda c: c[1])[0]
+        uvec = di if upax[0] == 0 else dj
+        uvec = uvec if upax[1] > 0 else (-uvec[0], -uvec[1], -uvec[2])
+        rvec = _cross(nn, uvec)                     # glyph right, same convention as _frame
+        rax = 1 - upax[0]
+        rsign = 1 if _dot(rvec, di if rax == 0 else dj) > 0 else -1
+        k90 = isl_k90[isl]
+        mir = isl_mir[isl] != gmir
+        CORN = ((0, 0), (1, 0), (1, 1), (0, 1))
+        # physical block size along i / j (mean quad edge x S) -> keep the glyph square
+        li = lj = 0.0
+        for pi in plist:
+            ids = _poly_ids(polys[pi])
+            r = grot[pi]
+            q0 = points[ids[r]]
+            li += _norm(_sub(points[ids[(r + 1) % 4]], q0))[1]
+            lj += _norm(_sub(points[ids[(r + 3) % 4]], q0))[1]
+        lu = (li if upax[0] == 0 else lj)
+        lr = (lj if upax[0] == 0 else li)
+        m = max(lu, lr) or 1.0
+        ku, kr = lu / m, lr / m
+        for pi in plist:
+            ids = _poly_ids(polys[pi])
+            _, ci, cj = gc[pi]
+            r = grot[pi]
+            o = pi * 8
+            for k in range(4):
+                cx, cy = CORN[(k - r) % 4]
+                g = ((ci - i0 + cx) / S, (cj - j0 + cy) / S)
+                a = g[upax[0]] if upax[1] > 0 else 1.0 - g[upax[0]]
+                b = g[rax] if rsign > 0 else 1.0 - g[rax]
+                ss, tt = 0.5 + (b - 0.5) * kr, 0.5 + (0.5 - a) * ku
+                if mir:
+                    ss = 1.0 - ss
+                for _ in range(k90):
+                    ss, tt = 1.0 - tt, ss
+                uv[o + k * 2], uv[o + k * 2 + 1] = place(isl, ss, tt)
+
     def solve_group(isl, plist):
         # gather unique verts
         vids = []
@@ -624,6 +795,17 @@ def compute(points, polys, params=None, ngon_map=None, poly_values=None, progres
                 u = (-u[0], -u[1], -u[2])
         else:
             r, u = _frame(n, up, fb)
+            if len(plist) > 1:
+                # multi-polygon block: turn "up" to the nearest polygon-edge direction so the glyph
+                # square sits on the block's own grid even when the object is rotated
+                ids0 = _poly_ids(polys[plist[0]])
+                e0 = _sub(points[ids0[1]], points[ids0[0]])
+                e0, el = _norm(_sub(e0, tuple(n[q] * _dot(e0, n) for q in range(3))))
+                if el > 0:
+                    e1 = _cross(n, e0)
+                    cands = (e0, e1, (-e0[0], -e0[1], -e0[2]), (-e1[0], -e1[1], -e1[2]))
+                    u = max(cands, key=lambda c: _dot(c, u))
+                    r, _ = _norm(_cross(n, u))
         # project
         xs, ys = [], []
         for j in vids:
@@ -692,8 +874,12 @@ def compute(points, polys, params=None, ngon_map=None, poly_values=None, progres
             uvl = uv.reshape(-1).tolist()
             uv = uvl
         step = max(1, len(groups) // 50)
+        blocks = qt_info.get("block", {})
         for k, isl in enumerate(groups):
-            solve_group(isl, members[isl])
+            if isl in blocks and all(polys[p_][2] != polys[p_][3] for p_ in members[isl]):
+                solve_block(isl, members[isl])
+            else:
+                solve_group(isl, members[isl])
             if progress and k % step == 0:
                 progress(k / len(groups))
 

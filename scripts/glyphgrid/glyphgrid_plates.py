@@ -418,6 +418,27 @@ LIBRARY_STYLES = [  # (file key, kind, overrides) -- the GlyphGrid generator's "
 ]
 
 
+def _defaults_ns(**kw):
+    ns = argparse.Namespace(grid=4, size=1024, out="plate.png", font=None, ramp=None, text=None, sort=False,
+                            fill=0.86, bold=0, dots=4, dots_per_cell=1, shape="round", images=None, invert=False,
+                            color=None, guides=False, frames=1, shimmer=False, shimmer_k=4, flipbook=False, seed=1)
+    for k, v in kw.items():
+        setattr(ns, k, v)
+    return ns
+
+
+def library_plate(style_key, grid, out, size=1024):
+    """One library-style plate (e.g. 'ascii', 'bayer') at any grid size, written to `out`."""
+    for key, kind, ov in LIBRARY_STYLES:
+        if key == style_key:
+            b = _defaults_ns(size=size, **ov)
+            fr, _ = build(kind, grid, b)
+            os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
+            fr[0].save(out)
+            return out
+    raise KeyError(style_key)
+
+
 def library(a, folder):
     """Every style x 1/4/9/16-up as <style>_<cells>up.png, the layout the generator swaps between."""
     os.makedirs(folder, exist_ok=True)

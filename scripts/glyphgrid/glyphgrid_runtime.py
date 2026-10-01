@@ -463,7 +463,14 @@ def plate_path(folder, style_index, grid, custom_text="", font="Menlo-Bold", sor
             os.path.join(os.path.dirname(os.path.abspath(folder)), "collections", collection or "")
         return _plates_mod(folder).collection_plate(cdir, cells, size)
     if style != "custom":
-        return os.path.join(folder, "%s_%dup.png" % (style, cells))
+        lib = os.path.join(folder, "%s_%dup.png" % (style, cells))
+        if os.path.exists(lib):
+            return lib
+        # grids beyond the shipped library (5x5 ... 8x8): build that plate once, on demand
+        out = os.path.join(folder, "_custom", "%s_%dup.png" % (style, cells))
+        if not os.path.exists(out):
+            _plates_mod(folder).library_plate(style, grid, out, size)
+        return out
     key = hashlib.md5(("%s|%s|%d|%d" % (custom_text, font, sort_ink, cells)).encode("utf8")).hexdigest()[:8]
     path = os.path.join(folder, "_custom", "custom_%dup_%s.png" % (cells, key))   # unique name: renderers cache by path
     if not os.path.exists(path):
