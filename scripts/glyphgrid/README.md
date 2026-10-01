@@ -51,8 +51,12 @@ Cells are numbered **top-left first, left to right, row by row**:
 - **Cell Shift**: moves every polygon N cells forward. Animate it for a global glyph cycle.
 - **Source Object**: optional. Drag any object here instead of putting it under GlyphGrid.
 
+### Grid Mode: Mixed (1/4/9/16-up at once)
+With **Grid Mode = Mixed**, every polygon draws from one of four levels, the 1-, 4-, 9- or 16-up plate, using exact proportions from **Level Weights** (`1,0,2,4` means no 4-up, and 16-up is 4× as common as 1-up). The plate becomes one composite texture: top-left 1-up, top-right 4-up, bottom-left 9-up, bottom-right 16-up. It's built automatically from the current style or collection into `plates/library/_mixed/`. Value modes still work inside each level.
+
 ### Islands
 - **Island Mode**: Polygon = every polygon is one glyph. Ngon = ngons stay one glyph (default). Cluster = one big glyph across neighbouring polygons, sized by Cluster Size in scene units.
+- **Quadtree (mixed glyph sizes)**: blocks of **Quadtree Size** randomly split into halves, quarters and so on, down to single polygons. **Quadtree Levels** sets how many splits; **Subdivide Chance** runs from 0 (all big glyphs) to 1 (all single-polygon glyphs). On a regular grid this gives a true quadtree mosaic of glyph sizes. Combine it with Mixed for big logos next to tiny ones.
 - **Fit Auto**: square-ish quads fill the cell edge to edge. Triangles, ngons and long thin polygons are scaled uniformly and centred, with no stretching.
 - **Flush Aspect Limit**: how stretched a quad can be and still fill the cell (1.35 = 35 % longer than wide).
 - **Gutter**: empty border in every cell, which stops neighbouring glyphs bleeding in. **Glyph Scale** shrinks or grows every glyph.
@@ -101,12 +105,16 @@ Library files are named `<style>_<cells>up.png` in `plates/library/`. **Plate St
 | 6 | Hex digits | 0–F |
 | 7 | Binary 0/1 | |
 | 8 | **Custom** | type your own characters |
+| 9 | **Collection** | your own folder of images, see `plates/collections/README.md` |
 
 **Custom glyphs:** pick style 8 and type characters into **Custom Glyphs**, e.g. `SDIMAGING`, `0123456789` or `.:-=+*#%@`.
 - **Sort by Ink** orders them sparse → dense, so they shade correctly in the Value modes.
 - **Font** is a PostScript name (`Menlo-Bold`, `Courier`, `HelveticaNeue-Bold`, `SFMono-Heavy`).
 - The plate is drawn inside Cinema 4D (GeClipMap, no extra installs) and saved as `custom_<cells>up_<hash>.png` in the Plate Folder.
 - **Apply Plate Now** forces the swap.
+- Custom plates use Pillow (FreeType) when it's importable in C4D's Python, and give crisp glyphs. Install it the same way as numpy, with `pillow==11.3.0`. Without Pillow, GeClipMap is used, which is softer because GeClipMap clips text taller than ~126 px, so glyphs get upscaled.
+
+**Collections:** a folder of glyph images under `plates/collections/<name>/`, named `01_x.png`, `02_y.png`… in priority order. 1-up uses #1, 4-up #1–4, 9-up #1–9, 16-up #1–16; fewer images repeat. Hand-made `name_4up.png` plates are used as-is. A folder holding only one big plate is sliced into its cells. `shapes/` is a 16-glyph example.
 
 ### Output
 - **UV Mode**: Atlas is the normal mode and works in every renderer. Encoded is experimental and only for `glyphgrid_atlas.osl`.

@@ -37,7 +37,10 @@ except Exception:  # pragma: no cover
 # ----------------------------------------------------------------- params ---
 ORIENT_UP, ORIENT_RANDOM90, ORIENT_RANDOM_FREE, ORIENT_EDGE = 0, 1, 2, 3
 FIT_AUTO, FIT_UNIFORM, FIT_FLUSH = 0, 1, 2
-ISLAND_POLY, ISLAND_NGON, ISLAND_CLUSTER = 0, 1, 2
+ISLAND_POLY, ISLAND_NGON, ISLAND_CLUSTER, ISLAND_QUADTREE = 0, 1, 2, 3
+GRID_SINGLE, GRID_MIXED = 0, 1
+MIX_LEVELS = (1, 2, 3, 4)          # mixed atlas quadrants: TL 1-up, TR 4-up, BL 9-up, BR 16-up
+MIX_UNITS = 24                      # 2 quadrants x lcm(1,2,3,4)
 ASSIGN_EVEN, ASSIGN_WEIGHTED, ASSIGN_VALUE, ASSIGN_VALUE_EQUALIZED = 0, 1, 2, 3
 UVMODE_ATLAS, UVMODE_ENCODED = 0, 1
 
@@ -56,6 +59,11 @@ DEFAULTS = dict(
     glyph_scale=1.0,        # 1 = fill the cell (inside the gutter)
     island=ISLAND_NGON,
     cluster_size=0.0,       # world units, ISLAND_CLUSTER only
+    qt_size=100.0,          # ISLAND_QUADTREE: largest block (world units)
+    qt_levels=3,            #   block sizes qt_size, /2, /4 ... then single polygons
+    qt_split=0.5,           #   chance a block splits into its 4 children
+    grid_mode=GRID_SINGLE,  # GRID_MIXED: polygons draw from 1/4/9/16-up at once (composite atlas)
+    level_weights=None,     #   relative share per level [1-up, 4-up, 9-up, 16-up], missing = 1
     assign=ASSIGN_EVEN,
     weights=None,           # list len N*N, ASSIGN_WEIGHTED
     invert=False,
@@ -110,9 +118,52 @@ def _frame(n, up, fallback):
 
 
 # ----------------------------------------------------------------- islands ---
-def build_islands(points, polys, mode=ISLAND_POLY, ngon_map=None, cluster_size=0.0):
+def _centroid_dir(points, p):
+    ids = _poly_ids(p)
+    k = len(ids)
+    cx = sum(points[j][0] for j in ids) / k
+    cy = sum(points[j][1] for j in ids) / k
+    cz = sum(points[j][2] for j in ids) / k
+    pa, pb, pc = points[ids[0]], points[ids[1]], points[ids[2]]
+    if k == 4:
+        nn = _cross(_sub(points[ids[2]], pa), _sub(points[ids[3]], pb))
+    else:
+        nn = _cross(_sub(pb, pa), _sub(pc, pa))
+    ax = max(range(3), key=lambda q: abs(nn[q]))
+    return cx, cy, cz, ax * 2 + (1 if nn[ax] < 0 else 0)   # 6 facing buckets
+
+
+def _h01(*key):
+    """Deterministic 0..1 hash of a tuple of ints (int/tuple hashing is not salted in Python)."""
+    h = hash(key) & 0xFFFFFFFF
+    h = (h ^ (h >> 16)) * 0x45D9F3B & 0xFFFFFFFF
+    h = (h ^ (h >> 16)) * 0x45D9F3B & 0xFFFFFFFF
+    return ((h ^ (h >> 16)) & 0xFFFFFF) / float(0x1000000)
+
+
+def build_islands(points, polys, mode=ISLAND_POLY, ngon_map=None, cluster_size=0.0,
+                  qt_size=100.0, qt_levels=3, qt_split=0.5, seed=0):
     """Returns island id per polygon (list) and the island count."""
     n = len(polys)
+    if mode == ISLAND_QUADTREE and qt_size > 0.0:
+        # world-space quadtree: a block of size S either stays one island or splits into its
+        # 2x2x2 children (S/2) with chance qt_split; after qt_levels the leaves are single polys.
+        remap, out = {}, [0] * n
+        L = max(1, int(qt_levels))
+        for i, p in enumerate(polys):
+            cx, cy, cz, dom = _centroid_dir(points, p)
+            key = None
+            size = float(qt_size)
+            for lvl in range(L):
+                k = (lvl, int(math.floor(cx / size)), int(math.floor(cy / size)), int(math.floor(cz / size)), dom)
+                if _h01(seed, *k) >= qt_split:
+                    key = k
+                    break
+                size *= 0.5
+            if key is None:
+                key = ("p", i)
+            out[i] = remap.setdefault(key, len(remap))
+        return out, len(remap)
     if mode == ISLAND_NGON and ngon_map is not None and len(ngon_map) == n:
         # C4D GetPolygonTranslationMap(): poly -> ngon index (ngons + plain polys)
         remap, out = {}, [0] * n
@@ -276,9 +327,9 @@ def _solve_singles_py(points, polys, singles, island, isl_cell, isl_val, isl_ran
             oy = min(L - 1, int(isl_rand[isl] * L)) + 0.5
             mul = 1.0
         else:
-            cc = isl_cell[isl]
-            ox, oy = (cc % N) + 0.5, (cc // N) + 0.5
-            sc, mul = span, invN
+            ox, oy = ctx["cx"][isl], ctx["cy"][isl]
+            sc = span * (ctx["cs"][isl] if ctx["cs"] is not None else 1.0)
+            mul = ctx["mul"]
         o = i * 8
         done = False
         if not tri and fit != FIT_UNIFORM and ang == 0.0:
@@ -367,9 +418,10 @@ def _solve_singles_np(points, polys, singles, island, isl_cell, isl_val, isl_ran
         oy = np.minimum(L - 1, (np.asarray(isl_rand, float)[isl] * L).astype(np.int64)) + 0.5
         mul = 1.0
     else:
-        cc = np.asarray(isl_cell, np.int64)[isl]
-        ox, oy = (cc % N) + 0.5, (cc // N) + 0.5
-        sc, mul = span, 1.0 / N
+        ox = np.asarray(ctx["cx"], float)[isl]
+        oy = np.asarray(ctx["cy"], float)[isl]
+        sc = span * (np.asarray(ctx["cs"], float)[isl][:, None] if ctx["cs"] is not None else 1.0)
+        mul = ctx["mul"]
 
     # ---- flush candidates
     if fit == FIT_UNIFORM:
@@ -422,7 +474,9 @@ def compute(points, polys, params=None, ngon_map=None, poly_values=None, progres
     npoly = len(polys)
     rng = random.Random(int(prm["seed"]))
 
-    island, n_isl = build_islands(points, polys, prm["island"], ngon_map, prm["cluster_size"])
+    island, n_isl = build_islands(points, polys, prm["island"], ngon_map, prm["cluster_size"],
+                                  prm["qt_size"], prm["qt_levels"], prm["qt_split"], int(prm["seed"]))
+    mixed = int(prm.get("grid_mode") or 0) == GRID_MIXED and prm["uv_mode"] != UVMODE_ENCODED
 
     # per-island random (stable for a given seed), value = mean of poly values
     isl_rand = [rng.random() for _ in range(n_isl)]
@@ -434,10 +488,57 @@ def compute(points, polys, params=None, ngon_map=None, poly_values=None, progres
             cnt[island[i]] += 1
         isl_value = [acc[i] / cnt[i] if cnt[i] else 0.0 for i in range(n_isl)]
 
-    isl_cell, isl_val = assign_cells(n_isl, ncell, prm, rng, isl_value, isl_rand)
-    shift = int(prm.get("cell_shift") or 0) % ncell
-    if shift:  # animate Cell Shift for a global glyph cycle that keeps the distribution
-        isl_cell = [(c + shift) % ncell for c in isl_cell]
+    shift = int(prm.get("cell_shift") or 0)
+    if not mixed:
+        isl_cell, isl_val = assign_cells(n_isl, ncell, prm, rng, isl_value, isl_rand)
+        if shift % ncell:  # animate Cell Shift for a global glyph cycle that keeps the distribution
+            isl_cell = [(c + shift) % ncell for c in isl_cell]
+        isl_cx = [(c % N) + 0.5 for c in isl_cell]
+        isl_cy = [(c // N) + 0.5 for c in isl_cell]
+        isl_cs = None                     # every cell is 1 unit
+        unit_mul = 1.0 / N
+        counts_len = ncell
+    else:
+        # 1) exact proportional split of the islands over the levels, 2) cells inside each level
+        w = list(prm.get("level_weights") or [])[:4]
+        w = [max(0.0, float(x)) for x in w] + [1.0] * (4 - len(w))
+        tot = sum(w) or 1.0
+        raw = [x / tot * n_isl for x in w]
+        cnt = [int(x) for x in raw]
+        for k in sorted(range(4), key=lambda k: raw[k] - cnt[k], reverse=True)[:n_isl - sum(cnt)]:
+            cnt[k] += 1
+        order = list(range(n_isl))
+        rng.shuffle(order)
+        isl_level = [0] * n_isl
+        pos = 0
+        for lv in range(4):
+            for isl in order[pos:pos + cnt[lv]]:
+                isl_level[isl] = lv
+            pos += cnt[lv]
+        isl_cell = [0] * n_isl
+        isl_val = [0.0] * n_isl
+        isl_cx, isl_cy, isl_cs = [0.0] * n_isl, [0.0] * n_isl, [0.0] * n_isl
+        base = 0
+        offsets = []
+        for lv, Nl in enumerate(MIX_LEVELS):
+            offsets.append(base)
+            members_l = [i for i in range(n_isl) if isl_level[i] == lv]
+            if members_l:
+                cl, vl = assign_cells(len(members_l), Nl * Nl, prm, rng,
+                                      [isl_value[i] for i in members_l] if isl_value else None,
+                                      [isl_rand[i] for i in members_l])
+                qx, qy = lv % 2, lv // 2
+                csz = (MIX_UNITS // 2) / Nl
+                for i, c, v in zip(members_l, cl, vl):
+                    c = (c + shift) % (Nl * Nl)
+                    isl_cell[i] = base + c
+                    isl_val[i] = v
+                    isl_cx[i] = qx * (MIX_UNITS // 2) + ((c % Nl) + 0.5) * csz
+                    isl_cy[i] = qy * (MIX_UNITS // 2) + ((c // Nl) + 0.5) * csz
+                    isl_cs[i] = csz
+            base += Nl * Nl
+        unit_mul = 1.0 / MIX_UNITS
+        counts_len = base
 
     # per-island orientation choices
     orient = prm["orient"]
@@ -478,7 +579,7 @@ def compute(points, polys, params=None, ngon_map=None, poly_values=None, progres
     cell_out = [0] * npoly
     val_out = [0.0] * npoly
     rand_out = [0.0] * npoly
-    counts = [0] * ncell
+    counts = [0] * counts_len
 
     def place(isl, s, t):
         """local (s,t) in 0..1 (t down) -> final UV for this island."""
@@ -489,9 +590,8 @@ def compute(points, polys, params=None, ngon_map=None, poly_values=None, progres
             vq = min(L - 1, int(isl_val[isl] * L))
             rq = min(L - 1, int(isl_rand[isl] * L))
             return vq + s, rq + t
-        c = isl_cell[isl]
-        col, row = c % N, c // N
-        return ((col + 0.5 + (s - 0.5) * span) * invN, (row + 0.5 + (t - 0.5) * span) * invN)
+        sc = span * (isl_cs[isl] if isl_cs is not None else 1.0)
+        return ((isl_cx[isl] + (s - 0.5) * sc) * unit_mul, (isl_cy[isl] + (t - 0.5) * sc) * unit_mul)
 
     def solve_group(isl, plist):
         # gather unique verts
@@ -578,7 +678,7 @@ def compute(points, polys, params=None, ngon_map=None, poly_values=None, progres
     else:
         singles, groups = None, []
     ctx = dict(N=N, span=span, fit=fit, flush_lim=flush_lim, encoded=encoded, L=L,
-               up=up, fb=fb, gmir=gmir, orient=orient)
+               up=up, fb=fb, gmir=gmir, orient=orient, cx=isl_cx, cy=isl_cy, cs=isl_cs, mul=unit_mul)
     used_np = False
     if want_np:
         uv = _solve_singles_np(points, polys, singles, island, isl_cell, isl_val, isl_rand,
@@ -605,4 +705,4 @@ def compute(points, polys, params=None, ngon_map=None, poly_values=None, progres
     for isl in range(n_isl):
         counts[isl_cell[isl]] += 1
     return dict(uv=uv, cell=cell_out, value=val_out, rand=rand_out, island=island,
-                counts=counts, islands=n_isl, grid=N)
+                counts=counts, islands=n_isl, grid=N, mixed=mixed)
