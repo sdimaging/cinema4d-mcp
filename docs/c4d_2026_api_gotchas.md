@@ -2828,3 +2828,53 @@ exactly why those exist.
 If you're building against C4D 2026 and hit something that contradicts
 the C4D Python docs, please open an issue or PR with the discovery —
 keeping this list current saves everyone time.
+
+---
+
+# GlyphGrid batch (2026-10-01): UVW raw data, Python Generator child handling, user data
+
+Found while building `scripts/glyphgrid/` (per-polygon UV islands in an N×N atlas). Numbered from #117 so they do not collide with the Scene Nodes RD batch (#101–#116, PR #3).
+
+## 117. UVWTag raw layout is 32 bytes/polygon, and the float LSB is a flag. Clear it on raw writes
+
+`UVWTag.GetLowlevelDataAddressW()` gives `4 × (float32 u, float32 v)` per polygon (no w). C4D uses the **lowest mantissa bit** of each float internally. Raw-writing `struct.pack("8f", 0.1, 0.2, ...)` stores the bytes fine (the R view reads them back), but `GetSlow()` and the tag decode values with that bit set as garbage (`Vector(1518.375, -25.6, 0.003)`). Dyadic values like 0.25 or 0.5 survive, which hides the bug. `SetSlow()` clears the bit itself (0.2 is stored as `0x3E4CCCCC`).
+
+**Fix:** AND every 32-bit word with `0xFFFFFFFE` before writing. In numpy: `arr.view(np.uint32) & 0xFFFFFFFE`. In pure Python: `buf[0::4] = bytes(buf[0::4]).translate(bytes(i & 0xFE for i in range(256)))` (little endian). 2M polygons write in well under a second.
+
+## 118. Python Generator: GetAndCheckHierarchyClone / GetHierarchyClone return a usable clone only when the child really rebuilt
+
+In 2026.4 Python, called from `main()`, the clone is valid only on the pass where the child's cache was rebuilt. On other calls you get an empty Null shell or `None`, even with `dirty=True` forced, and the child's own cache is gone (handed over once). A params-only change (grid, seed) therefore has no source geometry.
+
+**Pattern:** when `res["dirty"]` is true and the clone has polygons, store your own copy of the source geometry (`GetClone()`, which is COW and cheap). Rebuild from that copy when only your parameters changed. Detect your own changes with `op.GetDirty(DIRTYFLAGS_DATA|DIRTYFLAGS_MATRIX)` counters.
+
+## 119. Never return `op.GetCache()` from a Python Generator's main()
+
+C4D frees the old cache right after `main()` returns, so the returned object raises `ReferenceError: the object 'c4d.BaseObject' is not alive` on the next pass. Keep your own result object and `return kept.GetClone()`. Polygon and tag data are copy-on-write in 2026: cloning a 245k-polygon object measures ~0 ms.
+
+## 120. `BaseObject.Touch()` on a generator's child frees the child's caches
+
+Touching the source hierarchy to "keep it hidden" made every later cache read return `None`. GetHierarchyClone/GetAndCheckHierarchyClone already set the control bit, so don't Touch.
+
+## 121. Python Generator "Optimize Cache" ignores child changes
+
+With `OPYTHON_OPTIMIZE = True`, `main()` runs only when the generator's own parameters change. Editing the child's radius or moving it does not re-run it. Set Optimize off and do your own dirty signature: the sum of `GetDirty(DATA|MATRIX|CACHE) + GetHDirty(HDIRTYFLAGS_OBJECT_HIERARCHY)` over the source hierarchy, plus targets and fields, plus the frame if animated.
+
+## 122. `FieldList.GetDirty(doc)` does not change when a field object is moved
+
+It reflects the list, not the linked objects. Walk `fl.GetLayersRoot()` and add each `layer.GetDirty(DIRTYFLAGS_DATA)` plus `layer.GetLinkedObject(doc).GetDirty(DIRTYFLAGS_DATA|DIRTYFLAGS_MATRIX)`. Without this, users had to toggle the generator to see field edits.
+
+## 123. User data REAL sliders: set DESC_STEP, or percent sliders jump 5 % → 100 %
+
+`GetCustomDataTypeDefault(DTYPE_REAL)` has `DESC_STEP = 1.0`. With `DESC_UNIT_PERCENT` the stored value is 0..1, so one arrow click is +100 % and the slider snaps between its ends. Use step 0.01 for percent, `radians(1)` for `DESC_UNIT_DEGREE` (which stores radians), and 0.01 for plain floats. There is no `c4d.DESC_DESCRIPTION` tooltip key in Python (AttributeError). Leave tooltips out.
+
+## 124. Cache objects report correct world matrices
+
+During the SDK `DoRecursion` walk (deform cache > cache > object > children), `GetMg()` on cache objects (Cloner clones, deformed primitives) returns the correct world matrix, checked against Cloner grid offsets. Objects in a free (non-document) clone hierarchy return the chain of their local matrices.
+
+## 125. numpy for C4D 2026 (Python 3.11, macOS arm64) without touching the app bundle
+
+`python3 -m pip install --target ~/Library/Preferences/Maxon/python/python311/libs --python-version 3.11 --platform macosx_14_0_arm64 --implementation cp --only-binary=:all: numpy==2.2.6`. That folder is already on C4D's `sys.path`. numpy 2 with Apple Accelerate emits spurious `divide by zero / overflow encountered in matmul` RuntimeWarnings for `a @ b` on clean data. Use `(a * b).sum(1)` or einsum instead.
+
+## 126. Octane OSL Texture (1039813) cannot be compiled from Python
+
+Setting `OSL_CODE_EDITOR` and then `CallButton(sh, OSL_COMPILE_BTN)` or `MSG_DESCRIPTION_COMMAND` leaves `OSL_NEED_COMPILE = 1` and empty logs. Compilation needs the Octane UI or live viewer. Validate OSL logic with a numpy port instead.
