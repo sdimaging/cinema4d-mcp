@@ -26,6 +26,7 @@ compute() returns a dict with
   "islands" : number of islands
 """
 
+import collections
 import math
 import random
 
@@ -169,9 +170,11 @@ def quad_grid_coords(polys, return_rot=False):
             continue
         coord[seed] = (comp, 0, 0)
         rot[seed] = 0
-        stack = [seed]
+        # breadth-first: rows/columns stay aligned on closed shapes (a depth-first walk runs
+        # around each ring first and every row's numbering drifts)
+        stack = collections.deque([seed])
         while stack:
-            pi = stack.pop()
+            pi = stack.popleft()
             _, ci, cj = coord[pi]
             a, b, c, d = polys[pi]
             vs = (a, b, c, d)
@@ -209,6 +212,45 @@ def build_islands(points, polys, mode=ISLAND_POLY, ngon_map=None, cluster_size=0
         blk = 1 << max(0, int(round(math.log(max(1, qt_cells), 2))))
         blocks = {}
         L = min(max(1, int(qt_levels)), int(round(math.log(blk, 2))) + 1)
+        # Only real blocks are allowed: every (i, j) of the S x S square present exactly once AND
+        # grid neighbours really share an edge in the mesh. On irregular meshes (poles, sculpts)
+        # the grid walk can hand the same coordinate to quads far apart; such blocks are rejected
+        # and split further, so a glyph is never spread over polygons that don't touch.
+        cmap = {}
+        for i in range(n):
+            if gc[i] is not None:
+                cmap.setdefault(gc[i], []).append(i)
+
+        def _adjacent(a_, b_):
+            pa, pb = polys[a_], polys[b_]
+            return len({pa[0], pa[1], pa[2], pa[3]} & {pb[0], pb[1], pb[2], pb[3]}) >= 2
+        valid_cache = {}
+
+        def _valid(comp, bi, bj, size):
+            k = (comp, bi, bj, size)
+            if k in valid_cache:
+                return valid_cache[k]
+            ok = True
+            grid = {}
+            for di in range(size):
+                for dj in range(size):
+                    m = cmap.get((comp, bi * size + di, bj * size + dj))
+                    if not m or len(m) != 1:
+                        ok = False
+                        break
+                    grid[(di, dj)] = m[0]
+                if not ok:
+                    break
+            if ok:
+                for (di, dj), pi in grid.items():
+                    if di + 1 < size and not _adjacent(pi, grid[(di + 1, dj)]):
+                        ok = False
+                        break
+                    if dj + 1 < size and not _adjacent(pi, grid[(di, dj + 1)]):
+                        ok = False
+                        break
+            valid_cache[k] = ok
+            return ok
         remap, out = {}, [0] * n
         for i in range(n):
             c = gc[i]
@@ -218,7 +260,7 @@ def build_islands(points, polys, mode=ISLAND_POLY, ngon_map=None, cluster_size=0
                 size = blk
                 for lvl in range(L):
                     k = (lvl, comp, ci // size, cj // size)
-                    if _h01(seed, *k) >= qt_split:
+                    if _h01(seed, *k) >= qt_split and (size == 1 or _valid(comp, ci // size, cj // size, size)):
                         key = k
                         blocks[k] = ((ci // size) * size, (cj // size) * size, size)
                         break
