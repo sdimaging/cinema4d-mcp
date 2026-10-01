@@ -2943,3 +2943,12 @@ Vertex colours: `VertexColorTag(polycount)` + `SetPerPointMode(False)` is 4 × f
 Fix: keep a counter that rises only on real changes, and on every return stamp the output objects and their UVW / vertex colour tags up to it (`while o.GetDirty(f) < target: o.SetDirty(f)`). `SetDirty` steps by 2, so use `target = 2 * counter + 1` to make every counter strictly rise. Idle evaluations return the same values, so nothing re-exports for no reason.
 
 Also: C4D renders and displays only the **last** texture tag (Octane included; with a Standard material last, Octane converts it), so a viewport-only proxy material next to an Octane material isn't possible. Octane materials don't display a vertex attribute or an opacity mask in the C4D viewport.
+
+
+## 138. Octane: per-polygon colour, mask textures, emission noise, Live Viewer updates
+
+- **Vertex colours are per point in Octane.** A polygon-mode Vertex Color tag read through Octane's Attribute Texture (1056908) is averaged at shared points: a 2×2 plane with four flat polygon colours renders as gradients. For flat per-polygon data, use a second UVW tag (per corner, never welded) pointing every corner of a polygon at one pixel of a palette texture. Read it with an ImageTexture plus a Projection shader (1031460): `[1360] = 2` (Mesh UV), `[1388] = 2` (UV set 2 = the second UVW tag), colour space `[1118] = 0` (non-colour data), border clamp. With zero UV derivatives the sample is the exact texel.
+- **Masks must be non-colour data.** ImageTexture `[1118]` defaults to sRGB, which linearises a black/white mask and thins anti-aliased glyph edges.
+- **Texture emission is a light.** With surface brightness off, the power is spread over the whole mesh and importance-sampled, which gives dim, speckled colour noise. For a flat "glow" colour set `TEXEMISSION_SURFACE_BRIGHTNESS` on, `TEXEMISSION_SAMPL_RATE` 0, `VISIBLE_ON_DIFFUSE`/`VISIBLE_ON_SPECULAR` off, `CAST_SHADOWS` off, `DOUBLE_SIDED` on.
+- **Live Viewer and generators:** with the default "All Objects Movable" geometry control, a Python generator's new cache (changed UVs) is not re-sent until the generator is toggled. An Octane Object tag (1029603) with `OBJECTTAG_FORCE_UPDATES` (1307) = 1 on the generator fixes it. Material-only changes (a new texture file path) update without it.
+- `RenderDocument` with Octane stops a running Live Viewer session; it then has to be restarted ("Send your scene and restart new render").
