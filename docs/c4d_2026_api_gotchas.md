@@ -9,6 +9,165 @@ anyone building agent integrations against C4D 2026.
 
 ---
 
+## 116. Two hard crashes while iterating on a live Scene Nodes sim: viewport-draw race + SDS wrap during render
+
+**Discovered 2026-10-01** (C4D 2026.4, macOS, Redshift doc, ~100k-pt RD deformer).
+
+1. **Frame-stepping crash.** I was looping `SetTime(f)` / `ExecutePasses()` from Python (MCP `exec_python`) over a Memory-driven deformer with an animated Displacer above it, then jumping frame 0 → 30. Bug report: `EXC_BAD_ACCESS` with the crashing thread in `c4d_viewport_render.xlib → drawport_metal`, and `neutron` / `nodes` / `corenodes` / `modeling_geometry_abstraction` loaded. The viewport thread draws the deform cache while the main-thread pass rebuilds it.
+   **Mitigation that held for 300+ frames afterwards:** hide the host in the editor while stepping (`ID_BASEOBJECT_VISIBILITY_EDITOR = 1`, restore it afterwards), pass `ExecutePasses(None, False, True, True, …)` (no animation-thread flag), and step only forward and sequentially.
+2. **Render crash.** Wrapping that live 100k-pt SN host in a Subdivision Surface (editor 1 / render 2, about 1.6M render polys) and then calling `render_preview_image(renderer="redshift")` killed C4D.
+   **Avoid:** don't wrap a live Memory sim in SDS. Raise the in-graph Subdivide (density) instead, and do anti-aliasing inside the graph (wider smoothstep window / a softness pass). Bake or convert first if you need SDS for a final.
+
+Always save before heavy evaluation: the bug report lands in `~/Library/Preferences/Maxon/Maxon Cinema 4D 2026_<hash>/_bugreports/_BugReport.txt`.
+
+---
+
+## 115. Scene Nodes `weight` attribute → a real Vertex Map tag on the cache → Redshift reads it by name
+
+`set_property(accessortype = …attributes.weight, accessorname = "rd", arraymode = False, newdataset = False, iteration = <float per point>)` placed before `root.geometryout` produces a **Vertex Map tag named `rd`** on the deformer's deform cache (and SDS carries it too). In a Redshift material, `com.redshift3d.redshift4c4d.nodes.core.vertexattributelookup` with `attribute = "rd"` reads it (outcolor/outscalar). That gives you sim-driven shading (white worms on black) without baking. RS preview renders taken mid-sim show the **live Memory state** at the current frame. Note that `nm.CreateDefaultGraph(rs_space)` builds an RS **Standard** material, not OpenPBR, so port names differ (`refl_roughness` vs `specular_roughness`).
+
+---
+
+## 114. Deformer stacks feed Scene Nodes deformers in order: Spherify / Displacer above an SN Deformer works
+
+Deformers under one host evaluate top-down. `InsertUnderLast` the SN deformer and its `root.geometryin` receives the already-spherified/displaced mesh.
+- **Cube + Spherify** gives an even quad sphere (no pole pinch) for surface sims.
+- **Plane + Displacer** (noise shader, animated) gives a bubbling terrain.
+
+Point count and order stay constant frame to frame, so index-carried Memory state stays glued to the animated surface.
+
+---
+
+## 113. MCP stepping budget: chunk sims into ≤ 45 s calls; Neutron throughput is about 6M point-steps/s
+
+The measured cost of a Gray-Scott step (neighbor Sum Laplacian) on an M-series Mac is roughly 0.05 s/frame at 10k pts × 30 steps, 0.4 s at 86k, 0.57 s at 103k (with Displacer) and 1.0 s at 179k. Combined with the 60 s client cap (#112), write stepping loops against a wall-clock budget (`while time.time()-t < 45`), not a frame count.
+
+---
+
+## 112. Maxon's built-in 2026.4 MCP Server has NO Scene Nodes graph tools; drive Neutron through `exec_python` (60 s client cap)
+
+**Discovered 2026-10-01** building an RD deformer with Maxon's own MCP (plugin 1.0.0.22, port 5556).
+
+**Wrong assumption:** the official MCP that Maxon's 2026.4 promo shows building Scene Nodes exposes a scene-graph tool, like it does for materials/Xpresso.
+
+**Actual behavior:** `apply_node_material_graph` / `list_graph_nodes` / `get_graph_spaces` only cover node materials and Xpresso. `get_graph_spaces` on a Scene Nodes Deformer returns `{"spaces": []}`. The only route is `exec_python` with the maxon graph API (this fork's recipes apply unchanged). Also:
+- the client gives up after **60 s** whatever `timeout_seconds` says. C4D keeps running the script, so long frame-stepping loops have to be chunked (≤ ~50 s per call) and then `ping` to resync.
+- `builtins` persist between `exec_python` calls (same interpreter), so stash helper classes on `builtins` instead of re-sending them.
+- Maxon's MCP has no `ListMcpResources` knowledge layer. This fork's `docs/` + `data/` are the knowledge base.
+
+---
+
+## 111. `geometry.neighbor` + nested Iterate + **Sum (inner/outer domain)** = mesh-neighbor reduction. Aggregate doesn't work
+
+**Discovered 2026-10-01.** This is the propagation pattern for any per-point stencil (Laplacian, blur, smoothing, cellular automata):
+
+```
+it  = containeriteration(in = S)                       # outer stream (per point)
+nb  = net.maxon.neutron.geometry.neighbor(index = it.index, geometryin = geo)   # neighborids: Int array per point
+itN = containeriteration(in = nb.neighborids)          # NESTED stream
+rv  = readvalueatindex(arrayin = S, indexin = itN.out) # datatype LEFT UNSET
+sum = net.maxon.node.sum(values = rv._0, innerdomain = itN.innerdomain, outerdomain = itN.outerdomain, datatype = vec<3,float>)
+avg = (sum.out + it.out) / (itN.count + 1)             # see #110 for why self is included
+```
+
+- `net.maxon.node.aggregate` (with streammode either True or False) and feeding the index array straight into `readvalueatindex.indexin` both give **0 verts**.
+- `sum` is the domain-aware reducer that collapses the inner stream back into the outer one.
+- `neighbor` defaults (`neighbortypepoints=points`, `topologytype=point`) give edge neighbors: 2 at corners, 3 on edges, 4 inside, verified on a grid.
+
+---
+
+## 110. Explicit PDE on a neighbor-AVERAGE Laplacian is marginally unstable at dt=1. Include the point itself
+
+**Discovered 2026-10-01** (Gray-Scott in Scene Nodes).
+
+**Wrong:** `lap = mean(neighbors) - self`, Da=1, dt=1 (the textbook Gray-Scott constants).
+
+**Actual:** on a 4-neighbor grid that operator's checkerboard eigenvalue is exactly -2, so `|1 + dt·Da·λ| = 1`, which is neutrally stable. Combined with the [0,1] clamp, the state locks into exact 2-cycles (`(A,B)=(0,1) ↔ (1,0.8)`) and the region saturates into a flat plateau instead of breaking into worms.
+
+**Fix:** `avg = (sum + self) / (n + 1)`, which is the same operator Blender's Blur Attribute uses. That gives λmin = -2n/(n+1), which is stable. Results then match canonical Gray-Scott (B peaks around 0.38, A bottoms around 0.32 for F=0.0545, K=0.062). The alternative is to scale Da/dt by about 0.8.
+
+---
+
+## 109. Memory capsule: the body lives INSIDE it, `types._0` is driven by Type Of, and never wire the parent `types` port
+
+**Discovered 2026-10-01.** This corrects the "self-feedback wire" reading of #57 for authoring purposes.
+
+- Wiring the body in the outer graph (`mem.next._0 → body → mem.current._0`) gives **0 verts** even for an identity body.
+- The body must be built in `graph.CreateView(maxon.NODE_KIND.NODE, mem.GetPath())`, with view-root `current._0` (the previous frame) → body → view-root `next._0`. Downstream reads `mem.nextout._0`.
+- Type it with `net.maxon.node.typeof(in = initial value).out → mem.types/_0`. Setting a geometry type Id directly via `SetPortValue` errors (`expected DataType capsule`).
+- **Connecting anything to the parent `types` port** (not `types/_0`) silently empties the variadic list. The node loses `initial._0/current._0/next._0` and later wires fail with `Node with path nullptr doesn't exist`. Delete and re-add the node.
+- **Carrying a vec3 array works** (it accumulates per frame and is verified). **Carrying Geometry gave 0 verts**, so carry arrays and rebuild geometry downstream.
+- Extra inputs: `mem.GetInputs().AddPort(maxon.Id("feed"))` inside a transaction. The port appears on the inner view root as a source. LCV is identical, and the same idiom nests (Memory → LCV → body).
+- Frame stepping must be sequential (#57), and after graph edits call `SetDirty(c4d.DIRTYFLAGS_ALL)` on the deformer, otherwise the sim can stay frozen on a stale cache.
+
+---
+
+## 108. LCV + Range inside Memory = N solver steps per frame
+
+```
+inside mem view:  tofL = typeof(ROOT.current._0) -> lp.types/_0
+                  lp.initial._0 <- ROOT.current._0
+                  rg = net.maxon.neutron.node.range(end = ROOT.steps); rg.innerdomain -> lp.innerdomain
+                  lp.final._0 -> ROOT.next._0
+inside lp view:   ROOT.current._0 -> step body -> ROOT.next._0
+```
+
+Verified that `steps` is drivable from an AM port threaded through `mem.AddPort("steps")`. LCV's outer ports show no `current._0/next._0`, because they only exist inside its view.
+
+---
+
+## 107. Stream → array collection: `buildfromsinglevalue` + `writevalueatindex`
+
+```
+bld = buildfromsinglevalue(arraylengthin = it.count)
+wr  = writevalueatindex(arrayin = bld.arrayout, indexin = it.index, _0 = per-element value)
+wr.arrayout  -> array in the OUTER domain
+```
+
+`wr._0` only appears **after** `arrayin` is wired. Leave its `innerdomain/outerdomain` unwired.
+
+---
+
+## 106. `readvalueatindex` cross-array reads work only with `datatype` LEFT UNSET
+
+Inside a `containeriteration` over array X, `readvalueatindex(arrayin = Y, indexin = it.index)` works, but only if you **don't** set `datatype` (it infers). Setting `datatype = vec<3,float>` explicitly gives **0 verts**. The same failure shows with `readvalueatindex2`. This is the likely root cause of the T2 Factor slider blocker in `CHECKPOINT_2026_05_04`.
+
+---
+
+## 105. Arithmetic: setting `datatype = net.maxon.parametrictype.float` silently turns every operation into ADD
+
+The default float datatype Id is the bare `float`. Writing `net.maxon.parametrictype.float` makes `mul/sub/div` all evaluate as `add`, while `GetPortValue("operation")` still reports the op you set. `vec<3,float>` is fine. For float math, **don't touch `datatype`**.
+
+Also: `operation` accepts any Id string silently, and unknown ones produce garbage. Verified ids: `add`, `sub` (in1 − in2), `mul`, `div`. Compare: `lt`, `gt`.
+
+---
+
+## 104. `set_property` position write: `newdataset=False` needs `accessorname="Position"`
+
+`SN_RECIPE_buv_pathb_uv_position` says `accessorname` must be `""`. That's true **only with `newdataset=True`** (topology rebuild). For an in-place position write (`newdataset=False`, `arraymode=False`), `""` and `"pt"` are silent no-ops, and `"Position"` works. `get_property` reads positions with its default `"pt"`.
+
+Normals: run `net.maxon.neutron.asset.geo.generatepointnormals` first (primitives carry no Normal attribute, so `get_property` gives 0 verts), then `get_property(accessortype = …attributes.normal, accessorname = "Normal")`.
+
+---
+
+## 103. Subdivide node: `subdivisions` is the density control, and `iterations` does nothing
+
+`net.maxon.neutron.modeling.subdivide`: `…subdivide.subdivisions = 0` is a clean passthrough, and n gives (n+1)× edge cuts. Changing `…subdivide.iterations` (0/1/2) didn't change point count. Wire your density slider to `subdivisions`.
+
+---
+
+## 102. Smooth Points (asset) does nothing on a "state mesh" whose positions are packed data
+
+Encoding per-point data as positions (A,B,0) and running `net.maxon.neutron.asset.geo.smoothpoints` as a blur returns the input unchanged. Use the explicit neighbor reduction (#111) instead.
+
+---
+
+## 101. Port AM-exposure works on a Scene Nodes **Deformer** root through Memory/LCV add-ports
+
+The `synthesize_port` recipe (#47) works on 180420400 Deformers in the Neutron space. `root.GetInputs().AddPort(name)` → `SetPortValue(maxon.Float64/Int64)` → `SetValue("net.maxon.node.base.name", label)` → `Connect(mem.<addport>)`. The parameter appears in `GetDescription()` with its label, and the value reaches the LCV body two capsule levels down (verified: changing Height and Feed/Kill from the AM changes the sim). Set values on the object by looking up the DescID via `DESC_NAME` in `GetDescription()`.
+
+---
+
 ## 100. `CallCommand(11605)` "Reload Python Plugins" crashes C4D when registering a NEW .pyp
 
 **Discovered 2026-05-26** deploying a new `.pyp` plugin and calling reload from MCP to avoid a C4D restart.
