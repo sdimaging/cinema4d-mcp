@@ -43,8 +43,10 @@ HELP = {
         "Grid (N x N): 1 = 1-up (one glyph everywhere), 2 = 4-up,",
         "  3 = 9-up, 4 = 16-up ... must match the plate you use.",
         "Seed: re-deals which polygon gets which cell.",
-        "Cell Shift: every polygon moves N cells forward.",
-        "  Animate it for a global glyph cycle.",
+        "Glyph Offset: every polygon steps N places forward in the plate",
+        "  (reading order, wraps around): 4-up A B / C D, offset 1 =",
+        "  A->B, B->C, C->D, D->A. Layout + counts stay the same.",
+        "  Keyframe 0,1,2,3... = all glyphs tick like a split-flap board.",
         "Source Object: optional. Drag any object here instead",
         "  of putting it under GlyphGrid (leave empty if it's a child).",
         "Cells are numbered top-left first, left to right,",
@@ -140,6 +142,17 @@ HELP = {
         "Keep Source UVs: keep the object's original UV tags too.",
         "Merge Objects: several objects / clones become one mesh",
         "  = one global even split.",
+        "Lock Glyphs to Topology ON (default): when only the POINTS",
+        "  move (a deformer, cloth, animated mesh) every glyph stays",
+        "  on its polygon and rides along - no re-shuffle. UVs re-solve",
+        "  only when the polygon count / order or a GlyphGrid setting",
+        "  changes. OFF = re-solve on every point change.",
+        "Deformers: put them UNDER GlyphGrid (bend the output) or",
+        "  under the source object (bend the input) - both keep",
+        "  glyphs locked. Don't mix the two on one setup.",
+        "Bake to Polygon Object: makes an editable copy with the",
+        "  GlyphGrid UVs + material and switches this generator off.",
+        "  Use it for Cloth / soft bodies / sculpting.",
         "Custom glyphs / your own letters: see the Plate tab.",
     ],
     "Plate": [
@@ -177,7 +190,7 @@ UD_SPEC = [
     ("Grid", "help", None, {}),
     ("Grid (N x N)", "int", 4, dict(min=1, max=8)),
     ("Seed", "int", 12345, dict(min=0, max=999999)),
-    ("Cell Shift", "int", 0, dict(min=-1000, max=1000)),
+    ("Glyph Offset", "int", 0, dict(min=-1000, max=1000)),
     ("Grid Mode", "cycle", 0, dict(items=["Single (Grid N x N)", "Mixed 1/4/9/16-up (composite plate)"])),
     ("Level Weights", "string", "1,1,1,1", {}),
     ("Source Object", "link", None, {}),
@@ -262,6 +275,8 @@ UD_SPEC = [
     ("Cell Selection Tags", "bool", False, {}),
     ("Keep Source UVs", "bool", False, {}),
     ("Merge Objects", "bool", True, {}),
+    ("Lock Glyphs to Topology", "bool", True, {}),
+    ("Bake to Polygon Object", "button", None, {}),
 ]
 
 
@@ -400,7 +415,7 @@ def _gg_params():
             return d
     w = [float(x) for x in str(g("Weights", "") or "").replace(";", ",").replace(" ", ",").split(",") if x.strip()]
     params = dict(
-        grid=int(g("Grid (N x N)", 4)), seed=int(g("Seed", 12345)), cell_shift=int(g("Cell Shift", 0)),
+        grid=int(g("Grid (N x N)", 4)), seed=int(g("Seed", 12345)), cell_shift=int(g("Glyph Offset", g("Cell Shift", 0))),
         island=int(g("Island Mode", 1)), cluster_size=float(g("Cluster Size", 50.0)),
         qt_cells=1 << int(g("Quadtree Block (polys)", 3)), qt_levels=int(g("Quadtree Levels", 4)),
         qt_split=float(g("Subdivide Chance", 0.5)), grid_mode=int(g("Grid Mode", 0)),
@@ -428,8 +443,58 @@ def _gg_params():
                 height_axis=UP_AXES[int(g("Up Axis", 0))])
     flags = dict(animate=bool(g("Rebuild Every Frame", False)), write_id=bool(g("Write ID Tag", False)),
                  cell_sel=bool(g("Cell Selection Tags", False)), keep=bool(g("Keep Source UVs", False)),
-                 merge=bool(g("Merge Objects", True)), source=g("Source Object", None))
+                 merge=bool(g("Merge Objects", True)), source=g("Source Object", None),
+                 lock=bool(g("Lock Glyphs to Topology", True)))
+    # clamp to what the solver can really use (old scenes / typed values / keyframes)
+    params["grid"] = max(1, min(GRID_MAX, params["grid"]))
+    params["qt_levels"] = max(1, min(qt_level_cap(params["qt_cells"]), params["qt_levels"]))
     return params, src, opts, flags
+
+
+def _gg_topo(geo):
+    """Cheap topology key: point/poly counts + a few sampled polygons per part. Same key = the
+    UV solve still fits, only the points moved (deformer, cloth, animation)."""
+    key = []
+    for o, _ in geo:
+        n = o.GetPolygonCount()
+        smp = []
+        for i in sorted({0, n // 5, n // 3, n // 2, (2 * n) // 3, n - 1}):
+            if 0 <= i < n:
+                p = o.GetPolygon(i)
+                smp.append((p.a, p.b, p.c, p.d))
+        key.append((o.GetPointCount(), n, tuple(smp)))
+    return tuple(key)
+
+
+def _gg_move_points(res, geo, gmg, inv, merge):
+    """Reuse the solved result (UVs, selections, ID tags) and only replace its points."""
+    objs = []
+    o = res.GetDown()
+    while o is not None:
+        if o.IsInstanceOf(c4d.Opolygon):
+            objs.append(o)
+        o = o.GetNext()
+    if merge or len(geo) == 1:
+        if len(geo) == 1:
+            pts, ml = geo[0][0].GetAllPoints(), geo[0][1]
+        else:
+            m = merge_parts([(p.GetClone(c4d.COPYFLAGS_NO_HIERARCHY), gmg * ml_) for p, ml_ in geo], inv)
+            pts, ml = m.GetAllPoints(), m.GetMl()
+        if len(objs) != 1 or objs[0].GetPointCount() != len(pts):
+            return False
+        objs[0].SetAllPoints(pts)
+        objs[0].SetMl(ml)
+        objs[0].Message(c4d.MSG_UPDATE)
+        return True
+    if len(objs) != len(geo):
+        return False
+    for po, (p, ml) in zip(objs, geo):
+        if po.GetPointCount() != p.GetPointCount():
+            return False
+        po.SetAllPoints(p.GetAllPoints())
+        po.SetMl(ml)
+        po.Message(c4d.MSG_UPDATE)
+    return True
 
 
 def _count_polys(o):
@@ -464,7 +529,18 @@ def main():
     params, src, opts, flags = _gg_params()
     link = flags.get("source")
     child_mode = link is None
-    src_obj = op.GetDown() if child_mode else link
+    sib_def = False          # deformers directly under GlyphGrid (siblings of the source)
+    if child_mode:
+        src_obj = None
+        ch = op.GetDown()
+        while ch is not None:
+            if ch.GetInfo() & c4d.OBJECT_MODIFIER:
+                sib_def = sib_def or bool(ch.GetDeformMode())   # switched-off deformers don't count
+            elif src_obj is None:
+                src_obj = ch
+            ch = ch.GetNext()
+    else:
+        src_obj = link
     if src_obj is None:
         return None
     frame = doc.GetTime().GetFrame(doc.GetFps())
@@ -488,7 +564,13 @@ def main():
             res = op.GetAndCheckHierarchyClone(hh, src_obj, c4d.HIERARCHYCLONEFLAGS_ASPOLY, False)
             cl = res.get("clone") if isinstance(res, dict) else None
             if isinstance(res, dict) and res.get("dirty") and cl is not None and _count_polys(cl):
-                _GG_STATE["geo"] = [(o.GetClone(CF), o.GetMg()) for o, _ in collect_polys(cl)]
+                found = None
+                if sib_def:
+                    # Cinema 4D applies deformers under GlyphGrid to the source sibling too, and
+                    # again to our output (= bent twice, UVs re-solved on the bent mesh). Read the
+                    # source BEFORE deformers; they act on the output only.
+                    found = [(o.GetClone(CF), inv * mg) for o, mg in collect_polys(src_obj, deform=False)]
+                _GG_STATE["geo"] = found or [(o.GetClone(CF), o.GetMg()) for o, _ in collect_polys(cl)]
                 geo_changed = True
                 break
             if _GG_STATE.get("geo") and not (isinstance(res, dict) and res.get("dirty")):
@@ -530,9 +612,30 @@ def main():
     geo = _GG_STATE.get("geo")
     if not geo:
         return None
+    topo = _gg_topo(geo)
+    if flags["lock"] and keep is not None and own_sig == _GG_STATE.get("own_sig") \
+            and topo == _GG_STATE.get("topo"):
+        # only the points moved (deformer in the source, cloth, animated points, or a deformer
+        # under GlyphGrid): keep every glyph where it is, just carry the new shape
+        res_ = keep.GetClone()
+        if _gg_move_points(res_, geo, gmg, inv, flags["merge"]):
+            _GG_STATE["result"] = res_.GetClone()
+            return res_
+    _GG_STATE["topo"] = topo
     _GG_STATE["own_sig"] = own_sig
     _GG_STATE["frame"] = frame
-    parts = [(o.GetClone(CF), gmg * ml) for o, ml in geo]   # (clone, world matrix)
+    # With the lock on, non-spatial sources solve on the REST shape (before deformers): the glyph
+    # layout no longer depends on which frame / bend amount you happened to tweak a setting at.
+    # Spatial sources (height, light, field ...) keep solving on the current shape.
+    shape, rest_used = geo, False
+    if flags["lock"] and src in (SRC_RANDOM, SRC_VMAP, SRC_INDEX) and not sib_def:
+        try:
+            rest = [(o.GetClone(CF), inv * mg) for o, mg in collect_polys(src_obj, deform=False)]
+        except Exception:
+            rest = []
+        if rest and _gg_topo(rest) == topo:
+            shape, rest_used = rest, True
+    parts = [(o.GetClone(CF), gmg * ml) for o, ml in shape]   # (clone, world matrix)
     for o, _ in parts:
         # cache objects inherit the SOURCE's visibility: a hidden source (e.g. a linked SDS with
         # render visibility off) would make our output invisible to the renderer -> reset to default
@@ -576,6 +679,8 @@ def main():
                max=max(s.get("max", 0) for s in stats), t_solve=round(sum(s.get("t_solve", 0) for s in stats), 3),
                numpy=stats[0].get("numpy"), objects=len(parts))
     _GG_STATE["stats"] = tot
+    if rest_used:
+        _gg_move_points(root, geo, gmg, inv, flags["merge"])   # solved at rest, shown deformed
     _GG_STATE["result"] = root.GetClone()
     c4d.gui.StatusSetText("GlyphGrid: %(polys)s polys in %(objects)s object(s), %(islands)s islands, %(cells)s cells "
                           "(%(min)s-%(max)s per cell), solve %(t_solve)ss" % tot + (" numpy" if tot["numpy"] else ""))
@@ -606,14 +711,88 @@ def _gg_apply_plate(force=False):
         c4d.gui.StatusSetText("GlyphGrid plate: %s" % e)
         print("GlyphGrid plate:", e)
         return
+    if path == _GG_STATE.get("plate_applied") and not force:
+        return   # already showing this plate: no material edit
     n = swap_plate(op, path, folder)
+    _GG_STATE["plate_applied"] = path
     c4d.gui.StatusSetText("GlyphGrid plate -> %s (%d texture%s)" % (path.split("/")[-1], n, "" if n == 1 else "s"))
 
 
-def message(id, data):
-    # runs on the main thread from the Attribute Manager: safe place to edit materials
+_GG_LIMIT_KEYS = ("Quadtree Block (polys)", "Plate Style", "Collection", "Custom Glyphs", "Plates Folder")
+
+
+def _gg_update_limits():
+    apply_slider_caps(op)
+
+
+def _gg_bake():
+    """Editable copy of the current output (UVW + selection tags + material), generator off."""
+    d = op.GetDocument()
+    res = _GG_STATE.get("result")
+    if d is None or res is None:
+        c4d.gui.StatusSetText("GlyphGrid bake: nothing built yet")
+        return
+    polys = []
+    o = res.GetDown()
+    while o is not None:
+        if o.IsInstanceOf(c4d.Opolygon):
+            polys.append(o)
+        o = o.GetNext()
+    if not polys:
+        return
+    d.StartUndo()
+    pred = op
+    for k, po in enumerate(polys):
+        cp = po.GetClone(c4d.COPYFLAGS_NO_HIERARCHY)
+        cp.SetName(op.GetName() + " baked" + ("" if len(polys) == 1 else " %d" % (k + 1)))
+        cp.SetMg(op.GetMg() * po.GetMl())
+        cp[c4d.ID_BASEOBJECT_VISIBILITY_RENDER] = c4d.OBJECT_UNDEF
+        cp[c4d.ID_BASEOBJECT_VISIBILITY_EDITOR] = c4d.OBJECT_UNDEF
+        t = op.GetFirstTag()
+        while t is not None:   # material / texture tags of the generator follow the bake
+            if t.CheckType(c4d.Ttexture):
+                cp.InsertTag(t.GetClone())
+            t = t.GetNext()
+        d.InsertObject(cp, pred=pred)
+        d.AddUndo(c4d.UNDOTYPE_NEW, cp)
+        pred = cp
+    d.AddUndo(c4d.UNDOTYPE_CHANGE_SMALL, op)
+    op[c4d.ID_BASEOBJECT_GENERATOR_FLAG] = False
+    d.EndUndo()
+    d.SetActiveObject(pred)
+    c4d.EventAdd()
+    c4d.gui.StatusSetText("GlyphGrid: baked %d object(s) - add Cloth / Soft Body tags to the copy" % len(polys))
+
+
+def _gg_mouse_down():
     try:
-        if id == c4d.MSG_DESCRIPTION_COMMAND:
+        bc = c4d.BaseContainer()
+        if c4d.gui.GetInputState(c4d.BFM_INPUT_MOUSE, c4d.BFM_INPUT_MOUSELEFT, bc):
+            return bool(bc.GetInt32(c4d.BFM_INPUT_VALUE))
+    except Exception:
+        pass
+    return False
+
+
+def message(id, data):
+    # runs on the main thread from the Attribute Manager: safe place to edit materials.
+    # Scrubbing a slider sends a SETPARAMETER per step; rebuilding + swapping the plate on every
+    # step (plus the generator rebuilding meanwhile) crashed C4D. So plate work is deferred while
+    # the user is dragging and done ONCE when the interaction ends.
+    try:
+        # safety net if no INTERACTION_END arrives: the next main-thread message after the mouse
+        # is released applies the pending plate
+        if _GG_STATE.get("plate_pending") and not _GG_STATE.get("dragging") \
+                and c4d.threading.GeIsMainThread() and not _gg_mouse_down():
+            _GG_STATE["plate_pending"] = False
+            _gg_apply_plate()
+        if id == getattr(c4d, "MSG_DESCRIPTION_USERINTERACTION_BEGIN", -1):
+            _GG_STATE["dragging"] = True
+        elif id == getattr(c4d, "MSG_DESCRIPTION_USERINTERACTION_END", -2):
+            _GG_STATE["dragging"] = False
+            if _GG_STATE.pop("plate_pending", False):
+                _gg_apply_plate()
+        elif id == c4d.MSG_DESCRIPTION_COMMAND:
             did = data.get("id") if isinstance(data, dict) else None
             # NOTE: c4d.DescID is unhashable - never use it as a dict key (that silently killed
             # every button here). Match on the user-data index instead.
@@ -627,6 +806,8 @@ def message(id, data):
             folder, cdir = plate_dirs(root)
             if hit == "Apply Plate Now":
                 _gg_apply_plate(force=True)
+            elif hit == "Bake to Polygon Object":
+                _gg_bake()
             elif hit == "Open Plates Folder" and root:
                 open_in_finder(root)
             elif hit == "Open Collection" and cdir:
@@ -646,6 +827,10 @@ def message(id, data):
             did = data.get("descid") if isinstance(data, dict) else None
             if did is not None:
                 for d_, bc in op.GetUserDataContainer():
+                    if d_ == did and bc[c4d.DESC_NAME] in _GG_LIMIT_KEYS:
+                        _gg_update_limits()
+                        break
+                for d_, bc in op.GetUserDataContainer():
                     if d_ == did and bc[c4d.DESC_NAME] in _GG_PLATE_KEYS:
                         if bc[c4d.DESC_NAME] == "Plates Folder":   # new root -> re-read its collections
                             set_cycle_items(op, "Collection", collection_names(plate_dirs(op[d_])[1]))
@@ -653,7 +838,10 @@ def message(id, data):
                             for d2, bc2 in op.GetUserDataContainer():
                                 if bc2[c4d.DESC_NAME] == "Plate Style" and op[d2] != 8:
                                     op[d2] = 8
-                        _gg_apply_plate()
+                        if _GG_STATE.get("dragging") or _gg_mouse_down():
+                            _GG_STATE["plate_pending"] = True    # apply once on release
+                        else:
+                            _gg_apply_plate()
                         break
     except Exception as e:
         print("GlyphGrid message:", e)
@@ -710,6 +898,24 @@ def set_params(gen, **kv):
             gen[U[k]] = v
         else:
             raise KeyError(k)
+    update_limits(gen)
+
+
+def _rt():
+    import importlib
+    import sys
+    if HERE not in sys.path:
+        sys.path.insert(0, HERE)
+    import glyphgrid_runtime
+    return glyphgrid_runtime
+
+
+def update_limits(gen):
+    """Clamp Grid N / Quadtree Levels sliders to what the current plate + block size can use."""
+    try:
+        return _rt().apply_slider_caps(gen)
+    except Exception as e:
+        print("GlyphGrid limits:", e)
 
 
 def refresh_code(gen):
@@ -840,6 +1046,8 @@ def upgrade_generator(gen):
                 gen[U[k]] = v
             except Exception:
                 pass
+    if "Cell Shift" in old and "Glyph Offset" in U:   # renamed
+        gen[U["Glyph Offset"]] = old["Cell Shift"]
     if isinstance(old.get("Font"), str) and "Font" in U:
         gen[U["Font"]] = font_data(old["Font"])
     if old.get("Plate Folder") and "Plates Folder" in U:   # old: .../plates/library -> new: .../plates
@@ -849,6 +1057,7 @@ def upgrade_generator(gen):
         names_ = collection_names(os.path.join(HERE, "plates", "collections"))
         if old["Collection"] in names_:
             gen[U["Collection"]] = names_.index(old["Collection"])
+    update_limits(gen)
     refresh_code(gen)
     c4d.EventAdd()
     return gen
