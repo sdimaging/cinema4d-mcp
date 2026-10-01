@@ -16,15 +16,126 @@ import c4d
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 # ------------------------------------------------------------ user data spec ---
-# (name, kind, default, extra)   kind: group/int/float/pct/deg/bool/cycle/string/link/fields/dist
-UD_SPEC = [
-    ("Grid", "group", None, {}),
-    ("Source Object", "link", None, dict(tip="optional: use this object instead of the first child")),
-    ("Grid (N x N)", "int", 4, dict(min=1, max=8, tip="1=1up 2=4up 3=9up 4=16up")),
-    ("Seed", "int", 12345, dict(min=0, max=999999)),
-    ("Cell Shift", "int", 0, dict(min=-1000, max=1000, tip="animate: every polygon steps to the next cell")),
+# (name, kind, default, extra)
+#   kind: tab | help | int/float/pct/deg/bool/cycle/string/link/fields/dist
+#   "tab" = its own Attribute Manager tab, "help" = collapsed "How this tab works" group of text lines
+HELP = {
+    "Grid": [
+        "GRID: how many glyph cells and which polygon gets which.",
+        "Grid (N x N): 1 = 1-up (one glyph everywhere), 2 = 4-up,",
+        "  3 = 9-up, 4 = 16-up ... must match the plate you use.",
+        "Seed: re-deals which polygon gets which cell.",
+        "Cell Shift: every polygon moves N cells forward.",
+        "  Animate it for a global glyph cycle.",
+        "Source Object: optional. Drag any object here instead",
+        "  of putting it under GlyphGrid (leave empty if it's a child).",
+        "Cells are numbered top-left first, left to right,",
+        "  row by row:  4-up = 1 2 / 3 4   9-up = 1 2 3 / 4 5 6 / 7 8 9",
+    ],
+    "Islands": [
+        "ISLANDS & FIT: how each polygon sits inside its cell.",
+        "Island Mode: Polygon = every polygon is one glyph.",
+        "  Ngon = ngons stay one glyph (default).",
+        "  Cluster = one big glyph across neighbouring polygons",
+        "  (size = Cluster Size, in scene units).",
+        "Fit Auto: square-ish quads fill the cell edge to edge;",
+        "  triangles, ngons and long thin polygons are scaled",
+        "  uniformly and centred (no stretching).",
+        "Flush Aspect Limit: how stretched a quad may be and",
+        "  still fill the cell (1.35 = 35 % longer than wide).",
+        "Gutter: empty border in every cell (stops glyph bleed).",
+        "Glyph Scale: shrink / grow every glyph in its cell.",
+    ],
+    "Orientation": [
+        "ORIENTATION: which way the glyphs face.",
+        "Orient Up Axis: glyphs stand upright toward Up Axis.",
+        "  Random 90: each glyph turned 0 / 90 / 180 / 270.",
+        "  Random Free: any angle (glyphs shrink to fit the cell).",
+        "  Edge Flow: follows each polygon's first edge.",
+        "Up Space: World = up stays world up while the object",
+        "  rotates. Object = up turns with the object.",
+        "Rotation Jitter: small random tilt per glyph.",
+        "Random Mirror: flips about half of the glyphs.",
+        "Flip Mirror: use if every glyph reads backwards.",
+    ],
+    "Distribution": [
+        "DISTRIBUTION: how polygons are dealt to the cells.",
+        "Even Random: random, same count in every cell.",
+        "  (Value Source is ignored.)",
+        "Weighted Random: random, cells share by Weights.",
+        "Weights: relative amounts per cell in plate order.",
+        "  4-up 8,1,1,1 = top-left 8 parts, top-right 1,",
+        "  bottom-left 1, bottom-right 1  ->  73 % / 9 / 9 / 9 %.",
+        "  Missing entries count as 1. Only used by Weighted.",
+        "Value: the Value tab picks the cell. Low values ->",
+        "  first cell (top-left), high -> last (bottom-right).",
+        "  Use a plate sorted sparse -> dense for shading.",
+        "Value Equalized: same order as Value but every cell gets",
+        "  the same count = maximum contrast, less literal.",
+    ],
+    "Value": [
+        "VALUE: what drives the Value / Value Equalized modes.",
+        "Light / Lambert: brightness from Target Object (any null).",
+        "  Directional Light OFF = bulb at the Target's position.",
+        "  Directional Light ON = sun along the Target's -Z axis",
+        "  (rotate the null; its position is ignored).",
+        "  Light Wrap: light creeps past the shadow line (softer).",
+        "Field: the Fields list. Height: along the Up Axis.",
+        "Camera Facing: faces pointing at the camera = high.",
+        "Curvature: convex = high, concave = low.",
+        "Distance: from Target (Distance Period repeats rings).",
+        "Invert / Gamma / Contrast / Offset reshape the value.",
+        "  Wrap Values + animated Offset = glyphs ripple across.",
+        "Random Mix: 0 = pure value, 1 = pure random.",
+        "Dither: jitter before choosing -> breaks hard bands of",
+        "  one glyph into a smooth mix (try 0.3 - 0.6).",
+        "Rebuild Every Frame: ON when lights, fields or Offset",
+        "  are animated.",
+    ],
+    "Output": [
+        "OUTPUT: what gets written.",
+        "UV Mode Atlas: the normal mode, works in every renderer.",
+        "  Encoded: experimental, only for glyphgrid_atlas.osl.",
+        "Write ID Tag: extra UV tag (value, random) per polygon",
+        "  for custom shaders. Usually off.",
+        "Cell Selection Tags: one polygon selection per cell",
+        "  (GG_cell_00 ...) to give each glyph cell its own material.",
+        "Keep Source UVs: keep the object's original UV tags too.",
+        "Merge Objects: several objects / clones become one mesh",
+        "  = one global even split.",
+        "Custom glyphs / your own letters: see the Plate tab.",
+    ],
+    "Plate": [
+        "PLATE: which image the material shows. Library files are",
+        "  <style>_<cells>up.png, so Style picks the ROW and",
+        "  Grid (N x N) picks the COLUMN (1 / 4 / 9 / 16-up).",
+        "Auto Swap Plate ON: changing Grid or Style swaps the",
+        "  texture in this object's material automatically.",
+        "Styles: 1 ASCII ramp  2 Bayer dither  3 Halftone dots",
+        "  4 Halftone squares  5 Noise  6 Hex  7 Binary  8 Custom.",
+        "Custom: type your own characters in Custom Glyphs,",
+        "  e.g. SDIMAGING or 0123456789 or .:-=+*#%@",
+        "  Sort by Ink orders them sparse -> dense (for Value).",
+        "  Font = PostScript name, e.g. Menlo-Bold, Courier,",
+        "  HelveticaNeue-Bold, SFMono-Heavy.",
+        "Apply Plate Now: force the swap (e.g. after editing text).",
+        "Plate Folder: where the library lives (and where custom",
+        "  plates are written).",
+        "Only textures that point at plate files (or the node",
+        "  named gg_plate) are swapped - other maps are untouched.",
+    ],
+}
 
-    ("Islands & Fit", "group", None, {}),
+UD_SPEC = [
+    ("Grid", "tab", None, {}),
+    ("Grid", "help", None, {}),
+    ("Grid (N x N)", "int", 4, dict(min=1, max=8)),
+    ("Seed", "int", 12345, dict(min=0, max=999999)),
+    ("Cell Shift", "int", 0, dict(min=-1000, max=1000)),
+    ("Source Object", "link", None, {}),
+
+    ("Islands", "tab", None, {}),
+    ("Islands", "help", None, {}),
     ("Island Mode", "cycle", 1, dict(items=["Polygon", "Ngon (keep ngons whole)", "Cluster (glyph spans polys)"])),
     ("Cluster Size", "dist", 50.0, dict(min=0.0)),
     ("Fit", "cycle", 0, dict(items=["Auto: flush squares, centre the rest", "Uniform + Centred (all)", "Flush (all quads)"])),
@@ -32,7 +143,8 @@ UD_SPEC = [
     ("Gutter", "pct", 0.02, dict(min=0.0, max=0.45)),
     ("Glyph Scale", "pct", 1.0, dict(min=0.0, max=2.0)),
 
-    ("Orientation", "group", None, {}),
+    ("Orientation", "tab", None, {}),
+    ("Orientation", "help", None, {}),
     ("Orient", "cycle", 0, dict(items=["Up Axis (upright)", "Random 90 deg", "Random Free", "Edge Flow"])),
     ("Up Axis", "cycle", 0, dict(items=["+Y", "+Z", "+X", "-Y"])),
     ("Up Space", "cycle", 0, dict(items=["World", "Object"])),
@@ -40,41 +152,79 @@ UD_SPEC = [
     ("Random Mirror", "bool", False, {}),
     ("Flip Mirror", "bool", False, {}),
 
-    ("Distribution", "group", None, {}),
+    ("Distribution", "tab", None, {}),
+    ("Distribution", "help", None, {}),
     ("Distribute", "cycle", 0, dict(items=["Even Random (exact counts)", "Weighted Random", "Value", "Value Equalized (exact counts)"])),
-    ("Weights", "string", "", dict(tip="comma list, one per cell, e.g. 8,1,1,1")),
+    ("Weights", "string", "", {}),
+
+    ("Value", "tab", None, {}),
+    ("Value", "help", None, {}),
     ("Value Source", "cycle", 0, dict(items=["Random", "Vertex Map", "Field", "Height (Up Axis)", "Light / Lambert",
                                              "Camera Facing", "Curvature", "Polygon Index", "Distance"])),
-    ("Vertex Map Name", "string", "", {}),
-    ("Fields", "fields", None, {}),
-    ("Target Object", "link", None, dict(tip="light / camera / distance origin")),
+    ("Target Object", "link", None, {}),
     ("Directional Light", "bool", False, {}),
     ("Light Wrap", "pct", 0.0, dict(min=0.0, max=1.0)),
+    ("Fields", "fields", None, {}),
+    ("Vertex Map Name", "string", "", {}),
     ("Distance Period", "dist", 0.0, dict(min=0.0)),
     ("Curvature Scale", "float", 4.0, dict(min=0.0, max=100.0)),
     ("Invert", "bool", False, {}),
     ("Gamma", "float", 1.0, dict(min=0.05, max=10.0, step=0.05)),
     ("Contrast", "float", 1.0, dict(min=0.0, max=10.0, step=0.05)),
     ("Offset", "float", 0.0, dict(min=-10.0, max=10.0, step=0.01)),
-    ("Wrap Values", "bool", False, dict(tip="with Offset animated, glyphs cycle across the surface")),
+    ("Wrap Values", "bool", False, {}),
     ("Random Mix", "pct", 0.0, dict(min=0.0, max=1.0)),
     ("Dither", "pct", 0.0, dict(min=0.0, max=1.0)),
-    ("Rebuild Every Frame", "bool", False, dict(tip="on for animated fields / lights / offsets")),
+    ("Rebuild Every Frame", "bool", False, {}),
 
-    ("Output", "group", None, {}),
-    ("UV Mode", "cycle", 0, dict(items=["Atlas (grid baked in UVs)", "Encoded (for glyphgrid_atlas.osl)"])),
-    ("Write ID Tag", "bool", False, dict(tip="2nd UVW tag: (value, random) per polygon")),
-    ("Cell Selection Tags", "bool", False, dict(tip="one polygon selection per cell")),
+    ("Plate", "tab", None, {}),
+    ("Plate", "help", None, {}),
+    ("Plate Style", "cycle", 0, dict(items=["1 ASCII ramp", "2 Bayer dither", "3 Halftone dots", "4 Halftone squares",
+                                            "5 Noise", "6 Hex digits", "7 Binary 0/1", "8 Custom (type below)"])),
+    ("Custom Glyphs", "string", "", {}),
+    ("Font", "string", "Menlo-Bold", {}),
+    ("Sort by Ink", "bool", True, {}),
+    ("Auto Swap Plate", "bool", True, {}),
+    ("Apply Plate Now", "button", None, {}),
+    ("Plate Folder", "string", "", {}),
+
+    ("Output", "tab", None, {}),
+    ("Output", "help", None, {}),
+    ("UV Mode", "cycle", 0, dict(items=["Atlas (grid baked in UVs)", "Encoded (experimental, OSL)"])),
+    ("Write ID Tag", "bool", False, {}),
+    ("Cell Selection Tags", "bool", False, {}),
     ("Keep Source UVs", "bool", False, {}),
-    ("Merge Objects", "bool", True, dict(tip="one mesh = one global even distribution (clones, hierarchies)")),
+    ("Merge Objects", "bool", True, {}),
 ]
 
 
+def _add_help(op, tab_name, parent):
+    """Collapsed 'How this tab works' group with one static text line per entry."""
+    bc = c4d.GetCustomDataTypeDefault(c4d.DTYPE_GROUP)
+    bc[c4d.DESC_NAME] = bc[c4d.DESC_SHORT_NAME] = "? How this tab works"
+    bc[c4d.DESC_COLUMNS] = 1
+    bc[c4d.DESC_DEFAULT] = 0          # closed until clicked
+    bc[c4d.DESC_PARENTGROUP] = parent
+    g = op.AddUserData(bc)
+    for k, line in enumerate(HELP.get(tab_name, [])):
+        t = c4d.GetCustomDataTypeDefault(c4d.DTYPE_STATICTEXT)
+        t[c4d.DESC_NAME] = t[c4d.DESC_SHORT_NAME] = line
+        t[c4d.DESC_CUSTOMGUI] = c4d.CUSTOMGUI_STATICTEXT
+        t[c4d.DESC_PARENTGROUP] = g
+        op.AddUserData(t)
+    return g
+
+
 def _add_ud(op, name, kind, default, extra, parent):
-    if kind == "group":
+    if kind in ("group", "tab"):
         bc = c4d.GetCustomDataTypeDefault(c4d.DTYPE_GROUP)
         bc[c4d.DESC_COLUMNS] = 1
         bc[c4d.DESC_DEFAULT] = 1  # open
+        if kind == "tab":
+            # an EMPTY DescID parent makes a top-level Attribute Manager tab (verified 2026.4)
+            bc[c4d.DESC_NAME] = bc[c4d.DESC_SHORT_NAME] = name
+            bc[c4d.DESC_PARENTGROUP] = c4d.DescID()
+            return op.AddUserData(bc)
     elif kind in ("int",):
         bc = c4d.GetCustomDataTypeDefault(c4d.DTYPE_LONG)
         bc[c4d.DESC_CUSTOMGUI] = c4d.CUSTOMGUI_LONGSLIDER
@@ -98,6 +248,9 @@ def _add_ud(op, name, kind, default, extra, parent):
         bc[c4d.DESC_CYCLE] = cyc
     elif kind == "string":
         bc = c4d.GetCustomDataTypeDefault(c4d.DTYPE_STRING)
+    elif kind == "button":
+        bc = c4d.GetCustomDataTypeDefault(c4d.DTYPE_BUTTON)
+        bc[c4d.DESC_CUSTOMGUI] = c4d.CUSTOMGUI_BUTTON
     elif kind == "link":
         bc = c4d.GetCustomDataTypeDefault(c4d.DTYPE_BASELISTLINK)
     elif kind == "fields":
@@ -119,7 +272,7 @@ def _add_ud(op, name, kind, default, extra, parent):
         bc[c4d.DESC_MAXSLIDER] = conv(extra["max"])
     # (no tooltip key is exposed to Python user data; "tip" entries are documentation only)
     did = op.AddUserData(bc)
-    if default is not None and kind != "group":
+    if default is not None and kind not in ("group", "button"):
         op[did] = default
     return did
 
@@ -127,8 +280,11 @@ def _add_ud(op, name, kind, default, extra, parent):
 def add_user_data(op):
     parent = None
     for name, kind, default, extra in UD_SPEC:
-        did = _add_ud(op, name, kind, default, extra, None if kind == "group" else parent)
-        if kind == "group":
+        if kind == "help":
+            _add_help(op, name, parent)
+            continue
+        did = _add_ud(op, name, kind, default, extra, None if kind in ("group", "tab") else parent)
+        if kind in ("group", "tab"):
             parent = did
 
 
@@ -139,7 +295,8 @@ _GG_STATE = {"frame": None, "stats": None}
 
 
 def _gg_params():
-    U = {bc[c4d.DESC_NAME]: did for did, bc in op.GetUserDataContainer()}
+    U = {bc[c4d.DESC_NAME]: did for did, bc in op.GetUserDataContainer()
+         if did[-1].dtype not in (c4d.DTYPE_GROUP, c4d.DTYPE_STATICTEXT)}
 
     def g(k, d=None):
         try:
@@ -217,6 +374,22 @@ def main():
                 break
             if _GG_STATE.get("geo") and not (isinstance(res, dict) and res.get("dirty")):
                 break
+        if not _GG_STATE.get("geo"):
+            # nothing stored yet and the child is "clean" (code was just refreshed, module reloaded):
+            # evaluate a copy of the child in a private document once.
+            try:
+                tmp = c4d.documents.BaseDocument()
+                cp = src_obj.GetClone(c4d.COPYFLAGS_NONE)
+                cp.SetMl(src_obj.GetMl())
+                tmp.InsertObject(cp)
+                tmp.ExecutePasses(None, False, False, True, c4d.BUILDFLAGS_INTERNALRENDERER)
+                found = [(o.GetClone(CF), o.GetMg()) for o, _ in collect_polys(cp)]
+                if found:
+                    _GG_STATE["geo"] = found
+                    geo_changed = True
+                c4d.documents.KillDocument(tmp)
+            except Exception as e:
+                print("GlyphGrid fallback build failed:", e)
     else:
         ssig = root_signature(src_obj)
         if ssig != _GG_STATE.get("src_sig") or not _GG_STATE.get("geo"):
@@ -279,6 +452,46 @@ def main():
     c4d.gui.StatusSetText("GlyphGrid: %(polys)s polys in %(objects)s object(s), %(islands)s islands, %(cells)s cells "
                           "(%(min)s-%(max)s per cell), solve %(t_solve)ss" % tot + (" numpy" if tot["numpy"] else ""))
     return root
+
+
+# ---------------------------------------------------------------- plate swap ---
+_GG_PLATE_KEYS = ("Grid (N x N)", "Plate Style", "Custom Glyphs", "Font", "Sort by Ink", "Plate Folder")
+
+
+def _gg_apply_plate(force=False):
+    U = {bc[c4d.DESC_NAME]: did for did, bc in op.GetUserDataContainer()
+         if did[-1].dtype not in (c4d.DTYPE_GROUP, c4d.DTYPE_STATICTEXT)}
+    g = lambda k, d=None: op[U[k]] if k in U else d
+    if not force and not g("Auto Swap Plate", True):
+        return
+    folder = g("Plate Folder", "") or ""
+    if not folder:
+        print("GlyphGrid: set Plate Folder first")
+        return
+    path = plate_path(folder, g("Plate Style", 0), int(g("Grid (N x N)", 4)), g("Custom Glyphs", ""),
+                      g("Font", "Menlo-Bold") or "Menlo-Bold", bool(g("Sort by Ink", True)))
+    n = swap_plate(op, path, folder)
+    c4d.gui.StatusSetText("GlyphGrid plate -> %s (%d texture%s)" % (path.split("/")[-1], n, "" if n == 1 else "s"))
+
+
+def message(id, data):
+    # runs on the main thread from the Attribute Manager: safe place to edit materials
+    try:
+        if id == c4d.MSG_DESCRIPTION_COMMAND:
+            did = data.get("id") if isinstance(data, dict) else None
+            for d_, bc in op.GetUserDataContainer():
+                if bc[c4d.DESC_NAME] == "Apply Plate Now" and did is not None and did == d_:
+                    _gg_apply_plate(force=True)
+        elif id == c4d.MSG_DESCRIPTION_POSTSETPARAMETER:
+            did = data.get("descid") if isinstance(data, dict) else None
+            if did is not None:
+                for d_, bc in op.GetUserDataContainer():
+                    if d_ == did and bc[c4d.DESC_NAME] in _GG_PLATE_KEYS:
+                        _gg_apply_plate()
+                        break
+    except Exception as e:
+        print("GlyphGrid message:", e)
+    return True
 '''
 
 
@@ -307,6 +520,7 @@ def build_generator(doc, source=None, name="GlyphGrid", **overrides):
     gen[c4d.OPYTHON_CODE] = generator_code()
     gen[c4d.OPYTHON_OPTIMIZE] = False  # we cache ourselves via GetAndCheckHierarchyClone
     add_user_data(gen)
+    set_params(gen, **{"Plate Folder": os.path.join(HERE, "plates", "library")})
     set_params(gen, **overrides)
     doc.InsertObject(gen)
     if source is not None:
@@ -319,7 +533,8 @@ def build_generator(doc, source=None, name="GlyphGrid", **overrides):
 
 def set_params(gen, **kv):
     """set_params(gen, **{"Grid (N x N)": 4, "Seed": 3}) -- names as in UD_SPEC."""
-    U = {bc[c4d.DESC_NAME]: did for did, bc in gen.GetUserDataContainer()}
+    U = {bc[c4d.DESC_NAME]: did for did, bc in gen.GetUserDataContainer()
+         if did[-1].dtype not in (c4d.DTYPE_GROUP, c4d.DTYPE_STATICTEXT)}
     for k, v in kv.items():
         k = k.replace("_", " ")
         if k in U:
@@ -426,17 +641,17 @@ def set_plate(mat, plate_path):
     P = "com.redshift3d.redshift4c4d.nodes.core."
     g = mat.GetNodeMaterialReference().GetGraph(RS)
     with g.BeginTransaction() as tx:
-        tex = g.GetViewRoot().FindChild(maxon.Id("gg_plate"))
-        tex.GetInputs().FindChild(maxon.InternedId(P + "texturesampler.tex0")).FindChild(
-            maxon.InternedId("path")).SetPortValue(maxon.Url(plate_path))
+        for nd in g.GetViewRoot().GetChildren():      # FindChild(maxon.Id) does not take node ids
+            if str(nd.GetId()).startswith("gg_plate"):
+                nd.GetInputs().FindChild(maxon.InternedId(P + "texturesampler.tex0")).FindChild(
+                    maxon.InternedId("path")).SetPortValue(maxon.Url(plate_path))
         tx.Commit()
-
 
 def upgrade_generator(gen):
     """Rebuild an existing GlyphGrid's user data (new params / slider fixes) + code, keeping values."""
     old = {}
     for did, bc in gen.GetUserDataContainer():
-        if did[-1].dtype == c4d.DTYPE_GROUP:
+        if did[-1].dtype in (c4d.DTYPE_GROUP, c4d.DTYPE_STATICTEXT):
             continue
         try:
             old[bc[c4d.DESC_NAME]] = gen[did]
@@ -444,8 +659,12 @@ def upgrade_generator(gen):
             pass
     for did, bc in reversed(list(gen.GetUserDataContainer())):
         gen.RemoveUserData(did)
+    # RemoveUserData leaves the old VALUES in the ID_USERDATA sub-container. Re-added params reuse
+    # those ids, so a REAL landing on an old LONG slot fails: "__setitem__ expected int, not float".
+    gen.GetDataInstance().RemoveData(c4d.ID_USERDATA)
     add_user_data(gen)
-    U = {bc[c4d.DESC_NAME]: did for did, bc in gen.GetUserDataContainer()}
+    U = {bc[c4d.DESC_NAME]: did for did, bc in gen.GetUserDataContainer()
+         if did[-1].dtype not in (c4d.DTYPE_GROUP, c4d.DTYPE_STATICTEXT)}
     for k, v in old.items():
         if k in U and v is not None:
             try:

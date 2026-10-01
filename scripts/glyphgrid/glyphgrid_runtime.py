@@ -418,3 +418,152 @@ def fields_signature(fl, doc):
     except Exception:
         pass
     return s
+
+
+# ------------------------------------------------------------------ plates ---
+PLATE_STYLES = ["ascii", "bayer", "dots", "squares", "noise", "hex", "binary", "custom"]
+
+
+def plate_path(folder, style_index, grid, custom_text="", font="Menlo-Bold", sort_ink=True, size=1024):
+    """Library file for (style, grid). 'custom' is rendered on demand with GeClipMap (no PIL in c4dpy)."""
+    import os
+    style = PLATE_STYLES[max(0, min(len(PLATE_STYLES) - 1, int(style_index)))]
+    cells = grid * grid
+    if style != "custom":
+        return os.path.join(folder, "%s_%dup.png" % (style, cells))
+    import hashlib
+    key = hashlib.md5(("%s|%s|%d|%d" % (custom_text, font, sort_ink, cells)).encode("utf8")).hexdigest()[:8]
+    path = os.path.join(folder, "custom_%dup_%s.png" % (cells, key))   # unique name: renderers cache by path
+    if not os.path.exists(path):
+        render_custom_plate(custom_text or "ABC", grid, path, font, sort_ink, size)
+    return path
+
+
+def render_custom_plate(text, grid, path, font="Menlo-Bold", sort_ink=True, size=1024, fill=0.86):
+    """Draw your own characters into an N x N plate with c4d.bitmaps.GeClipMap.
+    sort_ink orders them sparse -> dense so they work with the Value modes."""
+    from c4d.bitmaps import GeClipMap
+    chars = [ch for ch in text if not ch.isspace()] or ["?"]
+    fd = GeClipMap.GetFontDescription(font, c4d.GE_FONT_NAME_POSTSCRIPT) or \
+        GeClipMap.GetDefaultFont(c4d.GE_FONT_DEFAULT_MONOSPACED)
+    P, FS = 192, 120.0
+
+    def measure(ch):
+        cm = GeClipMap()
+        cm.Init(P, P, 32)
+        cm.BeginDraw()
+        cm.SetColor(0, 0, 0, 255)
+        cm.FillRect(0, 0, P - 1, P - 1)
+        cm.SetFont(fd, FS)
+        cm.SetColor(255, 255, 255, 255)
+        cm.TextAt(P // 4, P // 8, ch)
+        x0 = y0 = 10 ** 9
+        x1 = y1 = -1
+        ink = 0
+        for y in range(0, P, 2):
+            for x in range(0, P, 2):
+                if cm.GetPixelRGBA(x, y)[0] > 127:
+                    ink += 1
+                    x0, y0, x1, y1 = min(x0, x), min(y0, y), max(x1, x), max(y1, y)
+        cm.EndDraw()
+        if x1 < 0:
+            return None, 0
+        return (x0 - P // 4, y0 - P // 8, x1 + 2 - P // 4, y1 + 2 - P // 8), ink
+
+    info = {}
+    for ch in set(chars):
+        info[ch] = measure(ch)
+    seq = [chars[i % len(chars)] for i in range(grid * grid)]
+    if sort_ink:
+        seq.sort(key=lambda c: info[c][1])
+    ref = measure("M")[0]
+    refh = (ref[3] - ref[1]) if ref else FS
+    cell = size // grid
+    cm = GeClipMap()
+    cm.Init(cell * grid, cell * grid, 32)
+    cm.BeginDraw()
+    cm.SetColor(0, 0, 0, 255)
+    cm.FillRect(0, 0, cell * grid - 1, cell * grid - 1)
+    cm.SetColor(255, 255, 255, 255)
+    for i, ch in enumerate(seq):
+        bb = info[ch][0]
+        if bb is None:
+            continue
+        w, h = bb[2] - bb[0], bb[3] - bb[1]
+        k = fill * cell / max(refh, w, h, 1)
+        cm.SetFont(fd, FS * k)
+        cx, cy = (i % grid) * cell, (i // grid) * cell
+        cm.TextAt(int(cx + (cell - w * k) / 2 - bb[0] * k), int(cy + (cell - h * k) / 2 - bb[1] * k), ch)
+    cm.EndDraw()
+    bmp = cm.GetBitmap()
+    import os
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    bmp.Save(path, c4d.FILTER_PNG)
+    return path
+
+
+def _plate_like(p, folder):
+    import os
+    p = str(p or "").replace("file://", "")
+    return bool(p) and (os.path.dirname(os.path.abspath(p)) == os.path.abspath(folder)
+                        or os.path.basename(p).split("_")[0] in PLATE_STYLES + ["gg"])
+
+
+def swap_plate(op, new_path, folder):
+    """Point every plate texture on op's materials at new_path: Redshift node texture samplers
+    (node id gg_plate, or any sampler whose file sits in the plate folder), Octane ImageTexture
+    and C4D Bitmap shaders using a plate. Returns the number of textures changed. Main thread only."""
+    n = 0
+    mats = []
+    t = op.GetFirstTag()
+    while t:
+        if t.CheckType(c4d.Ttexture) and t[c4d.TEXTURETAG_MATERIAL]:
+            mats.append(t[c4d.TEXTURETAG_MATERIAL])
+        t = t.GetNext()
+    for mat in mats:
+        # Redshift / node materials
+        try:
+            import maxon
+            nm = mat.GetNodeMaterialReference()
+            RS = maxon.Id("com.redshift3d.redshift4c4d.class.nodespace")
+            P = "com.redshift3d.redshift4c4d.nodes.core."
+            if nm and nm.HasSpace(RS):
+                g = nm.GetGraph(RS)
+                with g.BeginTransaction() as tx:
+                    for nd in g.GetViewRoot().GetChildren():
+                        if "texturesampler" not in str(nd.GetValue(maxon.InternedId("net.maxon.node.attribute.assetid"))):
+                            continue
+                        pp = nd.GetInputs().FindChild(maxon.InternedId(P + "texturesampler.tex0")).FindChild(
+                            maxon.InternedId("path"))
+                        try:
+                            cur = pp.GetPortValue()
+                        except Exception:
+                            cur = None
+                        if str(nd.GetId()).startswith("gg_plate") or _plate_like(cur, folder):
+                            pp.SetPortValue(maxon.Url(new_path))
+                            n += 1
+                    tx.Commit()
+        except Exception as e:
+            print("GlyphGrid: node material swap skipped:", e)
+        # classic shaders (Octane ImageTexture 1029508, C4D Bitmap)
+        sh = mat.GetFirstShader()
+        stack = [sh] if sh else []
+        while stack:
+            s = stack.pop()
+            while s:
+                for pid in (getattr(c4d, "IMAGETEXTURE_FILE", None), c4d.BITMAPSHADER_FILENAME):
+                    if pid is None:
+                        continue
+                    try:
+                        cur = s[pid]
+                    except Exception:
+                        continue
+                    if isinstance(cur, str) and _plate_like(cur, folder):
+                        s[pid] = new_path
+                        n += 1
+                if s.GetDown():
+                    stack.append(s.GetDown())
+                s = s.GetNext()
+        mat.Message(c4d.MSG_UPDATE)   # (no mat.Update(True, True): forcing the preview render from here hung C4D)
+    c4d.EventAdd()
+    return n

@@ -288,7 +288,7 @@ def parse_color(s):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("kind", choices=["ascii", "chars", "bayer", "halftone", "noise", "logo", "sheet"])
+    ap.add_argument("kind", choices=["ascii", "chars", "bayer", "halftone", "noise", "logo", "sheet", "library"])
     ap.add_argument("--grid", type=int, default=4, help="N -> N*N cells (2=4up, 3=9up, 4=16up)")
     ap.add_argument("--size", type=int, default=2048, help="atlas size in px")
     ap.add_argument("--out", default="plate.png")
@@ -318,6 +318,8 @@ def main(argv=None):
 
     if a.kind == "sheet":
         return contact_sheet(a, root + ext)
+    if a.kind == "library":
+        return library(a, a.out if os.path.splitext(a.out)[1] == "" else os.path.dirname(a.out))
 
     frames, base = build(a.kind, a.grid, a)
     if len(frames) == 1:
@@ -333,17 +335,51 @@ def main(argv=None):
             print("wrote flipbook %dx%d -> %s_flipbook_%dx%d%s" % (c, r, root, c, r, ext))
 
 
+LIBRARY_STYLES = [  # (file key, kind, overrides) -- the GlyphGrid generator's "Plate Style" list
+    ("ascii", "ascii", {}),
+    ("bayer", "bayer", {"dots": 8}),
+    ("dots", "halftone", {"shape": "round"}),
+    ("squares", "halftone", {"shape": "square"}),
+    ("noise", "noise", {}),
+    ("hex", "chars", {"text": "0123456789ABCDEF", "sort": True}),
+    ("binary", "chars", {"text": "01", "sort": False}),
+]
+
+
+def library(a, folder):
+    """Every style x 1/4/9/16-up as <style>_<cells>up.png, the layout the generator swaps between."""
+    os.makedirs(folder, exist_ok=True)
+    for key, kind, ov in LIBRARY_STYLES:
+        for g in (1, 2, 3, 4):
+            b = argparse.Namespace(**vars(a))
+            b.frames, b.guides, b.shimmer = 1, False, False
+            for k, v in ov.items():
+                setattr(b, k, v)
+            fr, base = build(kind, g, b)
+            path = os.path.join(folder, "%s_%dup.png" % (key, g * g))
+            fr[0].save(path)
+            print("wrote", path, ("".join(base) if base else ""))
+
+
 def contact_sheet(a, path):
-    kinds = ["ascii", "bayer", "halftone", "noise"]
-    tile = 360
-    pad = 24
-    sheet = Image.new("L", (pad + 4 * (tile + pad), pad + len(kinds) * (tile + pad)), 18)
-    for r, k in enumerate(kinds):
+    """Rows = Plate Styles (same order as the generator), columns = 1 / 4 / 9 / 16-up."""
+    tile, pad, lab = 300, 20, 120
+    rows = LIBRARY_STYLES
+    sheet = Image.new("L", (lab + pad + 4 * (tile + pad), pad + len(rows) * (tile + pad) + 40), 18)
+    d = ImageDraw.Draw(sheet)
+    font = load_font(None, 26)
+    for g in range(1, 5):
+        d.text((lab + pad + (g - 1) * (tile + pad) + tile // 2 - 30, 8), "%d-up" % (g * g), fill=200, font=font)
+    for r, (key, kind, ov) in enumerate(rows):
+        y = 40 + pad + r * (tile + pad)
+        d.text((10, y + tile // 2 - 14), "%d %s" % (r + 1, key), fill=200, font=font)
         for g in range(1, 5):
             b = argparse.Namespace(**vars(a))
-            b.size, b.frames, b.guides = tile, 1, True
-            fr, _ = build(k, g, b)
-            sheet.paste(fr[0].convert("L"), (pad + (g - 1) * (tile + pad), pad + r * (tile + pad)))
+            b.size, b.frames, b.guides, b.shimmer = tile, 1, True, False
+            for k, v in ov.items():
+                setattr(b, k, v)
+            fr, _ = build(kind, g, b)
+            sheet.paste(fr[0].convert("L"), (lab + pad + (g - 1) * (tile + pad), y))
     sheet.save(path)
     print("wrote", path)
 

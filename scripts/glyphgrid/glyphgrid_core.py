@@ -188,7 +188,8 @@ def assign_cells(n_isl, ncell, prm, rng, isl_value=None, isl_rand=None):
         return cells, vals
 
     if mode == ASSIGN_WEIGHTED and prm.get("weights"):
-        w = list(prm["weights"])[:ncell] + [0.0] * max(0, ncell - len(prm["weights"]))
+        # relative amounts in plate order; cells without an entry count as 1
+        w = list(prm["weights"])[:ncell] + [1.0] * max(0, ncell - len(prm["weights"]))
         tot = sum(max(0.0, x) for x in w) or 1.0
         raw = [max(0.0, x) / tot * n_isl for x in w]
         cnt = [int(x) for x in raw]
