@@ -153,6 +153,8 @@ python glyphgrid_plates.py sheet    --out contact.png                 # style x 
 - **`emissive`**: glyphs glow on a black body.
 - **`diffuse`**: the plate drives base colour.
 
+**Octane:** `build_plate_material_octane(doc, obj, plate, mode="hologram" | "emissive" | "diffuse", color=(r,g,b), emission=5.0)` builds the same three looks for Octane: an Octane Diffuse material, ImageTexture → opacity, RGB colour → Texture emission (hologram) or ImageTexture × colour (emissive / diffuse). It was verified with an Octane render. The Plate tab's auto-swap re-points the ImageTexture too.
+
 To change the plate later, call `set_plate(mat, path)`. For an animated sequence, point the texture at `plates/seq/ascii_16up_0000.png` and enable the sequence in the texture node.
 
 ## Encoded mode + OSL (live grid, per-polygon time offsets)

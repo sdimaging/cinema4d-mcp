@@ -709,3 +709,50 @@ def upgrade_generator(gen):
     refresh_code(gen)
     c4d.EventAdd()
     return gen
+
+
+def build_plate_material_octane(doc, target, plate_path, name="GlyphGrid Plate (Octane)", mode="hologram",
+                                color=(0.15, 1.0, 0.35), emission=5.0, base=0.05):
+    """Octane (C4D) version of build_plate_material: Octane Diffuse material + ImageTexture.
+      hologram: plate -> opacity (black knocked out), constant colour TextureEmission
+      emissive: plate x colour -> TextureEmission, black body
+      diffuse:  plate x colour -> diffuse
+    swap_plate() re-points the ImageTexture (IMAGETEXTURE_FILE) like the Redshift sampler."""
+    OCT_MAT, IMG, RGB, MUL, TEXEM = 1029501, 1029508, 1029504, 1029516, 1029642
+    mat = c4d.BaseMaterial(OCT_MAT)
+    mat.SetName(name)
+    mat[c4d.OCT_MATERIAL_TYPE] = getattr(c4d, "OCT_MAT_TYPE_DIFFUSE", 2510)
+    doc.InsertMaterial(mat)
+
+    def shader(tid, **params):
+        sh = c4d.BaseShader(tid)
+        for k, v in params.items():
+            sh[getattr(c4d, k)] = v
+        mat.InsertShader(sh)
+        return sh
+    tex = shader(IMG, IMAGETEXTURE_FILE=plate_path)
+    tex.SetName("gg_plate")
+    col = shader(RGB, RGBSPECTRUMSHADER_COLOR=c4d.Vector(*color))
+    if mode == "hologram":
+        mat[c4d.OCT_MATERIAL_OPACITY_LINK] = tex
+        mat[c4d.OCT_MATERIAL_DIFFUSE_COLOR] = c4d.Vector(*color) * base
+        em = shader(TEXEM, TEXEMISSION_POWER=emission)
+        em[c4d.TEXEMISSION_EFFIC_OR_TEX] = col
+        mat[c4d.OCT_MATERIAL_EMISSION] = em
+    elif mode == "emissive":
+        mul = shader(MUL)
+        mul[c4d.MULTIPLY_TEXTURE1], mul[c4d.MULTIPLY_TEXTURE2] = tex, col
+        em = shader(TEXEM, TEXEMISSION_POWER=emission)
+        em[c4d.TEXEMISSION_EFFIC_OR_TEX] = mul
+        mat[c4d.OCT_MATERIAL_EMISSION] = em
+        mat[c4d.OCT_MATERIAL_DIFFUSE_COLOR] = c4d.Vector(0)
+    else:
+        mul = shader(MUL)
+        mul[c4d.MULTIPLY_TEXTURE1], mul[c4d.MULTIPLY_TEXTURE2] = tex, col
+        mat[c4d.OCT_MATERIAL_DIFFUSE_LINK] = mul
+    mat.Message(c4d.MSG_UPDATE)
+    tag = target.MakeTag(c4d.Ttexture)
+    tag[c4d.TEXTURETAG_MATERIAL] = mat
+    tag[c4d.TEXTURETAG_PROJECTION] = c4d.TEXTURETAG_PROJECTION_UVW
+    c4d.EventAdd()
+    return mat
