@@ -134,11 +134,18 @@ HELP = {
         "  are animated.",
     ],
     "Color": [
-        "COLOR: tints the glyphs. Written as a vertex colour tag",
-        "  ('GlyphGrid Color'); materials made by GlyphGrid read it",
-        "  (Redshift Vertex Attribute / Octane Attribute Texture).",
-        "  Older materials: G.enable_glyph_color(mat) adds the hook.",
-        "Glyph Color: the main colour (the picker).",
+        "COLOR: tints the glyphs.",
+        "Standard / Redshift / Octane: makes a glyph material for",
+        "  that renderer and puts it on this generator: dark diffuse",
+        "  body, the current plate knocks out opacity (black = gone),",
+        "  emission = the colours set here. Press again any time.",
+        "  Standard shows Glyph Color only (no random colours -",
+        "  the Standard renderer can't read the colour tag).",
+        "Glyph Color: the emission colour (the picker).",
+        "Emission Strength: glow of every GlyphGrid material here.",
+        "  Colours are written as a vertex colour tag 'GlyphGrid",
+        "  Color' (RS Vertex Attribute / Octane Attribute Texture);",
+        "  for an older material: G.enable_glyph_color(mat).",
         "Color Mode Uniform: every glyph = Glyph Color.",
         "  Random per Cell: one colour per plate cell, so every",
         "  'A' (or every icon of one kind) shares a colour.",
@@ -296,7 +303,13 @@ UD_SPEC = [
 
     ("Color", "tab", None, {}),
     ("Color", "help", None, {}),
+    ("row_mat", "row", None, dict(columns=3)),
+    ("Standard", "button", None, {}),
+    ("Redshift", "button", None, {}),
+    ("Octane", "button", None, {}),
+    ("row_mat", "endrow", None, {}),
     ("Glyph Color", "color", (1.0, 1.0, 1.0), {}),
+    ("Emission Strength", "float", 1.0, dict(min=0.0, max=20.0, step=0.05)),
     ("Color Mode", "cycle", 0, dict(items=["Uniform (one colour)", "Random per Cell (every 'A' alike)",
                                            "Random per Glyph"])),
     ("Random Amount", "pct", 0.35, dict(min=0.0, max=1.0)),
@@ -799,6 +812,7 @@ def _gg_apply_plate(force=False):
 
 
 _GG_LIMIT_KEYS = ("Quadtree Block (polys)", "Quadtree Levels")
+_GG_COLOR_KEYS = ("Glyph Color", "Emission Strength")
 
 
 def _gg_update_limits(changed=None):
@@ -868,16 +882,20 @@ def message(id, data):
     try:
         # safety net if no INTERACTION_END arrives: the next main-thread message after the mouse
         # is released applies the pending plate
-        if _GG_STATE.get("plate_pending") and not _GG_STATE.get("dragging") \
+        if (_GG_STATE.get("plate_pending") or _GG_STATE.get("mat_pending")) and not _GG_STATE.get("dragging") \
                 and c4d.threading.GeIsMainThread() and not _gg_mouse_down():
-            _GG_STATE["plate_pending"] = False
-            _gg_apply_plate()
+            if _GG_STATE.pop("plate_pending", False):
+                _gg_apply_plate()
+            if _GG_STATE.pop("mat_pending", False):
+                sync_material_color(op)
         if id == getattr(c4d, "MSG_DESCRIPTION_USERINTERACTION_BEGIN", -1):
             _GG_STATE["dragging"] = True
         elif id == getattr(c4d, "MSG_DESCRIPTION_USERINTERACTION_END", -2):
             _GG_STATE["dragging"] = False
             if _GG_STATE.pop("plate_pending", False):
                 _gg_apply_plate()
+            if _GG_STATE.pop("mat_pending", False):
+                sync_material_color(op)
         elif id == c4d.MSG_DESCRIPTION_COMMAND:
             did = data.get("id") if isinstance(data, dict) else None
             # NOTE: c4d.DescID is unhashable - never use it as a dict key (that silently killed
@@ -892,6 +910,8 @@ def message(id, data):
             folder, cdir = plate_dirs(root)
             if hit == "Apply Plate Now":
                 _gg_apply_plate(force=True)
+            elif hit in ("Standard", "Redshift", "Octane"):
+                build_glyph_material(op.GetDocument(), op, hit.lower())
             elif hit == "Bake to Polygon Object":
                 _gg_bake()
             elif hit == "Write UVs onto Source":
@@ -914,6 +934,13 @@ def message(id, data):
         elif id == c4d.MSG_DESCRIPTION_POSTSETPARAMETER:
             did = data.get("descid") if isinstance(data, dict) else None
             if did is not None:
+                for d_, bc in op.GetUserDataContainer():
+                    if d_ == did and bc[c4d.DESC_NAME] in _GG_COLOR_KEYS:
+                        if _GG_STATE.get("dragging") or _gg_mouse_down():
+                            _GG_STATE["mat_pending"] = True      # material edit once, on release
+                        else:
+                            sync_material_color(op)
+                        break
                 for d_, bc in op.GetUserDataContainer():
                     if d_ == did and bc[c4d.DESC_NAME] in _GG_LIMIT_KEYS:
                         _gg_update_limits(bc[c4d.DESC_NAME])
@@ -1039,148 +1066,7 @@ def bake_object(doc, obj, src=0, opts=None, write_id=False, cell_sel=False, **pa
     return st
 
 
-# ---------------------------------------------------------------- look-dev ---
-def _rs_glyph_color(g, tex, port, mode):
-    """Vertex Attribute 'GlyphGrid Color' (the generator's Color tab) -> glyph colour.
-    emissive / diffuse: multiplies the plate (texture sampler colour multiplier).
-    hologram: drives emission + base colour (the plate stays the opacity mask)."""
-    import maxon
-    P = "com.redshift3d.redshift4c4d.nodes.core."
-    va = g.AddChild(maxon.Id("gg_color"), maxon.Id(P + "vertexattributelookup"))
-    vi = va.GetInputs()
-    vi.FindChild(maxon.InternedId(P + "vertexattributelookup.attribute")).SetPortValue(maxon.String(COLOR_TAG))
-    vi.FindChild(maxon.InternedId(P + "vertexattributelookup.defaultcolor")).SetPortValue(maxon.Color64(1, 1, 1))
-    vo = va.GetOutputs().FindChild(maxon.InternedId(P + "vertexattributelookup.outcolor"))
-    if mode == "hologram":
-        vo.Connect(port("emission_color"))
-        vo.Connect(port("base_color"))
-    else:
-        vo.Connect(tex.GetInputs().FindChild(maxon.InternedId(P + "texturesampler.color_multiplier")))
-    return va
-
-
-COLOR_TAG = "GlyphGrid Color"
-
-
-def build_plate_material(doc, target, plate_path, name="GlyphGrid Plate", mode="emissive",
-                         color=(1.0, 1.0, 1.0), emission=1.0, base_tint=0.0, glyph_color=True):
-    """Redshift node material driven by a plate. Assigned to `target` with UVW projection
-    (uses the FIRST UVW tag = GlyphGrid UV).
-
-    mode
-      "emissive"  plate -> emission (glyphs glow on a black body)
-      "diffuse"   plate -> base colour (lit glyphs)
-      "hologram"  plate -> OPACITY (black knocked out), constant `color` emission + base colour:
-                  floating characters, see-through shapes built from glyphs
-    """
-    import maxon
-    RS = maxon.Id("com.redshift3d.redshift4c4d.class.nodespace")
-    P = "com.redshift3d.redshift4c4d.nodes.core."
-    mat = c4d.BaseMaterial(c4d.Mmaterial)
-    mat.SetName(name)
-    doc.InsertMaterial(mat)
-    nm = mat.GetNodeMaterialReference()
-    g = nm.CreateDefaultGraph(RS) if not nm.HasSpace(RS) else nm.GetGraph(RS)
-    root = g.GetViewRoot()
-    col = maxon.Color64(*color)
-    with g.BeginTransaction() as tx:
-        surf = None
-        for c in root.GetChildren():
-            if "material" in str(c.GetId()) and "output" not in str(c.GetId()):
-                surf = c
-        kind = str(surf.GetId()).split("@")[0]
-        tex = g.AddChild(maxon.Id("gg_plate"), maxon.Id(P + "texturesampler"))
-        t0 = tex.GetInputs().FindChild(maxon.InternedId(P + "texturesampler.tex0"))
-        t0.FindChild(maxon.InternedId("path")).SetPortValue(maxon.Url(plate_path))
-        out = tex.GetOutputs().FindChild(maxon.InternedId(P + "texturesampler.outcolor"))
-        si = surf.GetInputs()
-
-        def port(n):
-            return si.FindChild(maxon.InternedId(P + kind + "." + n))
-
-        def setp(n, v):
-            try:
-                port(n).SetPortValue(v)
-            except Exception:
-                pass
-        if mode == "diffuse":
-            out.Connect(port("base_color"))
-        elif mode == "hologram":
-            out.Connect(port("opacity_color"))
-            setp("emission_color", col)
-            setp("emission_weight", maxon.Float64(emission))
-            setp("base_color", col)
-            setp("base_color_weight", maxon.Float64(0.2))
-            setp("refl_weight", maxon.Float64(0.0))
-        else:  # emissive
-            out.Connect(port("emission_color"))
-            setp("emission_weight", maxon.Float64(emission))
-            setp("base_color", maxon.Color64(base_tint, base_tint, base_tint))
-            setp("refl_weight", maxon.Float64(0.0))
-        if glyph_color:
-            _rs_glyph_color(g, tex, port, mode)
-        tx.Commit()
-    tag = target.GetTag(c4d.Ttexture) or target.MakeTag(c4d.Ttexture)
-    tag[c4d.TEXTURETAG_MATERIAL] = mat
-    tag[c4d.TEXTURETAG_PROJECTION] = c4d.TEXTURETAG_PROJECTION_UVW
-    c4d.EventAdd()
-    return mat
-
-
-def enable_glyph_color(mat):
-    """Add the Color-tab hook to an existing GlyphGrid plate material (Redshift or Octane).
-    Returns True if something was added."""
-    if mat.GetType() == 1029501:
-        return _oct_glyph_color(mat)
-    import maxon
-    RS = maxon.Id("com.redshift3d.redshift4c4d.class.nodespace")
-    P = "com.redshift3d.redshift4c4d.nodes.core."
-    nm = mat.GetNodeMaterialReference()
-    if not nm.HasSpace(RS):
-        return False
-    g = nm.GetGraph(RS)
-    root = g.GetViewRoot()
-    tex = surf = None
-    for nd in root.GetChildren():
-        sid = str(nd.GetId())
-        if sid.startswith("gg_color"):
-            return False      # already there
-        if sid.startswith("gg_plate"):
-            tex = nd
-        elif "material" in sid and "output" not in sid:
-            surf = nd
-    if tex is None or surf is None:
-        return False
-    kind = str(surf.GetId()).split("@")[0]
-    si = surf.GetInputs()
-    port = lambda n: si.FindChild(maxon.InternedId(P + kind + "." + n))
-    mode = "emissive"
-    out = tex.GetOutputs().FindChild(maxon.InternedId(P + "texturesampler.outcolor"))
-    for dst in [c[0] for c in out.GetConnections(maxon.PORT_DIR.OUTPUT)] if hasattr(out, "GetConnections") else []:
-        d = str(dst.GetId())
-        if d.endswith("opacity_color"):
-            mode = "hologram"
-        elif d.endswith("base_color"):
-            mode = "diffuse"
-    with g.BeginTransaction() as tx:
-        _rs_glyph_color(g, tex, port, mode)
-        tx.Commit()
-    return True
-
-
-def set_plate(mat, plate_path):
-    """Swap the plate image on a material made by build_plate_material."""
-    import maxon
-    RS = maxon.Id("com.redshift3d.redshift4c4d.class.nodespace")
-    P = "com.redshift3d.redshift4c4d.nodes.core."
-    g = mat.GetNodeMaterialReference().GetGraph(RS)
-    with g.BeginTransaction() as tx:
-        for nd in g.GetViewRoot().GetChildren():      # FindChild(maxon.Id) does not take node ids
-            if str(nd.GetId()).startswith("gg_plate"):
-                nd.GetInputs().FindChild(maxon.InternedId(P + "texturesampler.tex0")).FindChild(
-                    maxon.InternedId("path")).SetPortValue(maxon.Url(plate_path))
-        tx.Commit()
-
+# ----------------------------------------------------------------- upgrade ---
 def upgrade_generator(gen):
     """Rebuild an existing GlyphGrid's user data (new params / slider fixes) + code, keeping values."""
     old = {}
@@ -1222,83 +1108,33 @@ def upgrade_generator(gen):
     return gen
 
 
-def build_plate_material_octane(doc, target, plate_path, name="GlyphGrid Plate (Octane)", mode="hologram",
-                                color=(0.15, 1.0, 0.35), emission=5.0, base=0.05, glyph_color=True):
-    """Octane (C4D) version of build_plate_material: Octane Diffuse material + ImageTexture.
-      hologram: plate -> opacity (black knocked out), constant colour TextureEmission
-      emissive: plate x colour -> TextureEmission, black body
-      diffuse:  plate x colour -> diffuse
-    swap_plate() re-points the ImageTexture (IMAGETEXTURE_FILE) like the Redshift sampler."""
-    OCT_MAT, IMG, RGB, MUL, TEXEM = 1029501, 1029508, 1029504, 1029516, 1029642  # noqa
-    mat = c4d.BaseMaterial(OCT_MAT)
-    mat.SetName(name)
-    mat[c4d.OCT_MATERIAL_TYPE] = getattr(c4d, "OCT_MAT_TYPE_DIFFUSE", 2510)
-    doc.InsertMaterial(mat)
-
-    def shader(tid, **params):
-        sh = c4d.BaseShader(tid)
-        for k, v in params.items():
-            sh[getattr(c4d, k)] = v
-        mat.InsertShader(sh)
-        return sh
-    tex = shader(IMG, IMAGETEXTURE_FILE=plate_path)
-    tex.SetName("gg_plate")
-    col = shader(RGB, RGBSPECTRUMSHADER_COLOR=c4d.Vector(*color))
-    if mode == "hologram":
-        mat[c4d.OCT_MATERIAL_OPACITY_LINK] = tex
-        mat[c4d.OCT_MATERIAL_DIFFUSE_COLOR] = c4d.Vector(*color) * base
-        em = shader(TEXEM, TEXEMISSION_POWER=emission)
-        em[c4d.TEXEMISSION_EFFIC_OR_TEX] = col
-        mat[c4d.OCT_MATERIAL_EMISSION] = em
-    elif mode == "emissive":
-        mul = shader(MUL)
-        mul[c4d.MULTIPLY_TEXTURE1], mul[c4d.MULTIPLY_TEXTURE2] = tex, col
-        em = shader(TEXEM, TEXEMISSION_POWER=emission)
-        em[c4d.TEXEMISSION_EFFIC_OR_TEX] = mul
-        mat[c4d.OCT_MATERIAL_EMISSION] = em
-        mat[c4d.OCT_MATERIAL_DIFFUSE_COLOR] = c4d.Vector(0)
-    else:
-        mul = shader(MUL)
-        mul[c4d.MULTIPLY_TEXTURE1], mul[c4d.MULTIPLY_TEXTURE2] = tex, col
-        mat[c4d.OCT_MATERIAL_DIFFUSE_LINK] = mul
-    if glyph_color:
-        _oct_glyph_color(mat)
-    mat.Message(c4d.MSG_UPDATE)
-    tag = target.MakeTag(c4d.Ttexture)
-    tag[c4d.TEXTURETAG_MATERIAL] = mat
-    tag[c4d.TEXTURETAG_PROJECTION] = c4d.TEXTURETAG_PROJECTION_UVW
-    c4d.EventAdd()
-    return mat
+# ---------------------------------------------------------------- look-dev ---
+# The material builders live in glyphgrid_runtime (embedded in the generator, so its Standard /
+# Redshift / Octane buttons work in any .c4d without this repo). Thin wrappers for scripts:
+def build_plate_material(*a, **k):
+    return _rt().build_plate_material(*a, **k)
 
 
-def _oct_glyph_color(mat):
-    """Octane: Attribute Texture 'GlyphGrid Color' takes over the colour (the generator's Color tab
-    picker is the glyph colour; the plate still gives the glyph shapes / opacity)."""
-    ATTR, MUL, TEXEM = 1056908, 1029516, 1029642
-    sh = mat.GetFirstShader()
-    while sh is not None:
-        if sh.GetName() == "gg_color":
-            return False
-        sh = sh.GetNext()
-    attr = c4d.BaseShader(ATTR)
-    attr.SetName("gg_color")
-    attr[2001] = 1                    # ATTRIBTEX_TYPE: colour attribute
-    attr[2002] = COLOR_TAG            # ATTRIBTEX_IN_NAME
-    mat.InsertShader(attr)
-    em = mat[c4d.OCT_MATERIAL_EMISSION]
-    target = None
-    if em is not None and em.GetType() == TEXEM:
-        cur = em[c4d.TEXEMISSION_EFFIC_OR_TEX]
-        if cur is not None and cur.GetType() == MUL:      # emissive: plate x glyph colour
-            cur[c4d.MULTIPLY_TEXTURE2] = attr
-            target = cur
-        else:                                              # hologram: glyph colour emission
-            em[c4d.TEXEMISSION_EFFIC_OR_TEX] = attr
-            target = em
-    else:
-        dl = mat[c4d.OCT_MATERIAL_DIFFUSE_LINK]
-        if dl is not None and dl.GetType() == MUL:         # diffuse: plate x glyph colour
-            dl[c4d.MULTIPLY_TEXTURE2] = attr
-            target = dl
-    mat.Message(c4d.MSG_UPDATE)
-    return target is not None
+def build_plate_material_octane(*a, **k):
+    return _rt().build_plate_material_octane(*a, **k)
+
+
+def build_plate_material_standard(*a, **k):
+    return _rt().build_plate_material_standard(*a, **k)
+
+
+def build_glyph_material(doc, gen, renderer="redshift"):
+    """What the Color tab's Standard / Redshift / Octane buttons do."""
+    return _rt().build_glyph_material(doc, gen, renderer)
+
+
+def enable_glyph_color(mat):
+    return _rt().enable_glyph_color(mat)
+
+
+def sync_material_color(gen):
+    return _rt().sync_material_color(gen)
+
+
+def set_plate(mat, plate_path):
+    return _rt().set_plate(mat, plate_path)
