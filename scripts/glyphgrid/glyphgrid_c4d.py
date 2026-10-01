@@ -41,7 +41,7 @@ HELP = {
     "Grid": [
         "GRID: how many glyph cells and which polygon gets which.",
         "Grid (N x N): 1 = 1-up (one glyph everywhere), 2 = 4-up,",
-        "  3 = 9-up, 4 = 16-up ... must match the plate you use.",
+        "  3 = 9-up, 4 = 16-up (max) - must match the plate you use.",
         "Seed: re-deals which polygon gets which cell.",
         "Glyph Offset: every polygon steps N places forward in the plate",
         "  (reading order, wraps around): 4-up A B / C D, offset 1 =",
@@ -67,7 +67,9 @@ HELP = {
         "  (Quadtree Block) randomly split into halves, quarters ...",
         "  down to single polygons. Blocks snap to the mesh's own",
         "  polygon grid, so on planes / grids every edge lines up.",
-        "  Levels = max number of block sizes, Subdivide Chance =",
+        "  Levels = number of glyph sizes (1-4): Block, /2, /4, /8.",
+        "  Levels 4 needs a Block of 8+ polys - raising Levels grows",
+        "  the Block to fit. Subdivide Chance =",
         "  how often a block splits (0 = all big, 1 = all small).",
         "Fit Auto: square-ish quads fill the cell edge to edge;",
         "  triangles, ngons and long thin polygons are scaled",
@@ -188,7 +190,7 @@ HELP = {
 UD_SPEC = [
     ("Grid", "tab", None, {}),
     ("Grid", "help", None, {}),
-    ("Grid (N x N)", "int", 4, dict(min=1, max=8)),
+    ("Grid (N x N)", "int", 4, dict(min=1, max=4)),
     ("Seed", "int", 12345, dict(min=0, max=999999)),
     ("Glyph Offset", "int", 0, dict(min=-1000, max=1000)),
     ("Grid Mode", "cycle", 0, dict(items=["Single (Grid N x N)", "Mixed 1/4/9/16-up (composite plate)"])),
@@ -201,7 +203,7 @@ UD_SPEC = [
                                             "Quadtree (mixed glyph sizes)"])),
     ("Cluster Size", "dist", 50.0, dict(min=0.0)),
     ("Quadtree Block (polys)", "cycle", 3, dict(items=["1", "2", "4", "8", "16", "32", "64"])),
-    ("Quadtree Levels", "int", 4, dict(min=1, max=7)),
+    ("Quadtree Levels", "int", 4, dict(min=1, max=4)),
     ("Subdivide Chance", "pct", 0.5, dict(min=0.0, max=1.0)),
     ("Fit", "cycle", 0, dict(items=["Auto: flush squares, centre the rest", "Uniform + Centred (all)", "Flush (all quads)"])),
     ("Flush Aspect Limit", "float", 1.35, dict(min=1.0, max=4.0, step=0.05)),
@@ -447,7 +449,7 @@ def _gg_params():
                  lock=bool(g("Lock Glyphs to Topology", True)))
     # clamp to what the solver can really use (old scenes / typed values / keyframes)
     params["grid"] = max(1, min(GRID_MAX, params["grid"]))
-    params["qt_levels"] = max(1, min(qt_level_cap(params["qt_cells"]), params["qt_levels"]))
+    params["qt_levels"] = max(1, min(QT_LEVELS_MAX, qt_level_cap(params["qt_cells"]), params["qt_levels"]))
     return params, src, opts, flags
 
 
@@ -718,11 +720,11 @@ def _gg_apply_plate(force=False):
     c4d.gui.StatusSetText("GlyphGrid plate -> %s (%d texture%s)" % (path.split("/")[-1], n, "" if n == 1 else "s"))
 
 
-_GG_LIMIT_KEYS = ("Quadtree Block (polys)", "Plate Style", "Collection", "Custom Glyphs", "Plates Folder")
+_GG_LIMIT_KEYS = ("Quadtree Block (polys)", "Quadtree Levels")
 
 
-def _gg_update_limits():
-    apply_slider_caps(op)
+def _gg_update_limits(changed=None):
+    apply_slider_caps(op, changed)
 
 
 def _gg_bake():
@@ -828,7 +830,7 @@ def message(id, data):
             if did is not None:
                 for d_, bc in op.GetUserDataContainer():
                     if d_ == did and bc[c4d.DESC_NAME] in _GG_LIMIT_KEYS:
-                        _gg_update_limits()
+                        _gg_update_limits(bc[c4d.DESC_NAME])
                         break
                 for d_, bc in op.GetUserDataContainer():
                     if d_ == did and bc[c4d.DESC_NAME] in _GG_PLATE_KEYS:
@@ -898,7 +900,8 @@ def set_params(gen, **kv):
             gen[U[k]] = v
         else:
             raise KeyError(k)
-    update_limits(gen)
+    keys = [k.replace("_", " ") for k in kv]
+    update_limits(gen, "Quadtree Levels" if "Quadtree Levels" in keys and "Quadtree Block (polys)" not in keys else None)
 
 
 def _rt():
@@ -910,10 +913,10 @@ def _rt():
     return glyphgrid_runtime
 
 
-def update_limits(gen):
+def update_limits(gen, changed=None):
     """Clamp Grid N / Quadtree Levels sliders to what the current plate + block size can use."""
     try:
-        return _rt().apply_slider_caps(gen)
+        return _rt().apply_slider_caps(gen, changed)
     except Exception as e:
         print("GlyphGrid limits:", e)
 
