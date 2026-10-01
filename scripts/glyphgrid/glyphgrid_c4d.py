@@ -530,6 +530,36 @@ def _gg_topo(geo):
     return tuple(key)
 
 
+def _gg_stamp(root):
+    """GetClone() resets dirty counters to 1, so every rebuilt output looked 'unchanged' to
+    renderers that diff by dirty count (Octane's Live Viewer only caught up when the generator was
+    toggled). Stamp the output objects + their UV / colour tags with a counter that rises on every
+    real change and stays put on idle redraws."""
+    dv = 2 * _GG_STATE.get("dv", 1) + 1     # SetDirty steps by 2: +2 per change keeps every counter rising
+    stack = [root]
+    while stack:
+        o = stack.pop()
+        while o is not None:
+            for fl in (c4d.DIRTYFLAGS_DATA, c4d.DIRTYFLAGS_CACHE):
+                k = 0
+                while o.GetDirty(fl) < dv and k < 100000:
+                    o.SetDirty(fl)
+                    k += 1
+            if o.IsInstanceOf(c4d.Opolygon):
+                t = o.GetFirstTag()
+                while t is not None:
+                    if t.CheckType(c4d.Tuvw) or t.CheckType(c4d.Tvertexcolor):
+                        k = 0
+                        while t.GetDirty(c4d.DIRTYFLAGS_DATA) < dv and k < 100000:
+                            t.SetDirty(c4d.DIRTYFLAGS_DATA)
+                            k += 1
+                    t = t.GetNext()
+            if o.GetDown() is not None:
+                stack.append(o.GetDown())
+            o = o.GetNext()
+    return root
+
+
 def _gg_recolor(res, color):
     """Colour-only change: rewrite the vertex colour tags on the kept result (no re-solve)."""
     keys = _GG_STATE.get("colkeys") or []
@@ -695,7 +725,8 @@ def main():
         if col_sig != _GG_STATE.get("col_sig"):
             _gg_recolor(keep, opts["color"])
             _GG_STATE["col_sig"] = col_sig
-        return keep.GetClone()
+            _GG_STATE["dv"] = _GG_STATE.get("dv", 1) + 1
+        return _gg_stamp(keep.GetClone())
     geo = _GG_STATE.get("geo")
     if not geo:
         return None
@@ -710,7 +741,8 @@ def main():
                 _gg_recolor(res_, opts["color"])
                 _GG_STATE["col_sig"] = col_sig
             _GG_STATE["result"] = res_.GetClone()
-            return res_
+            _GG_STATE["dv"] = _GG_STATE.get("dv", 1) + 1
+            return _gg_stamp(res_)
     _GG_STATE["topo"] = topo
     _GG_STATE["own_sig"] = own_sig
     _GG_STATE["frame"] = frame
@@ -775,6 +807,8 @@ def main():
     if rest_used:
         _gg_move_points(root, geo, gmg, inv, flags["merge"])   # solved at rest, shown deformed
     _GG_STATE["result"] = root.GetClone()
+    _GG_STATE["dv"] = _GG_STATE.get("dv", 1) + 1
+    _gg_stamp(root)
     c4d.gui.StatusSetText("GlyphGrid: %(polys)s polys in %(objects)s object(s), %(islands)s islands, %(cells)s cells "
                           "(%(min)s-%(max)s per cell), solve %(t_solve)ss" % tot + (" numpy" if tot["numpy"] else ""))
     return root

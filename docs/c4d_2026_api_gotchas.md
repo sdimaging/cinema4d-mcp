@@ -2934,3 +2934,12 @@ Cloning the source geometry (`GetClone(COPYFLAGS_NO_HIERARCHY | ...)`) keeps eve
 Even then, a generator reading a simulated child trails it by **one frame**: simulations update the child's deform cache after the generator pass has run. For a lag-free result, write the per-polygon data (UVW, vertex colour) onto the simulated mesh itself.
 
 Vertex colours: `VertexColorTag(polycount)` + `SetPerPointMode(False)` is 4 × float32 RGBA per polygon, writable in one go via `GetLowlevelDataAddressW()`. Redshift reads it with `vertexattributelookup` (attribute = tag name), Octane with the Attribute Texture (1056908, `ATTRIBTEX_TYPE` 1 = colour, `ATTRIBTEX_IN_NAME` = tag name); both read it from a Python generator's cache objects.
+
+
+## 137. GetClone() resets dirty counters: generator output looks "unchanged" to renderers that diff
+
+`obj.GetClone()` gives the copy a fresh dirty count (`GetDirty(DIRTYFLAGS_DATA)` back to 1; tags partly too). A Python generator that returns a clone of its kept result therefore hands out objects whose dirty counts are identical before and after a real change. Octane's Live Viewer only updated when the generator was toggled. Writing tag data through `GetLowlevelDataAddressW()` doesn't touch the tag's dirty count either.
+
+Fix: keep a counter that rises only on real changes, and on every return stamp the output objects and their UVW / vertex colour tags up to it (`while o.GetDirty(f) < target: o.SetDirty(f)`). `SetDirty` steps by 2, so use `target = 2 * counter + 1` to make every counter strictly rise. Idle evaluations return the same values, so nothing re-exports for no reason.
+
+Also: C4D renders and displays only the **last** texture tag (Octane included; with a Standard material last, Octane converts it), so a viewport-only proxy material next to an Octane material isn't possible. Octane materials don't display a vertex attribute or an opacity mask in the C4D viewport.
