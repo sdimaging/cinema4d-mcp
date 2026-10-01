@@ -161,6 +161,8 @@ GlyphGrid only writes UVs, so anything that moves points carries the glyphs:
 
 ## Plates
 
+**Plate cache:** every custom-text, collection, mixed and colour-palette plate is built once, the first time it's used, and cached in `plates/library/_custom`, `plates/library/_mixed` and `plates/collections/*/_built`. The Plate tab's **Clear Plate Cache** button (next to Open Plates Folder) empties those folders and immediately rebuilds only the plates and palettes the GlyphGrids in the open scene use. Built-in library plates and your own collection images are never touched.
+
 The cell order matches the solver: cell 0 is top-left, then left→right, top→bottom.
 
 ```bash
@@ -214,6 +216,10 @@ python3 -m pip install --target ~/Library/Preferences/Maxon/python/python311/lib
 ```
 
 ## Known limits
+
+- Keyframes on GlyphGrid's own parameters can end up on a different parameter after `upgrade_generator()` rebuilds the user data. Upgrade before animating, or re-key afterwards.
+- A linked Source Object (instead of a child) is read from its cache with no dependency link to GlyphGrid. If the source is still building on another thread, GlyphGrid catches up on the next pass. Children are the safer choice.
+- Linking GlyphGrid itself (or one of its parents) as the Source Object is ignored.
 
 - Plate auto-swap runs from the generator's `message()` on real Attribute Manager edits. Scripts should call `glyphgrid_runtime.plate_path()` + `swap_plate()` directly: messaging the generator from inside another Python call deadlocks C4D (gotcha #127).
 

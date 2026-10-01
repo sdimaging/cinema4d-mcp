@@ -211,8 +211,11 @@ HELP = {
         "Apply Plate Now: force the swap (e.g. after editing text).",
         "Plates Folder (top): the GlyphGrid plates root - holds library/",
         "  (built-in styles) and collections/ (your folders). '...' browses,",
-        "  Open Plates Folder shows it in Finder. Custom plates are cached",
-        "  plates are written).",
+        "  Open Plates Folder shows it in Finder.",
+        "Every custom / collection / mixed plate and colour palette is",
+        "  built once and cached (library/_custom, _mixed, collections/",
+        "  */_built). Clear Plate Cache empties those folders and rebuilds",
+        "  only what this generator uses now. Your own images are kept.",
         "Only textures that point at plate files (or the node",
         "  named gg_plate) are swapped - other maps are untouched.",
     ],
@@ -280,9 +283,10 @@ UD_SPEC = [
 
     ("Plate", "tab", None, {}),
     ("Plate", "help", None, {}),
-    ("row_folder", "row", None, dict(columns=2)),
+    ("row_folder", "row", None, dict(columns=3)),
     ("Plates Folder", "folder", "", {}),
     ("Open Plates Folder", "button", None, {}),
+    ("Clear Plate Cache", "button", None, {}),
     ("row_folder", "endrow", None, {}),
     ("Plate Style", "cycle", 0, dict(items=["1 ASCII ramp", "2 Bayer dither", "3 Halftone dots", "4 Halftone squares",
                                             "5 Noise", "6 Hex digits", "7 Binary 0/1", "8 Custom (type below)",
@@ -471,14 +475,22 @@ def _gg_params():
             return op[U[k]] if k in U else d
         except Exception:
             return d
-    w = [float(x) for x in str(g("Weights", "") or "").replace(";", ",").replace(" ", ",").split(",") if x.strip()]
+    def _nums(txt):                       # "8,1 1;1" -> [8, 1, 1, 1]; junk entries are skipped
+        out = []
+        for x in str(txt or "").replace(";", ",").replace(" ", ",").split(","):
+            try:
+                if x.strip():
+                    out.append(float(x))
+            except ValueError:
+                pass
+        return out
+    w = _nums(g("Weights", ""))
     params = dict(
         grid=int(g("Grid (N x N)", 4)), seed=int(g("Seed", 12345)), cell_shift=int(g("Glyph Offset", g("Cell Shift", 0))),
         island=int(g("Island Mode", 1)), cluster_size=float(g("Cluster Size", 50.0)),
         qt_cells=1 << int(g("Quadtree Block (polys)", 3)), qt_levels=int(g("Quadtree Levels", 4)),
         qt_split=float(g("Subdivide Chance", 0.5)), grid_mode=int(g("Grid Mode", 0)),
-        level_weights=[float(x) for x in str(g("Level Weights", "") or "").replace(";", ",").replace(" ", ",").split(",")
-                       if x.strip()] or None,
+        level_weights=_nums(g("Level Weights", "")) or None,
         fit=int(g("Fit", 0)), flush_aspect=float(g("Flush Aspect Limit", 1.35)),
         gutter=float(g("Gutter", 0.02)), glyph_scale=float(g("Glyph Scale", 1.0)),
         orient=int(g("Orient", 0)), up=UP_AXES[int(g("Up Axis", 0))],
@@ -523,36 +535,6 @@ def _gg_topo(geo):
                 smp.append((p.a, p.b, p.c, p.d))
         key.append((o.GetPointCount(), n, tuple(smp)))
     return tuple(key)
-
-
-def _gg_stamp(root):
-    """GetClone() resets dirty counters to 1, so every rebuilt output looked 'unchanged' to
-    renderers that diff by dirty count (Octane's Live Viewer only caught up when the generator was
-    toggled). Stamp the output objects + their UV / colour tags with a counter that rises on every
-    real change and stays put on idle redraws."""
-    dv = 2 * _GG_STATE.get("dv", 1) + 1     # SetDirty steps by 2: +2 per change keeps every counter rising
-    stack = [root]
-    while stack:
-        o = stack.pop()
-        while o is not None:
-            for fl in (c4d.DIRTYFLAGS_DATA, c4d.DIRTYFLAGS_CACHE):
-                k = 0
-                while o.GetDirty(fl) < dv and k < 100000:
-                    o.SetDirty(fl)
-                    k += 1
-            if o.IsInstanceOf(c4d.Opolygon):
-                t = o.GetFirstTag()
-                while t is not None:
-                    if t.CheckType(c4d.Tuvw) or t.CheckType(c4d.Tvertexcolor):
-                        k = 0
-                        while t.GetDirty(c4d.DIRTYFLAGS_DATA) < dv and k < 100000:
-                            t.SetDirty(c4d.DIRTYFLAGS_DATA)
-                            k += 1
-                    t = t.GetNext()
-            if o.GetDown() is not None:
-                stack.append(o.GetDown())
-            o = o.GetNext()
-    return root
 
 
 def _gg_recolor(res, color):
@@ -622,8 +604,7 @@ def _gg_eval_private(src_obj, inv, CF):
         tmp.InsertObject(cp)
         tmp.ExecutePasses(None, False, False, True, c4d.BUILDFLAGS_EXTERNALRENDERER)
         found = [(o.GetClone(CF), inv * mg) for o, mg in collect_polys(cp)]
-        c4d.documents.KillDocument(tmp)
-        return found
+        return found      # (no KillDocument on a cache thread; the free document is garbage-collected)
     except Exception as e:
         print("GlyphGrid: private build failed:", e)
         return []
@@ -645,8 +626,22 @@ def main():
             ch = ch.GetNext()
     else:
         src_obj = link
+        p_ = op
+        while p_ is not None:            # linking GlyphGrid itself or one of its parents = feedback loop
+            if p_ == link:               # (==, not "is": every c4d wrapper is a new Python object)
+                return None
+            p_ = p_.GetUp()
     if src_obj is None:
         return None
+    # a different source object (or child <-> link switch): forget everything from the old one
+    try:
+        src_key = (child_mode, str(src_obj.GetGUID()))
+    except Exception:
+        src_key = (child_mode, id(src_obj))
+    if src_key != _GG_STATE.get("src_key"):
+        for k_ in ("geo", "src_sig", "result", "own_sig", "topo", "fallback_sig"):
+            _GG_STATE.pop(k_, None)
+        _GG_STATE["src_key"] = src_key
     frame = doc.GetTime().GetFrame(doc.GetFps())
     tgt = opts.get("target")
     fl = opts.get("fields")
@@ -686,9 +681,12 @@ def main():
                 break
             if _GG_STATE.get("geo") and not (isinstance(res, dict) and res.get("dirty")):
                 break
-        if not _GG_STATE.get("geo"):
+        fsig = root_signature(src_obj)
+        if not _GG_STATE.get("geo") and _GG_STATE.get("fallback_sig") != fsig:
             # nothing stored yet and the child is "clean" (code was just refreshed, module reloaded):
-            # evaluate a copy of the child in a private document once.
+            # evaluate a copy of the child in a private document ONCE per child state (an empty
+            # child - spline, null - must not trigger a rebuild on every evaluation)
+            _GG_STATE["fallback_sig"] = fsig
             try:
                 tmp = c4d.documents.BaseDocument()
                 cp = src_obj.GetClone(c4d.COPYFLAGS_NONE)
@@ -699,22 +697,25 @@ def main():
                 if found:
                     _GG_STATE["geo"] = found
                     geo_changed = True
-                c4d.documents.KillDocument(tmp)
+                # (no KillDocument: this runs on a cache thread; the free document is garbage-collected)
             except Exception as e:
                 print("GlyphGrid fallback build failed:", e)
     else:
         ssig = root_signature(src_obj)
-        if ssig != _GG_STATE.get("src_sig") or not _GG_STATE.get("geo"):
+        if ssig != _GG_STATE.get("src_sig") or "geo" not in _GG_STATE:
             found = [(o.GetClone(CF), inv * mg) for o, mg in collect_polys(src_obj)]
             if not found:
                 # hidden / render-invisible sources (or a fresh render document) have no caches:
                 # evaluate a copy of the linked object (with its children) in a private document
                 found = _gg_eval_private(src_obj, inv, CF)
-            if found:
-                _GG_STATE["geo"] = found
-                _GG_STATE["src_sig"] = ssig
-                geo_changed = True
+            _GG_STATE["src_sig"] = ssig      # remembered even when empty: no rebuild loop
+            _GG_STATE["geo"] = found
+            if not found:
+                _GG_STATE.pop("result", None)
+            geo_changed = True
 
+    if not _GG_STATE.get("geo"):
+        return None                       # source has no polygons (spline, null, empty)
     keep = _GG_STATE.get("result")
     # NOTE: never return op.GetCache() from a Python Generator (C4D frees it right after: "object is
     # not alive"). We return a clone of our own copy; polygon data is copy-on-write, ~0 ms.
@@ -722,8 +723,7 @@ def main():
         if col_sig != _GG_STATE.get("col_sig"):
             _gg_recolor(keep, opts["color"])
             _GG_STATE["col_sig"] = col_sig
-            _GG_STATE["dv"] = _GG_STATE.get("dv", 1) + 1
-        return _gg_stamp(keep.GetClone())
+        return keep.GetClone()
     geo = _GG_STATE.get("geo")
     if not geo:
         return None
@@ -738,8 +738,7 @@ def main():
                 _gg_recolor(res_, opts["color"])
                 _GG_STATE["col_sig"] = col_sig
             _GG_STATE["result"] = res_.GetClone()
-            _GG_STATE["dv"] = _GG_STATE.get("dv", 1) + 1
-            return _gg_stamp(res_)
+            return res_
     _GG_STATE["topo"] = topo
     _GG_STATE["own_sig"] = own_sig
     _GG_STATE["frame"] = frame
@@ -804,8 +803,6 @@ def main():
     if rest_used:
         _gg_move_points(root, geo, gmg, inv, flags["merge"])   # solved at rest, shown deformed
     _GG_STATE["result"] = root.GetClone()
-    _GG_STATE["dv"] = _GG_STATE.get("dv", 1) + 1
-    _gg_stamp(root)
     c4d.gui.StatusSetText("GlyphGrid: %(polys)s polys in %(objects)s object(s), %(islands)s islands, %(cells)s cells "
                           "(%(min)s-%(max)s per cell), solve %(t_solve)ss" % tot + (" numpy" if tot["numpy"] else ""))
     return root
@@ -825,7 +822,7 @@ def _gg_apply_plate(force=False):
     folder, _cd = plate_dirs(g("Plates Folder", "") or "")
     if not folder:
         return
-    if int(g("Plate Style", 0)) == 8 and not cycle_text(op, "Collection").strip("() none"):
+    if int(g("Plate Style", 0)) == 8 and cycle_text(op, "Collection").strip() in ("", "(none)"):
         return   # no collection picked yet
     try:
         path = plate_path(folder, g("Plate Style", 0), int(g("Grid (N x N)", 4)), g("Custom Glyphs", ""),
@@ -843,6 +840,9 @@ def _gg_apply_plate(force=False):
 
 
 _GG_LIMIT_KEYS = ("Quadtree Block (polys)", "Quadtree Levels")
+_GG_AM_MSGS = tuple(getattr(c4d, n_, -999) for n_ in (
+    "MSG_DESCRIPTION_POSTSETPARAMETER", "MSG_DESCRIPTION_USERINTERACTION_END", "MSG_DESCRIPTION_CHECKUPDATE",
+    "MSG_DESCRIPTION_VALIDATE", "MSG_DESCRIPTION_COMMAND"))
 _GG_COLOR_KEYS = ("Glyph Color", "Emission Strength", "Color Mode", "Random Amount", "Hue Spread",
                   "Random Saturation", "Brightness Jitter", "Color Seed")
 
@@ -912,10 +912,16 @@ def message(id, data):
     # step (plus the generator rebuilding meanwhile) crashed C4D. So plate work is deferred while
     # the user is dragging and done ONCE when the interaction ends.
     try:
-        # safety net if no INTERACTION_END arrives: the next main-thread message after the mouse
-        # is released applies the pending plate
+        # Material / description edits only for the generator the user is editing: on the main
+        # thread, in the active document. message() is also called from render threads and for
+        # render-document clones (e.g. keyframed colours) - touching materials there crashes.
+        d_ = op.GetDocument()
+        if not c4d.threading.GeIsMainThread() or d_ is None or d_ != c4d.documents.GetActiveDocument():
+            return True
+        # safety net if no INTERACTION_END arrives: only on Attribute Manager messages (never on
+        # draw / pass / icon messages), once the mouse is up
         if (_GG_STATE.get("plate_pending") or _GG_STATE.get("mat_pending")) and not _GG_STATE.get("dragging") \
-                and c4d.threading.GeIsMainThread() and not _gg_mouse_down():
+                and id in _GG_AM_MSGS and not _gg_mouse_down():
             if _GG_STATE.pop("plate_pending", False):
                 _gg_apply_plate()
             if _GG_STATE.pop("mat_pending", False):
@@ -950,6 +956,11 @@ def message(id, data):
                 _gg_write_to_source()
             elif hit == "Open Plates Folder" and root:
                 open_in_finder(root)
+            elif hit == "Clear Plate Cache" and root:
+                n_ = clear_plate_cache(root)
+                _GG_STATE.pop("plate_applied", None)
+                refresh_generators(op.GetDocument())  # rebuild only the plates + palettes in use
+                c4d.gui.StatusSetText("GlyphGrid: cleared %d cached plate file(s)" % n_)
             elif hit == "Open Collection" and cdir:
                 cname = cycle_text(op, "Collection").strip()
                 sub = cdir + "/" + cname if cname and cname != "(none)" else cdir
