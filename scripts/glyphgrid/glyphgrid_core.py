@@ -260,7 +260,7 @@ def build_islands(points, polys, mode=ISLAND_POLY, ngon_map=None, cluster_size=0
                 size = blk
                 for lvl in range(L):
                     k = (lvl, comp, ci // size, cj // size)
-                    if _h01(seed, *k) >= qt_split and (size == 1 or _valid(comp, ci // size, cj // size, size)):
+                    if size > 1 and _h01(seed, *k) >= qt_split and _valid(comp, ci // size, cj // size, size):
                         key = k
                         blocks[k] = ((ci // size) * size, (cj // size) * size, size)
                         break
@@ -396,6 +396,8 @@ def assign_cells(n_isl, ncell, prm, rng, isl_value=None, isl_rand=None):
     if mode == ASSIGN_WEIGHTED and prm.get("weights"):
         # relative amounts in plate order; cells without an entry count as 1
         w = list(prm["weights"])[:ncell] + [1.0] * max(0, ncell - len(prm["weights"]))
+        if sum(max(0.0, x) for x in w) <= 0.0:
+            w = [1.0] * ncell                     # all zero -> even split (was an IndexError)
         tot = sum(max(0.0, x) for x in w) or 1.0
         raw = [max(0.0, x) / tot * n_isl for x in w]
         cnt = [int(x) for x in raw]
@@ -659,6 +661,8 @@ def compute(points, polys, params=None, ngon_map=None, poly_values=None, progres
         # 1) exact proportional split of the islands over the levels, 2) cells inside each level
         w = list(prm.get("level_weights") or [])[:4]
         w = [max(0.0, float(x)) for x in w] + [1.0] * (4 - len(w))
+        if sum(w) <= 0.0:
+            w = [1.0] * 4
         tot = sum(w) or 1.0
         raw = [x / tot * n_isl for x in w]
         cnt = [int(x) for x in raw]
@@ -724,7 +728,9 @@ def compute(points, polys, params=None, ngon_map=None, poly_values=None, progres
     invN = 1.0 / N
 
     # group polys per island only when islands span several polygons
-    multi = n_isl != npoly
+    # Edge Flow needs each polygon's own first edge: the fast single-polygon path has no edge frame,
+    # so route every island through solve_group
+    multi = n_isl != npoly or orient == ORIENT_EDGE
     members = None
     if multi:
         members = [[] for _ in range(n_isl)]
@@ -899,7 +905,9 @@ def compute(points, polys, params=None, ngon_map=None, poly_values=None, progres
                 uv[o + k * 2], uv[o + k * 2 + 1] = uu, vv
 
     # single-polygon islands take the fast path (numpy when available)
-    if multi:
+    if multi and orient == ORIENT_EDGE:
+        singles, groups = [], list(range(n_isl))
+    elif multi:
         singles = [m[0] for m in members if len(m) == 1]
         groups = [isl for isl in range(n_isl) if len(members[isl]) > 1]
     else:

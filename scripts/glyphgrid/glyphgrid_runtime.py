@@ -13,10 +13,11 @@ import time
 
 import c4d
 
-try:  # module mode
-    from glyphgrid_core import compute, _np, DEFAULTS  # noqa: F401
-except Exception:  # embedded mode: core source was pasted above this file
-    pass
+if "compute" not in globals():   # module mode; embedded code already has the core pasted above -
+    try:                         # never let a repo copy on sys.path replace the embedded version
+        from glyphgrid_core import compute, _np, DEFAULTS  # noqa: F401
+    except Exception:
+        pass
 
 SRC_RANDOM, SRC_VMAP, SRC_FIELD, SRC_HEIGHT, SRC_LIGHT, SRC_CAMERA, SRC_CURV, SRC_INDEX, SRC_DIST = range(9)
 UP_AXES = [(0, 1, 0), (0, 0, 1), (1, 0, 0), (0, -1, 0)]
@@ -410,10 +411,15 @@ def write_color_tag(po, cols, name=COLOR_TAG_NAME):
     if tag is None or tag.GetDataCount() != n or tag.IsPerPointColor():
         if tag:
             tag.Remove()
-        tag = c4d.VertexColorTag(n)
+        # created in per-point mode with the POINT count (the default mode), then switched: making it
+        # with the polygon count and converting could read past the end on meshes with more points
+        tag = c4d.VertexColorTag(po.GetPointCount())
         tag.SetName(name)
         po.InsertTag(tag)
         tag.SetPerPointMode(False)
+        if tag.GetDataCount() != n or tag.IsPerPointColor():
+            tag.Remove()
+            return None
     if _np is not None:
         a = _np.ones((n, 4, 4), dtype=_np.float32)
         a[:, :, :3] = _np.asarray(cols, dtype=_np.float32)[:, None, :]
@@ -875,6 +881,57 @@ def collection_names(cdir):
         return []
 
 
+def clear_plate_cache(root):
+    """Delete GlyphGrid's generated files: library/_custom (custom plates, palettes),
+    library/_mixed and collections/*/_built. Built-in library plates and the user's own collection
+    images are never touched. Returns the number of files removed."""
+    import os
+    lib, cdir = plate_dirs(root)
+    dirs = [os.path.join(lib, "_custom"), os.path.join(lib, "_mixed")]
+    try:
+        for c in os.listdir(cdir):
+            dirs.append(os.path.join(cdir, c, "_built"))
+    except Exception:
+        pass
+    n = 0
+    for d in dirs:
+        if not os.path.isdir(d):
+            continue
+        for f in os.listdir(d):
+            fp = os.path.join(d, f)
+            if os.path.isfile(fp) and f.lower().endswith((".png", ".jpg", ".jpeg", ".tif", ".tiff", ".exr")):
+                try:
+                    os.remove(fp)
+                    n += 1
+                except Exception as e:
+                    print("GlyphGrid cache:", e)
+    return n
+
+
+def refresh_generators(doc):
+    """Re-point plates + palettes of every GlyphGrid in doc (after Clear Plate Cache)."""
+    n = 0
+    stack = [doc.GetFirstObject()] if doc else []
+    while stack:
+        o = stack.pop()
+        while o is not None:
+            if o.GetType() == c4d.Opython:
+                try:
+                    names = {bc[c4d.DESC_NAME] for _d, bc in o.GetUserDataContainer()}
+                except Exception:
+                    names = set()
+                if "Plates Folder" in names and "Clear Plate Cache" in names:
+                    p_ = current_plate(o)
+                    if p_:
+                        swap_plate(o, p_, plate_dirs(_ud(o)("Plates Folder", "") or "")[0])
+                    sync_material_color(o)
+                    n += 1
+            if o.GetDown() is not None:
+                stack.append(o.GetDown())
+            o = o.GetNext()
+    return n
+
+
 def collections_dir(plate_folder):
     import os
     return os.path.join(os.path.dirname(os.path.abspath(plate_folder)), "collections")
@@ -1050,11 +1107,9 @@ def write_result_to_source(op, res):
             src.InsertTag(t.GetClone())
         t = t.GetNext()
     mg = src.GetMg()
-    d.AddUndo(c4d.UNDOTYPE_CHANGE, src)
-    src.Remove()
+    src.Remove()                       # (the CHANGE undo above already covers the move)
     d.InsertObject(src, pred=op)
     src.SetMg(mg)
-    d.AddUndo(c4d.UNDOTYPE_NEW, src)
     d.AddUndo(c4d.UNDOTYPE_CHANGE_SMALL, op)
     op[c4d.ID_BASEOBJECT_GENERATOR_FLAG] = False
     d.EndUndo()
@@ -1423,19 +1478,34 @@ def build_glyph_material(doc, op, renderer="redshift"):
             c4d.EventAdd()
             c4d.gui.StatusSetText("GlyphGrid: switched to %s" % name)
             return m_
+    if renderer == "octane" and c4d.plugins.FindPlugin(1029501, c4d.PLUGINTYPE_MATERIAL) is None:
+        c4d.gui.MessageDialog("GlyphGrid: Octane isn't installed - use Standard or Redshift.")
+        return None
+    if renderer == "redshift" and c4d.plugins.FindPlugin(1036219, c4d.PLUGINTYPE_VIDEOPOST) is None:
+        c4d.gui.MessageDialog("GlyphGrid: Redshift isn't available - use Standard or Octane.")
+        return None
+    mat = None
     doc.StartUndo()
-    if renderer == "standard":
-        mat = build_plate_material_standard(doc, op, plate, color=col, emission=em, assign=False)
-    elif renderer == "octane":
-        mat = build_plate_material_octane(doc, op, plate, name="GlyphGrid Octane", mode="hologram", color=col,
-                                          emission=em, base=0.05, glyph_color=True, assign=False)
-    else:
-        mat = build_plate_material(doc, op, plate, name="GlyphGrid Redshift", mode="hologram", color=col,
-                                   emission=em, glyph_color=True, assign=False)
-    doc.AddUndo(c4d.UNDOTYPE_NEW, mat)
-    doc.AddUndo(c4d.UNDOTYPE_CHANGE, op)
-    assign_material(op, mat)
-    doc.EndUndo()
+    try:
+        if renderer == "standard":
+            mat = build_plate_material_standard(doc, op, plate, color=col, emission=em, assign=False)
+        elif renderer == "octane":
+            mat = build_plate_material_octane(doc, op, plate, name="GlyphGrid Octane", mode="hologram", color=col,
+                                              emission=em, base=0.05, glyph_color=True, assign=False)
+        else:
+            mat = build_plate_material(doc, op, plate, name="GlyphGrid Redshift", mode="hologram", color=col,
+                                       emission=em, glyph_color=True, assign=False)
+        if mat is not None:
+            doc.AddUndo(c4d.UNDOTYPE_NEW, mat)
+            doc.AddUndo(c4d.UNDOTYPE_CHANGE, op)
+            assign_material(op, mat)
+    except Exception as e:
+        print("GlyphGrid material:", e)
+        c4d.gui.MessageDialog("GlyphGrid: couldn't build the %s material:\n%s" % (renderer, e))
+    finally:
+        doc.EndUndo()
+    if mat is None:
+        return None
     sync_material_color(op, force=True)
     c4d.EventAdd()
     c4d.gui.StatusSetText("GlyphGrid: %s assigned - colour follows the Color tab" % mat.GetName())
