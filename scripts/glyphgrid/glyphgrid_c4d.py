@@ -31,6 +31,11 @@ HELP = {
         "  of putting it under GlyphGrid (leave empty if it's a child).",
         "Cells are numbered top-left first, left to right,",
         "  row by row:  4-up = 1 2 / 3 4   9-up = 1 2 3 / 4 5 6 / 7 8 9",
+        "Grid Mode Mixed: every polygon draws from the 1-, 4-, 9- or",
+        "  16-up plate (Grid N is ignored). Level Weights = share per",
+        "  level, e.g. 1,0,2,4 = no 4-up, 16-up 4x as common as 1-up.",
+        "  The plate becomes one composite: TL 1-up, TR 4-up,",
+        "  BL 9-up, BR 16-up (built automatically).",
     ],
     "Islands": [
         "ISLANDS & FIT: how each polygon sits inside its cell.",
@@ -38,6 +43,10 @@ HELP = {
         "  Ngon = ngons stay one glyph (default).",
         "  Cluster = one big glyph across neighbouring polygons",
         "  (size = Cluster Size, in scene units).",
+        "  Quadtree = mixed glyph SIZES: blocks of Quadtree Size",
+        "  randomly split into halves, quarters ... down to single",
+        "  polygons (Levels = how many splits, Subdivide Chance =",
+        "  how often a block splits: 0 = all big, 1 = all small).",
         "Fit Auto: square-ish quads fill the cell edge to edge;",
         "  triangles, ngons and long thin polygons are scaled",
         "  uniformly and centred (no stretching).",
@@ -112,7 +121,12 @@ HELP = {
         "Auto Swap Plate ON: changing Grid or Style swaps the",
         "  texture in this object's material automatically.",
         "Styles: 1 ASCII ramp  2 Bayer dither  3 Halftone dots",
-        "  4 Halftone squares  5 Noise  6 Hex  7 Binary  8 Custom.",
+        "  4 Halftone squares  5 Noise  6 Hex  7 Binary  8 Custom",
+        "  9 Collection = your own folder of images.",
+        "Collection: folder name inside plates/collections (e.g.",
+        "  shapes) or a full path. Images sorted by filename = priority:",
+        "  1-up uses #1, 4-up #1-4, 9-up #1-9, 16-up #1-16; fewer images",
+        "  repeat. Hand-made name_4up.png files are used as they are.",
         "Custom: type your own characters in Custom Glyphs,",
         "  e.g. SDIMAGING or 0123456789 or .:-=+*#%@",
         "  Sort by Ink orders them sparse -> dense (for Value).",
@@ -132,12 +146,18 @@ UD_SPEC = [
     ("Grid (N x N)", "int", 4, dict(min=1, max=8)),
     ("Seed", "int", 12345, dict(min=0, max=999999)),
     ("Cell Shift", "int", 0, dict(min=-1000, max=1000)),
+    ("Grid Mode", "cycle", 0, dict(items=["Single (Grid N x N)", "Mixed 1/4/9/16-up (composite plate)"])),
+    ("Level Weights", "string", "1,1,1,1", {}),
     ("Source Object", "link", None, {}),
 
     ("Islands", "tab", None, {}),
     ("Islands", "help", None, {}),
-    ("Island Mode", "cycle", 1, dict(items=["Polygon", "Ngon (keep ngons whole)", "Cluster (glyph spans polys)"])),
+    ("Island Mode", "cycle", 1, dict(items=["Polygon", "Ngon (keep ngons whole)", "Cluster (glyph spans polys)",
+                                            "Quadtree (mixed glyph sizes)"])),
     ("Cluster Size", "dist", 50.0, dict(min=0.0)),
+    ("Quadtree Size", "dist", 100.0, dict(min=0.0)),
+    ("Quadtree Levels", "int", 3, dict(min=1, max=6)),
+    ("Subdivide Chance", "pct", 0.5, dict(min=0.0, max=1.0)),
     ("Fit", "cycle", 0, dict(items=["Auto: flush squares, centre the rest", "Uniform + Centred (all)", "Flush (all quads)"])),
     ("Flush Aspect Limit", "float", 1.35, dict(min=1.0, max=4.0, step=0.05)),
     ("Gutter", "pct", 0.02, dict(min=0.0, max=0.45)),
@@ -180,7 +200,9 @@ UD_SPEC = [
     ("Plate", "tab", None, {}),
     ("Plate", "help", None, {}),
     ("Plate Style", "cycle", 0, dict(items=["1 ASCII ramp", "2 Bayer dither", "3 Halftone dots", "4 Halftone squares",
-                                            "5 Noise", "6 Hex digits", "7 Binary 0/1", "8 Custom (type below)"])),
+                                            "5 Noise", "6 Hex digits", "7 Binary 0/1", "8 Custom (type below)",
+                                            "9 Collection (folder below)"])),
+    ("Collection", "string", "shapes", {}),
     ("Custom Glyphs", "string", "", {}),
     ("Font", "string", "Menlo-Bold", {}),
     ("Sort by Ink", "bool", True, {}),
@@ -307,6 +329,10 @@ def _gg_params():
     params = dict(
         grid=int(g("Grid (N x N)", 4)), seed=int(g("Seed", 12345)), cell_shift=int(g("Cell Shift", 0)),
         island=int(g("Island Mode", 1)), cluster_size=float(g("Cluster Size", 50.0)),
+        qt_size=float(g("Quadtree Size", 100.0)), qt_levels=int(g("Quadtree Levels", 3)),
+        qt_split=float(g("Subdivide Chance", 0.5)), grid_mode=int(g("Grid Mode", 0)),
+        level_weights=[float(x) for x in str(g("Level Weights", "") or "").replace(";", ",").replace(" ", ",").split(",")
+                       if x.strip()] or None,
         fit=int(g("Fit", 0)), flush_aspect=float(g("Flush Aspect Limit", 1.35)),
         gutter=float(g("Gutter", 0.02)), glyph_scale=float(g("Glyph Scale", 1.0)),
         orient=int(g("Orient", 0)), up=UP_AXES[int(g("Up Axis", 0))],
@@ -455,7 +481,8 @@ def main():
 
 
 # ---------------------------------------------------------------- plate swap ---
-_GG_PLATE_KEYS = ("Grid (N x N)", "Plate Style", "Custom Glyphs", "Font", "Sort by Ink", "Plate Folder")
+_GG_PLATE_KEYS = ("Grid (N x N)", "Grid Mode", "Plate Style", "Collection", "Custom Glyphs", "Font", "Sort by Ink",
+                  "Plate Folder")
 
 
 def _gg_apply_plate(force=False):
@@ -468,8 +495,14 @@ def _gg_apply_plate(force=False):
     if not folder:
         print("GlyphGrid: set Plate Folder first")
         return
-    path = plate_path(folder, g("Plate Style", 0), int(g("Grid (N x N)", 4)), g("Custom Glyphs", ""),
-                      g("Font", "Menlo-Bold") or "Menlo-Bold", bool(g("Sort by Ink", True)))
+    try:
+        path = plate_path(folder, g("Plate Style", 0), int(g("Grid (N x N)", 4)), g("Custom Glyphs", ""),
+                          g("Font", "Menlo-Bold") or "Menlo-Bold", bool(g("Sort by Ink", True)),
+                          collection=g("Collection", "") or "", mixed=int(g("Grid Mode", 0)) == 1)
+    except Exception as e:
+        c4d.gui.StatusSetText("GlyphGrid plate: %s" % e)
+        print("GlyphGrid plate:", e)
+        return
     n = swap_plate(op, path, folder)
     c4d.gui.StatusSetText("GlyphGrid plate -> %s (%d texture%s)" % (path.split("/")[-1], n, "" if n == 1 else "s"))
 

@@ -286,7 +286,7 @@ def apply_to_object(po, mg, params, src=SRC_RANDOM, opts=None, caller=None, doc=
     if write_id:
         write_id_tag(po, res["value"], res["rand"])
     if cell_sel:
-        write_cell_selections(po, res["cell"], res["grid"] ** 2)
+        write_cell_selections(po, res["cell"], len(res["counts"]))
     t4 = time.time()
     c = res["counts"]
     return dict(polys=len(F), islands=res["islands"], cells=len(c), min=min(c), max=max(c),
@@ -421,34 +421,76 @@ def fields_signature(fl, doc):
 
 
 # ------------------------------------------------------------------ plates ---
-PLATE_STYLES = ["ascii", "bayer", "dots", "squares", "noise", "hex", "binary", "custom"]
+PLATE_STYLES = ["ascii", "bayer", "dots", "squares", "noise", "hex", "binary", "custom", "collection"]
 
 
-def plate_path(folder, style_index, grid, custom_text="", font="Menlo-Bold", sort_ink=True, size=1024):
-    """Library file for (style, grid). 'custom' is rendered on demand with GeClipMap (no PIL in c4dpy)."""
+def _plates_mod(folder=None):
+    """glyphgrid_plates lives next to this file; inside the embedded generator there is no
+    __file__, so it is found from the Plate Folder (<repo>/scripts/glyphgrid/plates/library)."""
     import os
+    import sys
+    cands = []
+    if "__file__" in globals():
+        cands.append(os.path.dirname(os.path.abspath(__file__)))
+    if folder:
+        cands.append(os.path.dirname(os.path.dirname(os.path.abspath(folder))))
+    for here in cands:
+        if os.path.exists(os.path.join(here, "glyphgrid_plates.py")) and here not in sys.path:
+            sys.path.insert(0, here)
+    import glyphgrid_plates
+    return glyphgrid_plates
+
+
+def plate_path(folder, style_index, grid, custom_text="", font="Menlo-Bold", sort_ink=True, size=1024,
+               collection="", mixed=False):
+    """Image for (style, grid). Built-in styles come from the library folder (<style>_<cells>up.png);
+    'custom' is rendered from typed characters; 'collection' reads <plates>/collections/<name>/.
+    mixed=True returns the composite 1/4/9/16-up atlas used by Grid Mode = Mixed."""
+    import os
+    import hashlib
     style = PLATE_STYLES[max(0, min(len(PLATE_STYLES) - 1, int(style_index)))]
+    if mixed:
+        parts = [plate_path(folder, style_index, g, custom_text, font, sort_ink, size, collection) for g in (1, 2, 3, 4)]
+        sig = hashlib.md5("|".join("%s%d" % (p_, int(os.path.getmtime(p_)) if os.path.exists(p_) else 0)
+                                    for p_ in parts).encode()).hexdigest()[:8]
+        out = os.path.join(folder, "_mixed", "mixed_%s_%s.png" % (style, sig))
+        if not os.path.exists(out):
+            _plates_mod(folder).mixed_plate(parts, out, size * 2)
+        return out
     cells = grid * grid
+    if style == "collection":
+        cdir = collection if os.path.isabs(collection or "") else \
+            os.path.join(os.path.dirname(os.path.abspath(folder)), "collections", collection or "")
+        return _plates_mod(folder).collection_plate(cdir, cells, size)
     if style != "custom":
         return os.path.join(folder, "%s_%dup.png" % (style, cells))
-    import hashlib
     key = hashlib.md5(("%s|%s|%d|%d" % (custom_text, font, sort_ink, cells)).encode("utf8")).hexdigest()[:8]
-    path = os.path.join(folder, "custom_%dup_%s.png" % (cells, key))   # unique name: renderers cache by path
+    path = os.path.join(folder, "_custom", "custom_%dup_%s.png" % (cells, key))   # unique name: renderers cache by path
     if not os.path.exists(path):
-        render_custom_plate(custom_text or "ABC", grid, path, font, sort_ink, size)
+        try:   # crisp FreeType path when Pillow is importable in C4D's Python (see README)
+            _plates_mod(folder).make_custom_plate(custom_text or "ABC", grid, path, font, sort_ink, size)
+        except Exception as e:
+            print("GlyphGrid: Pillow plate failed (%s), using GeClipMap fallback" % e)
+            render_custom_plate(custom_text or "ABC", grid, path, font, sort_ink, size)
     return path
 
 
 def render_custom_plate(text, grid, path, font="Menlo-Bold", sort_ink=True, size=1024, fill=0.86):
-    """Draw your own characters into an N x N plate with c4d.bitmaps.GeClipMap.
-    sort_ink orders them sparse -> dense so they work with the Value modes."""
-    from c4d.bitmaps import GeClipMap
+    """Draw your own characters into an N x N plate inside Cinema 4D (no PIL).
+
+    Fallback when Pillow is not available (softer: upscaled).
+    GOTCHA: GeClipMap.TextAt clips every pixel row beyond ~126 px below the text origin (font
+    size above ~130 renders cut in half). So each glyph is drawn at size 120 into a scratch map,
+    its ink bbox measured, and the crop is ScaleIt-upscaled and blitted into its atlas cell
+    (BaseBitmap.ScaleBicubic only downscales). One scale for all glyphs (cap height of
+    "M"), so '.' stays small and 'B' stays big. sort_ink orders cells sparse -> dense."""
+    from c4d.bitmaps import GeClipMap, BaseBitmap
     chars = [ch for ch in text if not ch.isspace()] or ["?"]
     fd = GeClipMap.GetFontDescription(font, c4d.GE_FONT_NAME_POSTSCRIPT) or \
         GeClipMap.GetDefaultFont(c4d.GE_FONT_DEFAULT_MONOSPACED)
-    P, FS = 192, 120.0
+    P, FS, OX, OY = 200, 120.0, 40, 10    # glyph rows past ~origin+126 px are clipped: stay below
 
-    def measure(ch):
+    def draw(ch):
         cm = GeClipMap()
         cm.Init(P, P, 32)
         cm.BeginDraw()
@@ -456,57 +498,71 @@ def render_custom_plate(text, grid, path, font="Menlo-Bold", sort_ink=True, size
         cm.FillRect(0, 0, P - 1, P - 1)
         cm.SetFont(fd, FS)
         cm.SetColor(255, 255, 255, 255)
-        cm.TextAt(P // 4, P // 8, ch)
+        cm.TextAt(OX, OY, ch)
         x0 = y0 = 10 ** 9
         x1 = y1 = -1
         ink = 0
-        for y in range(0, P, 2):
-            for x in range(0, P, 2):
-                if cm.GetPixelRGBA(x, y)[0] > 127:
-                    ink += 1
-                    x0, y0, x1, y1 = min(x0, x), min(y0, y), max(x1, x), max(y1, y)
+        for y in range(P):
+            for x in range(P):
+                v = cm.GetPixelRGBA(x, y)[0]
+                if v > 20:
+                    ink += v
+                    if x < x0: x0 = x
+                    if x > x1: x1 = x
+                    if y < y0: y0 = y
+                    if y > y1: y1 = y
         cm.EndDraw()
-        if x1 < 0:
-            return None, 0
-        return (x0 - P // 4, y0 - P // 8, x1 + 2 - P // 4, y1 + 2 - P // 8), ink
+        bmp = cm.GetBitmap().GetClone()
+        return bmp, ((x0, y0, x1, y1) if x1 >= 0 else None), ink
 
-    info = {}
-    for ch in set(chars):
-        info[ch] = measure(ch)
+    info = {ch: draw(ch) for ch in set(chars) | {"M"}}
     seq = [chars[i % len(chars)] for i in range(grid * grid)]
     if sort_ink:
-        seq.sort(key=lambda c: info[c][1])
-    ref = measure("M")[0]
-    refh = (ref[3] - ref[1]) if ref else FS
+        seq.sort(key=lambda c: info[c][2])
+    mb = info["M"][1]
+    refh = (mb[3] - mb[1] + 1) if mb else FS * 0.7
     cell = size // grid
-    cm = GeClipMap()
-    cm.Init(cell * grid, cell * grid, 32)
-    cm.BeginDraw()
-    cm.SetColor(0, 0, 0, 255)
-    cm.FillRect(0, 0, cell * grid - 1, cell * grid - 1)
-    cm.SetColor(255, 255, 255, 255)
+    W = cell * grid
+    atlas = GeClipMap()
+    atlas.Init(W, W, 32)
+    atlas.BeginDraw()
+    atlas.SetColor(0, 0, 0, 255)
+    atlas.FillRect(0, 0, W - 1, W - 1)
     for i, ch in enumerate(seq):
-        bb = info[ch][0]
+        bmp, bb, _ = info[ch]
         if bb is None:
             continue
-        w, h = bb[2] - bb[0], bb[3] - bb[1]
-        k = fill * cell / max(refh, w, h, 1)
-        cm.SetFont(fd, FS * k)
-        cx, cy = (i % grid) * cell, (i // grid) * cell
-        cm.TextAt(int(cx + (cell - w * k) / 2 - bb[0] * k), int(cy + (cell - h * k) / 2 - bb[1] * k), ch)
-    cm.EndDraw()
-    bmp = cm.GetBitmap()
+        w, h = bb[2] - bb[0] + 1, bb[3] - bb[1] + 1
+        k = fill * cell / max(refh, w, h)
+        dw, dh = max(1, int(round(w * k))), max(1, int(round(h * k)))
+        # ScaleBicubic only DOWNscales ("destination image has to be smaller"): crop, then ScaleIt
+        crop = BaseBitmap()
+        crop.Init(w, h, 24)
+        bmp.CopyPartTo(crop, bb[0], bb[1], w, h)
+        big = BaseBitmap()
+        big.Init(dw, dh, 24)
+        crop.ScaleIt(big, 256, True, False)
+        src = GeClipMap()
+        src.InitWithBitmap(big, None)
+        cx = (i % grid) * cell + (cell - dw) // 2
+        cy = (i // grid) * cell + (cell - dh) // 2
+        src.BeginDraw()
+        atlas.Blit(cx, cy, src, 0, 0, dw - 1, dh - 1, c4d.GE_CM_BLIT_COPY)
+        src.EndDraw()
+    atlas.EndDraw()
     import os
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    bmp.Save(path, c4d.FILTER_PNG)
+    atlas.GetBitmap().Save(path, c4d.FILTER_PNG)
     return path
 
 
 def _plate_like(p, folder):
     import os
     p = str(p or "").replace("file://", "")
-    return bool(p) and (os.path.dirname(os.path.abspath(p)) == os.path.abspath(folder)
-                        or os.path.basename(p).split("_")[0] in PLATE_STYLES + ["gg"])
+    if not p:
+        return False
+    ap, af = os.path.abspath(p), os.path.abspath(os.path.dirname(os.path.abspath(folder)))
+    return ap.startswith(af + os.sep) or os.path.basename(p).split("_")[0] in PLATE_STYLES + ["gg", "mixed"]
 
 
 def swap_plate(op, new_path, folder):

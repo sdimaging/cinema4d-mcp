@@ -51,19 +51,86 @@ FONT_CANDIDATES = [
 ]
 
 
+FONT_DIRS = ["/System/Library/Fonts", "/System/Library/Fonts/Supplemental", "/Library/Fonts",
+             os.path.expanduser("~/Library/Fonts"), "/usr/share/fonts", "C:/Windows/Fonts"]
+
+
+def resolve_font(name):
+    """'Menlo-Bold', 'Courier New', 'HelveticaNeue-Bold' or a file path (optionally 'file.ttc#1')
+    -> (path, index) or None. Matches family + style inside .ttc collections."""
+    if not name:
+        return None
+    if "#" in name and os.path.exists(name.split("#")[0]):
+        p, k = name.rsplit("#", 1)
+        return p, int(k)
+    if os.path.exists(name):
+        return name, 0
+    want = name.lower().replace(" ", "").replace("_", "")
+    fam, _, style = want.partition("-")
+    style = style or "regular"
+    best = None
+    for d in FONT_DIRS:
+        if not os.path.isdir(d):
+            continue
+        for root, _, files in os.walk(d):
+            for f in files:
+                if not f.lower().endswith((".ttf", ".otf", ".ttc")):
+                    continue
+                base = f.lower().replace(" ", "").replace("_", "").replace("-", "")
+                if not base.startswith(fam):
+                    continue
+                path = os.path.join(root, f)
+                for idx in range(8 if f.lower().endswith(".ttc") else 1):
+                    try:
+                        ft = ImageFont.truetype(path, 12, index=idx)
+                    except Exception:
+                        break
+                    fn, st = ft.getname()
+                    fn = (fn or "").lower().replace(" ", "")
+                    st = (st or "").lower().replace(" ", "")
+                    score = (fn == fam) * 2 + (st == style) * 4 + (style in st) * 1
+                    if best is None or score > best[0]:
+                        best = (score, path, idx)
+    return (best[1], best[2]) if best else None
+
+
 def find_font(path=None):
     for p in ([path] if path else []) + FONT_CANDIDATES:
-        if p and os.path.exists(p):
+        if p and os.path.exists(str(p).split("#")[0]):
             return p
     return None
 
 
+_FONT_CACHE = {}
+
+
 def load_font(path, size):
-    p = find_font(path)
-    return ImageFont.truetype(p, size) if p else ImageFont.load_default()
+    key = (path, size)
+    if key in _FONT_CACHE:
+        return _FONT_CACHE[key]
+    r = resolve_font(path) if path else None
+    if r is None:
+        p = find_font(None)
+        r = (p, 0) if p else None
+    f = ImageFont.truetype(r[0], size, index=r[1]) if r else ImageFont.load_default()
+    _FONT_CACHE[key] = f
+    return f
 
 
-# ------------------------------------------------------------- glyph cells ---
+def make_custom_plate(text, grid, out, font=None, sort=True, size=1024, fill=0.86, bold=0):
+    """Your own characters -> N x N plate (cells in text order, or ink-sorted sparse -> dense)."""
+    chars = [c for c in text if not c.isspace()] or ["?"]
+    seq = [chars[i % len(chars)] for i in range(grid * grid)]
+    if sort:
+        sc = dict((c, v) for v, c in ink_sorted(seq, font, bold=bold))
+        seq.sort(key=lambda c: sc[c])
+    cell = size // grid
+    atlas = assemble([render_glyph(c, cell, font, fill, bold=bold) for c in seq], grid, cell)
+    os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
+    atlas.save(out)
+    return out
+
+
 def render_glyph(ch, cell, font_path=None, fill=0.86, fg=255, bg=0, bold=0):
     """Render one character centred in a square cell, scaled to `fill` of it."""
     big = cell * 4
@@ -288,7 +355,8 @@ def parse_color(s):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("kind", choices=["ascii", "chars", "bayer", "halftone", "noise", "logo", "sheet", "library"])
+    ap.add_argument("kind", choices=["ascii", "chars", "bayer", "halftone", "noise", "logo", "sheet", "library",
+                                     "collection"])
     ap.add_argument("--grid", type=int, default=4, help="N -> N*N cells (2=4up, 3=9up, 4=16up)")
     ap.add_argument("--size", type=int, default=2048, help="atlas size in px")
     ap.add_argument("--out", default="plate.png")
@@ -318,6 +386,10 @@ def main(argv=None):
 
     if a.kind == "sheet":
         return contact_sheet(a, root + ext)
+    if a.kind == "collection":   # build 1/4/9/16-up plates for --images-dir (a collection folder)
+        for g in (1, 2, 3, 4):
+            print("wrote", collection_plate(a.out, g * g, a.size))
+        return
     if a.kind == "library":
         return library(a, a.out if os.path.splitext(a.out)[1] == "" else os.path.dirname(a.out))
 
@@ -382,6 +454,97 @@ def contact_sheet(a, path):
             sheet.paste(fr[0].convert("L"), (lab + pad + (g - 1) * (tile + pad), y))
     sheet.save(path)
     print("wrote", path)
+
+
+# ------------------------------------------------------------- collections ---
+import re as _re
+
+_PLATE_RE = _re.compile(r"_(\d+)up(?:_[0-9a-f]{8})?\.(png|jpe?g|tiff?|exr)$", _re.I)
+_IMG_EXT = (".png", ".jpg", ".jpeg", ".tif", ".tiff", ".webp", ".bmp")
+
+
+def collection_glyphs(folder):
+    """Glyph images of a collection, in priority order (sorted by filename: 01_x.png, 02_y.png ...).
+    If the folder only holds ready-made plates, the largest one is sliced into its cells."""
+    files = sorted(f for f in os.listdir(folder)
+                   if f.lower().endswith(_IMG_EXT) and not _PLATE_RE.search(f) and not f.startswith((".", "_")))
+    if files:
+        return [Image.open(os.path.join(folder, f)) for f in files]
+    plates = []
+    for f in os.listdir(folder):
+        m = _PLATE_RE.search(f)
+        if m and not f.startswith("_"):
+            plates.append((int(m.group(1)), f))
+    if not plates:
+        return []
+    cells, f = max(plates)
+    n = int(round(math.sqrt(cells)))
+    im = Image.open(os.path.join(folder, f))
+    w, h = im.size
+    return [im.crop((c % n * w // n, c // n * h // n, (c % n + 1) * w // n, (c // n + 1) * h // n))
+            for c in range(n * n)]
+
+
+def fit_image_cell(im, cell, fill=0.86):
+    """Any image (alpha respected) -> square cell on black, uniform scale, centred."""
+    im = im.convert("RGBA")
+    bg = Image.new("RGBA", im.size, (0, 0, 0, 255))
+    im = Image.alpha_composite(bg, im).convert("RGB")
+    bb = im.convert("L").point(lambda v: 255 if v > 8 else 0).getbbox()
+    if bb:
+        im = im.crop(bb)
+    k = fill * cell / max(im.size)
+    im = im.resize((max(1, int(im.size[0] * k)), max(1, int(im.size[1] * k))), Image.LANCZOS)
+    out = Image.new("RGB", (cell, cell), (0, 0, 0))
+    out.paste(im, ((cell - im.size[0]) // 2, (cell - im.size[1]) // 2))
+    return out
+
+
+def collection_plate(folder, cells, size=1024, fill=0.86):
+    """Plate for a collection at 1/4/9/16... cells.
+    1. <anything>_<cells>up.png in the folder -> used as is (hand-made plates win)
+    2. otherwise built from the first <cells> glyphs (priority order), repeating when there are
+       fewer glyphs than cells, cached in <folder>/_built/."""
+    for f in sorted(os.listdir(folder)):
+        m = _PLATE_RE.search(f)
+        if m and int(m.group(1)) == cells and not f.startswith("_"):
+            return os.path.join(folder, f)
+    import hashlib
+    sig = hashlib.md5()
+    for f in sorted(os.listdir(folder)):
+        fp = os.path.join(folder, f)
+        if os.path.isfile(fp):
+            sig.update(("%s%d%d" % (f, os.path.getsize(fp), int(os.path.getmtime(fp)))).encode())
+    sig.update(("%d|%d|%s" % (cells, size, fill)).encode())
+    name = os.path.basename(os.path.normpath(folder))
+    out = os.path.join(folder, "_built", "%s_%dup_%s.png" % (name, cells, sig.hexdigest()[:8]))
+    if os.path.exists(out):
+        return out
+    glyphs = collection_glyphs(folder)
+    if not glyphs:
+        raise FileNotFoundError("collection %s has no images" % folder)
+    n = int(round(math.sqrt(cells)))
+    cell = size // n
+    tiles = [fit_image_cell(glyphs[i % len(glyphs)], cell, fill) for i in range(n * n)]
+    atlas = Image.new("RGB", (n * cell, n * cell), (0, 0, 0))
+    for i, t in enumerate(tiles):
+        atlas.paste(t, ((i % n) * cell, (i // n) * cell))
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    atlas.save(out)
+    return out
+
+
+def mixed_plate(paths, out, size=2048):
+    """Composite atlas for GlyphGrid Mixed mode: TL = 1-up, TR = 4-up, BL = 9-up, BR = 16-up."""
+    half = size // 2
+    atlas = Image.new("RGB", (size, size), (0, 0, 0))
+    for k, pth in enumerate(paths[:4]):
+        if pth and os.path.exists(pth):
+            atlas.paste(Image.open(pth).convert("RGB").resize((half, half), Image.LANCZOS),
+                        ((k % 2) * half, (k // 2) * half))
+    os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
+    atlas.save(out)
+    return out
 
 
 if __name__ == "__main__":
