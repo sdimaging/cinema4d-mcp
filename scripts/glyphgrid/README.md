@@ -56,7 +56,7 @@ With **Grid Mode = Mixed**, every polygon draws from one of four levels, the 1-,
 
 ### Islands
 - **Island Mode**: Polygon = every polygon is one glyph. Ngon = ngons stay one glyph (default). Cluster = one big glyph across neighbouring polygons, sized by Cluster Size in scene units.
-- **Quadtree (mixed glyph sizes)**: blocks of **Quadtree Size** randomly split into halves, quarters and so on, down to single polygons. **Quadtree Levels** sets how many splits; **Subdivide Chance** runs from 0 (all big glyphs) to 1 (all single-polygon glyphs). On a regular grid this gives a true quadtree mosaic of glyph sizes. Combine it with Mixed for big logos next to tiny ones.
+- **Quadtree (mixed glyph sizes)**: blocks of **Quadtree Size** randomly split into halves, quarters and so on, down to single polygons. **Quadtree Levels** sets how many splits; **Subdivide Chance** runs from 0 (all big glyphs) to 1 (all single-polygon glyphs). On flat or gently curved surfaces with a regular grid (planes, walls, terrain, boxes) this gives a true quadtree mosaic of glyph sizes. Combine it with Mixed for big logos next to tiny ones. Blocks are world-space cubes, so on tight curves (a thin torus) keep Quadtree Size small, or big blocks wrap around the curve and their glyph gets stretched over it.
 - **Fit Auto**: square-ish quads fill the cell edge to edge. Triangles, ngons and long thin polygons are scaled uniformly and centred, with no stretching.
 - **Flush Aspect Limit**: how stretched a quad can be and still fill the cell (1.35 = 35 % longer than wide).
 - **Gutter**: empty border in every cell, which stops neighbouring glyphs bleeding in. **Glyph Scale** shrinks or grows every glyph.
@@ -178,6 +178,8 @@ python3 -m pip install --target ~/Library/Preferences/Maxon/python/python311/lib
 ```
 
 ## Known limits
+
+- Plate auto-swap runs from the generator's `message()` on real Attribute Manager edits. Scripts should call `glyphgrid_runtime.plate_path()` + `swap_plate()` directly: messaging the generator from inside another Python call deadlocks C4D (gotcha #127).
 
 - After editing the child, the generator can show the previous result for one redraw. It updates on the next pass. Render documents are correct on the first pass.
 - Linked Target objects and fields are tracked by their dirty state. Keyframed changes need **Rebuild Every Frame**.

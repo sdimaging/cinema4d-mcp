@@ -2878,3 +2878,19 @@ During the SDK `DoRecursion` walk (deform cache > cache > object > children), `G
 ## 126. Octane OSL Texture (1039813) cannot be compiled from Python
 
 Setting `OSL_CODE_EDITOR` and then `CallButton(sh, OSL_COMPILE_BTN)` or `MSG_DESCRIPTION_COMMAND` leaves `OSL_NEED_COMPILE = 1` and empty logs. Compilation needs the Octane UI or live viewer. Validate OSL logic with a numpy port instead.
+
+## 127. Never send a message to a Python Generator from inside another Python call
+
+From `exec_python` / a script, `gen.Message(c4d.MSG_DESCRIPTION_POSTSETPARAMETER, {...})` runs the generator's `message()` synchronously, nested inside the outer Python call. When `message()` then edits a node material (a `GraphModel` transaction) and calls `c4d.EventAdd()`, Cinema 4D deadlocked and later crashed. This was reproduced twice (GlyphGrid plate swap). Calling the same swap function directly from the script returns in 3 ms. In tests and scripts, call the work function directly. Leave `message()` for real Attribute Manager edits.
+
+## 128. GeClipMap.TextAt clips glyphs ~126 px below the text origin
+
+Glyphs at any font size above ~130 render cut off at a fixed pixel row (`origin + ~126`). `TextHeight()` reports the full height, so nothing warns you. Draw at size ≤ 120 and scale up. Prefer Pillow/FreeType when you can (#130).
+
+## 129. BaseBitmap.ScaleBicubic only downscales
+
+Upscaling raises `ValueError: The destination image has to be smaller`. To upscale: `CopyPartTo(crop, x, y, w, h)` → `crop.ScaleIt(big, 256, True, False)` → `GeClipMap.InitWithBitmap(big, None)` → `atlas.Blit(...)`. `GeClipMap.Init(bitmap)` does not exist in Python (TypeError), and `BaseBitmap` has no `Clear()`; fresh memory is black.
+
+## 130. Pillow inside Cinema 4D 2026 (macOS arm64)
+
+The same trick as numpy (#125): `pip install --target ~/Library/Preferences/Maxon/python/python311/libs --python-version 3.11 --platform macosx_14_0_arm64 --implementation cp --only-binary=:all: --no-deps pillow==11.3.0`. Fonts resolve from `/System/Library/Fonts/*.ttc` with `ImageFont.truetype(path, size, index=k)`. Match `getname()` → (family, style) to pick Menlo Bold out of `Menlo.ttc`.
