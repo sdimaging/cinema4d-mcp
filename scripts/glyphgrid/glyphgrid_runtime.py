@@ -1251,6 +1251,22 @@ def build_glyph_material(doc, op, renderer="redshift"):
         return None
     col = _glyph_rgb(op)
     em = float(_ud(op)("Emission Strength", 1.0))
+    name = {"standard": "GlyphGrid Standard", "octane": "GlyphGrid Octane"}.get(renderer, "GlyphGrid Redshift")
+    # one material per renderer: pressing a button again (or switching back) reuses it, so the
+    # buttons work as a switch - e.g. Redshift / Standard while working (they show in the viewport),
+    # Octane for the Live Viewer / final render - and never pile up copies
+    for m_ in doc.GetMaterials():
+        if m_.GetName() == name and (m_.GetType() == 1029501) == (renderer == "octane") and \
+                (renderer != "redshift" or _is_rs(m_)):
+            doc.StartUndo()
+            doc.AddUndo(c4d.UNDOTYPE_CHANGE, op)
+            assign_material(op, m_)
+            doc.EndUndo()
+            swap_plate(op, plate, plate_dirs(_ud(op)("Plates Folder", "") or "")[0])
+            sync_material_color(op, force=True)
+            c4d.EventAdd()
+            c4d.gui.StatusSetText("GlyphGrid: switched to %s" % name)
+            return m_
     doc.StartUndo()
     if renderer == "standard":
         mat = build_plate_material_standard(doc, op, plate, color=col, emission=em, assign=False)
@@ -1324,6 +1340,15 @@ def sync_material_color(op, force=False):
             n += 1
     c4d.EventAdd()
     return n
+
+
+def _is_rs(mat):
+    try:
+        import maxon
+        nm = mat.GetNodeMaterialReference()
+        return bool(nm) and nm.HasSpace(maxon.Id("com.redshift3d.redshift4c4d.class.nodespace"))
+    except Exception:
+        return False
 
 
 def _has_plate_shader(mat):
