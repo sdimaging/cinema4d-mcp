@@ -91,6 +91,7 @@ Every pattern was extracted from a real-world capsule we dissected. Each entry t
 | Pattern | Min nodes | Required | Observed in |
 |---|---|---|---|
 | `reaction_diffusion_on_geometry` | 12 | 2× Memory, Arithmetic, Blend, Set/Get Property | Squiggle Spline |
+| `rd_growth_deformer` (**authored + verified**) | ~70 | Memory ⊃ LCV ⊃ step; Neighbor + nested Iterate + Sum(domains); Subdivide; normal displace | `recipes/SN_RECIPE_rd_growth_deformer.md`, `scripts/sn_build_rd_growth.py` |
 | `memory_capsule_state_carrier` | 1 | Memory + 2 floatingio | Memory_Nodes (Store For Next Frame) |
 | `iterative_simulation_via_memory_and_classic_tools` | 1+ | Memory + classic-tool stack | Memory_Nodes (4 simulation styles) |
 | `per_vertex_property_storage` | 2 | Set Property + Get Property | Squiggle, Ivy |

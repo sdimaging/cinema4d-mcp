@@ -16,12 +16,14 @@
 | [SN_RECIPE_centered_uv_toggle.md](SN_RECIPE_centered_uv_toggle.md) | Verified | T2 Centered (2026-05-04) | ✓ eligible |
 | [SN_RECIPE_wire_remove_swap_pattern.md](SN_RECIPE_wire_remove_swap_pattern.md) | Verified | technique entry (2026-05-04) | ✓ technique |
 | [SN_RECIPE_contained_rd_spline_growth.md](SN_RECIPE_contained_rd_spline_growth.md) | **In progress** — outer chain mapped, Memory body algorithm documented, full rebuild pending | Scene 17 study + 2026-05-04 forensic walk | ⚠ outer-chain only for now |
+| [SN_RECIPE_rd_growth_deformer.md](SN_RECIPE_rd_growth_deformer.md) | **Verified + Assembly-tested 2026-10-01** | Gray-Scott Scene Nodes Deformer, built via Maxon 2026.4 MCP exec_python | ✓ eligible (`scripts/sn_build_rd_growth.py`) |
 
 ## Assembly test results
 
 | Test date | Recipe | Result | Notes |
 |---|---|---|---|
 | 2026-05-04 | SN_RECIPE_buv_pathb_uv_position v1.0 | PASSED | Regenerated from .md script on a fresh 3×3 plane (different from the library's 2×2 demo). Got 36 verts (= 9 polys × 4 corners), rad=(25, 25, 0), mp=(25, 25, 0) — bit-perfect math. |
+| 2026-10-01 | SN_RECIPE_rd_growth_deformer v1.0 | PASSED | `build_rd_growth()` on a fresh torus (240×80 segs, 19.2k pts) in an empty doc: 12 AM params present, max displacement ≈ 0.42×Height (B peak), raised-point count grows 5.9k → 10.1k over 80 frames, colonies visible in viewport. |
 
 ## Each recipe entry contains
 

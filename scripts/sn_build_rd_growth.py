@@ -1,0 +1,257 @@
+"""
+sn_build_rd_growth.py — build a Gray-Scott reaction-diffusion Scene Nodes Deformer from scratch.
+
+Cinema 4D 2026.x, Neutron nodespace (net.maxon.neutron.nodespace).
+Run inside C4D (Script Manager, or any MCP python runner such as Maxon's built-in
+2026.4 MCP `exec_python`), with the target object selected or passed by name:
+
+    exec(open(".../sn_build_rd_growth.py").read())
+    build_rd_growth(doc, doc.SearchObject("MySphere"))
+
+Result: a "RD_Growth" Scene Nodes Deformer under the host. Drop it under ANY polygon/primitive
+object. The pattern is carried per point index (topology mode), so deforming hosts keep the
+pattern stuck to the surface. AM params: Feed, Kill, Diffusion A/B, Time Step, Speed,
+Height, Seed Radius, Seed Threshold, Seed Noise Scale, Seed, Subdivide.
+
+Architecture (verified 2026-10-01, C4D 2026.4):
+  root.geometryin -> Subdivide -> gp(get_property Position)
+  init:   iterate P -> noise/disk seed -> compose(1, seed, 0) -> build+write -> S0 array
+  Memory(types._0 <- TypeOf(S0), initial._0 <- S0, +ports geo/feed/kill/da/db/dt/steps)
+    body (INSIDE the memory capsule view):
+      LCV(types._0 <- TypeOf(current), initial._0 <- current, innerdomain <- Range(end=steps).innerdomain)
+        body (INSIDE the LCV view): Gray-Scott explicit step
+          per point i:  nbr = Neighbor(i)  -> inner iterate -> read S[nbr] -> Sum(inner/outer domain)
+                        avg = (sum + S[i]) / (n + 1)       # self-inclusive average = stable at dt=1
+                        L = avg - S[i]; A' = A + dt(Da*LA - AB^2 + F(1-A)); B' = B + dt(Db*LB + AB^2 - (K+F)B)
+          collect -> next._0
+      LCV.final._0 -> memory next._0
+  out:  P + Normal * B * Height -> set_property(Position) -> root.geometryout
+"""
+import c4d
+import maxon
+
+NS = maxon.Id("net.maxon.neutron.nodespace")
+A = {
+    "get": "net.maxon.neutron.geometry.get_property", "set": "net.maxon.neutron.geometry.set_property",
+    "iter": "net.maxon.node.containeriteration", "ar": "net.maxon.node.arithmetic",
+    "rv": "net.maxon.node.array.readvalueatindex", "bld": "net.maxon.node.array.buildfromsinglevalue",
+    "wr": "net.maxon.node.array.writevalueatindex", "mem": "net.maxon.node.memory",
+    "lcv": "net.maxon.node.loopcarriedvalue", "range": "net.maxon.neutron.node.range",
+    "tof": "net.maxon.node.typeof", "split": "net.maxon.pattern.node.conversion.splitvectorcomponents",
+    "comp": "net.maxon.pattern.node.conversion.composevector3", "clamp": "net.maxon.node.clamp",
+    "cmp": "net.maxon.node.compare", "len": "net.maxon.node.length", "nbr": "net.maxon.neutron.geometry.neighbor",
+    "sum": "net.maxon.node.sum", "noise": "net.maxon.node.noise", "subd": "net.maxon.neutron.modeling.subdivide",
+    "gennrm": "net.maxon.neutron.asset.geo.generatepointnormals",
+}
+VEC3 = maxon.Id("net.maxon.parametrictype.vec<3,float>")      # OK for arithmetic/sum datatype
+DATA3D = maxon.Id("net.maxon.geometryabstraction.accessortypes.attributes.data3d")
+NORMAL = maxon.Id("net.maxon.geometryabstraction.accessortypes.attributes.normal")
+SUBD_SUB = "net.maxon.command.modeling.subdivide.subdivisions"   # 0 = passthrough; 'iterations' does nothing
+
+
+class _V:
+    """Tiny builder bound to one graph view (top graph, or a capsule interior view)."""
+
+    def __init__(self, view):
+        self.v = view
+
+    def root(self):
+        return self.v.GetViewRoot()
+
+    def n(self, label):
+        for c in self.root().GetChildren():
+            if str(c.GetId()) == label:
+                return c
+        raise KeyError(label)
+
+    def add(self, label, kind, **vals):
+        with self.v.BeginTransaction() as tx:
+            self.v.AddChild(maxon.Id(label), maxon.Id(A[kind]))
+            tx.Commit()
+        if vals:
+            self.set(label, **vals)
+
+    def set(self, label, **vals):
+        nd = self.n(label)
+        with self.v.BeginTransaction() as tx:
+            for k, val in vals.items():
+                nd.GetInputs().FindChild(maxon.InternedId(k)).SetPortValue(val)
+            tx.Commit()
+
+    def _port(self, ref, out):
+        label, port = ref.split(".", 1)
+        if label == "ROOT":   # root inputs act as sources, root outputs as sinks
+            lst = self.root().GetInputs() if out else self.root().GetOutputs()
+        else:
+            nd = self.n(label)
+            lst = nd.GetOutputs() if out else nd.GetInputs()
+        p = lst
+        for part in port.split("/"):          # "types/_0" for variadic children
+            p = p.FindChild(maxon.InternedId(part))
+        return p
+
+    def w(self, src, dst):
+        a, b = self._port(src, True), self._port(dst, False)
+        with self.v.BeginTransaction() as tx:
+            a.Connect(b)
+            tx.Commit()
+
+    def ws(self, pairs):
+        for a, b in pairs:
+            self.w(a, b)
+
+    def math(self, label, op, a=None, b=None, vec=False):
+        # GOTCHA: never set datatype to parametrictype.float — every op silently becomes `add`.
+        self.add(label, "ar")
+        if vec:
+            self.set(label, datatype=VEC3)
+        self.set(label, operation=maxon.Id(op))   # valid: add / sub / mul / div  (sub = in1 - in2)
+        for port, val in (("in1", a), ("in2", b)):
+            if val is None:
+                continue
+            if isinstance(val, str):
+                self.w(val, f"{label}.{port}")
+            else:
+                self.set(label, **{port: maxon.Float64(val)})
+        return f"{label}.out"
+
+    def view(self, label):
+        return _V(self.v.CreateView(maxon.NODE_KIND.NODE, self.n(label).GetPath()))
+
+    def addport(self, label, name):
+        with self.v.BeginTransaction() as tx:
+            self.n(label).GetInputs().AddPort(maxon.Id(name))
+            tx.Commit()
+
+    def expose(self, name, label, default, targets):
+        """AM parameter on the capsule root: AddPort + typed default + label + Connect (connection types the widget)."""
+        with self.v.BeginTransaction() as tx:
+            prt = self.root().GetInputs().AddPort(maxon.Id(name))
+            prt.SetPortValue(default)
+            prt.SetValue(maxon.InternedId("net.maxon.node.base.name"), maxon.String(label))
+            for t in targets:
+                prt.Connect(self._port(t, False))
+            tx.Commit()
+
+
+def _set_props(v, label, name):
+    v.set(label, accessortype=DATA3D, accessorname=maxon.String(name),
+          arraymode=maxon.Bool(False), newdataset=maxon.Bool(False))
+
+
+def _gray_scott_step(L, S, GEO, OUT):
+    """One explicit Gray-Scott step on vec3 array S=(A,B,0). Params come from L's root ports."""
+    L.add("it", "iter"); L.add("nb", "nbr"); L.add("itN", "iter"); L.add("rvn", "rv"); L.add("sum", "sum")
+    L.add("cnt", "comp"); L.add("sA", "split"); L.add("sL", "split"); L.add("cN", "comp")
+    L.add("bld", "bld"); L.add("wr", "wr"); L.add("clA", "clamp"); L.add("clB", "clamp")
+    L.set("sum", datatype=VEC3)
+    L.ws([(S, "it.in"), ("it.index", "nb.index"), (GEO, "nb.geometryin"), ("nb.neighborids", "itN.in"),
+          (S, "rvn.arrayin"), ("itN.out", "rvn.indexin"),           # rv datatype LEFT UNSET (else 0 verts)
+          ("rvn._0", "sum.values"), ("itN.innerdomain", "sum.innerdomain"), ("itN.outerdomain", "sum.outerdomain"),
+          ("it.out", "sA.vector")])
+    L.math("sumS", "add", "sum.out", "it.out", vec=True)            # include self -> stable Laplacian
+    L.math("cp1", "add", "itN.count", 1.0)
+    L.ws([("cp1.out", "cnt.x"), ("cp1.out", "cnt.y"), ("cp1.out", "cnt.z")])
+    L.math("avg", "div", "sumS.out", "cnt.result", vec=True)
+    L.math("lap", "sub", "avg.out", "it.out", vec=True)
+    L.w("lap.out", "sL.vector")
+    Av, Bv, LA, LB = "sA.x", "sA.y", "sL.x", "sL.y"
+    L.math("ab", "mul", Av, Bv); L.math("abb", "mul", "ab.out", Bv)
+    L.math("daL", "mul", LA, "ROOT.da"); L.math("t1", "sub", "daL.out", "abb.out")
+    L.math("oma", "sub", 1.0, Av); L.math("foma", "mul", "oma.out", "ROOT.feed"); L.math("dA", "add", "t1.out", "foma.out")
+    L.math("dbL", "mul", LB, "ROOT.db"); L.math("t2", "add", "dbL.out", "abb.out")
+    L.math("kf", "add", "ROOT.kill", "ROOT.feed"); L.math("kfb", "mul", Bv, "kf.out"); L.math("dB", "sub", "t2.out", "kfb.out")
+    L.math("dAt", "mul", "dA.out", "ROOT.dt"); L.math("nA", "add", Av, "dAt.out")
+    L.math("dBt", "mul", "dB.out", "ROOT.dt"); L.math("nB", "add", Bv, "dBt.out")
+    L.ws([("nA.out", "clA.in1"), ("nB.out", "clB.in1"), ("clA.out", "cN.x"), ("clB.out", "cN.y"),
+          ("it.count", "bld.arraylengthin"), ("bld.arrayout", "wr.arrayin"), ("it.index", "wr.indexin")])
+    L.w("cN.result", "wr._0")          # wr._0 only appears after arrayin is wired
+    L.w("wr.arrayout", OUT)
+
+
+def build_rd_growth(doc, host, name="RD_Growth"):
+    d = c4d.BaseObject(180420400)                  # Scene Nodes Deformer
+    d.Message(c4d.MSG_MENUPREPARE, doc)
+    d.SetName(name)
+    d.InsertUnderLast(host)
+    d.Message(maxon.neutron.MSG_CREATE_IF_REQUIRED)  # without this root ports are empty stubs
+    g = _V(d.GetNimbusRef(NS).GetGraph())
+
+    # --- domain + positions
+    g.add("subd", "subd", **{SUBD_SUB: maxon.Int64(0)})
+    g.add("gp", "get")
+    g.ws([("ROOT.geometryin", "subd.geometryin"), ("subd.geometryout", "gp.geometry")])
+
+    # --- initial state S0 = (1, seed, 0)
+    for lbl, k in (("it0", "iter"), ("len0", "len"), ("cmp0", "cmp"), ("snz", "noise"), ("scmp", "cmp"),
+                   ("sclamp", "clamp"), ("comp0", "comp"), ("bld0", "bld"), ("wr0", "wr"), ("tof0", "tof")):
+        g.add(lbl, k)
+    g.set("len0", datatype=VEC3)
+    g.set("cmp0", operation=maxon.Id("lt"), in2=maxon.Float64(0.0))
+    g.set("scmp", operation=maxon.Id("gt"), in2=maxon.Float64(0.75))
+    g.set("snz", scale=maxon.Float64(60.0))
+    g.set("comp0", x=maxon.Float64(1.0))
+    g.ws([("gp.array", "it0.in"), ("it0.out", "len0.in"), ("len0.out", "cmp0.in1"),
+          ("it0.out", "snz.value"), ("snz.result", "scmp.in1")])
+    g.math("sadd", "add", "cmp0.out", "scmp.out")
+    g.ws([("sadd.out", "sclamp.in1"), ("sclamp.out", "comp0.y"),
+          ("it0.count", "bld0.arraylengthin"), ("bld0.arrayout", "wr0.arrayin"), ("it0.index", "wr0.indexin")])
+    g.w("comp0.result", "wr0._0")
+    g.w("wr0.arrayout", "tof0.in")
+
+    # --- memory (per-frame state). NEVER wire into the parent `types` port: it empties the list.
+    g.add("mem", "mem")
+    g.ws([("tof0.out", "mem.types/_0"), ("wr0.arrayout", "mem.initial._0")])
+    params = ["geo", "feed", "kill", "da", "db", "dt", "steps"]
+    for p in params:
+        g.addport("mem", p)
+    g.w("subd.geometryout", "mem.geo")
+
+    m = g.view("mem")
+    m.add("lp", "lcv"); m.add("rg", "range"); m.add("tofL", "tof")
+    m.ws([("ROOT.current._0", "tofL.in"), ("tofL.out", "lp.types/_0"), ("ROOT.current._0", "lp.initial._0"),
+          ("rg.innerdomain", "lp.innerdomain"), ("lp.final._0", "ROOT.next._0"), ("ROOT.steps", "rg.end")])
+    for p in params[:-1]:
+        m.addport("lp", p)
+        m.w(f"ROOT.{p}", f"lp.{p}")
+    _gray_scott_step(m.view("lp"), "ROOT.current._0", "ROOT.geo", "ROOT.next._0")
+
+    # --- output: P + N * B * height
+    g.add("gnrm", "gennrm"); g.add("gpn", "get", accessortype=NORMAL, accessorname=maxon.String("Normal"))
+    for lbl, k in (("it1", "iter"), ("rvS", "rv"), ("spS", "split"), ("rvN", "rv"), ("hv", "comp"), ("sp", "set")):
+        g.add(lbl, k)
+    _set_props(g, "sp", "Position")   # newdataset=False wants "Position" (newdataset=True wants "")
+    g.ws([("subd.geometryout", "gnrm.geometryin"), ("gnrm.geometryout", "gpn.geometry"),
+          ("gp.array", "it1.in"), ("mem.nextout._0", "rvS.arrayin"), ("it1.index", "rvS.indexin"),
+          ("rvS._0", "spS.vector"), ("gpn.array", "rvN.arrayin"), ("it1.index", "rvN.indexin")])
+    g.math("hgt", "mul", "spS.y", 20.0)
+    g.ws([("hgt.out", "hv.x"), ("hgt.out", "hv.y"), ("hgt.out", "hv.z")])
+    g.math("offN", "mul", "rvN._0", "hv.result", vec=True)
+    g.math("newp", "add", "it1.out", "offN.out", vec=True)
+    g.ws([("subd.geometryout", "sp.geometryin"), ("gp.topology", "sp.topology"),
+          ("newp.out", "sp.iteration"), ("sp.geometryout", "ROOT.geometryout")])
+
+    # --- AM parameters
+    F, I = maxon.Float64, maxon.Int64
+    g.expose("feed", "Feed", F(0.0545), ["mem.feed"])
+    g.expose("kill", "Kill", F(0.062), ["mem.kill"])
+    g.expose("da", "Diffusion A", F(1.0), ["mem.da"])
+    g.expose("db", "Diffusion B", F(0.5), ["mem.db"])
+    g.expose("dt", "Time Step", F(1.0), ["mem.dt"])
+    g.expose("steps", "Speed (steps per frame)", I(30), ["mem.steps"])
+    g.expose("height", "Height", F(5.0), ["hgt.in2"])
+    g.expose("seedr", "Seed Radius", F(0.0), ["cmp0.in2"])
+    g.expose("seedthr", "Seed Threshold (higher = fewer)", F(0.75), ["scmp.in2"])
+    g.expose("seedscale", "Seed Noise Scale", F(60.0), ["snz.scale"])
+    g.expose("seed", "Seed", I(123), ["snz.seed"])
+    g.expose("subdiv", "Subdivide (density)", I(0), [f"subd.{SUBD_SUB}"])
+
+    d.SetDirty(c4d.DIRTYFLAGS_ALL)
+    c4d.EventAdd()
+    return d
+
+
+if __name__ == "__main__":
+    op = doc.GetActiveObject()  # noqa: F821  (doc is injected by C4D)
+    if op:
+        build_rd_growth(doc, op)  # noqa: F821
