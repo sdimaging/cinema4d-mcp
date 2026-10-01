@@ -1,6 +1,6 @@
 # SN_RECIPE_rd_growth_deformer
 
-**Version:** 1.1 (2026-10-01: Thickness smoothstep, `rd` Vertex Map output, Redshift look-dev rig, bubbling-terrain demo)
+**Version:** 1.2 (2026-10-01: + Softness neighbour-blur pass on rd for anti-aliased edges, `step_sim()` crash-safe stepping helper)
 **Status:** Verified structurally, numerically and visually (C4D 2026.4.0, 2026-10-01)
 **Eligible for Assemble Mode:** YES. `scripts/sn_build_rd_growth.py` regenerates it from scratch.
 **Assembly test:** PASSED. The builder recreated the full deformer on a fresh torus (19.2k pts) in an empty doc, and colonies grew frame over frame.
@@ -41,7 +41,8 @@ MEMORY (body inside capsule view)                       ports: geo feed kill da 
       B' = clamp(B + dt(Db·LB + AB² − (K+F)B))
       compose(A',B',0) ─► bld/wr ─► next._0
 OUTPUT it1 ⟳ P: rd = smoothstep(c−.06, c+.06, B), c = .36 − .22·Thickness
-       newp = P + N·(rd·Height) ─► sp(Position) ─► sw(weight "rd") ─► root.geometryout   (rd = Vertex Map tag, #115)
+       rdsoft = (Σ rd[nbr] + rd[i])/(n+1)  ← second Sum-reduction pass (it2 stream) = anti-aliased edges
+       newp = P + N·(rdsoft·Height) ─► sp(Position) ─► sw(weight "rd") ─► root.geometryout   (rd = Vertex Map tag, #115)
 ```
 
 ## AM parameters (root input ports, typed via connection)
@@ -114,7 +115,8 @@ assert sum(d > 1 for d in disp) grows frame over frame
 
 ## Known quality gaps vs. the Blender build
 
-- Edge aliasing at vertex resolution. The fix is in-graph (a softness/blur pass on rd and a wider window), not an SDS wrap on the live sim (#116).
+- ~~Edge aliasing at vertex resolution~~: fixed in v1.2 by the in-graph softness pass and a ±0.08 window. Don't SDS-wrap the live sim (#116).
+- Worm scale is set by point density. Subdivide 2 (≈180k pts on the cube-sphere, ~1 s/frame) gets close to the Blender reference.
 - Remesh mode (even remeshing per frame plus nearest-point state transfer) isn't ported yet. Hosts need constant topology.
 
 ## Open / next
