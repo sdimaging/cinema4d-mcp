@@ -499,12 +499,7 @@ def _gg_params():
                 light_directional=bool(g("Directional Light", False)), wrap_light=float(g("Light Wrap", 0.0)),
                 period=float(g("Distance Period", 0.0)), curv_scale=float(g("Curvature Scale", 4.0)),
                 height_axis=UP_AXES[int(g("Up Axis", 0))])
-    gc = g("Glyph Color", None)
-    opts["color"] = dict(mode=int(g("Color Mode", 0)),
-                         base=(gc.x, gc.y, gc.z) if gc is not None else (1.0, 1.0, 1.0),
-                         amount=float(g("Random Amount", 0.35)), hue_spread=float(g("Hue Spread", 1.0)),
-                         saturation=float(g("Random Saturation", 0.8)),
-                         brightness=float(g("Brightness Jitter", 0.0)), seed=int(g("Color Seed", 1)))
+    opts["color"] = _color_opts(op)
     flags = dict(animate=bool(g("Rebuild Every Frame", False)), write_id=bool(g("Write ID Tag", False)),
                  cell_sel=bool(g("Cell Selection Tags", False)), keep=bool(g("Keep Source UVs", False)),
                  merge=bool(g("Merge Objects", True)), source=g("Source Object", None),
@@ -568,7 +563,9 @@ def _gg_recolor(res, color):
     while o is not None:
         if o.IsInstanceOf(c4d.Opolygon):
             if k < len(keys) and keys[k] is not None:
-                write_color_tag(o, glyph_colors({"cell": keys[k][0], "island": keys[k][1]}, color))
+                r_ = {"cell": keys[k][0], "island": keys[k][1]}
+                write_color_tag(o, glyph_colors(r_, color))
+                write_palette_uv(o, color_keys(r_, color))
             k += 1
         o = o.GetNext()
 
@@ -846,7 +843,8 @@ def _gg_apply_plate(force=False):
 
 
 _GG_LIMIT_KEYS = ("Quadtree Block (polys)", "Quadtree Levels")
-_GG_COLOR_KEYS = ("Glyph Color", "Emission Strength")
+_GG_COLOR_KEYS = ("Glyph Color", "Emission Strength", "Color Mode", "Random Amount", "Hue Spread",
+                  "Random Saturation", "Brightness Jitter", "Color Seed")
 
 
 def _gg_update_limits(changed=None):

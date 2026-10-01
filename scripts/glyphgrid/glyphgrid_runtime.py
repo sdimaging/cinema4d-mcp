@@ -236,41 +236,159 @@ def _hsv_to_rgb(h, s, v):
     return colorsys.hsv_to_rgb(h % 1.0, max(0.0, min(1.0, s)), max(0.0, v))
 
 
-def glyph_colors(res, color):
-    """Per-polygon RGB from the Color tab.
-    color = dict(mode, base=(r,g,b), amount, hue_spread, saturation, brightness, seed)
-      Uniform        every glyph = base
-      Random / Cell  one colour per plate cell (every 'A' the same colour)
-      Random / Glyph one colour per glyph (island)
-    amount 0 = all base colour, 1 = full random; hue_spread = how far round the colour wheel
-    from the base hue the randoms may go (1 = any hue)."""
+PALETTE_W = 256                     # palette texture = 256 x 256 colours, key k -> pixel (k % W, k // W)
+PALETTE_N = PALETTE_W * PALETTE_W
+PALETTE_UV_NAME = "GlyphGrid Palette UV"
+_M64 = 0xFFFFFFFFFFFFFFFF
+
+
+def _mix64_py(x):
+    x &= _M64
+    x ^= x >> 30
+    x = (x * 0xBF58476D1CE4E5B9) & _M64
+    x ^= x >> 27
+    x = (x * 0x94D049BB133111EB) & _M64
+    x ^= x >> 31
+    return x
+
+
+def _rand01(keys, seed, salt):
+    """Deterministic 0..1 per key (splitmix64), identical in numpy and pure Python."""
+    off = ((int(seed) * 1000003 + salt) * 0xBF58476D1CE4E5B9) & _M64
+    if _np is not None:
+        with _np.errstate(over="ignore"):
+            x = (_np.asarray(keys, dtype=_np.uint64) + _np.uint64(1)) * _np.uint64(0x9E3779B97F4A7C15) + _np.uint64(off)
+            x ^= x >> _np.uint64(30)
+            x *= _np.uint64(0xBF58476D1CE4E5B9)
+            x ^= x >> _np.uint64(27)
+            x *= _np.uint64(0x94D049BB133111EB)
+            x ^= x >> _np.uint64(31)
+        return (x >> _np.uint64(11)).astype(_np.float64) / float(1 << 53)
+    return [(_mix64_py((int(k) + 1) * 0x9E3779B97F4A7C15 + off) >> 11) / float(1 << 53) for k in keys]
+
+
+def color_table(color, n):
+    """Colours for keys 0..n-1 (n x 3 floats). The ONE colour function: Redshift reads it as
+    vertex colours, Octane as a palette texture on a second UV set - same colours in both."""
     import colorsys
     mode = int(color.get("mode", COLOR_UNIFORM))
     base = tuple(float(x) for x in color.get("base", (1.0, 1.0, 1.0)))
-    n = len(res["cell"])
     if mode == COLOR_UNIFORM:
-        return [base] * n
-    keys = res["cell"] if mode == COLOR_CELL else res["island"]
+        return [base] * n if _np is None else _np.tile(_np.asarray(base, dtype=_np.float32), (n, 1))
     amt = max(0.0, min(1.0, float(color.get("amount", 0.35))))
     spread = max(0.0, min(1.0, float(color.get("hue_spread", 1.0))))
-    sat = float(color.get("saturation", 0.8))
+    sat = max(0.0, min(1.0, float(color.get("saturation", 0.8))))
     bj = max(0.0, min(1.0, float(color.get("brightness", 0.0))))
     seed = int(color.get("seed", 0))
     bh, bs, bv = colorsys.rgb_to_hsv(*[max(0.0, min(1.0, c)) for c in base])
     vmax = max(base) if max(base) > 0 else 1.0
-    cache = {}
+    keys = range(n)
+    r1, r2 = _rand01(keys, seed, 11), _rand01(keys, seed, 23)
+    if _np is not None:
+        h = (bh + (r1 - 0.5) * spread) if bs > 0.05 else r1
+        h = _np.mod(h, 1.0)
+        v = vmax * (1.0 - bj * r2)
+        i6 = _np.floor(h * 6.0)
+        f = h * 6.0 - i6
+        p_, q_, t_ = v * (1 - sat), v * (1 - sat * f), v * (1 - sat * (1 - f))
+        i6 = i6.astype(_np.int64) % 6
+        rgb = _np.choose(i6[:, None] * _np.ones((1, 3), dtype=_np.int64), [
+            _np.stack([v, t_, p_], 1), _np.stack([q_, v, p_], 1), _np.stack([p_, v, t_], 1),
+            _np.stack([p_, q_, v], 1), _np.stack([t_, p_, v], 1), _np.stack([v, p_, q_], 1)])
+        b = _np.asarray(base, dtype=_np.float64)[None, :]
+        return (b + (rgb - b) * amt).astype(_np.float32)
     out = []
-    for k in keys:
-        c = cache.get(k)
-        if c is None:
-            r = random.Random((int(k) + 1) * 2654435761 + seed * 97531)
-            h = bh + (r.random() - 0.5) * spread if bs > 0.05 else r.random()
-            v = vmax * (1.0 - bj * r.random())
-            rc = _hsv_to_rgb(h, sat, v)
-            c = tuple(b_ + (x - b_) * amt for b_, x in zip(base, rc))
-            cache[k] = c
-        out.append(c)
+    for a, c in zip(r1, r2):
+        h = bh + (a - 0.5) * spread if bs > 0.05 else a
+        rc = _hsv_to_rgb(h, sat, vmax * (1.0 - bj * c))
+        out.append(tuple(b_ + (x - b_) * amt for b_, x in zip(base, rc)))
     return out
+
+
+def color_keys(res, color):
+    """Per-polygon palette key: 0 for Uniform, the plate cell, or the glyph (island) id."""
+    mode = int(color.get("mode", COLOR_UNIFORM))
+    if mode == COLOR_UNIFORM:
+        return [0] * len(res["cell"])
+    keys = res["cell"] if mode == COLOR_CELL else res["island"]
+    if _np is not None:
+        return _np.asarray(keys, dtype=_np.int64) % PALETTE_N
+    return [int(k) % PALETTE_N for k in keys]
+
+
+def glyph_colors(res, color):
+    """Per-polygon RGB from the Color tab (see color_table)."""
+    keys = color_keys(res, color)
+    if _np is not None:
+        k = _np.asarray(keys, dtype=_np.int64)
+        tab = color_table(color, int(k.max()) + 1 if len(k) else 1)
+        return _np.asarray(tab, dtype=_np.float32)[k]
+    n = (max(keys) + 1) if keys else 1
+    tab = color_table(color, n)
+    return [tab[k] for k in keys]
+
+
+def write_palette_uv(po, keys, name=PALETTE_UV_NAME):
+    """Second UVW tag (right after GlyphGrid UV = Octane UV set 2): every corner of a polygon
+    points at the centre of its colour's pixel in the palette texture. UVs are per corner, so
+    unlike vertex colours (which Octane averages per POINT = smeared colour noise across glyphs)
+    every glyph gets exactly one flat colour."""
+    W = float(PALETTE_W)
+    if _np is not None:
+        k = _np.asarray(keys, dtype=_np.int64)
+        u = ((k % PALETTE_W) + 0.5) / W
+        v = ((k // PALETTE_W) + 0.5) / W
+        uv = _np.repeat(_np.stack([u, v], 1), 4, axis=0).reshape(-1).astype(_np.float32)
+    else:
+        uv = []
+        for k in keys:
+            u, v = ((k % PALETTE_W) + 0.5) / W, ((k // PALETTE_W) + 0.5) / W
+            uv.extend((u, v, u, v, u, v, u, v))
+    tag = write_uvw(po, uv, name, first=False)
+    # keep it directly behind the GlyphGrid UV tag: Octane addresses UV sets by order
+    main = None
+    t = po.GetFirstTag()
+    while t:
+        if t.CheckType(c4d.Tuvw) and t.GetName() == TAG_NAME:
+            main = t
+            break
+        t = t.GetNext()
+    if main is not None and tag is not None and main.GetNext() is not tag:
+        tag.Remove()
+        po.InsertTag(tag, main)
+    return tag
+
+
+def palette_file(folder, color):
+    """The palette PNG for these Color-tab settings (built once, cached by a hash of the settings).
+    Raw values (Octane reads it as non-colour data), same numbers as the vertex colours."""
+    import os
+    import hashlib
+    if not folder:
+        return None
+    d = os.path.join(folder, "_custom")
+    key = hashlib.md5(repr(sorted(color.items())).encode()).hexdigest()[:10]
+    path = os.path.join(d, "palette_%s.png" % key)
+    if os.path.exists(path):
+        return path
+    try:
+        os.makedirs(d, exist_ok=True)
+    except Exception:
+        pass
+    tab = color_table(color, PALETTE_N)
+    try:
+        from PIL import Image
+        import numpy as np_
+        a = (np_.clip(np_.asarray(tab, dtype=np_.float32), 0.0, 1.0) * 255.0 + 0.5).astype(np_.uint8)
+        Image.fromarray(a.reshape(PALETTE_W, PALETTE_W, 3)).save(path)
+    except Exception:
+        bmp = c4d.bitmaps.BaseBitmap()
+        bmp.Init(PALETTE_W, PALETTE_W, 24)
+        for k in range(PALETTE_N):
+            c = tab[k]
+            bmp.SetPixel(k % PALETTE_W, k // PALETTE_W, *[int(max(0.0, min(1.0, float(x))) * 255 + 0.5) for x in c])
+        bmp.Save(path, c4d.FILTER_PNG)
+    return path
 
 
 def write_color_tag(po, cols, name=COLOR_TAG_NAME):
@@ -350,7 +468,7 @@ def write_cell_selections(po, cells, ncell, prefix="GG_cell_"):
         po.InsertTag(st)
 
 
-def remove_other_uvw(po, keep=(TAG_NAME, ID_TAG_NAME)):
+def remove_other_uvw(po, keep=(TAG_NAME, ID_TAG_NAME, PALETTE_UV_NAME)):
     t = po.GetFirstTag()
     dead = []
     while t:
@@ -397,6 +515,8 @@ def apply_to_object(po, mg, params, src=SRC_RANDOM, opts=None, caller=None, doc=
         write_cell_selections(po, res["cell"], len(res["counts"]))
     col = opts.get("color")
     write_color_tag(po, glyph_colors(res, col) if col else None)
+    if col:
+        write_palette_uv(po, color_keys(res, col))
     t4 = time.time()
     c = res["counts"]
     return dict(polys=len(F), islands=res["islands"], cells=len(c), min=min(c), max=max(c),
@@ -1127,7 +1247,7 @@ def build_plate_material_octane(doc, target, plate_path, name="GlyphGrid Plate (
         mat[c4d.OCT_MATERIAL_DIFFUSE_LINK] = mul
     if glyph_color:
         _oct_glyph_color(mat)
-    mat.Message(c4d.MSG_UPDATE)
+    _oct_clean(mat, emission if emission <= 3.0 else 1.0)
     if assign:
         assign_material(target, mat, replace=False, new_tag=True)
     c4d.EventAdd()
@@ -1135,39 +1255,65 @@ def build_plate_material_octane(doc, target, plate_path, name="GlyphGrid Plate (
 
 
 def _oct_glyph_color(mat):
-    """Octane: Attribute Texture 'GlyphGrid Color' takes over the colour (the generator's Color tab
-    picker is the glyph colour; the plate still gives the glyph shapes / opacity)."""
-    ATTR, MUL, TEXEM = 1056908, 1029516, 1029642
+    """Octane colour hook = the palette texture read through UV set 2 (see write_palette_uv).
+    (Octane's Attribute Texture reads the vertex colour tag per POINT, averaging neighbouring
+    polygons - colours smeared across glyphs. The palette keeps every glyph one flat colour.)"""
+    return _oct_palette(mat, None)
+
+
+def _ensure_octane_tag(op):
+    """Octane Object tag with Force Updates on: without it the Live Viewer treats the generator as
+    'movable' and never re-sends its geometry (new UVs / palette keys) until it is toggled."""
+    try:
+        t = op.GetTag(1029603)
+        if t is None:
+            t = op.MakeTag(1029603)
+            t.SetName("GlyphGrid Octane updates")
+        if t[1307] != 1:
+            t[1307] = 1                    # OBJECTTAG_FORCE_UPDATES: Enabled
+    except Exception as e:
+        print("GlyphGrid: Octane object tag:", e)
+
+
+def _oct_palette(mat, path):
+    IMG, MUL, TEXEM, PROJ, ATTR = 1029508, 1029516, 1029642, 1031460, 1056908
+    pal = None
     sh = mat.GetFirstShader()
     while sh is not None:
-        if sh.GetName() == "gg_color":
-            return False
+        if sh.GetName() == "gg_palette" and sh.GetType() == IMG:
+            pal = sh
         sh = sh.GetNext()
-    attr = c4d.BaseShader(ATTR)
-    attr.SetName("gg_color")
-    attr[2001] = 1                    # ATTRIBTEX_TYPE: colour attribute
-    attr[2002] = COLOR_TAG            # ATTRIBTEX_IN_NAME
-    mat.InsertShader(attr)
-    em = mat[c4d.OCT_MATERIAL_EMISSION]
-    target = None
-    if em is not None and em.GetType() == TEXEM:
-        cur = em[c4d.TEXEMISSION_EFFIC_OR_TEX]
-        if cur is not None and cur.GetType() == MUL:      # emissive: plate x glyph colour
-            cur[c4d.MULTIPLY_TEXTURE2] = attr
-            target = cur
-        else:                                              # hologram: glyph colour emission
-            em[c4d.TEXEMISSION_EFFIC_OR_TEX] = attr
-            target = em
-    else:
-        dl = mat[c4d.OCT_MATERIAL_DIFFUSE_LINK]
-        if dl is not None and dl.GetType() == MUL:         # diffuse: plate x glyph colour
-            dl[c4d.MULTIPLY_TEXTURE2] = attr
-            target = dl
+    if pal is None:
+        pal = c4d.BaseShader(IMG)
+        pal.SetName("gg_palette")
+        mat.InsertShader(pal)
+        proj = c4d.BaseShader(PROJ)
+        proj.SetName("gg_palette_uv")
+        mat.InsertShader(proj)
+        proj[1360] = 2                     # Texture projection: Mesh UV
+        proj[1388] = 2                     # UV set 2 = 'GlyphGrid Palette UV'
+        pal[c4d.IMAGETEXTURE_PROJECTION_LINK] = proj
+        pal[1118] = 0                      # Color space: non-colour data (raw = same as vertex colours)
+        pal[c4d.IMAGETEX_BORDER_MODE] = 3  # clamp
+        pal[c4d.IMAGETEX_BORDER_MODE_V] = 3
+        # wire it where the colour goes, replacing an old Attribute Texture hook
+        em = mat[c4d.OCT_MATERIAL_EMISSION]
+        if em is not None and em.GetType() == TEXEM:
+            cur = em[c4d.TEXEMISSION_EFFIC_OR_TEX]
+            if cur is not None and cur.GetType() == MUL:               # emissive: plate x colour
+                cur[c4d.MULTIPLY_TEXTURE2] = pal
+            else:                                                       # hologram
+                em[c4d.TEXEMISSION_EFFIC_OR_TEX] = pal
+        else:
+            dl = mat[c4d.OCT_MATERIAL_DIFFUSE_LINK]
+            if dl is not None and dl.GetType() == MUL:
+                dl[c4d.MULTIPLY_TEXTURE2] = pal
+    if path:
+        if pal[c4d.IMAGETEXTURE_FILE] != path:
+            pal[c4d.IMAGETEXTURE_FILE] = path
     mat.Message(c4d.MSG_UPDATE)
-    return target is not None
+    return pal
 
-
-# ------------------------------------------------- generator material buttons ---
 def assign_material(op, mat, replace=True, new_tag=False):
     """Put mat on op with UVW projection. replace=True swaps the material of op's LAST texture tag
     (the one that wins), so pressing a material button never stacks tags."""
@@ -1206,6 +1352,16 @@ def current_plate(op):
     except Exception as e:
         print("GlyphGrid plate:", e)
         return None
+
+
+def _color_opts(op):
+    """The Color tab as the dict color_table() takes (same as the generator's opts['color'])."""
+    g = _ud(op)
+    gc = g("Glyph Color", None)
+    return dict(mode=int(g("Color Mode", 0)), base=(gc.x, gc.y, gc.z) if gc is not None else (1.0, 1.0, 1.0),
+                amount=float(g("Random Amount", 0.35)), hue_spread=float(g("Hue Spread", 1.0)),
+                saturation=float(g("Random Saturation", 0.8)), brightness=float(g("Brightness Jitter", 0.0)),
+                seed=int(g("Color Seed", 1)))
 
 
 def _glyph_rgb(op):
@@ -1272,7 +1428,7 @@ def build_glyph_material(doc, op, renderer="redshift"):
         mat = build_plate_material_standard(doc, op, plate, color=col, emission=em, assign=False)
     elif renderer == "octane":
         mat = build_plate_material_octane(doc, op, plate, name="GlyphGrid Octane", mode="hologram", color=col,
-                                          emission=5.0 * em, base=0.05, glyph_color=True, assign=False)
+                                          emission=em, base=0.05, glyph_color=True, assign=False)
     else:
         mat = build_plate_material(doc, op, plate, name="GlyphGrid Redshift", mode="hologram", color=col,
                                    emission=em, glyph_color=True, assign=False)
@@ -1301,11 +1457,10 @@ def sync_material_color(op, force=False):
         if mat is None:
             continue
         if mat.GetType() == 1029501:                       # Octane
-            sh = mat[c4d.OCT_MATERIAL_EMISSION]
-            if sh is not None and sh.GetType() == 1029642:
-                sh[c4d.TEXEMISSION_POWER] = 5.0 * em
-                n += 1
-            mat.Message(c4d.MSG_UPDATE)
+            _ensure_octane_tag(op)
+            _oct_palette(mat, palette_file(plate_dirs(g("Plates Folder", "") or "")[0], _color_opts(op)))
+            _oct_clean(mat, em)
+            n += 1
             continue
         if mat.GetType() != c4d.Mmaterial:
             continue
@@ -1340,6 +1495,32 @@ def sync_material_color(op, force=False):
             n += 1
     c4d.EventAdd()
     return n
+
+
+def _oct_clean(mat, em=1.0):
+    """Make an Octane GlyphGrid material behave like the Redshift / Standard ones.
+    - The plate is a MASK: read it as non-colour data. Read as sRGB, Octane linearised the
+      anti-aliased edges, so glyphs came out thin and wormy.
+    - Emission = a flat colour, not a light. Octane's texture emission is a real light source:
+      power spread over the whole mesh, importance-sampled, lighting its neighbours = dim
+      speckled colour noise. Surface brightness on, sampling rate 0, invisible to diffuse /
+      specular rays, no shadows, double sided -> clean per-glyph colour like Redshift."""
+    IMG, TEXEM = 1029508, 1029642
+    sh = mat.GetFirstShader()
+    while sh is not None:
+        if sh.GetType() == IMG and (sh.GetName() == "gg_plate" or "plates" in str(sh[c4d.IMAGETEXTURE_FILE])):
+            sh[1118] = 0                                  # Color space: Non-color data
+        sh = sh.GetNext()
+    em_sh = mat[c4d.OCT_MATERIAL_EMISSION]
+    if em_sh is not None and em_sh.GetType() == TEXEM:
+        em_sh[c4d.TEXEMISSION_SURFACE_BRIGHTNESS] = True
+        em_sh[c4d.TEXEMISSION_SAMPL_RATE] = 0.0
+        em_sh[c4d.TEXEMISSION_VISIBLE_ON_DIFFUSE] = False
+        em_sh[c4d.TEXEMISSION_VISIBLE_ON_SPECULAR] = False
+        em_sh[c4d.TEXEMISSION_CAST_SHADOWS] = False
+        em_sh[c4d.TEXEMISSION_DOUBLE_SIDED] = True
+        em_sh[c4d.TEXEMISSION_POWER] = float(em)
+    mat.Message(c4d.MSG_UPDATE)
 
 
 def _is_rs(mat):
