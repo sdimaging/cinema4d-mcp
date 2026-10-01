@@ -677,7 +677,14 @@ def font_name(v):
         return v or "Menlo-Bold"
     try:
         bc = v.GetFont()
-        return bc[c4d.GE_FONT_NAME_POSTSCRIPT] or bc[c4d.GE_FONT_NAME_DISPLAY] or "Menlo-Bold"
+        fam = bc.GetString(c4d.GE_FONT_NAME_FAMILY) or ""
+        sty = bc.GetString(c4d.GE_FONT_NAME_STYLE) or ""
+        names = [bc.GetString(c4d.GE_FONT_NAME_POSTSCRIPT), bc.GetString(508), bc.GetString(509),
+                 bc.GetString(c4d.GE_FONT_NAME_DISPLAY)]
+        if not fam and not any(names):
+            return "Menlo-Bold"
+        # 'Family||Style||names...' -> glyphgrid_plates.resolve_font (CoreText on macOS)
+        return "||".join([fam, sty] + [n for n in names if n])
     except Exception:
         return "Menlo-Bold"
 

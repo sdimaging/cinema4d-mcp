@@ -2911,3 +2911,7 @@ A Python Generator that clones another object's cache (e.g. a hidden SDS linked 
 - **Native font picker (family + style dropdowns, like the Text object):** `GetCustomDataTypeDefault(c4d.FONTCHOOSER_DATA)` + `CUSTOMGUI_FONTCHOOSER`. Default value: `fd = c4d.FontData(); fd.SetFont(GeClipMap.GetFontDescription("Menlo-Bold", c4d.GE_FONT_NAME_POSTSCRIPT))`. Read it back with `fd.GetFont()[c4d.GE_FONT_NAME_POSTSCRIPT]`.
 - **Side-by-side rows:** an untitled sub-group with `DESC_COLUMNS = n`, `DESC_TITLEBAR = False`.
 - **Top-level Attribute Manager tab:** a group whose `DESC_PARENTGROUP` is an empty `c4d.DescID()`.
+
+## 134. FontData from the font chooser: read family/style, then ask CoreText for the file
+
+`FontData.GetFont()` from `CUSTOMGUI_FONTCHOOSER` held `{1: family, 2: style, 508/509: internal names, 507: size}` and **no** `GE_FONT_NAME_POSTSCRIPT` (= 3) entry, so code reading key 3 silently fell back to a default font. Build the name from family + style. Many macOS fonts (e.g. Gotu, and the other on-demand fonts) live in `/System/Library/AssetsV2/com_apple_MobileAsset_Font*/…`, outside every normal font folder. Resolve the file with CoreText through ctypes: `CTFontDescriptorCreateWithNameAndSize(name)` → `CTFontDescriptorCopyAttribute(desc, kCTFontURLAttribute)` → `CFURLGetFileSystemRepresentation`. Then pick the right face inside a `.ttc` by matching Pillow's `getname()`.

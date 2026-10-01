@@ -55,11 +55,84 @@ FONT_DIRS = ["/System/Library/Fonts", "/System/Library/Fonts/Supplemental", "/Li
              os.path.expanduser("~/Library/Fonts"), "/usr/share/fonts", "C:/Windows/Fonts"]
 
 
+def _coretext_path(name):
+    """macOS: ask CoreText for the font file (finds every font the OS lists, including the
+    on-demand 'AssetsV2' fonts that live outside the normal font folders)."""
+    if sys.platform != "darwin" or not name:
+        return None
+    try:
+        import ctypes
+        import ctypes.util
+        ct = ctypes.cdll.LoadLibrary(ctypes.util.find_library("CoreText"))
+        cf = ctypes.cdll.LoadLibrary(ctypes.util.find_library("CoreFoundation"))
+        cf.CFStringCreateWithCString.restype = ctypes.c_void_p
+        cf.CFStringCreateWithCString.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_uint32]
+        ct.CTFontDescriptorCreateWithNameAndSize.restype = ctypes.c_void_p
+        ct.CTFontDescriptorCreateWithNameAndSize.argtypes = [ctypes.c_void_p, ctypes.c_double]
+        ct.CTFontDescriptorCopyAttribute.restype = ctypes.c_void_p
+        ct.CTFontDescriptorCopyAttribute.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+        cf.CFURLGetFileSystemRepresentation.restype = ctypes.c_bool
+        cf.CFURLGetFileSystemRepresentation.argtypes = [ctypes.c_void_p, ctypes.c_bool, ctypes.c_char_p, ctypes.c_long]
+        cf.CFRelease.argtypes = [ctypes.c_void_p]
+        key = ctypes.c_void_p.in_dll(ct, "kCTFontURLAttribute")
+        st = cf.CFStringCreateWithCString(None, name.encode("utf8"), 0x08000100)
+        desc = ct.CTFontDescriptorCreateWithNameAndSize(st, 12.0)
+        url = ct.CTFontDescriptorCopyAttribute(desc, key) if desc else None
+        out = None
+        if url:
+            buf = ctypes.create_string_buffer(4096)
+            if cf.CFURLGetFileSystemRepresentation(url, True, buf, 4096):
+                out = buf.value.decode("utf8")
+            cf.CFRelease(url)
+        for o in (desc, st):
+            if o:
+                cf.CFRelease(o)
+        return out if out and os.path.exists(out) else None
+    except Exception:
+        return None
+
+
+def _best_index(path, family, style):
+    """Pick the face inside a .ttc whose (family, style) matches best."""
+    if not path.lower().endswith((".ttc", ".otc")):
+        return 0
+    want_f = (family or "").lower().replace(" ", "")
+    want_s = (style or "regular").lower().replace(" ", "")
+    best, bi = -1, 0
+    for idx in range(32):
+        try:
+            fn, st = ImageFont.truetype(path, 12, index=idx).getname()
+        except Exception:
+            break
+        fn = (fn or "").lower().replace(" ", "")
+        st = (st or "").lower().replace(" ", "")
+        score = (fn == want_f) * 2 + (st == want_s) * 4 + (want_s in st) * 1
+        if score > best:
+            best, bi = score, idx
+    return bi
+
+
 def resolve_font(name):
-    """'Menlo-Bold', 'Courier New', 'HelveticaNeue-Bold' or a file path (optionally 'file.ttc#1')
-    -> (path, index) or None. Matches family + style inside .ttc collections."""
+    """Font spec -> (path, index) or None.
+    Spec: a file path ('file.ttc#1'), a PostScript name ('Menlo-Bold'), or what the C4D font
+    chooser gives: 'Family||Style||Name1||Name2' (see glyphgrid_runtime.font_name)."""
     if not name:
         return None
+    if "||" in name:
+        parts = name.split("||")
+        family, style = parts[0], parts[1] if len(parts) > 1 else ""
+        cands = [c for c in parts[2:] if c] + ["%s-%s" % (family, style.replace(" ", "")), "%s %s" % (family, style), family]
+        for c in cands:
+            pth = _coretext_path(c)
+            if pth:
+                return pth, _best_index(pth, family, style)
+        r = resolve_font("%s-%s" % (family.replace(" ", ""), style.replace(" ", "")))
+        return r or resolve_font(family)
+    if "#" not in name and not os.path.exists(name):
+        pth = _coretext_path(name)
+        if pth:
+            fam, _, sty = name.partition("-")
+            return pth, _best_index(pth, fam, sty or "Regular")
     if "#" in name and os.path.exists(name.split("#")[0]):
         p, k = name.rsplit("#", 1)
         return p, int(k)
