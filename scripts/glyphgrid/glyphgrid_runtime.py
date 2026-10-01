@@ -630,3 +630,91 @@ def swap_plate(op, new_path, folder):
         mat.Message(c4d.MSG_UPDATE)   # (no mat.Update(True, True): forcing the preview render from here hung C4D)
     c4d.EventAdd()
     return n
+
+
+# ------------------------------------------------------------- collections UI ---
+def collection_names(cdir):
+    """Sub-folders of the collections folder (sorted), i.e. the Collection dropdown entries."""
+    import os
+    try:
+        return sorted(d for d in os.listdir(cdir)
+                      if os.path.isdir(os.path.join(cdir, d)) and not d.startswith((".", "_")))
+    except Exception:
+        return []
+
+
+def collections_dir(plate_folder):
+    import os
+    return os.path.join(os.path.dirname(os.path.abspath(plate_folder)), "collections")
+
+
+def open_in_finder(path):
+    import os
+    import subprocess
+    import sys
+    os.makedirs(path, exist_ok=True)
+    try:
+        c4d.storage.ShowInFinder(path, True)
+        return
+    except Exception:
+        pass
+    if sys.platform == "darwin":
+        subprocess.Popen(["open", path])
+    elif sys.platform.startswith("win"):
+        os.startfile(path)  # noqa
+    else:
+        subprocess.Popen(["xdg-open", path])
+
+
+def new_collection(cdir, base="my_collection"):
+    """Creates <cdir>/my_collection_N with a short how-to, returns its path."""
+    import os
+    k = 1
+    while os.path.exists(os.path.join(cdir, "%s_%d" % (base, k))):
+        k += 1
+    path = os.path.join(cdir, "%s_%d" % (base, k))
+    os.makedirs(path)
+    with open(os.path.join(path, "_HOW_TO.txt"), "w") as f:
+        f.write("Drop glyph images here, numbered in priority order:\n"
+                "  01_first.png, 02_second.png, ...\n"
+                "1-up uses #1, 4-up #1-4, 9-up #1-9, 16-up #1-16 (fewer images repeat).\n"
+                "Transparent PNGs or white-on-black work best.\n"
+                "Optional hand-made plates: name_4up.png etc. are used as-is.\n"
+                "Then press 'Refresh List' on the GlyphGrid Plate tab and pick this folder.\n")
+    return path
+
+
+def set_cycle_items(op, name, items, keep=True):
+    """Rebuild a user-data dropdown's entries; keeps the selected entry by name when possible."""
+    for did, bc in op.GetUserDataContainer():
+        if bc[c4d.DESC_NAME] != name:
+            continue
+        old = bc[c4d.DESC_CYCLE]
+        cur = None
+        if keep and old is not None:
+            try:
+                cur = old.GetString(op[did])
+            except Exception:
+                cur = None
+        cyc = c4d.BaseContainer()
+        for i, s_ in enumerate(items or ["(none)"]):
+            cyc.SetString(i, s_)
+        bc[c4d.DESC_CYCLE] = cyc
+        op.SetUserDataContainer(did, bc)
+        if cur in (items or []):
+            op[did] = items.index(cur)
+        elif op[did] >= len(items or [1]):
+            op[did] = 0
+        return True
+    return False
+
+
+def cycle_text(op, name):
+    for did, bc in op.GetUserDataContainer():
+        if bc[c4d.DESC_NAME] == name:
+            cyc = bc[c4d.DESC_CYCLE]
+            try:
+                return cyc.GetString(op[did]) if cyc is not None else ""
+            except Exception:
+                return ""
+    return ""

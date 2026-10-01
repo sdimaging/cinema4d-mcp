@@ -117,6 +117,12 @@ Library files are named `<style>_<cells>up.png` in `plates/library/`. **Plate St
 - **Apply Plate Now** forces the swap.
 - Custom plates use Pillow (FreeType) when it's importable in C4D's Python, and give crisp glyphs. Install it the same way as numpy, with `pillow==11.3.0`. Without Pillow, GeClipMap is used, which is softer because GeClipMap clips text taller than ~126 px, so glyphs get upscaled.
 
+**Collection buttons (Plate tab):**
+- **Collection** is a dropdown of the folders in `plates/collections/`. Picking one switches Plate Style to *9 Collection* and swaps the texture.
+- **Open Collections Folder** opens that folder in Finder.
+- **New Collection** creates `my_collection_N` with a short how-to and opens it.
+- **Refresh List** re-reads the folders after you add or rename some.
+
 **Collections:** a folder of glyph images under `plates/collections/<name>/`, named `01_x.png`, `02_y.png`… in priority order. 1-up uses #1, 4-up #1–4, 9-up #1–9, 16-up #1–16; fewer images repeat. Hand-made `name_4up.png` plates are used as-is. A folder holding only one big plate is sliced into its cells. `shapes/` is a 16-glyph example.
 
 ### Output
