@@ -56,7 +56,10 @@ With **Grid Mode = Mixed**, every polygon draws from one of four levels, the 1-,
 
 ### Islands
 - **Island Mode**: Polygon = every polygon is one glyph. Ngon = ngons stay one glyph (default). Cluster = one big glyph across neighbouring polygons, sized by Cluster Size in scene units.
-- **Quadtree (mixed glyph sizes)**: blocks of **Quadtree Size** randomly split into halves, quarters and so on, down to single polygons. **Quadtree Levels** sets how many splits; **Subdivide Chance** runs from 0 (all big glyphs) to 1 (all single-polygon glyphs). On flat or gently curved surfaces with a regular grid (planes, walls, terrain, boxes) this gives a true quadtree mosaic of glyph sizes. Combine it with Mixed for big logos next to tiny ones. Blocks are world-space cubes, so on tight curves (a thin torus) keep Quadtree Size small, or big blocks wrap around the curve and their glyph gets stretched over it.
+- **Quadtree (mixed glyph sizes)**: blocks of N×N polygons (**Quadtree Block**: 1/2/4/8/16/32/64) randomly split into halves, quarters and so on, down to single polygons. **Quadtree Levels** caps how many block sizes appear; **Subdivide Chance** runs from 0 (all big) to 1 (all single polygons).
+  - Blocks come from the mesh **topology**: GlyphGrid walks the quad grid and gives every quad a (row, column), so blocks follow the mesh's own rows and columns whatever its position, rotation or curvature (planes, walls, cylinders, tori, sphere bands).
+  - Big glyphs are laid out in grid coordinates, like a decal that bends with the surface, and aspect-corrected so they stay square and centred on non-square quads.
+  - Triangles and ngons stay single glyphs. Combine with Mixed for big logos next to tiny ones.
 - **Fit Auto**: square-ish quads fill the cell edge to edge. Triangles, ngons and long thin polygons are scaled uniformly and centred, with no stretching.
 - **Flush Aspect Limit**: how stretched a quad can be and still fill the cell (1.35 = 35 % longer than wide).
 - **Gutter**: empty border in every cell, which stops neighbouring glyphs bleeding in. **Glyph Scale** shrinks or grows every glyph.

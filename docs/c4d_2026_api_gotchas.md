@@ -2879,9 +2879,11 @@ During the SDK `DoRecursion` walk (deform cache > cache > object > children), `G
 
 Setting `OSL_CODE_EDITOR` and then `CallButton(sh, OSL_COMPILE_BTN)` or `MSG_DESCRIPTION_COMMAND` leaves `OSL_NEED_COMPILE = 1` and empty logs. Compilation needs the Octane UI or live viewer. Validate OSL logic with a numpy port instead.
 
-## 127. Never send a message to a Python Generator from inside another Python call
+## 127. Don't call `gen.Message(MSG_DESCRIPTION_POSTSETPARAMETER, ...)` yourself on a Python Generator
 
 From `exec_python` / a script, `gen.Message(c4d.MSG_DESCRIPTION_POSTSETPARAMETER, {...})` runs the generator's `message()` synchronously, nested inside the outer Python call. When `message()` then edits a node material (a `GraphModel` transaction) and calls `c4d.EventAdd()`, Cinema 4D deadlocked and later crashed. This was reproduced twice (GlyphGrid plate swap). Calling the same swap function directly from the script returns in 3 ms. In tests and scripts, call the work function directly. Leave `message()` for real Attribute Manager edits.
+
+Plain `gen[descid] = value` from a script also fires `message()` with POSTSETPARAMETER (seen in prints), and that path did NOT deadlock, nor did real Attribute Manager edits (verified by typing a value into the field). The hang is specific to the hand-built `Message(..., {"descid": ...})` call.
 
 ## 128. GeClipMap.TextAt clips glyphs ~126 px below the text origin
 
