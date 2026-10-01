@@ -9,6 +9,41 @@ anyone building agent integrations against C4D 2026.
 
 ---
 
+## 116. Two hard crashes while iterating on a live Scene Nodes sim: viewport-draw race + SDS wrap during render
+
+**Discovered 2026-10-01** (C4D 2026.4, macOS, Redshift doc, ~100k-pt RD deformer).
+
+1. **Frame-stepping crash.** I was looping `SetTime(f)` / `ExecutePasses()` from Python (MCP `exec_python`) over a Memory-driven deformer with an animated Displacer above it, then jumping frame 0 → 30. Bug report: `EXC_BAD_ACCESS` with the crashing thread in `c4d_viewport_render.xlib → drawport_metal`, and `neutron` / `nodes` / `corenodes` / `modeling_geometry_abstraction` loaded. The viewport thread draws the deform cache while the main-thread pass rebuilds it.
+   **Mitigation that held for 300+ frames afterwards:** hide the host in the editor while stepping (`ID_BASEOBJECT_VISIBILITY_EDITOR = 1`, restore it afterwards), pass `ExecutePasses(None, False, True, True, …)` (no animation-thread flag), and step only forward and sequentially.
+2. **Render crash.** Wrapping that live 100k-pt SN host in a Subdivision Surface (editor 1 / render 2, about 1.6M render polys) and then calling `render_preview_image(renderer="redshift")` killed C4D.
+   **Avoid:** don't wrap a live Memory sim in SDS. Raise the in-graph Subdivide (density) instead, and do anti-aliasing inside the graph (wider smoothstep window / a softness pass). Bake or convert first if you need SDS for a final.
+
+Always save before heavy evaluation: the bug report lands in `~/Library/Preferences/Maxon/Maxon Cinema 4D 2026_<hash>/_bugreports/_BugReport.txt`.
+
+---
+
+## 115. Scene Nodes `weight` attribute → a real Vertex Map tag on the cache → Redshift reads it by name
+
+`set_property(accessortype = …attributes.weight, accessorname = "rd", arraymode = False, newdataset = False, iteration = <float per point>)` placed before `root.geometryout` produces a **Vertex Map tag named `rd`** on the deformer's deform cache (and SDS carries it too). In a Redshift material, `com.redshift3d.redshift4c4d.nodes.core.vertexattributelookup` with `attribute = "rd"` reads it (outcolor/outscalar). That gives you sim-driven shading (white worms on black) without baking. RS preview renders taken mid-sim show the **live Memory state** at the current frame. Note that `nm.CreateDefaultGraph(rs_space)` builds an RS **Standard** material, not OpenPBR, so port names differ (`refl_roughness` vs `specular_roughness`).
+
+---
+
+## 114. Deformer stacks feed Scene Nodes deformers in order: Spherify / Displacer above an SN Deformer works
+
+Deformers under one host evaluate top-down. `InsertUnderLast` the SN deformer and its `root.geometryin` receives the already-spherified/displaced mesh.
+- **Cube + Spherify** gives an even quad sphere (no pole pinch) for surface sims.
+- **Plane + Displacer** (noise shader, animated) gives a bubbling terrain.
+
+Point count and order stay constant frame to frame, so index-carried Memory state stays glued to the animated surface.
+
+---
+
+## 113. MCP stepping budget: chunk sims into ≤ 45 s calls; Neutron throughput is about 6M point-steps/s
+
+The measured cost of a Gray-Scott step (neighbor Sum Laplacian) on an M-series Mac is roughly 0.05 s/frame at 10k pts × 30 steps, 0.4 s at 86k, 0.57 s at 103k (with Displacer) and 1.0 s at 179k. Combined with the 60 s client cap (#112), write stepping loops against a wall-clock budget (`while time.time()-t < 45`), not a frame count.
+
+---
+
 ## 112. Maxon's built-in 2026.4 MCP Server has NO Scene Nodes graph tools; drive Neutron through `exec_python` (60 s client cap)
 
 **Discovered 2026-10-01** building an RD deformer with Maxon's own MCP (plugin 1.0.0.22, port 5556).

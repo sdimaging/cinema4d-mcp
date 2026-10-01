@@ -1,6 +1,6 @@
 # SN_RECIPE_rd_growth_deformer
 
-**Version:** 1.0
+**Version:** 1.1 (2026-10-01: Thickness smoothstep, `rd` Vertex Map output, Redshift look-dev rig, bubbling-terrain demo)
 **Status:** Verified structurally, numerically and visually (C4D 2026.4.0, 2026-10-01)
 **Eligible for Assemble Mode:** YES. `scripts/sn_build_rd_growth.py` regenerates it from scratch.
 **Assembly test:** PASSED. The builder recreated the full deformer on a fresh torus (19.2k pts) in an empty doc, and colonies grew frame over frame.
@@ -40,7 +40,8 @@ MEMORY (body inside capsule view)                       ports: geo feed kill da 
       A' = clamp(A + dt(Da·LA − AB² + F(1−A)))
       B' = clamp(B + dt(Db·LB + AB² − (K+F)B))
       compose(A',B',0) ─► bld/wr ─► next._0
-OUTPUT it1 ⟳ P: newp = P + N·(B·Height) ─► sp(Position, newdataset False) ─► root.geometryout
+OUTPUT it1 ⟳ P: rd = smoothstep(c−.06, c+.06, B), c = .36 − .22·Thickness
+       newp = P + N·(rd·Height) ─► sp(Position) ─► sw(weight "rd") ─► root.geometryout   (rd = Vertex Map tag, #115)
 ```
 
 ## AM parameters (root input ports, typed via connection)
@@ -53,6 +54,7 @@ OUTPUT it1 ⟳ P: newp = P + N·(B·Height) ─► sp(Position, newdataset False
 | dt | Time Step | 1.0 | mem → lp |
 | steps | Speed (steps per frame) | 30 | mem.steps → rg.end |
 | height | Height | 5.0 | hgt.in2 |
+| thickness | Thickness | 0.5 | smoothstep window (fatter ↔ thinner worms) |
 | seedr | Seed Radius | 0 | cmp0.in2 (disk at object origin) |
 | seedthr | Seed Threshold (higher = fewer) | 0.75 | scmp.in2 |
 | seedscale | Seed Noise Scale | 60 | snz.scale |
@@ -65,6 +67,14 @@ Pattern presets (Feed, Kill):
 - Spots 0.0367, 0.0649
 - Fingerprint 0.037, 0.06
 - Holes 0.039, 0.058
+
+## Look-dev (white on black, like the Blender build)
+
+`build_rd_lookdev(doc, host)` builds an RS material with base colour from the `rd` vertex attribute, coat 0.8 at roughness 0.04, plus two RS area lights (EV 9/8, size 300/400) and an RS camera aimed at the host. With no environment the background is black.
+
+Demo scenes built with the script:
+- `~/Documents/RD_SceneNodes/RD_BubblingTerrain.c4d`: a plane with an animated noise Displacer, with RD_Growth on top (#114).
+- A cube-sphere host: Cube 60 segs + Spherify + RD_Growth, Subdivide 1 (86k pts).
 
 ## Performance (M-series Mac, C4D 2026.4)
 
@@ -101,6 +111,11 @@ disp = [(dc.GetPoint(i) - c.GetPoint(i)).GetLength() for i in range(dc.GetPointC
 assert max(disp) < height * 0.6          # B peaks around 0.4, so it shouldn't saturate
 assert sum(d > 1 for d in disp) grows frame over frame
 ```
+
+## Known quality gaps vs. the Blender build
+
+- Edge aliasing at vertex resolution. The fix is in-graph (a softness/blur pass on rd and a wider window), not an SDS wrap on the live sim (#116).
+- Remesh mode (even remeshing per frame plus nearest-point state transfer) isn't ported yet. Hosts need constant topology.
 
 ## Open / next
 
