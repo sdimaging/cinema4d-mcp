@@ -2900,3 +2900,14 @@ The same trick as numpy (#125): `pip install --target ~/Library/Preferences/Maxo
 ## 131. Cache objects inherit the generator's visibility. Reset it on anything you re-emit
 
 A Python Generator that clones another object's cache (e.g. a hidden SDS linked as the source) gets polygon objects whose `ID_BASEOBJECT_VISIBILITY_RENDER` is the source's "off". The viewport uses editor visibility, so it looks fine there, while Redshift silently drops the mesh and the render is black. Set `ID_BASEOBJECT_VISIBILITY_RENDER/EDITOR = c4d.OBJECT_UNDEF` on every object you return.
+
+## 132. `c4d.DescID` is unhashable. Never key a dict with it
+
+`{did: name for did, bc in op.GetUserDataContainer()}` raises `TypeError: unhashable type: 'c4d.DescID'`. Inside a Python Generator's `message()` that error is easy to swallow, which silently disables every user-data button. Match buttons by the user-data index instead: `did[-1].id == data["id"][-1].id` (`data["id"]` arrives as `((700, 5, 0), (164, 8, 0))`). `==` works on DescIDs; hashing doesn't.
+
+## 133. User-data UI building blocks that behave like native panels
+
+- **Folder field with the "…" browse button:** `DTYPE_FILENAME` + `CUSTOMGUI_FILENAME` + `bc[c4d.FILENAME_DIRECTORY] = True`, plus `DESC_SCALEH = True`. Without SCALEH the field collapses to nothing inside a multi-column group.
+- **Native font picker (family + style dropdowns, like the Text object):** `GetCustomDataTypeDefault(c4d.FONTCHOOSER_DATA)` + `CUSTOMGUI_FONTCHOOSER`. Default value: `fd = c4d.FontData(); fd.SetFont(GeClipMap.GetFontDescription("Menlo-Bold", c4d.GE_FONT_NAME_POSTSCRIPT))`. Read it back with `fd.GetFont()[c4d.GE_FONT_NAME_POSTSCRIPT]`.
+- **Side-by-side rows:** an untitled sub-group with `DESC_COLUMNS = n`, `DESC_TITLEBAR = False`.
+- **Top-level Attribute Manager tab:** a group whose `DESC_PARENTGROUP` is an empty `c4d.DescID()`.

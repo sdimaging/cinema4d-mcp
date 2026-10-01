@@ -16,6 +16,16 @@ import c4d
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
+def font_data(name):
+    """PostScript font name -> c4d.FontData for the font chooser."""
+    from c4d.bitmaps import GeClipMap
+    fd = c4d.FontData()
+    desc = GeClipMap.GetFontDescription(name or "Menlo-Bold", c4d.GE_FONT_NAME_POSTSCRIPT)
+    if desc is not None:
+        fd.SetFont(desc)
+    return fd
+
+
 def collection_names(cdir):
     try:
         return sorted(d for d in os.listdir(cdir)
@@ -151,10 +161,11 @@ HELP = {
         "Custom: type your own characters in Custom Glyphs,",
         "  e.g. SDIMAGING or 0123456789 or .:-=+*#%@",
         "  Sort by Ink orders them sparse -> dense (for Value).",
-        "  Font = PostScript name, e.g. Menlo-Bold, Courier,",
-        "  HelveticaNeue-Bold, SFMono-Heavy.",
+        "  Font = Cinema 4D's font picker (any installed font).",
         "Apply Plate Now: force the swap (e.g. after editing text).",
-        "Plate Folder: where the library lives (and where custom",
+        "Plates Folder (top): the GlyphGrid plates root - holds library/",
+        "  (built-in styles) and collections/ (your folders). '...' browses,",
+        "  Open Plates Folder shows it in Finder. Custom plates are cached",
         "  plates are written).",
         "Only textures that point at plate files (or the node",
         "  named gg_plate) are swapped - other maps are untouched.",
@@ -223,19 +234,26 @@ UD_SPEC = [
 
     ("Plate", "tab", None, {}),
     ("Plate", "help", None, {}),
+    ("row_folder", "row", None, dict(columns=2)),
+    ("Plates Folder", "folder", "", {}),
+    ("Open Plates Folder", "button", None, {}),
+    ("row_folder", "endrow", None, {}),
     ("Plate Style", "cycle", 0, dict(items=["1 ASCII ramp", "2 Bayer dither", "3 Halftone dots", "4 Halftone squares",
                                             "5 Noise", "6 Hex digits", "7 Binary 0/1", "8 Custom (type below)",
-                                            "9 Collection (folder below)"])),
+                                            "9 Collection (pick below)"])),
+    ("row_coll", "row", None, dict(columns=4)),
     ("Collection", "cycle", 0, dict(items_fn="collections")),
-    ("Open Collections Folder", "button", None, {}),
+    ("Open Collection", "button", None, {}),
     ("Refresh List", "button", None, {}),
     ("New Collection", "button", None, {}),
+    ("row_coll", "endrow", None, {}),
     ("Custom Glyphs", "string", "", {}),
-    ("Font", "string", "Menlo-Bold", {}),
+    ("Font", "font", "Menlo-Bold", {}),
     ("Sort by Ink", "bool", True, {}),
+    ("row_apply", "row", None, dict(columns=2)),
     ("Auto Swap Plate", "bool", True, {}),
     ("Apply Plate Now", "button", None, {}),
-    ("Plate Folder", "string", "", {}),
+    ("row_apply", "endrow", None, {}),
 
     ("Output", "tab", None, {}),
     ("Output", "help", None, {}),
@@ -299,6 +317,15 @@ def _add_ud(op, name, kind, default, extra, parent):
         bc[c4d.DESC_CYCLE] = cyc
     elif kind == "string":
         bc = c4d.GetCustomDataTypeDefault(c4d.DTYPE_STRING)
+    elif kind == "folder":   # path field with the standard "..." browse button, directory mode
+        bc = c4d.GetCustomDataTypeDefault(c4d.DTYPE_FILENAME)
+        bc[c4d.DESC_CUSTOMGUI] = c4d.CUSTOMGUI_FILENAME
+        bc[c4d.FILENAME_DIRECTORY] = True
+        bc[c4d.DESC_SCALEH] = True
+    elif kind == "font":     # Cinema 4D's own font chooser (same as the Text object)
+        bc = c4d.GetCustomDataTypeDefault(c4d.FONTCHOOSER_DATA)
+        bc[c4d.DESC_CUSTOMGUI] = c4d.CUSTOMGUI_FONTCHOOSER
+        bc[c4d.DESC_SCALEH] = True
     elif kind == "button":
         bc = c4d.GetCustomDataTypeDefault(c4d.DTYPE_BUTTON)
         bc[c4d.DESC_CUSTOMGUI] = c4d.CUSTOMGUI_BUTTON
@@ -323,20 +350,37 @@ def _add_ud(op, name, kind, default, extra, parent):
         bc[c4d.DESC_MAXSLIDER] = conv(extra["max"])
     # (no tooltip key is exposed to Python user data; "tip" entries are documentation only)
     did = op.AddUserData(bc)
-    if default is not None and kind not in ("group", "button"):
+    if kind == "font":
+        op[did] = font_data(default)
+    elif default is not None and kind not in ("group", "button"):
         op[did] = default
     return did
 
 
 def add_user_data(op):
     parent = None
+    stack = []
     for name, kind, default, extra in UD_SPEC:
         if kind == "help":
             _add_help(op, name, parent)
             continue
+        if kind == "row":   # untitled sub-group laying its items out side by side
+            bc = c4d.GetCustomDataTypeDefault(c4d.DTYPE_GROUP)
+            bc[c4d.DESC_NAME] = bc[c4d.DESC_SHORT_NAME] = ""
+            bc[c4d.DESC_COLUMNS] = int(extra.get("columns", 2))
+            bc[c4d.DESC_DEFAULT] = 1
+            bc[c4d.DESC_TITLEBAR] = False
+            bc[c4d.DESC_PARENTGROUP] = parent
+            stack.append(parent)
+            parent = op.AddUserData(bc)
+            continue
+        if kind == "endrow":
+            parent = stack.pop()
+            continue
         did = _add_ud(op, name, kind, default, extra, None if kind in ("group", "tab") else parent)
         if kind in ("group", "tab"):
             parent = did
+            stack = []
 
 
 # ------------------------------------------------------------- generator code ---
@@ -540,7 +584,7 @@ def main():
 
 # ---------------------------------------------------------------- plate swap ---
 _GG_PLATE_KEYS = ("Grid (N x N)", "Grid Mode", "Plate Style", "Collection", "Custom Glyphs", "Font", "Sort by Ink",
-                  "Plate Folder")
+                  "Plates Folder")
 
 
 def _gg_apply_plate(force=False):
@@ -549,14 +593,14 @@ def _gg_apply_plate(force=False):
     g = lambda k, d=None: op[U[k]] if k in U else d
     if not force and not g("Auto Swap Plate", True):
         return
-    folder = g("Plate Folder", "") or ""
+    folder, _cd = plate_dirs(g("Plates Folder", "") or "")
     if not folder:
         return
     if int(g("Plate Style", 0)) == 8 and not cycle_text(op, "Collection").strip("() none"):
         return   # no collection picked yet
     try:
         path = plate_path(folder, g("Plate Style", 0), int(g("Grid (N x N)", 4)), g("Custom Glyphs", ""),
-                          g("Font", "Menlo-Bold") or "Menlo-Bold", bool(g("Sort by Ink", True)),
+                          font_name(g("Font", None)), bool(g("Sort by Ink", True)),
                           collection=cycle_text(op, "Collection"), mixed=int(g("Grid Mode", 0)) == 1)
     except Exception as e:
         c4d.gui.StatusSetText("GlyphGrid plate: %s" % e)
@@ -571,15 +615,24 @@ def message(id, data):
     try:
         if id == c4d.MSG_DESCRIPTION_COMMAND:
             did = data.get("id") if isinstance(data, dict) else None
-            names = {d_: bc[c4d.DESC_NAME] for d_, bc in op.GetUserDataContainer()}
-            hit = next((nm for d_, nm in names.items() if did is not None and did == d_), None)
-            U = {nm: d_ for d_, nm in names.items()}
-            folder = op[U["Plate Folder"]] if "Plate Folder" in U else ""
-            cdir = collections_dir(folder) if folder else ""
+            # NOTE: c4d.DescID is unhashable - never use it as a dict key (that silently killed
+            # every button here). Match on the user-data index instead.
+            hit = None
+            U = {}
+            for d_, bc in op.GetUserDataContainer():
+                U[bc[c4d.DESC_NAME]] = d_
+                if did is not None and d_[-1].id == did[-1].id and d_.GetDepth() == did.GetDepth():
+                    hit = bc[c4d.DESC_NAME]
+            root = op[U["Plates Folder"]] if "Plates Folder" in U else ""
+            folder, cdir = plate_dirs(root)
             if hit == "Apply Plate Now":
                 _gg_apply_plate(force=True)
-            elif hit == "Open Collections Folder" and cdir:
-                open_in_finder(cdir)
+            elif hit == "Open Plates Folder" and root:
+                open_in_finder(root)
+            elif hit == "Open Collection" and cdir:
+                cname = cycle_text(op, "Collection").strip()
+                sub = cdir + "/" + cname if cname and cname != "(none)" else cdir
+                open_in_finder(sub)
             elif hit == "Refresh List" and cdir:
                 set_cycle_items(op, "Collection", collection_names(cdir))
                 c4d.gui.StatusSetText("GlyphGrid: %d collections" % len(collection_names(cdir)))
@@ -594,6 +647,8 @@ def message(id, data):
             if did is not None:
                 for d_, bc in op.GetUserDataContainer():
                     if d_ == did and bc[c4d.DESC_NAME] in _GG_PLATE_KEYS:
+                        if bc[c4d.DESC_NAME] == "Plates Folder":   # new root -> re-read its collections
+                            set_cycle_items(op, "Collection", collection_names(plate_dirs(op[d_])[1]))
                         if bc[c4d.DESC_NAME] == "Collection":   # picking a collection = use it
                             for d2, bc2 in op.GetUserDataContainer():
                                 if bc2[c4d.DESC_NAME] == "Plate Style" and op[d2] != 8:
@@ -631,7 +686,7 @@ def build_generator(doc, source=None, name="GlyphGrid", **overrides):
     gen[c4d.OPYTHON_CODE] = generator_code()
     gen[c4d.OPYTHON_OPTIMIZE] = False  # we cache ourselves via GetAndCheckHierarchyClone
     add_user_data(gen)
-    set_params(gen, **{"Plate Folder": os.path.join(HERE, "plates", "library")})
+    set_params(gen, **{"Plates Folder": os.path.join(HERE, "plates")})
     set_params(gen, **overrides)
     doc.InsertObject(gen)
     if source is not None:
@@ -785,6 +840,11 @@ def upgrade_generator(gen):
                 gen[U[k]] = v
             except Exception:
                 pass
+    if isinstance(old.get("Font"), str) and "Font" in U:
+        gen[U["Font"]] = font_data(old["Font"])
+    if old.get("Plate Folder") and "Plates Folder" in U:   # old: .../plates/library -> new: .../plates
+        pf = old["Plate Folder"].rstrip("/")
+        gen[U["Plates Folder"]] = os.path.dirname(pf) if os.path.basename(pf) == "library" else pf
     if isinstance(old.get("Collection"), str) and "Collection" in U:   # old text field -> dropdown
         names_ = collection_names(os.path.join(HERE, "plates", "collections"))
         if old["Collection"] in names_:
