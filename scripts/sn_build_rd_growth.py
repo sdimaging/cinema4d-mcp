@@ -11,7 +11,8 @@ Run inside C4D (Script Manager, or any MCP python runner such as Maxon's built-i
 Result: a "RD_Growth" Scene Nodes Deformer under the host. Drop it under ANY polygon/primitive
 object. The pattern is carried per point index (topology mode), so deforming hosts keep the
 pattern stuck to the surface. AM params: Feed, Kill, Diffusion A/B, Time Step, Speed,
-Height, Seed Radius, Seed Threshold, Seed Noise Scale, Seed, Subdivide.
+Height, Thickness, Seed Radius, Seed Threshold, Seed Noise Scale, Seed, Subdivide.
+Writes an `rd` Vertex Map (0..1) on the deformed cache for shading.
 
 Architecture (verified 2026-10-01, C4D 2026.4):
   root.geometryin -> Subdivide -> gp(get_property Position)
@@ -25,7 +26,8 @@ Architecture (verified 2026-10-01, C4D 2026.4):
                         L = avg - S[i]; A' = A + dt(Da*LA - AB^2 + F(1-A)); B' = B + dt(Db*LB + AB^2 - (K+F)B)
           collect -> next._0
       LCV.final._0 -> memory next._0
-  out:  P + Normal * B * Height -> set_property(Position) -> root.geometryout
+  out:  rd = smoothstep(lo,hi,B) (Thickness); P + Normal * rd * Height -> set_property(Position)
+        -> set_property(weight 'rd') -> root.geometryout   (rd becomes a Vertex Map tag)
 """
 import c4d
 import maxon
@@ -41,11 +43,12 @@ A = {
     "comp": "net.maxon.pattern.node.conversion.composevector3", "clamp": "net.maxon.node.clamp",
     "cmp": "net.maxon.node.compare", "len": "net.maxon.node.length", "nbr": "net.maxon.neutron.geometry.neighbor",
     "sum": "net.maxon.node.sum", "noise": "net.maxon.node.noise", "subd": "net.maxon.neutron.modeling.subdivide",
-    "gennrm": "net.maxon.neutron.asset.geo.generatepointnormals",
+    "gennrm": "net.maxon.neutron.asset.geo.generatepointnormals", "ss": "net.maxon.node.smoothstep",
 }
 VEC3 = maxon.Id("net.maxon.parametrictype.vec<3,float>")      # OK for arithmetic/sum datatype
 DATA3D = maxon.Id("net.maxon.geometryabstraction.accessortypes.attributes.data3d")
 NORMAL = maxon.Id("net.maxon.geometryabstraction.accessortypes.attributes.normal")
+WEIGHT = maxon.Id("net.maxon.geometryabstraction.accessortypes.attributes.weight")   # -> Vertex Map tag on the cache
 SUBD_SUB = "net.maxon.command.modeling.subdivide.subdivisions"   # 0 = passthrough; 'iterations' does nothing
 
 
@@ -224,12 +227,23 @@ def build_rd_growth(doc, host, name="RD_Growth"):
     g.ws([("subd.geometryout", "gnrm.geometryin"), ("gnrm.geometryout", "gpn.geometry"),
           ("gp.array", "it1.in"), ("mem.nextout._0", "rvS.arrayin"), ("it1.index", "rvS.indexin"),
           ("rvS._0", "spS.vector"), ("gpn.array", "rvN.arrayin"), ("it1.index", "rvN.indexin")])
-    g.math("hgt", "mul", "spS.y", 20.0)
+    # crisp tube profile: rd = smoothstep(c-0.06, c+0.06, B), c = 0.36 - 0.22*Thickness  (same as the Blender build)
+    g.add("rdss", "ss")
+    g.expose("thickness", "Thickness", maxon.Float64(0.5), [])
+    g.math("thk", "mul", "ROOT.thickness", -0.22); g.math("ctr", "add", "thk.out", 0.36)
+    g.math("lo", "sub", "ctr.out", 0.06); g.math("hi", "add", "ctr.out", 0.06)
+    g.ws([("spS.y", "rdss.in1"), ("lo.out", "rdss.in2"), ("hi.out", "rdss.in3")])
+    g.math("hgt", "mul", "rdss.out", 20.0)
     g.ws([("hgt.out", "hv.x"), ("hgt.out", "hv.y"), ("hgt.out", "hv.z")])
     g.math("offN", "mul", "rvN._0", "hv.result", vec=True)
     g.math("newp", "add", "it1.out", "offN.out", vec=True)
-    g.ws([("subd.geometryout", "sp.geometryin"), ("gp.topology", "sp.topology"),
-          ("newp.out", "sp.iteration"), ("sp.geometryout", "ROOT.geometryout")])
+    g.ws([("subd.geometryout", "sp.geometryin"), ("gp.topology", "sp.topology"), ("newp.out", "sp.iteration")])
+    # rd (0..1) as a weight attribute -> shows up as a Vertex Map tag named "rd" on the deformed cache,
+    # readable by Redshift's Vertex Attribute node (attribute = "rd") for the white-on-black look.
+    g.add("sw", "set", accessortype=WEIGHT, accessorname=maxon.String("rd"),
+          arraymode=maxon.Bool(False), newdataset=maxon.Bool(False))
+    g.ws([("sp.geometryout", "sw.geometryin"), ("gp.topology", "sw.topology"),
+          ("rdss.out", "sw.iteration"), ("sw.geometryout", "ROOT.geometryout")])
 
     # --- AM parameters
     F, I = maxon.Float64, maxon.Int64
@@ -249,6 +263,52 @@ def build_rd_growth(doc, host, name="RD_Growth"):
     d.SetDirty(c4d.DIRTYFLAGS_ALL)
     c4d.EventAdd()
     return d
+
+
+def build_rd_lookdev(doc, host, frame_target=None):
+    """Redshift white-on-black look: OpenPBR + coat, base colour from the `rd` vertex map, 2 RS area lights,
+    RS camera aimed at the host. Assumes a Redshift document (the 2026 default). Returns the material."""
+    RS = maxon.Id("com.redshift3d.redshift4c4d.class.nodespace")
+    P = "com.redshift3d.redshift4c4d.nodes.core."
+    mat = c4d.BaseMaterial(c4d.Mmaterial)
+    mat.SetName("RD_Worms_BW")
+    doc.InsertMaterial(mat)
+    nm = mat.GetNodeMaterialReference()
+    g = nm.CreateDefaultGraph(RS) if not nm.HasSpace(RS) else nm.GetGraph(RS)
+    root = g.GetViewRoot()
+    with g.BeginTransaction() as tx:
+        surf = None
+        for c in root.GetChildren():
+            if "material" in str(c.GetId()) and "output" not in str(c.GetId()):
+                surf = c
+        va = g.AddChild(maxon.Id("rd_attr"), maxon.Id(P + "vertexattributelookup"))
+        va.GetInputs().FindChild(maxon.InternedId(P + "vertexattributelookup.attribute")).SetPortValue(maxon.String("rd"))
+        va.GetInputs().FindChild(maxon.InternedId(P + "vertexattributelookup.defaultcolor")).SetPortValue(maxon.ColorA64(0, 0, 0, 1))
+        kind = str(surf.GetId()).split("@")[0]            # standardmaterial (CreateDefaultGraph) or openpbrmaterial
+        va.GetOutputs().FindChild(maxon.InternedId(P + "vertexattributelookup.outcolor")).Connect(
+            surf.GetInputs().FindChild(maxon.InternedId(P + kind + ".base_color")))
+        for port, val in (("coat_weight", 0.8), ("coat_roughness", 0.04), ("refl_roughness", 0.28), ("specular_roughness", 0.28)):
+            try:   # port names differ between RS Standard and OpenPBR; missing ones are skipped
+                surf.GetInputs().FindChild(maxon.InternedId(P + kind + "." + port)).SetPortValue(maxon.Float64(val))
+            except Exception:
+                pass
+        tx.Commit()
+    tag = host.GetTag(c4d.Ttexture) or host.MakeTag(c4d.Ttexture)
+    tag[c4d.TEXTURETAG_MATERIAL] = mat
+    tag[c4d.TEXTURETAG_PROJECTION] = c4d.TEXTURETAG_PROJECTION_UVW
+    center = host.GetMg().off
+    EV = c4d.DescID(c4d.DescLevel(11022, 19, 1036751))
+    SX = c4d.DescID(c4d.DescLevel(11016, 19, 1036751)); SY = c4d.DescID(c4d.DescLevel(11017, 19, 1036751))
+    def aimed(tid, name, off):
+        o = c4d.BaseObject(tid); o.SetName(name); doc.InsertObject(o); o.SetAbsPos(center + off)
+        t = c4d.BaseTag(c4d.Ttargetexpression); t[c4d.TARGETEXPRESSIONTAG_LINK] = host; o.InsertTag(t)
+        return o
+    for name, off, ev, sz in (("RD_Key", c4d.Vector(300, 550, -500), 9.0, 300.0), ("RD_Rim", c4d.Vector(-400, 250, 600), 8.0, 400.0)):
+        L = aimed(1036751, name, off); L[EV] = ev; L[SX] = sz; L[SY] = sz
+    cam = aimed(1057516, "RD_Cam", c4d.Vector(330, 180, -520))
+    doc.GetActiveBaseDraw().SetSceneCamera(cam)
+    c4d.EventAdd()
+    return mat
 
 
 if __name__ == "__main__":
