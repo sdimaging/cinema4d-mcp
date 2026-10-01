@@ -2828,3 +2828,100 @@ exactly why those exist.
 If you're building against C4D 2026 and hit something that contradicts
 the C4D Python docs, please open an issue or PR with the discovery —
 keeping this list current saves everyone time.
+
+---
+
+# GlyphGrid batch (2026-10-01): UVW raw data, Python Generator child handling, user data
+
+Found while building `scripts/glyphgrid/` (per-polygon UV islands in an N×N atlas). Numbered from #117 so they do not collide with the Scene Nodes RD batch (#101–#116, PR #3).
+
+## 117. UVWTag raw layout is 32 bytes/polygon, and the float LSB is a flag. Clear it on raw writes
+
+`UVWTag.GetLowlevelDataAddressW()` gives `4 × (float32 u, float32 v)` per polygon (no w). C4D uses the **lowest mantissa bit** of each float internally. Raw-writing `struct.pack("8f", 0.1, 0.2, ...)` stores the bytes fine (the R view reads them back), but `GetSlow()` and the tag decode values with that bit set as garbage (`Vector(1518.375, -25.6, 0.003)`). Dyadic values like 0.25 or 0.5 survive, which hides the bug. `SetSlow()` clears the bit itself (0.2 is stored as `0x3E4CCCCC`).
+
+**Fix:** AND every 32-bit word with `0xFFFFFFFE` before writing. In numpy: `arr.view(np.uint32) & 0xFFFFFFFE`. In pure Python: `buf[0::4] = bytes(buf[0::4]).translate(bytes(i & 0xFE for i in range(256)))` (little endian). 2M polygons write in well under a second.
+
+## 118. Python Generator: GetAndCheckHierarchyClone / GetHierarchyClone return a usable clone only when the child really rebuilt
+
+In 2026.4 Python, called from `main()`, the clone is valid only on the pass where the child's cache was rebuilt. On other calls you get an empty Null shell or `None`, even with `dirty=True` forced, and the child's own cache is gone (handed over once). A params-only change (grid, seed) therefore has no source geometry.
+
+**Pattern:** when `res["dirty"]` is true and the clone has polygons, store your own copy of the source geometry (`GetClone()`, which is COW and cheap). Rebuild from that copy when only your parameters changed. Detect your own changes with `op.GetDirty(DIRTYFLAGS_DATA|DIRTYFLAGS_MATRIX)` counters.
+
+## 119. Never return `op.GetCache()` from a Python Generator's main()
+
+C4D frees the old cache right after `main()` returns, so the returned object raises `ReferenceError: the object 'c4d.BaseObject' is not alive` on the next pass. Keep your own result object and `return kept.GetClone()`. Polygon and tag data are copy-on-write in 2026: cloning a 245k-polygon object measures ~0 ms.
+
+## 120. `BaseObject.Touch()` on a generator's child frees the child's caches
+
+Touching the source hierarchy to "keep it hidden" made every later cache read return `None`. GetHierarchyClone/GetAndCheckHierarchyClone already set the control bit, so don't Touch.
+
+## 121. Python Generator "Optimize Cache" ignores child changes
+
+With `OPYTHON_OPTIMIZE = True`, `main()` runs only when the generator's own parameters change. Editing the child's radius or moving it does not re-run it. Set Optimize off and do your own dirty signature: the sum of `GetDirty(DATA|MATRIX|CACHE) + GetHDirty(HDIRTYFLAGS_OBJECT_HIERARCHY)` over the source hierarchy, plus targets and fields, plus the frame if animated.
+
+## 122. `FieldList.GetDirty(doc)` does not change when a field object is moved
+
+It reflects the list, not the linked objects. Walk `fl.GetLayersRoot()` and add each `layer.GetDirty(DIRTYFLAGS_DATA)` plus `layer.GetLinkedObject(doc).GetDirty(DIRTYFLAGS_DATA|DIRTYFLAGS_MATRIX)`. Without this, users had to toggle the generator to see field edits.
+
+## 123. User data REAL sliders: set DESC_STEP, or percent sliders jump 5 % → 100 %
+
+`GetCustomDataTypeDefault(DTYPE_REAL)` has `DESC_STEP = 1.0`. With `DESC_UNIT_PERCENT` the stored value is 0..1, so one arrow click is +100 % and the slider snaps between its ends. Use step 0.01 for percent, `radians(1)` for `DESC_UNIT_DEGREE` (which stores radians), and 0.01 for plain floats. There is no `c4d.DESC_DESCRIPTION` tooltip key in Python (AttributeError). Leave tooltips out.
+
+## 124. Cache objects report correct world matrices
+
+During the SDK `DoRecursion` walk (deform cache > cache > object > children), `GetMg()` on cache objects (Cloner clones, deformed primitives) returns the correct world matrix, checked against Cloner grid offsets. Objects in a free (non-document) clone hierarchy return the chain of their local matrices.
+
+## 125. numpy for C4D 2026 (Python 3.11, macOS arm64) without touching the app bundle
+
+`python3 -m pip install --target ~/Library/Preferences/Maxon/python/python311/libs --python-version 3.11 --platform macosx_14_0_arm64 --implementation cp --only-binary=:all: numpy==2.2.6`. That folder is already on C4D's `sys.path`. numpy 2 with Apple Accelerate emits spurious `divide by zero / overflow encountered in matmul` RuntimeWarnings for `a @ b` on clean data. Use `(a * b).sum(1)` or einsum instead.
+
+## 126. Octane OSL Texture (1039813) cannot be compiled from Python
+
+Setting `OSL_CODE_EDITOR` and then `CallButton(sh, OSL_COMPILE_BTN)` or `MSG_DESCRIPTION_COMMAND` leaves `OSL_NEED_COMPILE = 1` and empty logs. Compilation needs the Octane UI or live viewer. Validate OSL logic with a numpy port instead.
+
+## 127. Don't call `gen.Message(MSG_DESCRIPTION_POSTSETPARAMETER, ...)` yourself on a Python Generator
+
+From `exec_python` / a script, `gen.Message(c4d.MSG_DESCRIPTION_POSTSETPARAMETER, {...})` runs the generator's `message()` synchronously, nested inside the outer Python call. When `message()` then edits a node material (a `GraphModel` transaction) and calls `c4d.EventAdd()`, Cinema 4D deadlocked and later crashed. This was reproduced twice (GlyphGrid plate swap). Calling the same swap function directly from the script returns in 3 ms. In tests and scripts, call the work function directly. Leave `message()` for real Attribute Manager edits.
+
+Plain `gen[descid] = value` from a script also fires `message()` with POSTSETPARAMETER (seen in prints), and that path did NOT deadlock, nor did real Attribute Manager edits (verified by typing a value into the field). The hang is specific to the hand-built `Message(..., {"descid": ...})` call.
+
+## 128. GeClipMap.TextAt clips glyphs ~126 px below the text origin
+
+Glyphs at any font size above ~130 render cut off at a fixed pixel row (`origin + ~126`). `TextHeight()` reports the full height, so nothing warns you. Draw at size ≤ 120 and scale up. Prefer Pillow/FreeType when you can (#130).
+
+## 129. BaseBitmap.ScaleBicubic only downscales
+
+Upscaling raises `ValueError: The destination image has to be smaller`. To upscale: `CopyPartTo(crop, x, y, w, h)` → `crop.ScaleIt(big, 256, True, False)` → `GeClipMap.InitWithBitmap(big, None)` → `atlas.Blit(...)`. `GeClipMap.Init(bitmap)` does not exist in Python (TypeError), and `BaseBitmap` has no `Clear()`; fresh memory is black.
+
+## 130. Pillow inside Cinema 4D 2026 (macOS arm64)
+
+The same trick as numpy (#125): `pip install --target ~/Library/Preferences/Maxon/python/python311/libs --python-version 3.11 --platform macosx_14_0_arm64 --implementation cp --only-binary=:all: --no-deps pillow==11.3.0`. Fonts resolve from `/System/Library/Fonts/*.ttc` with `ImageFont.truetype(path, size, index=k)`. Match `getname()` → (family, style) to pick Menlo Bold out of `Menlo.ttc`.
+
+## 131. Cache objects inherit the generator's visibility. Reset it on anything you re-emit
+
+A Python Generator that clones another object's cache (e.g. a hidden SDS linked as the source) gets polygon objects whose `ID_BASEOBJECT_VISIBILITY_RENDER` is the source's "off". The viewport uses editor visibility, so it looks fine there, while Redshift silently drops the mesh and the render is black. Set `ID_BASEOBJECT_VISIBILITY_RENDER/EDITOR = c4d.OBJECT_UNDEF` on every object you return.
+
+## 132. `c4d.DescID` is unhashable. Never key a dict with it
+
+`{did: name for did, bc in op.GetUserDataContainer()}` raises `TypeError: unhashable type: 'c4d.DescID'`. Inside a Python Generator's `message()` that error is easy to swallow, which silently disables every user-data button. Match buttons by the user-data index instead: `did[-1].id == data["id"][-1].id` (`data["id"]` arrives as `((700, 5, 0), (164, 8, 0))`). `==` works on DescIDs; hashing doesn't.
+
+## 133. User-data UI building blocks that behave like native panels
+
+- **Folder field with the "…" browse button:** `DTYPE_FILENAME` + `CUSTOMGUI_FILENAME` + `bc[c4d.FILENAME_DIRECTORY] = True`, plus `DESC_SCALEH = True`. Without SCALEH the field collapses to nothing inside a multi-column group.
+- **Native font picker (family + style dropdowns, like the Text object):** `GetCustomDataTypeDefault(c4d.FONTCHOOSER_DATA)` + `CUSTOMGUI_FONTCHOOSER`. Default value: `fd = c4d.FontData(); fd.SetFont(GeClipMap.GetFontDescription("Menlo-Bold", c4d.GE_FONT_NAME_POSTSCRIPT))`. Read it back with `fd.GetFont()[c4d.GE_FONT_NAME_POSTSCRIPT]`.
+- **Side-by-side rows:** an untitled sub-group with `DESC_COLUMNS = n`, `DESC_TITLEBAR = False`.
+- **Top-level Attribute Manager tab:** a group whose `DESC_PARENTGROUP` is an empty `c4d.DescID()`.
+
+## 134. FontData from the font chooser: read family/style, then ask CoreText for the file
+
+`FontData.GetFont()` from `CUSTOMGUI_FONTCHOOSER` held `{1: family, 2: style, 508/509: internal names, 507: size}` and **no** `GE_FONT_NAME_POSTSCRIPT` (= 3) entry, so code reading key 3 silently fell back to a default font. Build the name from family + style. Many macOS fonts (e.g. Gotu, and the other on-demand fonts) live in `/System/Library/AssetsV2/com_apple_MobileAsset_Font*/…`, outside every normal font folder. Resolve the file with CoreText through ctypes: `CTFontDescriptorCreateWithNameAndSize(name)` → `CTFontDescriptorCopyAttribute(desc, kCTFontURLAttribute)` → `CFURLGetFileSystemRepresentation`. Then pick the right face inside a `.ttc` by matching Pillow's `getname()`.
+
+
+## 135. Deformers under a generator also deform its source sibling
+
+A deformer placed under a generator deforms **every sibling polygon object** at that level, the generator's source child included, and then deforms the generator's output again. A Python generator reading its child with `GetAndCheckHierarchyClone(..., HIERARCHYCLONEFLAGS_ASPOLY)` got the already-bent child, so the output was bent twice and every change of the deformer marked the child dirty, re-running the whole solve.
+
+- Detect enabled deformers among the generator's direct children: `ch.GetInfo() & c4d.OBJECT_MODIFIER and ch.GetDeformMode()`.
+- When there are some, read the source with caches only (skip `GetDeformCache()`), and let C4D's own deform pass bend the output once.
+- To keep per-polygon data (UVs) stable while points move, key the expensive solve on topology (point/poly count + sampled polygon indices), and on a points-only change reuse the last result with `SetAllPoints()`.
+- The Simulation Cloth tag (command 1059024, tag type 100004020) works on an editable child of a Python generator: the child's deform cache animates and the generator sees it frame by frame.

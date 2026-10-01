@@ -1,0 +1,89 @@
+/*
+ * GlyphGrid Atlas  (sdimaging/cinema4d-mcp  scripts/glyphgrid)
+ *
+ * Shader-side half of GlyphGrid "Encoded" UV mode.  The generator writes, per polygon:
+ *     U = valueLevel  + s        V = randomLevel + t
+ * integer part = data (0..Levels-1), fraction = the polygon's own 0..1 glyph frame (t down).
+ * This shader decodes that and picks the atlas cell + flipbook frame LIVE, so you can
+ * change grid size, remap values, shift cells and time-offset every polygon without
+ * rebuilding UVs.  One texture = one flipbook atlas: FlipCols x FlipRows frames, each frame
+ * an N x N plate (glyphgrid_plates.py --flipbook writes exactly this).
+ *
+ * Octane: OSL Texture node, leave the Projection pin on Mesh UV (P = UV).
+ * Redshift / others: set UseUVGlobals = 1 (reads u, v instead of P).
+ * If glyphs come out upside-down or on wrong cells, toggle FlipV (UV origin) / FlipT (image origin).
+ */
+
+float gg_hash(float x)
+{
+    return fmod(abs(sin(x * 12.9898 + 78.233) * 43758.5453), 1.0);
+}
+
+shader GlyphGridAtlas(
+    string Atlas = "" [[ string widget = "filename", string label = "Atlas / Flipbook" ]],
+    int Grid = 4 [[ int min = 1, int max = 16, string label = "Grid (N x N)" ]],
+    int Frames = 1 [[ int min = 1, int max = 256 ]],
+    int FlipCols = 1 [[ int min = 1, int max = 64, string label = "Flipbook Columns" ]],
+    float Frame = 0 [[ string label = "Frame (animate)" ]],
+    float Speed = 1,
+    float TimeOffset = 0 [[ float min = 0, float max = 1, string label = "Per-Polygon Time Offset" ]],
+    int CellSource = 0 [[ string widget = "mapper", string options = "Value:0|Random:1" ]],
+    float RandomMix = 0 [[ float min = 0, float max = 1 ]],
+    int CellShift = 0,
+    int Invert = 0 [[ string widget = "checkBox" ]],
+    float Contrast = 1,
+    float Offset = 0,
+    int WrapValues = 0 [[ string widget = "checkBox" ]],
+    float Gamma = 1 [[ float min = 0.05, float max = 10 ]],
+    float Dither = 0 [[ float min = 0, float max = 1 ]],
+    int Levels = 256 [[ int min = 2, int max = 4096 ]],
+    int UseUVGlobals = 0 [[ string widget = "checkBox" ]],
+    int FlipV = 0 [[ string widget = "checkBox" ]],
+    int FlipT = 0 [[ string widget = "checkBox" ]],
+    color Tint = color(1, 1, 1),
+    output color Out = 0,
+    output float Alpha = 0)
+{
+    point uvw = UseUVGlobals ? point(u, v, 0) : P;
+    float fu = uvw[0];
+    float fv = FlipV ? 1.0 - uvw[1] : uvw[1];
+    float iu = floor(fu);
+    float iv = floor(fv);
+    float ls = clamp(fu - iu, 0.0, 1.0);
+    float lt = clamp(fv - iv, 0.0, 1.0);
+
+    float val = clamp((iu + 0.5) / Levels, 0.0, 1.0);
+    float rnd = clamp((iv + 0.5) / Levels, 0.0, 1.0);
+
+    // ---- value remap (same order as glyphgrid_core._remap_value)
+    if (CellSource == 1) val = rnd;
+    if (Invert) val = 1.0 - val;
+    val = (val - 0.5) * Contrast + 0.5 + Offset;
+    if (WrapValues) val = val - floor(val);
+    val = clamp(val, 0.0, 1.0);
+    if (Gamma != 1.0 && val > 0.0) val = pow(val, 1.0 / Gamma);
+    val = mix(val, rnd, RandomMix);
+
+    int cells = Grid * Grid;
+    val += (gg_hash(rnd * 977.0) - 0.5) * Dither / cells;
+    int cell = (int)clamp(floor(val * cells), 0.0, (float)(cells - 1));
+    cell = (cell + CellShift % cells + cells) % cells;
+
+    // ---- flipbook frame with per-polygon offset
+    float fr = Frame * Speed + rnd * TimeOffset * Frames;
+    int fi = ((int)floor(fr)) % Frames;
+    if (fi < 0) fi += Frames;
+    int flipRows = (Frames + FlipCols - 1) / FlipCols;
+
+    int col = cell % Grid;
+    int row = cell / Grid;
+    int fcol = fi % FlipCols;
+    int frow = fi / FlipCols;
+    float s = (fcol + (col + ls) / Grid) / FlipCols;
+    float t = (frow + (row + lt) / Grid) / flipRows;
+    if (FlipT) t = 1.0 - t;
+
+    color c = texture(Atlas, s, t, "wrap", "clamp");
+    Out = c * Tint;
+    Alpha = luminance(c);
+}

@@ -44,3 +44,7 @@ docs/scene_nodes_advanced_studies/scenes/*/frames/
 docs/scene_nodes_advanced_studies/scenes/*/sliders/
 *.c4d
 
+scripts/glyphgrid/plates/**/_built/
+scripts/glyphgrid/plates/**/_mixed/
+scripts/glyphgrid/plates/**/_custom/
+Claude outputs/
