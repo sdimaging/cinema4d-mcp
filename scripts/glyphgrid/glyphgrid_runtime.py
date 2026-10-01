@@ -21,7 +21,8 @@ SRC_RANDOM, SRC_VMAP, SRC_FIELD, SRC_HEIGHT, SRC_LIGHT, SRC_CAMERA, SRC_CURV, SR
 UP_AXES = [(0, 1, 0), (0, 0, 1), (1, 0, 0), (0, -1, 0)]
 TAG_NAME = "GlyphGrid UV"
 ID_TAG_NAME = "GlyphGrid ID"
-GRID_MAX = 8            # 64-up: largest plate the library / custom builders make
+GRID_MAX = 4            # 1/4/9/16-up: the plate library's four levels
+QT_LEVELS_MAX = 4       # glyph sizes in a quadtree: block, /2, /4, /8
 
 
 def qt_level_cap(qt_cells):
@@ -766,46 +767,28 @@ def cycle_text(op, name):
 
 
 # ------------------------------------------------------------ slider limits ---
-def slider_caps(op):
-    """Highest useful value per slider for the generator's current setup:
-    Quadtree Levels by block size, Grid N by the glyph count of a collection / custom string
-    (ceil(sqrt(n)): 16 icons -> 4 = 16-up), library plates GRID_MAX."""
-    import os
-    import re
-    U = {bc[c4d.DESC_NAME]: did for did, bc in op.GetUserDataContainer()}
-    g = lambda k, d=None: op[U[k]] if k in U else d
-    caps = {"Quadtree Levels": qt_level_cap(1 << int(g("Quadtree Block (polys)", 3) or 0))}
-    style = int(g("Plate Style", 0) or 0)
-    n = 0
-    if style == 8:
-        _f, cdir = plate_dirs(g("Plates Folder", "") or "")
-        cname = cycle_text(op, "Collection").strip()
-        if cdir and cname and cname != "(none)":
-            try:
-                fs = [f for f in os.listdir(os.path.join(cdir, cname))
-                      if f.lower().endswith((".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"))
-                      and not f.startswith((".", "_"))]
-                plates = [int(m.group(1)) for m in (re.search(r"_(\d+)up[._]", f) for f in fs) if m]
-                n = max(len(fs) - len(plates), max(plates or [0]))
-            except Exception:
-                n = 0
-    elif style == 7:
-        n = len([c for c in str(g("Custom Glyphs", "") or "") if not c.isspace()])
-    caps["Grid (N x N)"] = max(1, min(GRID_MAX, int(math.ceil(math.sqrt(n))))) if n else GRID_MAX
-    return caps
-
-
-def apply_slider_caps(op):
-    """Set field + slider max to the caps and pull values inside. Main thread only."""
-    caps = slider_caps(op)
-    for did, bc in op.GetUserDataContainer():
-        cap = caps.get(bc[c4d.DESC_NAME])
-        if cap is None:
+def apply_slider_caps(op, changed=None):
+    """Fixed ranges: Grid N 1-4 (1/4/9/16-up), Quadtree Levels 1-4.
+    Levels and Block are coupled so every level is real: a block of B polygons has
+    log2(B)+1 sizes (2 polys -> 2,1). Raising Levels grows the Block to fit (Levels 4 -> 8 polys);
+    lowering the Block pulls Levels down. Main thread only."""
+    U = {bc[c4d.DESC_NAME]: (did, bc) for did, bc in op.GetUserDataContainer()}
+    for name, cap in (("Grid (N x N)", GRID_MAX), ("Quadtree Levels", QT_LEVELS_MAX)):
+        if name not in U:
             continue
+        did, bc = U[name]
         if bc[c4d.DESC_MAX] != cap or bc[c4d.DESC_MAXSLIDER] != cap:
             bc[c4d.DESC_MAX] = cap
             bc[c4d.DESC_MAXSLIDER] = cap
             op.SetUserDataContainer(did, bc)
         if op[did] > cap:
             op[did] = cap
-    return caps
+    if "Quadtree Levels" in U and "Quadtree Block (polys)" in U:
+        dl, db = U["Quadtree Levels"][0], U["Quadtree Block (polys)"][0]
+        lv, bi = int(op[dl]), int(op[db])
+        if bi < lv - 1:
+            if changed == "Quadtree Levels":
+                op[db] = lv - 1          # block 2^(L-1) polygons
+            else:
+                op[dl] = bi + 1
+    return {"Grid (N x N)": GRID_MAX, "Quadtree Levels": QT_LEVELS_MAX}
