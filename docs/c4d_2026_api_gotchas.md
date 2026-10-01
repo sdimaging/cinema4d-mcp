@@ -2915,3 +2915,13 @@ A Python Generator that clones another object's cache (e.g. a hidden SDS linked 
 ## 134. FontData from the font chooser: read family/style, then ask CoreText for the file
 
 `FontData.GetFont()` from `CUSTOMGUI_FONTCHOOSER` held `{1: family, 2: style, 508/509: internal names, 507: size}` and **no** `GE_FONT_NAME_POSTSCRIPT` (= 3) entry, so code reading key 3 silently fell back to a default font. Build the name from family + style. Many macOS fonts (e.g. Gotu, and the other on-demand fonts) live in `/System/Library/AssetsV2/com_apple_MobileAsset_Font*/…`, outside every normal font folder. Resolve the file with CoreText through ctypes: `CTFontDescriptorCreateWithNameAndSize(name)` → `CTFontDescriptorCopyAttribute(desc, kCTFontURLAttribute)` → `CFURLGetFileSystemRepresentation`. Then pick the right face inside a `.ttc` by matching Pillow's `getname()`.
+
+
+## 135. Deformers under a generator also deform its source sibling
+
+A deformer placed under a generator deforms **every sibling polygon object** at that level, the generator's source child included, and then deforms the generator's output again. A Python generator reading its child with `GetAndCheckHierarchyClone(..., HIERARCHYCLONEFLAGS_ASPOLY)` got the already-bent child, so the output was bent twice and every change of the deformer marked the child dirty, re-running the whole solve.
+
+- Detect enabled deformers among the generator's direct children: `ch.GetInfo() & c4d.OBJECT_MODIFIER and ch.GetDeformMode()`.
+- When there are some, read the source with caches only (skip `GetDeformCache()`), and let C4D's own deform pass bend the output once.
+- To keep per-polygon data (UVs) stable while points move, key the expensive solve on topology (point/poly count + sampled polygon indices), and on a points-only change reuse the last result with `SetAllPoints()`.
+- The Simulation Cloth tag (command 1059024, tag type 100004020) works on an editable child of a Python generator: the child's deform cache animates and the generator sees it frame by frame.

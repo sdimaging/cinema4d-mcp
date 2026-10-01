@@ -21,6 +21,13 @@ SRC_RANDOM, SRC_VMAP, SRC_FIELD, SRC_HEIGHT, SRC_LIGHT, SRC_CAMERA, SRC_CURV, SR
 UP_AXES = [(0, 1, 0), (0, 0, 1), (1, 0, 0), (0, -1, 0)]
 TAG_NAME = "GlyphGrid UV"
 ID_TAG_NAME = "GlyphGrid ID"
+GRID_MAX = 8            # 64-up: largest plate the library / custom builders make
+
+
+def qt_level_cap(qt_cells):
+    """Quadtree Levels that a block of qt_cells polygons can really split into (8 -> 8,4,2,1 = 4)."""
+    blk = 1 << max(0, int(round(math.log(max(1, int(qt_cells)), 2))))
+    return int(round(math.log(blk, 2))) + 1
 
 
 # -------------------------------------------------------------- mesh read ---
@@ -314,25 +321,27 @@ def iter_polys(root, parent_mg):
 DIRTY_FLAGS = c4d.DIRTYFLAGS_DATA | c4d.DIRTYFLAGS_MATRIX | c4d.DIRTYFLAGS_CACHE
 
 
-def collect_polys(op, out=None, ignore_control=True):
+def collect_polys(op, out=None, ignore_control=True, deform=True):
     """SDK DoRecursion variant: deform cache > cache > the object itself.
     Children are visited only when the object has no cache (a generator consumes its children:
     Cloner, Symmetry, SDS ...). The control-object bit is ignored on purpose: inside a generator
-    every source object and its caches carry it. Cache objects report correct GetMg() (2026.4)."""
+    every source object and its caches carry it. Cache objects report correct GetMg() (2026.4).
+    deform=False skips deform caches (= the shape before any deformer)."""
     if out is None:
         out = []
-    dc = op.GetDeformCache()
+    dc = op.GetDeformCache() if deform else None
     c = op.GetCache()
     if dc is not None:
-        collect_polys(dc, out)
+        collect_polys(dc, out, deform=deform)
     elif c is not None:
-        collect_polys(c, out)
+        collect_polys(c, out, deform=deform)
     elif op.IsInstanceOf(c4d.Opolygon) and op.GetPolygonCount():
         out.append((op, op.GetMg()))
     if c is None:
         ch = op.GetDown()
         while ch is not None:
-            collect_polys(ch, out)
+            if deform or not (ch.GetInfo() & c4d.OBJECT_MODIFIER):
+                collect_polys(ch, out, deform=deform)
             ch = ch.GetNext()
     return out
 
@@ -754,3 +763,49 @@ def cycle_text(op, name):
             except Exception:
                 return ""
     return ""
+
+
+# ------------------------------------------------------------ slider limits ---
+def slider_caps(op):
+    """Highest useful value per slider for the generator's current setup:
+    Quadtree Levels by block size, Grid N by the glyph count of a collection / custom string
+    (ceil(sqrt(n)): 16 icons -> 4 = 16-up), library plates GRID_MAX."""
+    import os
+    import re
+    U = {bc[c4d.DESC_NAME]: did for did, bc in op.GetUserDataContainer()}
+    g = lambda k, d=None: op[U[k]] if k in U else d
+    caps = {"Quadtree Levels": qt_level_cap(1 << int(g("Quadtree Block (polys)", 3) or 0))}
+    style = int(g("Plate Style", 0) or 0)
+    n = 0
+    if style == 8:
+        _f, cdir = plate_dirs(g("Plates Folder", "") or "")
+        cname = cycle_text(op, "Collection").strip()
+        if cdir and cname and cname != "(none)":
+            try:
+                fs = [f for f in os.listdir(os.path.join(cdir, cname))
+                      if f.lower().endswith((".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"))
+                      and not f.startswith((".", "_"))]
+                plates = [int(m.group(1)) for m in (re.search(r"_(\d+)up[._]", f) for f in fs) if m]
+                n = max(len(fs) - len(plates), max(plates or [0]))
+            except Exception:
+                n = 0
+    elif style == 7:
+        n = len([c for c in str(g("Custom Glyphs", "") or "") if not c.isspace()])
+    caps["Grid (N x N)"] = max(1, min(GRID_MAX, int(math.ceil(math.sqrt(n))))) if n else GRID_MAX
+    return caps
+
+
+def apply_slider_caps(op):
+    """Set field + slider max to the caps and pull values inside. Main thread only."""
+    caps = slider_caps(op)
+    for did, bc in op.GetUserDataContainer():
+        cap = caps.get(bc[c4d.DESC_NAME])
+        if cap is None:
+            continue
+        if bc[c4d.DESC_MAX] != cap or bc[c4d.DESC_MAXSLIDER] != cap:
+            bc[c4d.DESC_MAX] = cap
+            bc[c4d.DESC_MAXSLIDER] = cap
+            op.SetUserDataContainer(did, bc)
+        if op[did] > cap:
+            op[did] = cap
+    return caps

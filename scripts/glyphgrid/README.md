@@ -46,9 +46,9 @@ Cells are numbered **top-left first, left to right, row by row**:
 ```
 
 ### Grid
-- **Grid (N x N)**: 1 = 1-up (one glyph everywhere), 2 = 4-up, 3 = 9-up, 4 = 16-up. It must match the plate (the Plate tab swaps the plate for you).
+- **Grid (N x N)**: 1 = 1-up (one glyph everywhere), 2 = 4-up, 3 = 9-up, 4 = 16-up. It must match the plate (the Plate tab swaps the plate for you). The slider stops at what the plate can fill: library styles go to 8 (64-up); a collection or Custom Glyphs string stops at ⌈√glyphs⌉ (16 icons → 4, "DUDE" → 2), so you can't scrub into repeats.
 - **Seed**: re-deals which polygon gets which cell.
-- **Cell Shift**: moves every polygon N cells forward. Animate it for a global glyph cycle.
+- **Glyph Offset**: every polygon steps N places forward in the plate's reading order and wraps around (4-up A B / C D at offset 1: A→B, B→C, C→D, D→A). Layout and counts stay the same. Keyframe 0, 1, 2, 3… and all glyphs tick in lockstep like a split-flap board.
 - **Source Object**: optional. Drag any object here instead of putting it under GlyphGrid.
 
 ### Grid Mode: Mixed (1/4/9/16-up at once)
@@ -56,7 +56,7 @@ With **Grid Mode = Mixed**, every polygon draws from one of four levels, the 1-,
 
 ### Islands
 - **Island Mode**: Polygon = every polygon is one glyph. Ngon = ngons stay one glyph (default). Cluster = one big glyph across neighbouring polygons, sized by Cluster Size in scene units.
-- **Quadtree (mixed glyph sizes)**: blocks of N×N polygons (**Quadtree Block**: 1/2/4/8/16/32/64) randomly split into halves, quarters and so on, down to single polygons. **Quadtree Levels** caps how many block sizes appear; **Subdivide Chance** runs from 0 (all big) to 1 (all single polygons).
+- **Quadtree (mixed glyph sizes)**: blocks of N×N polygons (**Quadtree Block**: 1/2/4/8/16/32/64) randomly split into halves, quarters and so on, down to single polygons. **Quadtree Levels** caps how many block sizes appear (its slider follows the block: 8 polys → 8/4/2/1 = 4 levels max); **Subdivide Chance** runs from 0 (all big) to 1 (all single polygons).
   - Blocks come from the mesh **topology**: GlyphGrid walks the quad grid and gives every quad a (row, column), so blocks follow the mesh's own rows and columns whatever its position, rotation or curvature (planes, walls, cylinders, tori, sphere bands).
   - Big glyphs are laid out in grid coordinates, like a decal that bends with the surface, and aspect-corrected so they stay square and centred on non-square quads.
   - Triangles and ngons stay single glyphs. Combine with Mixed for big logos next to tiny ones.
@@ -134,6 +134,16 @@ Library files are named `<style>_<cells>up.png` in `plates/library/`. **Plate St
 - **Cell Selection Tags**: one polygon selection per cell (`GG_cell_00`…), so each glyph cell can get its own material.
 - **Keep Source UVs**: keep the object's original UV tags as well.
 - **Merge Objects**: several objects or clones become one mesh with one global even split.
+- **Lock Glyphs to Topology** (default on): when only the points move, every glyph stays on its polygon and rides along. UVs re-solve only when the polygon count/order or a GlyphGrid setting changes. With Random / Vertex Map / Index values the solve always runs on the rest shape (before deformers), so the layout doesn't depend on the frame you tweaked a setting at.
+- **Bake to Polygon Object**: editable copy with the UVs, selections and material; the generator is switched off. For sculpting, or sims that need an editable mesh outside the generator.
+
+### Deformers, cloth and dynamics
+GlyphGrid only writes UVs, so anything that moves points carries the glyphs:
+
+- **Deformer under GlyphGrid** (next to the source): bends the *output*. The source is read before deformers, so the bend is applied once and nothing re-solves while you scrub it.
+- **Deformer under the source**: bends the *input*; with the lock on the glyphs stay put. Use one placement or the other on a setup, not both.
+- **Cloth / Soft Body**: make the source editable, keep it under GlyphGrid and add the Simulation Cloth tag (plus a Collider on whatever it lands on). The sim runs on the child and the glyphs flow with it, no bake needed. `~/Documents/GlyphGrid/GlyphGrid_cloth_demo.c4d` drapes a 40×40 sheet over a sphere.
+- Animated meshes, MoGraph effectors on points, Alembic with fixed topology: same rule. Meshes whose topology changes every frame (remeshers, fluids) re-solve every frame.
 
 **The ASCII-shading recipe:** Plate Style 1 (ASCII), Value Source = Light / Lambert, Target = a null, Distribute = Value, Dither ≈ 0.35. Move the null and the glyph density follows the light.
 
@@ -199,4 +209,4 @@ python3 -m pip install --target ~/Library/Preferences/Maxon/python/python311/lib
 - Linked Target objects and fields are tracked by their dirty state. Keyframed changes need **Rebuild Every Frame**.
 - Back faces read mirrored when seen through a hologram material. That is expected; flip it per side with two materials if needed.
 
-See gotchas #117–#126 at the end of `docs/c4d_2026_api_gotchas.md` for the API lessons behind this tool.
+See gotchas #117–#135 at the end of `docs/c4d_2026_api_gotchas.md` for the API lessons behind this tool.
