@@ -133,6 +133,26 @@ HELP = {
         "Rebuild Every Frame: ON when lights, fields or Offset",
         "  are animated.",
     ],
+    "Color": [
+        "COLOR: tints the glyphs. Written as a vertex colour tag",
+        "  ('GlyphGrid Color'); materials made by GlyphGrid read it",
+        "  (Redshift Vertex Attribute / Octane Attribute Texture).",
+        "  Older materials: G.enable_glyph_color(mat) adds the hook.",
+        "Glyph Color: the main colour (the picker).",
+        "Color Mode Uniform: every glyph = Glyph Color.",
+        "  Random per Cell: one colour per plate cell, so every",
+        "  'A' (or every icon of one kind) shares a colour.",
+        "  Random per Glyph: every glyph gets its own colour.",
+        "Random Amount: 0 = all Glyph Color, 1 = fully random.",
+        "  Low values (0.1 - 0.3) = mostly uniform with a hint.",
+        "Hue Spread: how far round the colour wheel randoms may",
+        "  go from Glyph Color's hue (1 = any hue). With white /",
+        "  grey Glyph Color the hue is free.",
+        "Random Saturation: how colourful the random colours are.",
+        "Brightness Jitter: some glyphs darker (0 = none).",
+        "Color Seed: re-rolls the colours, glyphs stay put.",
+        "Colour changes never re-shuffle glyphs.",
+    ],
     "Output": [
         "OUTPUT: what gets written.",
         "UV Mode Atlas: the normal mode, works in every renderer.",
@@ -152,9 +172,13 @@ HELP = {
         "Deformers: put them UNDER GlyphGrid (bend the output) or",
         "  under the source object (bend the input) - both keep",
         "  glyphs locked. Don't mix the two on one setup.",
-        "Bake to Polygon Object: makes an editable copy with the",
-        "  GlyphGrid UVs + material and switches this generator off.",
-        "  Use it for Cloth / soft bodies / sculpting.",
+        "Cloth / Soft Body live under GlyphGrid: works, but the",
+        "  output trails the simulation by one frame (sims run after",
+        "  generators). For final renders press Write UVs onto",
+        "  Source: the UV + colour tags go onto the cloth mesh itself,",
+        "  it moves out next to GlyphGrid, GlyphGrid switches off.",
+        "Bake to Polygon Object: editable COPY with the UVs +",
+        "  material, generator off (sculpting, other tools).",
         "Custom glyphs / your own letters: see the Plate tab.",
     ],
     "Plate": [
@@ -270,6 +294,17 @@ UD_SPEC = [
     ("Apply Plate Now", "button", None, {}),
     ("row_apply", "endrow", None, {}),
 
+    ("Color", "tab", None, {}),
+    ("Color", "help", None, {}),
+    ("Glyph Color", "color", (1.0, 1.0, 1.0), {}),
+    ("Color Mode", "cycle", 0, dict(items=["Uniform (one colour)", "Random per Cell (every 'A' alike)",
+                                           "Random per Glyph"])),
+    ("Random Amount", "pct", 0.35, dict(min=0.0, max=1.0)),
+    ("Hue Spread", "pct", 1.0, dict(min=0.0, max=1.0)),
+    ("Random Saturation", "pct", 0.8, dict(min=0.0, max=1.0)),
+    ("Brightness Jitter", "pct", 0.0, dict(min=0.0, max=1.0)),
+    ("Color Seed", "int", 1, dict(min=0, max=9999)),
+
     ("Output", "tab", None, {}),
     ("Output", "help", None, {}),
     ("UV Mode", "cycle", 0, dict(items=["Atlas (grid baked in UVs)", "Encoded (experimental, OSL)"])),
@@ -278,7 +313,10 @@ UD_SPEC = [
     ("Keep Source UVs", "bool", False, {}),
     ("Merge Objects", "bool", True, {}),
     ("Lock Glyphs to Topology", "bool", True, {}),
+    ("row_bake", "row", None, dict(columns=2)),
     ("Bake to Polygon Object", "button", None, {}),
+    ("Write UVs onto Source", "button", None, {}),
+    ("row_bake", "endrow", None, {}),
 ]
 
 
@@ -334,6 +372,9 @@ def _add_ud(op, name, kind, default, extra, parent):
         bc[c4d.DESC_CYCLE] = cyc
     elif kind == "string":
         bc = c4d.GetCustomDataTypeDefault(c4d.DTYPE_STRING)
+    elif kind == "color":
+        bc = c4d.GetCustomDataTypeDefault(c4d.DTYPE_COLOR)
+        bc[c4d.DESC_CUSTOMGUI] = c4d.CUSTOMGUI_COLOR
     elif kind == "folder":   # path field with the standard "..." browse button, directory mode
         bc = c4d.GetCustomDataTypeDefault(c4d.DTYPE_FILENAME)
         bc[c4d.DESC_CUSTOMGUI] = c4d.CUSTOMGUI_FILENAME
@@ -369,6 +410,8 @@ def _add_ud(op, name, kind, default, extra, parent):
     did = op.AddUserData(bc)
     if kind == "font":
         op[did] = font_data(default)
+    elif kind == "color":
+        op[did] = c4d.Vector(*default)
     elif default is not None and kind not in ("group", "button"):
         op[did] = default
     return did
@@ -443,6 +486,12 @@ def _gg_params():
                 light_directional=bool(g("Directional Light", False)), wrap_light=float(g("Light Wrap", 0.0)),
                 period=float(g("Distance Period", 0.0)), curv_scale=float(g("Curvature Scale", 4.0)),
                 height_axis=UP_AXES[int(g("Up Axis", 0))])
+    gc = g("Glyph Color", None)
+    opts["color"] = dict(mode=int(g("Color Mode", 0)),
+                         base=(gc.x, gc.y, gc.z) if gc is not None else (1.0, 1.0, 1.0),
+                         amount=float(g("Random Amount", 0.35)), hue_spread=float(g("Hue Spread", 1.0)),
+                         saturation=float(g("Random Saturation", 0.8)),
+                         brightness=float(g("Brightness Jitter", 0.0)), seed=int(g("Color Seed", 1)))
     flags = dict(animate=bool(g("Rebuild Every Frame", False)), write_id=bool(g("Write ID Tag", False)),
                  cell_sel=bool(g("Cell Selection Tags", False)), keep=bool(g("Keep Source UVs", False)),
                  merge=bool(g("Merge Objects", True)), source=g("Source Object", None),
@@ -466,6 +515,19 @@ def _gg_topo(geo):
                 smp.append((p.a, p.b, p.c, p.d))
         key.append((o.GetPointCount(), n, tuple(smp)))
     return tuple(key)
+
+
+def _gg_recolor(res, color):
+    """Colour-only change: rewrite the vertex colour tags on the kept result (no re-solve)."""
+    keys = _GG_STATE.get("colkeys") or []
+    o = res.GetDown()
+    k = 0
+    while o is not None:
+        if o.IsInstanceOf(c4d.Opolygon):
+            if k < len(keys) and keys[k] is not None:
+                write_color_tag(o, glyph_colors({"cell": keys[k][0], "island": keys[k][1]}, color))
+            k += 1
+        o = o.GetNext()
 
 
 def _gg_move_points(res, geo, gmg, inv, merge):
@@ -551,7 +613,14 @@ def main():
     gmg = op.GetMg()
     inv = ~gmg
     CF = c4d.COPYFLAGS_NO_HIERARCHY | c4d.COPYFLAGS_NO_ANIMATION | c4d.COPYFLAGS_NO_BITS
-    own_sig = (op.GetDirty(c4d.DIRTYFLAGS_DATA | c4d.DIRTYFLAGS_MATRIX),
+    # what the SOLVE depends on: colour and plate settings are left out, so changing them never
+    # re-shuffles glyphs (colour = just a new vertex colour tag, plate = a material edit)
+    o_ = {k: v for k, v in opts.items() if k not in ("color", "fields", "target")}
+    solve_key = repr((sorted(params.items()), src, sorted(o_.items()),
+                      [flags[k] for k in ("write_id", "cell_sel", "keep", "merge", "lock", "animate")],
+                      str(tgt.GetGUID()) if tgt else 0))
+    col_sig = repr(sorted(opts["color"].items()))
+    own_sig = (op.GetDirty(c4d.DIRTYFLAGS_MATRIX), solve_key,
                tgt.GetDirty(c4d.DIRTYFLAGS_MATRIX | c4d.DIRTYFLAGS_DATA) if tgt else 0,
                fields_signature(fl, doc) if (fl is not None and src == SRC_FIELD) else 0,
                frame if flags["animate"] else 0, child_mode)
@@ -610,6 +679,9 @@ def main():
     # NOTE: never return op.GetCache() from a Python Generator (C4D frees it right after: "object is
     # not alive"). We return a clone of our own copy; polygon data is copy-on-write, ~0 ms.
     if not geo_changed and keep is not None and own_sig == _GG_STATE.get("own_sig"):
+        if col_sig != _GG_STATE.get("col_sig"):
+            _gg_recolor(keep, opts["color"])
+            _GG_STATE["col_sig"] = col_sig
         return keep.GetClone()
     geo = _GG_STATE.get("geo")
     if not geo:
@@ -621,6 +693,9 @@ def main():
         # under GlyphGrid): keep every glyph where it is, just carry the new shape
         res_ = keep.GetClone()
         if _gg_move_points(res_, geo, gmg, inv, flags["merge"]):
+            if col_sig != _GG_STATE.get("col_sig"):
+                _gg_recolor(res_, opts["color"])
+                _GG_STATE["col_sig"] = col_sig
             _GG_STATE["result"] = res_.GetClone()
             return res_
     _GG_STATE["topo"] = topo
@@ -643,6 +718,7 @@ def main():
         # render visibility off) would make our output invisible to the renderer -> reset to default
         o[c4d.ID_BASEOBJECT_VISIBILITY_RENDER] = c4d.OBJECT_UNDEF
         o[c4d.ID_BASEOBJECT_VISIBILITY_EDITOR] = c4d.OBJECT_UNDEF
+        strip_sim_tags(o)
 
     root = c4d.BaseObject(c4d.Onull)
     root.SetName("GlyphGrid")
@@ -681,6 +757,8 @@ def main():
                max=max(s.get("max", 0) for s in stats), t_solve=round(sum(s.get("t_solve", 0) for s in stats), 3),
                numpy=stats[0].get("numpy"), objects=len(parts))
     _GG_STATE["stats"] = tot
+    _GG_STATE["colkeys"] = [s_.get("keys") for s_ in stats]
+    _GG_STATE["col_sig"] = col_sig
     if rest_used:
         _gg_move_points(root, geo, gmg, inv, flags["merge"])   # solved at rest, shown deformed
     _GG_STATE["result"] = root.GetClone()
@@ -766,6 +844,12 @@ def _gg_bake():
     c4d.gui.StatusSetText("GlyphGrid: baked %d object(s) - add Cloth / Soft Body tags to the copy" % len(polys))
 
 
+def _gg_write_to_source():
+    msg = write_result_to_source(op, _GG_STATE.get("result"))
+    if msg:
+        c4d.gui.MessageDialog(msg)
+
+
 def _gg_mouse_down():
     try:
         bc = c4d.BaseContainer()
@@ -810,6 +894,8 @@ def message(id, data):
                 _gg_apply_plate(force=True)
             elif hit == "Bake to Polygon Object":
                 _gg_bake()
+            elif hit == "Write UVs onto Source":
+                _gg_write_to_source()
             elif hit == "Open Plates Folder" and root:
                 open_in_finder(root)
             elif hit == "Open Collection" and cdir:
@@ -913,6 +999,11 @@ def _rt():
     return glyphgrid_runtime
 
 
+def write_uvs_onto_source(gen):
+    """Script twin of the 'Write UVs onto Source' button (uses the generator's current cache)."""
+    return _rt().write_result_to_source(gen, gen.GetCache())
+
+
 def update_limits(gen, changed=None):
     """Clamp Grid N / Quadtree Levels sliders to what the current plate + block size can use."""
     try:
@@ -949,8 +1040,30 @@ def bake_object(doc, obj, src=0, opts=None, write_id=False, cell_sel=False, **pa
 
 
 # ---------------------------------------------------------------- look-dev ---
+def _rs_glyph_color(g, tex, port, mode):
+    """Vertex Attribute 'GlyphGrid Color' (the generator's Color tab) -> glyph colour.
+    emissive / diffuse: multiplies the plate (texture sampler colour multiplier).
+    hologram: drives emission + base colour (the plate stays the opacity mask)."""
+    import maxon
+    P = "com.redshift3d.redshift4c4d.nodes.core."
+    va = g.AddChild(maxon.Id("gg_color"), maxon.Id(P + "vertexattributelookup"))
+    vi = va.GetInputs()
+    vi.FindChild(maxon.InternedId(P + "vertexattributelookup.attribute")).SetPortValue(maxon.String(COLOR_TAG))
+    vi.FindChild(maxon.InternedId(P + "vertexattributelookup.defaultcolor")).SetPortValue(maxon.Color64(1, 1, 1))
+    vo = va.GetOutputs().FindChild(maxon.InternedId(P + "vertexattributelookup.outcolor"))
+    if mode == "hologram":
+        vo.Connect(port("emission_color"))
+        vo.Connect(port("base_color"))
+    else:
+        vo.Connect(tex.GetInputs().FindChild(maxon.InternedId(P + "texturesampler.color_multiplier")))
+    return va
+
+
+COLOR_TAG = "GlyphGrid Color"
+
+
 def build_plate_material(doc, target, plate_path, name="GlyphGrid Plate", mode="emissive",
-                         color=(1.0, 1.0, 1.0), emission=1.0, base_tint=0.0):
+                         color=(1.0, 1.0, 1.0), emission=1.0, base_tint=0.0, glyph_color=True):
     """Redshift node material driven by a plate. Assigned to `target` with UVW projection
     (uses the FIRST UVW tag = GlyphGrid UV).
 
@@ -1004,12 +1117,55 @@ def build_plate_material(doc, target, plate_path, name="GlyphGrid Plate", mode="
             setp("emission_weight", maxon.Float64(emission))
             setp("base_color", maxon.Color64(base_tint, base_tint, base_tint))
             setp("refl_weight", maxon.Float64(0.0))
+        if glyph_color:
+            _rs_glyph_color(g, tex, port, mode)
         tx.Commit()
     tag = target.GetTag(c4d.Ttexture) or target.MakeTag(c4d.Ttexture)
     tag[c4d.TEXTURETAG_MATERIAL] = mat
     tag[c4d.TEXTURETAG_PROJECTION] = c4d.TEXTURETAG_PROJECTION_UVW
     c4d.EventAdd()
     return mat
+
+
+def enable_glyph_color(mat):
+    """Add the Color-tab hook to an existing GlyphGrid plate material (Redshift or Octane).
+    Returns True if something was added."""
+    if mat.GetType() == 1029501:
+        return _oct_glyph_color(mat)
+    import maxon
+    RS = maxon.Id("com.redshift3d.redshift4c4d.class.nodespace")
+    P = "com.redshift3d.redshift4c4d.nodes.core."
+    nm = mat.GetNodeMaterialReference()
+    if not nm.HasSpace(RS):
+        return False
+    g = nm.GetGraph(RS)
+    root = g.GetViewRoot()
+    tex = surf = None
+    for nd in root.GetChildren():
+        sid = str(nd.GetId())
+        if sid.startswith("gg_color"):
+            return False      # already there
+        if sid.startswith("gg_plate"):
+            tex = nd
+        elif "material" in sid and "output" not in sid:
+            surf = nd
+    if tex is None or surf is None:
+        return False
+    kind = str(surf.GetId()).split("@")[0]
+    si = surf.GetInputs()
+    port = lambda n: si.FindChild(maxon.InternedId(P + kind + "." + n))
+    mode = "emissive"
+    out = tex.GetOutputs().FindChild(maxon.InternedId(P + "texturesampler.outcolor"))
+    for dst in [c[0] for c in out.GetConnections(maxon.PORT_DIR.OUTPUT)] if hasattr(out, "GetConnections") else []:
+        d = str(dst.GetId())
+        if d.endswith("opacity_color"):
+            mode = "hologram"
+        elif d.endswith("base_color"):
+            mode = "diffuse"
+    with g.BeginTransaction() as tx:
+        _rs_glyph_color(g, tex, port, mode)
+        tx.Commit()
+    return True
 
 
 def set_plate(mat, plate_path):
@@ -1067,13 +1223,13 @@ def upgrade_generator(gen):
 
 
 def build_plate_material_octane(doc, target, plate_path, name="GlyphGrid Plate (Octane)", mode="hologram",
-                                color=(0.15, 1.0, 0.35), emission=5.0, base=0.05):
+                                color=(0.15, 1.0, 0.35), emission=5.0, base=0.05, glyph_color=True):
     """Octane (C4D) version of build_plate_material: Octane Diffuse material + ImageTexture.
       hologram: plate -> opacity (black knocked out), constant colour TextureEmission
       emissive: plate x colour -> TextureEmission, black body
       diffuse:  plate x colour -> diffuse
     swap_plate() re-points the ImageTexture (IMAGETEXTURE_FILE) like the Redshift sampler."""
-    OCT_MAT, IMG, RGB, MUL, TEXEM = 1029501, 1029508, 1029504, 1029516, 1029642
+    OCT_MAT, IMG, RGB, MUL, TEXEM = 1029501, 1029508, 1029504, 1029516, 1029642  # noqa
     mat = c4d.BaseMaterial(OCT_MAT)
     mat.SetName(name)
     mat[c4d.OCT_MATERIAL_TYPE] = getattr(c4d, "OCT_MAT_TYPE_DIFFUSE", 2510)
@@ -1105,9 +1261,44 @@ def build_plate_material_octane(doc, target, plate_path, name="GlyphGrid Plate (
         mul = shader(MUL)
         mul[c4d.MULTIPLY_TEXTURE1], mul[c4d.MULTIPLY_TEXTURE2] = tex, col
         mat[c4d.OCT_MATERIAL_DIFFUSE_LINK] = mul
+    if glyph_color:
+        _oct_glyph_color(mat)
     mat.Message(c4d.MSG_UPDATE)
     tag = target.MakeTag(c4d.Ttexture)
     tag[c4d.TEXTURETAG_MATERIAL] = mat
     tag[c4d.TEXTURETAG_PROJECTION] = c4d.TEXTURETAG_PROJECTION_UVW
     c4d.EventAdd()
     return mat
+
+
+def _oct_glyph_color(mat):
+    """Octane: Attribute Texture 'GlyphGrid Color' takes over the colour (the generator's Color tab
+    picker is the glyph colour; the plate still gives the glyph shapes / opacity)."""
+    ATTR, MUL, TEXEM = 1056908, 1029516, 1029642
+    sh = mat.GetFirstShader()
+    while sh is not None:
+        if sh.GetName() == "gg_color":
+            return False
+        sh = sh.GetNext()
+    attr = c4d.BaseShader(ATTR)
+    attr.SetName("gg_color")
+    attr[2001] = 1                    # ATTRIBTEX_TYPE: colour attribute
+    attr[2002] = COLOR_TAG            # ATTRIBTEX_IN_NAME
+    mat.InsertShader(attr)
+    em = mat[c4d.OCT_MATERIAL_EMISSION]
+    target = None
+    if em is not None and em.GetType() == TEXEM:
+        cur = em[c4d.TEXEMISSION_EFFIC_OR_TEX]
+        if cur is not None and cur.GetType() == MUL:      # emissive: plate x glyph colour
+            cur[c4d.MULTIPLY_TEXTURE2] = attr
+            target = cur
+        else:                                              # hologram: glyph colour emission
+            em[c4d.TEXEMISSION_EFFIC_OR_TEX] = attr
+            target = em
+    else:
+        dl = mat[c4d.OCT_MATERIAL_DIFFUSE_LINK]
+        if dl is not None and dl.GetType() == MUL:         # diffuse: plate x glyph colour
+            dl[c4d.MULTIPLY_TEXTURE2] = attr
+            target = dl
+    mat.Message(c4d.MSG_UPDATE)
+    return target is not None

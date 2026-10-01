@@ -128,6 +128,13 @@ Library files are named `<style>_<cells>up.png` in `plates/library/`. **Plate St
 
 **Collections:** a folder of glyph images under `plates/collections/<name>/`, named `01_x.png`, `02_y.png`… in priority order. 1-up uses #1, 4-up #1–4, 9-up #1–9, 16-up #1–16; fewer images repeat. Hand-made `name_4up.png` plates are used as-is. A folder holding only one big plate is sliced into its cells. `shapes/` is a 16-glyph example.
 
+### Color
+- **Glyph Color**: colour picker for the glyphs.
+- **Color Mode**: Uniform (every glyph the picked colour), Random per Cell (one colour per plate cell, so every "A" or every icon of one kind matches), Random per Glyph (every glyph its own colour).
+- **Random Amount**: 0 = all Glyph Color, 1 = fully random; 0.1–0.3 gives mostly uniform with a hint of variation. **Hue Spread** limits the randoms to hues near Glyph Color (1 = any hue; a white or grey Glyph Color leaves the hue free). **Random Saturation**, **Brightness Jitter** and **Color Seed** shape and re-roll them.
+- Colour changes never re-shuffle glyphs and never re-solve UVs; only the vertex colour tag is rewritten. Changing plate settings no longer re-solves either.
+- How it renders: GlyphGrid writes a polygon-mode Vertex Color tag named `GlyphGrid Color`. Materials made by `build_plate_material` (Redshift Vertex Attribute → texture colour multiplier, or emission/base for hologram) and `build_plate_material_octane` (Octane Attribute Texture, verified in an Octane render) read it. The picker then sets the colour; the plate gives the shapes. Older materials: `G.enable_glyph_color(mat)`.
+
 ### Output
 - **UV Mode**: Atlas is the normal mode and works in every renderer. Encoded is experimental and only for `glyphgrid_atlas.osl`.
 - **Write ID Tag**: an extra UV tag (value, random) per polygon, for custom shaders.
@@ -135,14 +142,15 @@ Library files are named `<style>_<cells>up.png` in `plates/library/`. **Plate St
 - **Keep Source UVs**: keep the object's original UV tags as well.
 - **Merge Objects**: several objects or clones become one mesh with one global even split.
 - **Lock Glyphs to Topology** (default on): when only the points move, every glyph stays on its polygon and rides along. UVs re-solve only when the polygon count/order or a GlyphGrid setting changes. With Random / Vertex Map / Index values the solve always runs on the rest shape (before deformers), so the layout doesn't depend on the frame you tweaked a setting at.
-- **Bake to Polygon Object**: editable copy with the UVs, selections and material; the generator is switched off. For sculpting, or sims that need an editable mesh outside the generator.
+- **Bake to Polygon Object**: editable copy with the UVs, selections, colours and material; the generator is switched off. For sculpting or other tools.
+- **Write UVs onto Source**: puts the UV and colour tags straight onto the editable source, moves it out next to GlyphGrid and switches GlyphGrid off. Use it for final cloth / soft-body renders (script: `G.write_uvs_onto_source(gen)`).
 
 ### Deformers, cloth and dynamics
 GlyphGrid only writes UVs, so anything that moves points carries the glyphs:
 
 - **Deformer under GlyphGrid** (next to the source): bends the *output*. The source is read before deformers, so the bend is applied once and nothing re-solves while you scrub it.
 - **Deformer under the source**: bends the *input*; with the lock on the glyphs stay put. Use one placement or the other on a setup, not both.
-- **Cloth / Soft Body**: make the source editable, keep it under GlyphGrid and add the Simulation Cloth tag (plus a Collider on whatever it lands on). The sim runs on the child and the glyphs flow with it, no bake needed. `~/Documents/GlyphGrid/GlyphGrid_cloth_demo.c4d` drapes a 40×40 sheet over a sphere.
+- **Cloth / Soft Body**: make the source editable, keep it under GlyphGrid and add the Simulation Cloth tag (plus a Collider on whatever it lands on). The glyphs flow with it live, but the output trails the simulation by one frame because simulations run after generators. Sim tags are never copied onto the output (a copied Cloth tag made two sims fight, which was the playback flicker). For the final render press **Write UVs onto Source**: the cloth mesh then carries the glyphs itself, with no lag. `~/Documents/GlyphGrid/GlyphGrid_cloth_demo.c4d` drapes a 40×40 sheet over a sphere.
 - Animated meshes, MoGraph effectors on points, Alembic with fixed topology: same rule. Meshes whose topology changes every frame (remeshers, fluids) re-solve every frame.
 
 **The ASCII-shading recipe:** Plate Style 1 (ASCII), Value Source = Light / Lambert, Target = a null, Distribute = Value, Dither ≈ 0.35. Move the null and the glyph density follows the light.
@@ -209,4 +217,4 @@ python3 -m pip install --target ~/Library/Preferences/Maxon/python/python311/lib
 - Linked Target objects and fields are tracked by their dirty state. Keyframed changes need **Rebuild Every Frame**.
 - Back faces read mirrored when seen through a hologram material. That is expected; flip it per side with two materials if needed.
 
-See gotchas #117–#135 at the end of `docs/c4d_2026_api_gotchas.md` for the API lessons behind this tool.
+See gotchas #117–#136 at the end of `docs/c4d_2026_api_gotchas.md` for the API lessons behind this tool.

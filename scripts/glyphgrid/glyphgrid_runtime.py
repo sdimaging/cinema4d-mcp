@@ -8,6 +8,7 @@ Used two ways
 Everything here is plain c4d + glyphgrid_core; numpy is used only if present.
 """
 import math
+import random
 import time
 
 import c4d
@@ -226,6 +227,104 @@ def write_uvw(po, uv, name=TAG_NAME, first=True):
     return tag
 
 
+COLOR_TAG_NAME = "GlyphGrid Color"
+COLOR_UNIFORM, COLOR_CELL, COLOR_GLYPH = range(3)
+
+
+def _hsv_to_rgb(h, s, v):
+    import colorsys
+    return colorsys.hsv_to_rgb(h % 1.0, max(0.0, min(1.0, s)), max(0.0, v))
+
+
+def glyph_colors(res, color):
+    """Per-polygon RGB from the Color tab.
+    color = dict(mode, base=(r,g,b), amount, hue_spread, saturation, brightness, seed)
+      Uniform        every glyph = base
+      Random / Cell  one colour per plate cell (every 'A' the same colour)
+      Random / Glyph one colour per glyph (island)
+    amount 0 = all base colour, 1 = full random; hue_spread = how far round the colour wheel
+    from the base hue the randoms may go (1 = any hue)."""
+    import colorsys
+    mode = int(color.get("mode", COLOR_UNIFORM))
+    base = tuple(float(x) for x in color.get("base", (1.0, 1.0, 1.0)))
+    n = len(res["cell"])
+    if mode == COLOR_UNIFORM:
+        return [base] * n
+    keys = res["cell"] if mode == COLOR_CELL else res["island"]
+    amt = max(0.0, min(1.0, float(color.get("amount", 0.35))))
+    spread = max(0.0, min(1.0, float(color.get("hue_spread", 1.0))))
+    sat = float(color.get("saturation", 0.8))
+    bj = max(0.0, min(1.0, float(color.get("brightness", 0.0))))
+    seed = int(color.get("seed", 0))
+    bh, bs, bv = colorsys.rgb_to_hsv(*[max(0.0, min(1.0, c)) for c in base])
+    vmax = max(base) if max(base) > 0 else 1.0
+    cache = {}
+    out = []
+    for k in keys:
+        c = cache.get(k)
+        if c is None:
+            r = random.Random((int(k) + 1) * 2654435761 + seed * 97531)
+            h = bh + (r.random() - 0.5) * spread if bs > 0.05 else r.random()
+            v = vmax * (1.0 - bj * r.random())
+            rc = _hsv_to_rgb(h, sat, v)
+            c = tuple(b_ + (x - b_) * amt for b_, x in zip(base, rc))
+            cache[k] = c
+        out.append(c)
+    return out
+
+
+def write_color_tag(po, cols, name=COLOR_TAG_NAME):
+    """Vertex Color tag in polygon mode (4 x float32 RGBA per polygon). Redshift reads it with a
+    Vertex Attribute node, Octane with an Attribute Texture, both by the tag name."""
+    import struct
+    n = po.GetPolygonCount()
+    tag = None
+    t = po.GetFirstTag()
+    while t:
+        if t.CheckType(c4d.Tvertexcolor) and t.GetName() == name:
+            tag = t
+            break
+        t = t.GetNext()
+    if cols is None:
+        if tag:
+            tag.Remove()
+        return None
+    if tag is None or tag.GetDataCount() != n or tag.IsPerPointColor():
+        if tag:
+            tag.Remove()
+        tag = c4d.VertexColorTag(n)
+        tag.SetName(name)
+        po.InsertTag(tag)
+        tag.SetPerPointMode(False)
+    if _np is not None:
+        a = _np.ones((n, 4, 4), dtype=_np.float32)
+        a[:, :, :3] = _np.asarray(cols, dtype=_np.float32)[:, None, :]
+        raw = a.tobytes()
+    else:
+        raw = b"".join(struct.pack("16f", *((c[0], c[1], c[2], 1.0) * 4)) for c in cols)
+    w = tag.GetLowlevelDataAddressW()
+    if w is not None and len(w) == len(raw):
+        w[:] = raw
+    return tag
+
+
+# simulation / expression tags that must never ride along onto GlyphGrid's OUTPUT: a Cloth tag
+# copied onto the output made the simulation run on it too (two sims fighting = flicker)
+_SIM_TAGS = {100004020, 100004021, 100004022, 1018068, 1018074, 180000102, 180000107, 1059981, 1058895}
+
+
+def strip_sim_tags(o):
+    t = o.GetFirstTag()
+    dead = []
+    while t is not None:
+        if t.GetType() in _SIM_TAGS or (t.GetInfo() & c4d.TAG_EXPRESSION):
+            dead.append(t)
+        t = t.GetNext()
+    for t in dead:
+        t.Remove()
+    return o
+
+
 def write_id_tag(po, values, rands):
     """Second UVW tag: every corner of a polygon = (value, random). For custom shaders."""
     uv = []
@@ -296,11 +395,13 @@ def apply_to_object(po, mg, params, src=SRC_RANDOM, opts=None, caller=None, doc=
         write_id_tag(po, res["value"], res["rand"])
     if cell_sel:
         write_cell_selections(po, res["cell"], len(res["counts"]))
+    col = opts.get("color")
+    write_color_tag(po, glyph_colors(res, col) if col else None)
     t4 = time.time()
     c = res["counts"]
     return dict(polys=len(F), islands=res["islands"], cells=len(c), min=min(c), max=max(c),
                 t_read=round(t1 - t0, 3), t_values=round(t2 - t1, 3), t_solve=round(t3 - t2, 3),
-                t_write=round(t4 - t3, 3), numpy=_np is not None)
+                t_write=round(t4 - t3, 3), numpy=_np is not None, keys=(res["cell"], res["island"]))
 
 
 def iter_polys(root, parent_mg):
@@ -792,3 +893,52 @@ def apply_slider_caps(op, changed=None):
             else:
                 op[dl] = bi + 1
     return {"Grid (N x N)": GRID_MAX, "Quadtree Levels": QT_LEVELS_MAX}
+
+
+def write_result_to_source(op, res):
+    """Cloth / soft bodies: put GlyphGrid's UV + colour tags straight onto the editable source,
+    move it out next to the generator and switch the generator off. The simulation then runs on
+    the real mesh (no one-frame lag behind the sim, no copy)."""
+    d = op.GetDocument()
+    src = op.GetDown()
+    while src is not None and (src.GetInfo() & c4d.OBJECT_MODIFIER):
+        src = src.GetNext()
+    if d is None or res is None or src is None:
+        return "Nothing built yet."
+    out = res.GetDown()
+    while out is not None and not out.IsInstanceOf(c4d.Opolygon):
+        out = out.GetNext()
+    if not src.IsInstanceOf(c4d.Opolygon) or out is None or src.GetPolygonCount() != out.GetPolygonCount() \
+            or src.GetDown() is not None:
+        return ("Write UVs onto Source needs ONE editable polygon object (no children) under "
+                "GlyphGrid.\nMake it editable first, or use Bake to Polygon Object.")
+    d.StartUndo()
+    d.AddUndo(c4d.UNDOTYPE_CHANGE, src)
+    for t in list(src.GetTags()):      # old GlyphGrid tags + the source's own UVs (first UVW wins)
+        if t.CheckType(c4d.Tuvw) or (t.CheckType(c4d.Tvertexcolor) and t.GetName() == COLOR_TAG_NAME) \
+                or (t.CheckType(c4d.Tpolygonselection) and t.GetName().startswith("GG_cell_")):
+            t.Remove()
+    pred = None
+    for t in out.GetTags():
+        if t.CheckType(c4d.Tuvw) or t.CheckType(c4d.Tvertexcolor) or t.CheckType(c4d.Tpolygonselection):
+            cp = t.GetClone()
+            src.InsertTag(cp, pred)
+            pred = cp
+    t = op.GetFirstTag()
+    while t is not None:
+        if t.CheckType(c4d.Ttexture):
+            src.InsertTag(t.GetClone())
+        t = t.GetNext()
+    mg = src.GetMg()
+    d.AddUndo(c4d.UNDOTYPE_CHANGE, src)
+    src.Remove()
+    d.InsertObject(src, pred=op)
+    src.SetMg(mg)
+    d.AddUndo(c4d.UNDOTYPE_NEW, src)
+    d.AddUndo(c4d.UNDOTYPE_CHANGE_SMALL, op)
+    op[c4d.ID_BASEOBJECT_GENERATOR_FLAG] = False
+    d.EndUndo()
+    d.SetActiveObject(src)
+    c4d.EventAdd()
+    c4d.gui.StatusSetText("GlyphGrid: UVs written onto %s - its simulation now drives the glyphs directly" % src.GetName())
+    return None

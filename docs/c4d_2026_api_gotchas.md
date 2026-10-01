@@ -2925,3 +2925,12 @@ A deformer placed under a generator deforms **every sibling polygon object** at 
 - When there are some, read the source with caches only (skip `GetDeformCache()`), and let C4D's own deform pass bend the output once.
 - To keep per-polygon data (UVs) stable while points move, key the expensive solve on topology (point/poly count + sampled polygon indices), and on a points-only change reuse the last result with `SetAllPoints()`.
 - The Simulation Cloth tag (command 1059024, tag type 100004020) works on an editable child of a Python generator: the child's deform cache animates and the generator sees it frame by frame.
+
+
+## 136. A generator copying its child also copies the child's simulation tags
+
+Cloning the source geometry (`GetClone(COPYFLAGS_NO_HIERARCHY | ...)`) keeps every tag, Cloth included. The copied Cloth tag on the generator's output joined the simulation, so two cloth sims fought over related meshes and playback flickered until it stopped. Strip simulation and expression tags from the output: types 100004020 (Cloth), 100004021 (Collider), 100004022 (Cloth Belt), 1018068 / 1018074 (Rope), 180000102 / 180000107 (Dynamics Body), 1059981 (Rigid Body), 1058895 (Connector), plus anything with `TAG_EXPRESSION`.
+
+Even then, a generator reading a simulated child trails it by **one frame**: simulations update the child's deform cache after the generator pass has run. For a lag-free result, write the per-polygon data (UVW, vertex colour) onto the simulated mesh itself.
+
+Vertex colours: `VertexColorTag(polycount)` + `SetPerPointMode(False)` is 4 × float32 RGBA per polygon, writable in one go via `GetLowlevelDataAddressW()`. Redshift reads it with `vertexattributelookup` (attribute = tag name), Octane with the Attribute Texture (1056908, `ATTRIBTEX_TYPE` 1 = colour, `ATTRIBTEX_IN_NAME` = tag name); both read it from a Python generator's cache objects.
