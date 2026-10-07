@@ -108,6 +108,22 @@ HELP = {
     ],
     "Value": [
         "VALUE: what drives the Value / Value Equalized modes.",
+        "Image / Movie: a picture drives the glyphs through the source",
+        "  object's OWN UVs (a plane shows it 1:1). Bright = the last",
+        "  (densest) plate cell, dark = the first - an ink-sorted ASCII",
+        "  plate turns any image or film into text. Animated sources",
+        "  update every frame by themselves (no Rebuild Every Frame).",
+        "  Image File: a still, a numbered sequence (pick any frame:",
+        "  clock_0001.png ... or write clock_####.png), a GIF, or a",
+        "  movie (mp4 / mov - needs C4D's movie loader; sequences are",
+        "  faster and safer). Image Shader: any C4D shader instead",
+        "  (Bitmap with its own movie timing, Noise, Gradient ...).",
+        "  Image Sampling Area = average of the pixels under each glyph",
+        "  (calm, best for footage); Centre = one pixel (crisper).",
+        "  Image Speed / Frame Offset / Loop: playback of sequences,",
+        "  GIFs and movies against the timeline (0.5 = half speed).",
+        "  No UVs on the object -> planar projection on its largest side.",
+        "  Color tab > From Image also colours each glyph from the picture.",
         "Light / Lambert: brightness from Target Object (any null).",
         "  Directional Light OFF = bulb at the Target's position.",
         "  Directional Light ON = sun along the Target's -Z axis",
@@ -158,6 +174,10 @@ HELP = {
         "Random Saturation: how colourful the random colours are.",
         "Brightness Jitter: some glyphs darker (0 = none).",
         "Color Seed: re-rolls the colours, glyphs stay put.",
+        "From Image: every glyph takes the average colour of the",
+        "  picture under it (Value tab: Image File / Shader), times",
+        "  Glyph Color (white = the image's own colours). Works with",
+        "  any Value Source - e.g. random glyphs coloured by a movie.",
         "Colour changes never re-shuffle glyphs.",
     ],
     "Output": [
@@ -261,7 +281,14 @@ UD_SPEC = [
     ("Value", "tab", None, {}),
     ("Value", "help", None, {}),
     ("Value Source", "cycle", 0, dict(items=["Random", "Vertex Map", "Field", "Height (Up Axis)", "Light / Lambert",
-                                             "Camera Facing", "Curvature", "Polygon Index", "Distance"])),
+                                             "Camera Facing", "Curvature", "Polygon Index", "Distance",
+                                             "Image / Movie (source UVs)"])),
+    ("Image File", "file", "", {}),
+    ("Image Shader", "shader", None, {}),
+    ("Image Sampling", "cycle", 0, dict(items=["Area (average under each glyph)", "Centre point"])),
+    ("Image Speed", "float", 1.0, dict(min=-10.0, max=10.0, step=0.05)),
+    ("Image Frame Offset", "int", 0, dict(min=-100000, max=100000)),
+    ("Image Loop", "bool", True, {}),
     ("Target Object", "link", None, {}),
     ("Directional Light", "bool", False, {}),
     ("Light Wrap", "pct", 0.0, dict(min=0.0, max=1.0)),
@@ -315,7 +342,7 @@ UD_SPEC = [
     ("Glyph Color", "color", (1.0, 1.0, 1.0), {}),
     ("Emission Strength", "float", 1.0, dict(min=0.0, max=20.0, step=0.05)),
     ("Color Mode", "cycle", 0, dict(items=["Uniform (one colour)", "Random per Cell (every 'A' alike)",
-                                           "Random per Glyph"])),
+                                           "Random per Glyph", "From Image (Value tab: Image File / Shader)"])),
     ("Random Amount", "pct", 0.35, dict(min=0.0, max=1.0)),
     ("Hue Spread", "pct", 1.0, dict(min=0.0, max=1.0)),
     ("Random Saturation", "pct", 0.8, dict(min=0.0, max=1.0)),
@@ -392,6 +419,17 @@ def _add_ud(op, name, kind, default, extra, parent):
     elif kind == "color":
         bc = c4d.GetCustomDataTypeDefault(c4d.DTYPE_COLOR)
         bc[c4d.DESC_CUSTOMGUI] = c4d.CUSTOMGUI_COLOR
+    elif kind == "file":     # path field with "..." browse button, file mode
+        bc = c4d.GetCustomDataTypeDefault(c4d.DTYPE_FILENAME)
+        bc[c4d.DESC_CUSTOMGUI] = c4d.CUSTOMGUI_FILENAME
+        bc[c4d.DESC_SCALEH] = True
+    elif kind == "shader":   # the material-style shader slot (Bitmap, Noise, Layer ...)
+        bc = c4d.GetCustomDataTypeDefault(c4d.DTYPE_BASELISTLINK)
+        bc[c4d.DESC_CUSTOMGUI] = getattr(c4d, "CUSTOMGUI_TEXBOX", 1000485)
+        ac = c4d.BaseContainer()
+        ac.SetInt32(c4d.Xbase, 1)
+        bc[c4d.DESC_ACCEPT] = ac
+        bc[c4d.DESC_SCALEH] = True
     elif kind == "folder":   # path field with the standard "..." browse button, directory mode
         bc = c4d.GetCustomDataTypeDefault(c4d.DTYPE_FILENAME)
         bc[c4d.DESC_CUSTOMGUI] = c4d.CUSTOMGUI_FILENAME
@@ -454,7 +492,13 @@ def add_user_data(op):
         if kind == "endrow":
             parent = stack.pop()
             continue
-        did = _add_ud(op, name, kind, default, extra, None if kind in ("group", "tab") else parent)
+        try:
+            did = _add_ud(op, name, kind, default, extra, None if kind in ("group", "tab") else parent)
+        except Exception as e:
+            if kind != "shader":
+                raise
+            print("GlyphGrid: shader slot unavailable (%s) - use Image File" % e)
+            continue
         if kind in ("group", "tab"):
             parent = did
             stack = []
@@ -512,6 +556,13 @@ def _gg_params():
                 period=float(g("Distance Period", 0.0)), curv_scale=float(g("Curvature Scale", 4.0)),
                 height_axis=UP_AXES[int(g("Up Axis", 0))])
     opts["color"] = _color_opts(op)
+    shd = g("Image Shader", None)
+    opts["image"] = dict(file=str(g("Image File", "") or ""),
+                         shader=shd if isinstance(shd, c4d.BaseShader) else None,
+                         sampling=int(g("Image Sampling", 0)), speed=float(g("Image Speed", 1.0)),
+                         offset=int(g("Image Frame Offset", 0)), loop=bool(g("Image Loop", True)))
+    if not opts["image"]["file"] and opts["image"]["shader"] is None:
+        opts["image"] = None
     flags = dict(animate=bool(g("Rebuild Every Frame", False)), write_id=bool(g("Write ID Tag", False)),
                  cell_sel=bool(g("Cell Selection Tags", False)), keep=bool(g("Keep Source UVs", False)),
                  merge=bool(g("Merge Objects", True)), source=g("Source Object", None),
@@ -537,8 +588,9 @@ def _gg_topo(geo):
     return tuple(key)
 
 
-def _gg_recolor(res, color):
-    """Colour-only change: rewrite the vertex colour tags on the kept result (no re-solve)."""
+def _gg_recolor(res, color, img=None):
+    """Colour-only change: rewrite the vertex colour tags on the kept result (no re-solve).
+    From Image re-samples the picture (new movie frame) at the stored source-UV boxes."""
     keys = _GG_STATE.get("colkeys") or []
     o = res.GetDown()
     k = 0
@@ -546,6 +598,11 @@ def _gg_recolor(res, color):
         if o.IsInstanceOf(c4d.Opolygon):
             if k < len(keys) and keys[k] is not None:
                 r_ = {"cell": keys[k][0], "island": keys[k][1]}
+                if int(color.get("mode", 0)) == COLOR_IMAGE and len(keys[k]) > 2 and keys[k][2] is not None:
+                    try:
+                        r_["img_rgb"] = image_sample(img, keys[k][2])
+                    except Exception as e:
+                        print("GlyphGrid image:", e)
                 write_color_tag(o, glyph_colors(r_, color))
                 write_palette_uv(o, color_keys(r_, color))
             k += 1
@@ -650,7 +707,15 @@ def main():
     CF = c4d.COPYFLAGS_NO_HIERARCHY | c4d.COPYFLAGS_NO_ANIMATION | c4d.COPYFLAGS_NO_BITS
     # what the SOLVE depends on: colour and plate settings are left out, so changing them never
     # re-shuffles glyphs (colour = just a new vertex colour tag, plate = a material edit)
-    o_ = {k: v for k, v in opts.items() if k not in ("color", "fields", "target")}
+    img = opts.get("image")
+    img_used_val = img is not None and src == SRC_IMAGE
+    img_used_col = img is not None and int(opts["color"].get("mode", 0)) == COLOR_IMAGE
+    if img is not None:
+        img.update(frame=frame, time=doc.GetTime().Get(), doc=doc)
+    img_sig = image_signature(img) if (img_used_val or img_used_col) else None
+    if img_used_col:
+        opts["color"]["img"] = repr(img_sig)        # colour from a moving picture = recolour per frame
+    o_ = {k: v for k, v in opts.items() if k not in ("color", "fields", "target", "image")}
     solve_key = repr((sorted(params.items()), src, sorted(o_.items()),
                       [flags[k] for k in ("write_id", "cell_sel", "keep", "merge", "lock", "animate")],
                       str(tgt.GetGUID()) if tgt else 0))
@@ -658,7 +723,7 @@ def main():
     own_sig = (op.GetDirty(c4d.DIRTYFLAGS_MATRIX), solve_key,
                tgt.GetDirty(c4d.DIRTYFLAGS_MATRIX | c4d.DIRTYFLAGS_DATA) if tgt else 0,
                fields_signature(fl, doc) if (fl is not None and src == SRC_FIELD) else 0,
-               frame if flags["animate"] else 0, child_mode)
+               frame if flags["animate"] else 0, child_mode, img_sig if img_used_val else None)
 
     # ---- source geometry, stored as (polygon clone, matrix relative to the generator)
     geo_changed = False
@@ -721,7 +786,7 @@ def main():
     # not alive"). We return a clone of our own copy; polygon data is copy-on-write, ~0 ms.
     if not geo_changed and keep is not None and own_sig == _GG_STATE.get("own_sig"):
         if col_sig != _GG_STATE.get("col_sig"):
-            _gg_recolor(keep, opts["color"])
+            _gg_recolor(keep, opts["color"], img)
             _GG_STATE["col_sig"] = col_sig
         return keep.GetClone()
     geo = _GG_STATE.get("geo")
@@ -735,7 +800,7 @@ def main():
         res_ = keep.GetClone()
         if _gg_move_points(res_, geo, gmg, inv, flags["merge"]):
             if col_sig != _GG_STATE.get("col_sig"):
-                _gg_recolor(res_, opts["color"])
+                _gg_recolor(res_, opts["color"], img)
                 _GG_STATE["col_sig"] = col_sig
             _GG_STATE["result"] = res_.GetClone()
             return res_
@@ -746,7 +811,7 @@ def main():
     # layout no longer depends on which frame / bend amount you happened to tweak a setting at.
     # Spatial sources (height, light, field ...) keep solving on the current shape.
     shape, rest_used = geo, False
-    if flags["lock"] and src in (SRC_RANDOM, SRC_VMAP, SRC_INDEX) and not sib_def:
+    if flags["lock"] and src in (SRC_RANDOM, SRC_VMAP, SRC_INDEX, SRC_IMAGE) and not sib_def:
         try:
             rest = [(o.GetClone(CF), inv * mg) for o, mg in collect_polys(src_obj, deform=False)]
         except Exception:
@@ -764,6 +829,7 @@ def main():
     root = c4d.BaseObject(c4d.Onull)
     root.SetName("GlyphGrid")
     stats = []
+    ib = "sample"
     if flags["merge"] or len(parts) == 1:
         if len(parts) == 1:
             po = parts[0][0]
@@ -771,7 +837,9 @@ def main():
             vals = "sample"
         else:
             vals = None
-            if src != SRC_RANDOM:
+            if src == SRC_IMAGE:
+                vals = "sample"              # from the merged image boxes below
+            elif src != SRC_RANDOM:
                 vals = []
                 for p_, mg_ in parts:
                     P_, F_, _ = read_mesh(p_)
@@ -779,11 +847,13 @@ def main():
                     vals.extend(v_ if v_ is not None else [0.0] * len(F_))
                 if src == SRC_INDEX or src == SRC_HEIGHT:
                     vals = "sample"   # global, recompute on the merged mesh
+            if img_used_val or img_used_col:    # merged mesh has no UVs: collect each part's own
+                ib = concat_boxes([image_boxes(p_)[0] for p_, _m in parts])
             po = merge_parts(parts, inv)
         po.InsertUnder(root)
         stats.append(apply_to_object(po, gmg * po.GetMl(), params, src, opts, caller=op, doc=doc,
                                      write_id=flags["write_id"], cell_sel=flags["cell_sel"],
-                                     strip_uvs=not flags["keep"], values=vals))
+                                     strip_uvs=not flags["keep"], values=vals, img_boxes=ib))
     else:
         for k, (p_, mg_) in enumerate(parts):
             po = p_

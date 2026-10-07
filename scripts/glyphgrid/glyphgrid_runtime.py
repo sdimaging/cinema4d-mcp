@@ -19,7 +19,7 @@ if "compute" not in globals():   # module mode; embedded code already has the co
     except Exception:
         pass
 
-SRC_RANDOM, SRC_VMAP, SRC_FIELD, SRC_HEIGHT, SRC_LIGHT, SRC_CAMERA, SRC_CURV, SRC_INDEX, SRC_DIST = range(9)
+SRC_RANDOM, SRC_VMAP, SRC_FIELD, SRC_HEIGHT, SRC_LIGHT, SRC_CAMERA, SRC_CURV, SRC_INDEX, SRC_DIST, SRC_IMAGE = range(10)
 UP_AXES = [(0, 1, 0), (0, 0, 1), (1, 0, 0), (0, -1, 0)]
 TAG_NAME = "GlyphGrid UV"
 ID_TAG_NAME = "GlyphGrid ID"
@@ -171,6 +171,413 @@ def sample_values(po, mg, P, F, src, opts, caller=None, doc=None):
     return None
 
 
+# ----------------------------------------------------------- image source ---
+# Value Source "Image / Movie" + Color Mode "From Image": an image, numbered sequence, GIF / movie
+# or any C4D shader, read through the SOURCE object's own UVs (a plane shows the picture 1:1).
+# Brightness -> which glyph (dense glyphs where it's bright), RGB -> glyph colour.
+_IMG_CACHE = {}           # (file, mtime, sub-frame, maxdim) -> (rgb float32 HxWx3, summed-area table)
+_IMG_ORDER = []
+_SEQ_CACHE = {}
+_MOVIES = {}
+IMAGE_MAXDIM = 768        # images are reduced to this many pixels on the long side (plenty per glyph)
+_MOVIE_EXT = (".mp4", ".mov", ".m4v", ".avi", ".webm", ".mkv", ".mpg", ".mpeg")
+
+
+def _seq_info(path):
+    """Numbered sequence for path ('clock_0001.png', 'clock_####.png') -> (dir, {number: file}, sorted
+    numbers) or None for a single still image."""
+    import os
+    import re
+    d, base = os.path.split(path)
+    stem, ext = os.path.splitext(base)
+    m = re.search(r"#+", stem)
+    if m:
+        pre, post, nd = stem[:m.start()], stem[m.end():], len(m.group(0))
+    else:
+        m = re.search(r"(\d+)$", stem)
+        if not m or len(m.group(1)) < 2:     # 'logo_v2.png' is a still, 'clock_0001.png' a sequence
+            return None
+        pre, post, nd = stem[:m.start()], "", len(m.group(1))
+    try:
+        dm = os.path.getmtime(d)
+    except Exception:
+        return None
+    key = (d, pre, post, ext.lower(), nd)
+    hit = _SEQ_CACHE.get(key)
+    if hit and hit[0] == dm:
+        return hit[1]
+    files = {}
+    try:
+        for f in os.listdir(d):
+            fs, fe = os.path.splitext(f)
+            if fe.lower() != ext.lower() or not fs.startswith(pre) or (post and not fs.endswith(post)):
+                continue
+            mid = fs[len(pre):len(fs) - len(post)] if post else fs[len(pre):]
+            if mid.isdigit() and (len(mid) == nd or (len(mid) > nd and not mid.startswith("0"))):
+                files[int(mid)] = os.path.join(d, f)
+    except Exception:
+        files = {}
+    info = (d, files, sorted(files)) if len(files) > 1 or "#" in stem else None
+    _SEQ_CACHE[key] = (dm, info)
+    return info
+
+
+def _frame_index(img, count):
+    """Document frame -> index into a sequence / movie of `count` frames (speed, offset, loop)."""
+    i = int(math.floor(float(img.get("frame", 0)) * float(img.get("speed", 1.0)))) + int(img.get("offset", 0))
+    if count <= 0:
+        return 0
+    if img.get("loop", True):
+        return i % count
+    return max(0, min(count - 1, i))
+
+
+def image_resolve(img):
+    """-> (kind, path, sub) for the current frame: ('still'|'seq'|'gif'|'movie', file, frame index)."""
+    import os
+    path = str(img.get("file") or "").strip()
+    if not path:
+        return None
+    ext = os.path.splitext(path)[1].lower()
+    if ext in _MOVIE_EXT:
+        return ("movie", path, int(math.floor(float(img.get("frame", 0)) * float(img.get("speed", 1.0))))
+                + int(img.get("offset", 0)))
+    seq = _seq_info(path)
+    if seq is not None and seq[2]:
+        nums = seq[2]
+        return ("seq", seq[1][nums[_frame_index(img, len(nums))]], 0)
+    if ext == ".gif":
+        return ("gif", path, int(math.floor(float(img.get("frame", 0)) * float(img.get("speed", 1.0))))
+                + int(img.get("offset", 0)))
+    return ("still", path, 0)
+
+
+def image_signature(img):
+    """Changes exactly when the sampled picture can change (new file, edited file, new frame of an
+    animated source). A still image therefore never forces a rebuild per frame."""
+    import os
+    if not img:
+        return None
+    sh = img.get("shader")
+    if sh is not None:
+        try:
+            return ("shader", str(sh.GetGUID()), sh.GetDirty(c4d.DIRTYFLAGS_DATA), img.get("frame"),
+                    img.get("sampling"))
+        except Exception:
+            return ("shader", img.get("frame"))
+    r = image_resolve(img)
+    if r is None:
+        return None
+    try:
+        mt = int(os.path.getmtime(r[1]) * 1000)
+    except Exception:
+        mt = 0
+    return (r[0], r[1], mt, r[2] if r[0] != "still" else 0, img.get("sampling"),
+            img.get("loop") if r[0] in ("gif", "movie") else None)
+
+
+def _bitmap_array(bmp, maxdim=IMAGE_MAXDIM):
+    """c4d.bitmaps.BaseBitmap -> float32 HxWx3 (reduced to maxdim)."""
+    w, h = bmp.GetBw(), bmp.GetBh()
+    step = max(1, int(math.ceil(max(w, h) / float(maxdim))))
+    xs, ys = list(range(0, w, step)), list(range(0, h, step))
+    rows = []
+    for y in ys:
+        row = []
+        for x in xs:
+            r, g_, b = bmp.GetPixel(x, y)
+            row.append((r / 255.0, g_ / 255.0, b / 255.0))
+        rows.append(row)
+    if _np is not None:
+        return _np.asarray(rows, dtype=_np.float32)
+    return rows
+
+
+def _movie_bitmap(path, index, loop=True):
+    ml_cls = getattr(c4d.bitmaps, "MovieLoader", None)
+    if ml_cls is None:
+        raise RuntimeError("this Cinema 4D has no MovieLoader - export the movie as an image sequence")
+    ml = _MOVIES.get(path)
+    if ml is None:
+        ml = ml_cls()
+        if ml.Open(path) != c4d.IMAGERESULT_OK:
+            raise RuntimeError("can't open movie %s" % path)
+        _MOVIES[path] = ml
+    info = ml.GetInfo()
+    count = int(info[0]) if isinstance(info, (tuple, list)) else int(info)
+    i = (index % count) if loop else max(0, min(count - 1, index))
+    rr = ml.Read(i)
+    bmp = rr[1] if isinstance(rr, (tuple, list)) else rr
+    if bmp is None:
+        raise RuntimeError("can't read frame %d of %s" % (i, path))
+    return bmp
+
+
+def _load_rgb(kind, path, sub, loop=True, maxdim=IMAGE_MAXDIM):
+    """-> float32 HxWx3 in 0..1 (numpy) or nested lists without numpy."""
+    if kind == "movie":
+        return _bitmap_array(_movie_bitmap(path, sub, loop), maxdim)
+    try:
+        from PIL import Image
+        im = Image.open(path)
+        if kind == "gif":
+            n = getattr(im, "n_frames", 1)
+            im.seek((sub % n) if loop else max(0, min(n - 1, sub)))
+        if im.mode in ("I;16", "I;16B", "I", "F"):
+            im = im.convert("F")
+            if _np is not None:
+                a = _np.asarray(im, dtype=_np.float32)
+                a = a / (65535.0 if a.max() > 255.0 else 255.0)
+                im = Image.fromarray(_np.clip(a * 255.0, 0, 255).astype(_np.uint8))
+        im = im.convert("RGB")
+        if max(im.size) > maxdim:
+            k = maxdim / float(max(im.size))
+            im = im.resize((max(1, int(im.size[0] * k)), max(1, int(im.size[1] * k))), Image.BOX)
+        if _np is not None:
+            return _np.asarray(im, dtype=_np.float32) / 255.0
+        w, h = im.size
+        px = im.load()
+        return [[tuple(c / 255.0 for c in px[x, y]) for x in range(w)] for y in range(h)]
+    except ImportError:
+        pass
+    except Exception:
+        if kind == "gif":
+            raise
+    bmp = c4d.bitmaps.BaseBitmap()                       # EXR / HDR / PSD / TIFF variants ...
+    if bmp.InitWith(path)[0] != c4d.IMAGERESULT_OK:
+        raise RuntimeError("can't read image %s" % path)
+    return _bitmap_array(bmp, maxdim)
+
+
+def _image_frame(img):
+    """Current frame of the file source as (rgb, summed-area table); cached (a few frames)."""
+    import os
+    r = image_resolve(img)
+    if r is None:
+        return None
+    kind, path, sub = r
+    try:
+        mt = os.path.getmtime(path)
+    except Exception:
+        raise RuntimeError("image not found: %s" % path)
+    key = (kind, path, mt, sub if kind in ("gif", "movie") else 0, bool(img.get("loop", True)))
+    hit = _IMG_CACHE.get(key)
+    if hit is not None:
+        return hit
+    rgb = _load_rgb(kind, path, sub, img.get("loop", True))
+    sat = None
+    if _np is not None:
+        h, w = rgb.shape[:2]
+        sat = _np.zeros((h + 1, w + 1, 3), dtype=_np.float64)
+        sat[1:, 1:] = rgb.cumsum(0).cumsum(1)
+    _IMG_CACHE[key] = (rgb, sat)
+    _IMG_ORDER.append(key)
+    while len(_IMG_ORDER) > 4:
+        _IMG_CACHE.pop(_IMG_ORDER.pop(0), None)
+    return _IMG_CACHE[key]
+
+
+def image_boxes(po, P=None, F=None):
+    """Per polygon UV rectangle (u0, v0, u1, v1) from the SOURCE object's own UVW tag (the first one
+    that isn't GlyphGrid's). Without UVs: a planar projection over the object's largest side.
+    Returns (boxes, from_uvs)."""
+    n = po.GetPolygonCount()
+    tag = None
+    t = po.GetFirstTag()
+    while t is not None:
+        if t.CheckType(c4d.Tuvw) and t.GetName() not in (TAG_NAME, ID_TAG_NAME, PALETTE_UV_NAME) \
+                and t.GetDataCount() == n:
+            tag = t
+            break
+        t = t.GetNext()
+    if n == 0:
+        return ([] if _np is None else _np.zeros((0, 4), dtype=_np.float32)), False
+    if tag is not None:
+        corners = None
+        raw = tag.GetLowlevelDataAddressR() if _np is not None else None
+        if raw is not None:
+            b = bytes(raw)
+            bp = len(b) // n if n else 0
+            try:
+                if bp == 32:
+                    corners = _np.frombuffer(b, dtype=_np.float32).reshape(n, 4, 2)
+                elif bp == 48:
+                    corners = _np.frombuffer(b, dtype=_np.float32).reshape(n, 4, 3)[:, :, :2]
+                elif bp == 64:
+                    corners = _np.frombuffer(b, dtype=_np.float64).reshape(n, 4, 2)
+                elif bp == 96:
+                    corners = _np.frombuffer(b, dtype=_np.float64).reshape(n, 4, 3)[:, :, :2]
+            except Exception:
+                corners = None
+        if corners is None:                              # slow but layout-proof
+            cl = []
+            for i in range(n):
+                q = tag.GetSlow(i)
+                cl.append([(q["a"].x, q["a"].y), (q["b"].x, q["b"].y), (q["c"].x, q["c"].y), (q["d"].x, q["d"].y)])
+            if _np is not None:
+                corners = _np.asarray(cl, dtype=_np.float64)
+            else:
+                out = []
+                for cs in cl:
+                    us, vs = [c[0] for c in cs], [c[1] for c in cs]
+                    cu, cv = math.floor((min(us) + max(us)) * 0.5), math.floor((min(vs) + max(vs)) * 0.5)
+                    out.append((min(us) - cu, min(vs) - cv, max(us) - cu, max(vs) - cv))
+                return out, True
+        c = corners.astype(_np.float64)
+        lo, hi = c.min(axis=1), c.max(axis=1)
+        sh = _np.floor((lo + hi) * 0.5)                  # tiled UVs: shift each box into 0..1
+        lo, hi = lo - sh, hi - sh
+        return _np.concatenate([lo, hi], axis=1), True
+    # no UVs: planar over the two largest bounding-box axes
+    if P is None or F is None:
+        P, F, _ = read_mesh(po)
+    xs, ys, zs = [p[0] for p in P], [p[1] for p in P], [p[2] for p in P]
+    ext = [(max(a) - min(a)) if a else 0.0 for a in (xs, ys, zs)]
+    ax = sorted(range(3), key=lambda k: -ext[k])[:2]
+    ax.sort()
+    mn = [min(a) if a else 0.0 for a in (xs, ys, zs)]
+    au, av = ax[0], ax[1]
+    su, sv = ext[au] or 1.0, ext[av] or 1.0
+    out = []
+    for q in F:
+        ids = (q[0], q[1], q[2]) if q[2] == q[3] else q
+        us = [(P[j][au] - mn[au]) / su for j in ids]
+        vs = [1.0 - (P[j][av] - mn[av]) / sv for j in ids]
+        out.append((min(us), min(vs), max(us), max(vs)))
+    if _np is not None:
+        return _np.asarray(out, dtype=_np.float64), False
+    return out, False
+
+
+def _shader_rgb(img, boxes):
+    sh = img.get("shader")
+    doc = img.get("doc")
+    R = c4d.modules.render
+    try:
+        irs = R.InitRenderStruct(doc) if doc is not None else R.InitRenderStruct()
+    except TypeError:
+        irs = R.InitRenderStruct()
+    if sh.InitRender(irs) != c4d.INITRENDERRESULT_OK:
+        raise RuntimeError("shader could not initialise")
+    try:
+        cd = R.ChannelData()
+        cd.t = float(img.get("time", 0.0))
+        cd.n = c4d.Vector(0, 0, 1)
+        out = []
+        area = int(img.get("sampling", 0)) == 0
+        for b in boxes:
+            u0, v0, u1, v1 = float(b[0]), float(b[1]), float(b[2]), float(b[3])
+            cd.d = c4d.Vector(u1 - u0, v1 - v0, 0) if area else c4d.Vector(0)
+            cd.p = c4d.Vector((u0 + u1) * 0.5, (v0 + v1) * 0.5, 0)
+            col = sh.Sample(cd)
+            out.append((col.x, col.y, col.z))
+    finally:
+        sh.FreeRender()
+    return _np.asarray(out, dtype=_np.float32) if _np is not None else out
+
+
+def image_sample(img, boxes):
+    """RGB 0..1 per polygon box, or None if there's no image. Area mode averages every pixel under
+    the glyph (summed-area table: stable, no flicker on moving footage); centre takes one pixel."""
+    if not img or boxes is None or len(boxes) == 0:
+        return None
+    if img.get("shader") is not None:
+        return _shader_rgb(img, boxes)
+    fr = _image_frame(img)
+    if fr is None:
+        return None
+    rgb, sat = fr
+    area = int(img.get("sampling", 0)) == 0
+    if _np is not None:
+        h, w = rgb.shape[:2]
+        b = _np.asarray(boxes, dtype=_np.float64)
+        if area and sat is not None:
+            x0 = _np.clip(_np.floor(b[:, 0] * w), 0, w - 1).astype(_np.int64)
+            y0 = _np.clip(_np.floor(b[:, 1] * h), 0, h - 1).astype(_np.int64)
+            x1 = _np.maximum(_np.clip(_np.ceil(b[:, 2] * w), 0, w).astype(_np.int64), x0 + 1)
+            y1 = _np.maximum(_np.clip(_np.ceil(b[:, 3] * h), 0, h).astype(_np.int64), y0 + 1)
+            s = sat[y1, x1] - sat[y0, x1] - sat[y1, x0] + sat[y0, x0]
+            return (s / ((x1 - x0) * (y1 - y0))[:, None]).astype(_np.float32)
+        cx = _np.clip(((b[:, 0] + b[:, 2]) * 0.5 * w).astype(_np.int64), 0, w - 1)
+        cy = _np.clip(((b[:, 1] + b[:, 3]) * 0.5 * h).astype(_np.int64), 0, h - 1)
+        return rgb[cy, cx].astype(_np.float32)
+    h, w = len(rgb), len(rgb[0])
+    out = []
+    for b in boxes:
+        x = min(w - 1, max(0, int((b[0] + b[2]) * 0.5 * w)))
+        y = min(h - 1, max(0, int((b[1] + b[3]) * 0.5 * h)))
+        out.append(rgb[y][x])
+    return out
+
+
+def concat_boxes(parts):
+    """Join per-part box lists (numpy or lists) in part order."""
+    parts = [b for b in parts if b is not None and len(b)]
+    if not parts:
+        return None
+    if _np is not None:
+        return _np.concatenate([_np.asarray(b, dtype=_np.float64).reshape(-1, 4) for b in parts], 0)
+    out = []
+    for b in parts:
+        out.extend(b)
+    return out
+
+
+def luminance(rgb):
+    """Rec.709 brightness 0..1 per polygon (the value that picks the glyph)."""
+    if rgb is None:
+        return None
+    if _np is not None:
+        a = _np.asarray(rgb, dtype=_np.float64)
+        return _np.clip(a[:, 0] * 0.2126 + a[:, 1] * 0.7152 + a[:, 2] * 0.0722, 0.0, 1.0).tolist()
+    return [max(0.0, min(1.0, r * 0.2126 + g_ * 0.7152 + b * 0.0722)) for r, g_, b in rgb]
+
+
+def image_glyph_colors(res, color):
+    """From Image: each glyph = the average image colour of its polygons (one flat colour per glyph,
+    also for clusters / quadtree blocks) x Glyph Color (white = the image's own colours)."""
+    base = tuple(float(x) for x in color.get("base", (1.0, 1.0, 1.0)))
+    rgb = res.get("img_rgb")
+    n = len(res["cell"])
+    if rgb is None or len(rgb) != n:
+        return [base] * n if _np is None else _np.tile(_np.asarray(base, dtype=_np.float32), (n, 1))
+    if _np is not None:
+        a = _np.asarray(rgb, dtype=_np.float64)
+        isl = _np.asarray(res["island"], dtype=_np.int64)
+        cnt = _np.bincount(isl).astype(_np.float64)
+        cnt[cnt == 0] = 1.0
+        avg = _np.stack([_np.bincount(isl, weights=a[:, c], minlength=len(cnt)) / cnt for c in range(3)], 1)
+        return (_np.clip(avg[isl], 0.0, 1.0) * _np.asarray(base)[None, :]).astype(_np.float32)
+    acc = {}
+    for k, c in zip(res["island"], rgb):
+        s = acc.setdefault(k, [0.0, 0.0, 0.0, 0])
+        s[0] += c[0]; s[1] += c[1]; s[2] += c[2]; s[3] += 1
+    return [tuple(max(0.0, min(1.0, acc[k][j] / acc[k][3])) * base[j] for j in range(3)) for k in res["island"]]
+
+
+def rgb565(cols):
+    """RGB 0..1 -> RGB565 code (0..65535) = pixel in the fixed palette (see rgb565_table)."""
+    if _np is not None:
+        a = _np.clip(_np.asarray(cols, dtype=_np.float64), 0.0, 1.0)
+        r = _np.rint(a[:, 0] * 31).astype(_np.int64)
+        g_ = _np.rint(a[:, 1] * 63).astype(_np.int64)
+        b = _np.rint(a[:, 2] * 31).astype(_np.int64)
+        return (r << 11) | (g_ << 5) | b
+    out = []
+    for c in cols:
+        r, g_, b = [max(0.0, min(1.0, float(x))) for x in c]
+        out.append((int(round(r * 31)) << 11) | (int(round(g_ * 63)) << 5) | int(round(b * 31)))
+    return out
+
+
+def rgb565_table():
+    """Every RGB565 colour once, in code order (palette for From Image)."""
+    if _np is not None:
+        k = _np.arange(PALETTE_N, dtype=_np.int64)
+        return _np.stack([((k >> 11) & 31) / 31.0, ((k >> 5) & 63) / 63.0, (k & 31) / 31.0], 1).astype(_np.float32)
+    return [(((k >> 11) & 31) / 31.0, ((k >> 5) & 63) / 63.0, (k & 31) / 31.0) for k in range(PALETTE_N)]
+
+
 # ------------------------------------------------------------- tag write ---
 _LSB_TABLE = bytes(i & 0xFE for i in range(256))
 
@@ -229,7 +636,7 @@ def write_uvw(po, uv, name=TAG_NAME, first=True):
 
 
 COLOR_TAG_NAME = "GlyphGrid Color"
-COLOR_UNIFORM, COLOR_CELL, COLOR_GLYPH = range(3)
+COLOR_UNIFORM, COLOR_CELL, COLOR_GLYPH, COLOR_IMAGE = range(4)
 
 
 def _hsv_to_rgb(h, s, v):
@@ -307,8 +714,11 @@ def color_table(color, n):
 
 
 def color_keys(res, color):
-    """Per-polygon palette key: 0 for Uniform, the plate cell, or the glyph (island) id."""
+    """Per-polygon palette key: 0 for Uniform, the plate cell, or the glyph (island) id.
+    From Image: the RGB565 code of the glyph's colour (palette = the fixed 565 colour table)."""
     mode = int(color.get("mode", COLOR_UNIFORM))
+    if mode == COLOR_IMAGE:
+        return rgb565(glyph_colors(res, color))
     if mode == COLOR_UNIFORM:
         return [0] * len(res["cell"])
     keys = res["cell"] if mode == COLOR_CELL else res["island"]
@@ -319,6 +729,8 @@ def color_keys(res, color):
 
 def glyph_colors(res, color):
     """Per-polygon RGB from the Color tab (see color_table)."""
+    if int(color.get("mode", COLOR_UNIFORM)) == COLOR_IMAGE:
+        return image_glyph_colors(res, color)
     keys = color_keys(res, color)
     if _np is not None:
         k = _np.asarray(keys, dtype=_np.int64)
@@ -368,15 +780,19 @@ def palette_file(folder, color):
     if not folder:
         return None
     d = os.path.join(folder, "_custom")
-    key = hashlib.md5(repr(sorted(color.items())).encode()).hexdigest()[:10]
-    path = os.path.join(d, "palette_%s.png" % key)
+    if int(color.get("mode", COLOR_UNIFORM)) == COLOR_IMAGE:
+        path = os.path.join(d, "palette_rgb565.png")       # fixed: every RGB565 colour once
+        key = None
+    else:
+        key = hashlib.md5(repr(sorted((k, v) for k, v in color.items() if k != "img")).encode()).hexdigest()[:10]
+        path = os.path.join(d, "palette_%s.png" % key)
     if os.path.exists(path):
         return path
     try:
         os.makedirs(d, exist_ok=True)
     except Exception:
         pass
-    tab = color_table(color, PALETTE_N)
+    tab = rgb565_table() if key is None else color_table(color, PALETTE_N)
     try:
         from PIL import Image
         import numpy as np_
@@ -487,8 +903,11 @@ def remove_other_uvw(po, keep=(TAG_NAME, ID_TAG_NAME, PALETTE_UV_NAME)):
 
 # ------------------------------------------------------------------ apply ---
 def apply_to_object(po, mg, params, src=SRC_RANDOM, opts=None, caller=None, doc=None,
-                    write_id=False, cell_sel=False, strip_uvs=True, progress=None, values="sample"):
-    """Compute + write. Returns stats dict. `values`: "sample" (use src) or a precomputed list/None."""
+                    write_id=False, cell_sel=False, strip_uvs=True, progress=None, values="sample",
+                    img_boxes="sample"):
+    """Compute + write. Returns stats dict. `values`: "sample" (use src) or a precomputed list/None.
+    `img_boxes`: per-polygon source-UV rectangles for the image source ("sample" = read them from po,
+    which still carries its own UVW tag; a merged mesh gets them passed in)."""
     t0 = time.time()
     opts = opts or {}
     P, F, ngon_map = read_mesh(po)
@@ -503,9 +922,24 @@ def apply_to_object(po, mg, params, src=SRC_RANDOM, opts=None, caller=None, doc=
         up, fb = (inv * up).GetNormalized(), (inv * fb).GetNormalized()
     prm["up"], prm["fallback_up"] = _vec_t(up), _vec_t(fb)
     t1 = time.time()
-    vals = sample_values(po, mg, P, F, src, opts, caller, doc) if isinstance(values, str) else values
+    col = opts.get("color")
+    img = opts.get("image")
+    boxes, img_rgb, img_err = None, None, None
+    if img and (src == SRC_IMAGE or (col and int(col.get("mode", 0)) == COLOR_IMAGE)):
+        try:
+            boxes = image_boxes(po, P, F)[0] if isinstance(img_boxes, str) else img_boxes
+            img_rgb = image_sample(img, boxes)
+        except Exception as e:
+            img_err = str(e)
+            print("GlyphGrid image:", e)
+    if src == SRC_IMAGE and isinstance(values, str):
+        vals = luminance(img_rgb)
+    else:
+        vals = sample_values(po, mg, P, F, src, opts, caller, doc) if isinstance(values, str) else values
     if vals is not None and prm.get("assign", 0) == 0 and not prm.get("knockout"):
-        prm["assign"] = 3  # a value source with "Even" distribution -> value-driven, still exact counts
+        # a value source with "Even" distribution -> value-driven. Pictures map brightness literally
+        # (Value): equalising would push a mostly-white clock face into every glyph.
+        prm["assign"] = 2 if src == SRC_IMAGE else 3
         # (with Knockout on, Even stays random: the value then only masks where glyphs appear)
     if vals is None and prm.get("assign", 0) >= 2:
         prm["assign"] = 0
@@ -519,7 +953,8 @@ def apply_to_object(po, mg, params, src=SRC_RANDOM, opts=None, caller=None, doc=
         write_id_tag(po, res["value"], res["rand"])
     if cell_sel:
         write_cell_selections(po, res["cell"], len(res["counts"]))
-    col = opts.get("color")
+    if img_rgb is not None:
+        res["img_rgb"] = img_rgb
     write_color_tag(po, glyph_colors(res, col) if col else None)
     if col:
         write_palette_uv(po, color_keys(res, col))
@@ -527,7 +962,8 @@ def apply_to_object(po, mg, params, src=SRC_RANDOM, opts=None, caller=None, doc=
     c = res["counts"]
     return dict(polys=len(F), islands=res["islands"], cells=len(c), min=min(c), max=max(c),
                 t_read=round(t1 - t0, 3), t_values=round(t2 - t1, 3), t_solve=round(t3 - t2, 3),
-                t_write=round(t4 - t3, 3), numpy=_np is not None, keys=(res["cell"], res["island"]))
+                t_write=round(t4 - t3, 3), numpy=_np is not None, keys=(res["cell"], res["island"], boxes),
+                img_error=img_err)
 
 
 def iter_polys(root, parent_mg):
