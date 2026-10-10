@@ -6,7 +6,7 @@ import os, sys, time, glob, traceback
 import c4d
 
 LOG = []
-OUT_DIR = os.path.expanduser("~/Library/Preferences/Maxon/Maxon Cinema 4D 2026_9D810372")
+OUT_DIR = c4d.storage.GeGetC4DPath(c4d.C4D_PATH_PREFS)        # the prefs folder on any OS
 OUT = os.path.join(OUT_DIR, "glyphit_selftest.txt")
 PID = 1071110
 
@@ -23,11 +23,19 @@ def flush():
 
 
 def _plugin_dir():
-    for base in c4d.storage.GeGetC4DPath(c4d.C4D_PATH_PREFS), :
-        p = os.path.join(base, "plugins", "GlyphIt")
-        if os.path.isdir(p):
-            return p
-    return os.path.join(OUT_DIR, "plugins", "GlyphIt")
+    # wherever Glyph It is installed: prefs/plugins, the app's plugins folder, or next to this file
+    cands = [os.path.join(c4d.storage.GeGetC4DPath(c4d.C4D_PATH_PREFS), "plugins", "GlyphIt"),
+             os.path.join(c4d.storage.GeGetC4DPath(c4d.C4D_PATH_STARTUPWRITE if hasattr(c4d, "C4D_PATH_STARTUPWRITE") else c4d.C4D_PATH_PREFS), "plugins", "GlyphIt"),
+             os.path.join(os.path.dirname(os.path.abspath(__file__)), "..") if "__file__" in globals() else None]
+    try:
+        import glyphit
+        cands.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(glyphit.__file__))))
+    except Exception:
+        pass
+    for p in cands:
+        if p and os.path.isdir(os.path.join(p, "glyphit")):
+            return os.path.abspath(p)
+    return cands[0]
 
 
 PLUG = _plugin_dir()
@@ -368,6 +376,9 @@ def _():
 def convert_demos():
     root = os.path.expanduser("~/Documents/GlyphGrid")
     files = sorted(glob.glob(os.path.join(root, "*.c4d")))
+    if not files:
+        log("demo scenes: none in ~/Documents/GlyphGrid (skipped)")
+        return
     log("demo scenes:", [os.path.basename(f) for f in files])
     for f in files:
         @test("convert " + os.path.basename(f)[:28])
