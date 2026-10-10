@@ -1968,11 +1968,142 @@ def _glyph_rgb(op):
     return (c.x, c.y, c.z) if c is not None else (1.0, 1.0, 1.0)
 
 
+PROXY_NAME = "GlyphIt Color Proxy"
+PROXY_MARK = 1071110          # BaseContainer bool on the proxy object
+
+
+def is_color_proxy(o):
+    try:
+        return o is not None and o.IsInstanceOf(c4d.Opolygon) and bool(o.GetDataInstance().GetBool(PROXY_MARK))
+    except Exception:
+        return False
+
+
+def color_proxy(op, create=False):
+    """The Standard renderer can't read a vertex colour tag that lives inside a generator's cache
+    (a Vertex Map shader linked to it renders white: the link doesn't survive the render clone).
+    It CAN read one on a different, hidden polygon object with the same polygon count - the
+    shader samples the linked tag by polygon index. So the Standard material links its Vertex
+    Map shader to the 'GlyphIt Color' tag on this proxy: a hidden last child of the generator,
+    one dummy point, as many (degenerate) polygons as the output, kept in sync by
+    sync_color_proxy() on the main thread. Redshift / Octane don't need it."""
+    ch = op.GetDown()
+    while ch is not None:
+        if is_color_proxy(ch):
+            return ch
+        ch = ch.GetNext()
+    if not create:
+        return None
+    pr = c4d.PolygonObject(1, 0)
+    pr.SetName(PROXY_NAME)
+    pr.GetDataInstance().SetBool(PROXY_MARK, True)
+    pr[c4d.ID_BASEOBJECT_VISIBILITY_EDITOR] = c4d.OBJECT_OFF
+    pr[c4d.ID_BASEOBJECT_VISIBILITY_RENDER] = c4d.OBJECT_OFF
+    pr[c4d.ID_BASEOBJECT_XRAY] = False
+    pr.InsertUnderLast(op)
+    try:
+        pr.SetNBit(c4d.NBIT_OHIDE, c4d.NBITCONTROL_SET)      # keep it out of the Object Manager
+    except Exception:
+        pass
+    return pr
+
+
+def proxy_color_tag(pr):
+    t = pr.GetFirstTag() if pr is not None else None
+    while t is not None:
+        if t.CheckType(c4d.Tvertexcolor) and t.GetName() == COLOR_TAG_NAME:
+            return t
+        t = t.GetNext()
+    return None
+
+
+def sync_color_proxy(op, S, force=False):
+    """Copy the kept result's colour tag onto the proxy (main thread). Cheap when nothing changed:
+    S['col_stamp'] is bumped by the generator whenever it (re)writes colours."""
+    pr = color_proxy(op)
+    if pr is None:
+        return False
+    if not force and S.get("proxy_stamp") == S.get("col_stamp") and proxy_color_tag(pr) is not None:
+        return False
+    res = S.get("result")
+    src = None
+    o = res.GetDown() if res is not None else None
+    while o is not None:                       # merged output: one polygon object carries the tag
+        if o.IsInstanceOf(c4d.Opolygon):
+            t = o.GetFirstTag()
+            while t is not None:
+                if t.CheckType(c4d.Tvertexcolor) and t.GetName() == COLOR_TAG_NAME and not t.IsPerPointColor():
+                    src = (o, t)
+                    break
+                t = t.GetNext()
+            if src:
+                break
+        o = o.GetNext()
+    if src is None:
+        return False
+    po, st = src
+    n = po.GetPolygonCount()
+    if pr.GetPolygonCount() != n or pr.GetPointCount() != 1:
+        pr.ResizeObject(1, n)              # polygons stay (0,0,0,0): a tag host, never drawn
+    tag = proxy_color_tag(pr)              # the tag resizes with its object; the material's
+    if tag is not None and tag.IsPerPointColor():     # link to it must survive, so never recreate
+        tag.SetPerPointMode(False)         # it unless we have to (then re-link the materials)
+    if tag is None or tag.GetDataCount() != n:
+        old_tag = tag
+        tag = c4d.VertexColorTag(1)
+        tag.SetName(COLOR_TAG_NAME)
+        pr.InsertTag(tag)
+        tag.SetPerPointMode(False)
+        if tag.GetDataCount() != n:
+            tag.Remove()
+            return False
+        d_ = pr.GetDocument()
+        for m in (d_.GetMaterials() if d_ is not None else []):
+            sh = m.GetFirstShader() if m.GetType() == c4d.Mmaterial else None
+            while sh is not None:
+                if sh.GetType() == c4d.Xvertexmap and (sh[1001] is None or sh[1001] == old_tag
+                                                       or sh[1001].GetObject() is None):
+                    sh[1001] = tag
+                    m.Message(c4d.MSG_UPDATE)
+                sh = sh.GetNext()
+        if old_tag is not None:
+            old_tag.Remove()
+    r = st.GetLowlevelDataAddressR()
+    w = tag.GetLowlevelDataAddressW()
+    if r is None or w is None or len(r) != len(w):
+        return False
+    w[:] = r                      # raw copy only: no dirty flag, so the generator isn't rebuilt
+    S["proxy_stamp"] = S.get("col_stamp")
+    return True
+
+
+def link_standard_to_proxy(mat, op):
+    """Point the Standard material's luminance Vertex Map shader at op's colour proxy (creating
+    the proxy). Returns the shader."""
+    pr = color_proxy(op, create=True)
+    sh = mat[c4d.MATERIAL_LUMINANCE_SHADER]
+    if sh is None or sh.GetType() != c4d.Xvertexmap:
+        sh = c4d.BaseShader(c4d.Xvertexmap)
+        sh.SetName("gg_color")
+        sh[1003] = 0                       # colour space 0 = matches Redshift / Octane 1:1 (tested)
+        mat[c4d.MATERIAL_LUMINANCE_SHADER] = sh
+        mat.InsertShader(sh)
+    tag = proxy_color_tag(pr)
+    if tag is None:
+        tag = c4d.VertexColorTag(1)
+        tag.SetName(COLOR_TAG_NAME)
+        pr.InsertTag(tag)
+        tag.SetPerPointMode(False)
+    sh[1001] = tag
+    mat.Message(c4d.MSG_UPDATE)
+    return sh
+
+
 def build_plate_material_standard(doc, target, plate_path, name="GlyphIt Standard", color=(1.0, 1.0, 1.0),
                                   emission=1.0, assign=True):
     """Cinema 4D Standard/Physical material: dark diffuse, the plate knocks out opacity (Alpha
-    channel, black = gone), Luminance = glyph colour. Uniform colour only: the Standard renderer
-    can't read GlyphIt's per-glyph colour tag from a generator (use Redshift / Octane for that)."""
+    channel, black = gone), Luminance = the per-glyph colours (Vertex Map shader -> the colour
+    proxy, see color_proxy) with the Color tab's Glyph Color as the viewport / fallback colour."""
     mat = c4d.BaseMaterial(c4d.Mmaterial)
     mat.SetName(name)
     mat[c4d.MATERIAL_USE_COLOR] = True
@@ -1989,6 +2120,11 @@ def build_plate_material_standard(doc, target, plate_path, name="GlyphIt Standar
     mat.InsertShader(bmp)
     mat[c4d.MATERIAL_ALPHA_IMAGEALPHA] = False      # luminance of the plate = opacity
     doc.InsertMaterial(mat)
+    if target is not None and is_plugin_object(target) and target.GetDocument() is not None:
+        try:
+            link_standard_to_proxy(mat, target)
+        except Exception as e:
+            print("GlyphIt colour proxy:", e)
     mat.Message(c4d.MSG_UPDATE)
     if assign:
         assign_material(target, mat)
@@ -2104,6 +2240,15 @@ def sync_material_color(op, force=False):
         if not rs_done and mat[c4d.MATERIAL_USE_LUMINANCE] and _has_plate_shader(mat):
             mat[c4d.MATERIAL_LUMINANCE_COLOR] = c4d.Vector(*col)
             mat[c4d.MATERIAL_LUMINANCE_BRIGHTNESS] = em
+            if is_plugin_object(op) and op.GetDocument() is not None:
+                sh = mat[c4d.MATERIAL_LUMINANCE_SHADER]
+                pr = color_proxy(op)
+                if sh is None or sh.GetType() != c4d.Xvertexmap or pr is None or sh[1001] is None \
+                        or sh[1001].GetObject() != pr:
+                    try:
+                        link_standard_to_proxy(mat, op)      # proxy deleted / older scene: re-link
+                    except Exception as e:
+                        print("GlyphIt colour proxy:", e)
             mat.Message(c4d.MSG_UPDATE)
             n += 1
     c4d.EventAdd()

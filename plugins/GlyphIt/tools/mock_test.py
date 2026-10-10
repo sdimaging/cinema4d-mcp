@@ -153,7 +153,7 @@ def _const_module():
         MSG_DESCRIPTION_USERINTERACTION_END=31, MSG_DESCRIPTION_CHECKUPDATE=4, MSG_DESCRIPTION_VALIDATE=5,
         DIRTYFLAGS_DATA=1, DIRTYFLAGS_MATRIX=2, DIRTYFLAGS_CACHE=4, DIRTYFLAGS_DESCRIPTION=8,
         OBJECT_GENERATOR=1, OBJECT_INPUT=2, OBJECT_MODIFIER=4, OBJECT_UNDEF=2, ID_BASEOBJECT_GENERATOR_FLAG=901,
-        ID_BASEOBJECT_VISIBILITY_EDITOR=902, ID_BASEOBJECT_VISIBILITY_RENDER=903, IMAGERESULT_OK=1,
+        ID_BASEOBJECT_VISIBILITY_EDITOR=902, EVMSG_CHANGE=604, EVMSG_TIMECHANGED=605, MSG_MULTI_RENDERNOTIFICATION=606, Xvertexmap=1011137, OBJECT_OFF=1, ID_BASEOBJECT_XRAY=904, ID_BASEOBJECT_VISIBILITY_RENDER=903, IMAGERESULT_OK=1,
         BFM_INPUT_MOUSE=1, BFM_INPUT_MOUSELEFT=1, BFM_INPUT_VALUE=1, Mmaterial=5703, UNDOTYPE_NEW=1,
         UNDOTYPE_CHANGE_SMALL=2, UNDOTYPE_CHANGE=3, UNDOTYPE_DELETEOBJ=4, UNDOTYPE_NEWOBJ=5,
         COPYFLAGS_NO_HIERARCHY=1, GE_FONT_NAME_POSTSCRIPT=3, GE_FONT_NAME_FAMILY=1, GE_FONT_NAME_STYLE=2,
@@ -199,7 +199,13 @@ def _const_module():
 
         class CommandData(object):
             pass
+
+        class MessageData(object):
+            pass
         calls = []
+
+        @staticmethod
+        def RegisterMessagePlugin(**kw): _Plugins.calls.append(("message", kw)); return True
 
         @staticmethod
         def RegisterObjectPlugin(**kw): _Plugins.calls.append(("object", kw)); return True
@@ -234,7 +240,7 @@ def main():
     import runpy
     g = runpy.run_path(os.path.join(HERE, "GlyphIt.pyp"), run_name="__main__")
     calls = c4d.plugins.calls
-    assert [c[0] for c in calls] == ["object", "command"], calls
+    assert [c[0] for c in calls] == ["object", "command", "message"], calls
     assert calls[0][1]["id"] == 1071110 and calls[0][1]["description"] == "Oglyphit"
     print("register ok:", calls[0][1]["str"], "/", calls[1][1]["str"])
 
