@@ -86,6 +86,10 @@ HELP = {
         "  Use a plate sorted sparse -> dense for shading.",
         "Value Equalized: same order as Value but every cell gets",
         "  the same count = maximum contrast, less literal.",
+        "Sequential: no randomness - polygon 1 gets cell 1, polygon 2",
+        "  cell 2 ... wrapping round. Custom Glyphs DUDE on a 4-up",
+        "  plate (Sort by Ink OFF) reads D U D E D U D E along the",
+        "  mesh. Keyframe Glyph Offset to make the text scroll.",
     ],
     "Value": [
         "VALUE: what drives the Value / Value Equalized modes.",
@@ -259,7 +263,8 @@ SPEC = [
     ("Distribution", "tab", None, {}, 10300),
     ("Distribution", "help", None, {}, 10301),
     ("Distribute", "cycle", 0, dict(items=["Even Random (exact counts)", "Weighted Random", "Value",
-                                           "Value Equalized (exact counts)"]), 10310),
+                                           "Value Equalized (exact counts)",
+                                           "Sequential (cycle cells in polygon order)"]), 10310),
     ("Weights", "string", "", {}, 10311),
 
     ("Value", "tab", None, {}, 10400),

@@ -104,6 +104,7 @@ With **Grid Mode = Mixed**, every polygon draws from one of four levels, the 1-,
 | **Weighted Random** | Random, but cells share polygons according to **Weights** |
 | **Value** | The Value tab picks the cell: low values go to the first cell (top-left), high values to the last (bottom-right). Use a sparse→dense plate. |
 | **Value Equalized** | Same order as Value, but every cell gets the same count. Maximum contrast, less literal. |
+| **Sequential** | No randomness: polygon 1 gets cell 1, polygon 2 cell 2 ... wrapping round. With Custom Glyphs `DUDE` on a 4-up plate (Sort by Ink **off**) the mesh reads D U D E D U D E along its polygon order. Keyframe **Glyph Offset** to scroll the text. |
 
 **Weights** are *relative amounts* per cell, in plate order. On a 4-up, `8,1,1,1` means top-left 8 parts, top-right 1, bottom-left 1, bottom-right 1, which gives **73 % / 9 % / 9 % / 9 %** (verified: 1629 / 204 / 204 / 203 polygons). Cells without an entry count as 1, so `8` on a 16-up makes cell 1 eight times as common as each of the others. Weights are only used by Weighted Random.
 

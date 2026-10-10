@@ -938,7 +938,7 @@ def apply_to_object(po, mg, params, src=SRC_RANDOM, opts=None, caller=None, doc=
         # (Value): equalising would push a mostly-white clock face into every glyph.
         prm["assign"] = 2 if src == SRC_IMAGE else 3
         # (with Knockout on, Even stays random: the value then only masks where glyphs appear)
-    if vals is None and prm.get("assign", 0) >= 2:
+    if vals is None and prm.get("assign", 0) in (2, 3):
         prm["assign"] = 0
     t2 = time.time()
     res = compute(P, F, prm, ngon_map=ngon_map, poly_values=vals, progress=progress)
