@@ -1443,10 +1443,25 @@ def new_collection(cdir, base="my_collection"):
     return path
 
 
+_COLL_CACHE = {}
+
+
 def collection_list(op):
-    """Collections for op's Plates Folder (the dropdown entries), ['(none)'] when there are none."""
+    """Collections for op's Plates Folder (the dropdown entries). Cached by the folder's mtime:
+    GetDDescription asks for it on every Attribute Manager redraw."""
+    import os
     g = param_getter(op)
-    return collection_names(plate_dirs(g("Plates Folder", "") or "")[1]) or []
+    cdir = plate_dirs(g("Plates Folder", "") or "")[1]
+    try:
+        mt = os.path.getmtime(cdir)
+    except Exception:
+        mt = None
+    hit = _COLL_CACHE.get(cdir)
+    if hit is not None and hit[0] == mt:
+        return hit[1]
+    names = collection_names(cdir) or []
+    _COLL_CACHE[cdir] = (mt, names)
+    return names
 
 
 def set_cycle_items(op, name, items, keep=True):

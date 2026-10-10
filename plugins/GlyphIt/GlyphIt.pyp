@@ -160,25 +160,30 @@ class GlyphItObject(plugins.ObjectData):
     def Init(self, node, isCloneInit=False):
         if isCloneInit:
             return True
+        data = node.GetDataInstance()
         for name, kind, default, extra, pid in P.SPEC:
-            if kind not in P.PARAM_KINDS or kind in ("button",):
+            if kind not in P.PARAM_KINDS or kind in ("button", "link", "shader"):
                 continue
             try:
                 if kind == "font":
-                    node[pid] = R.font_data(default)
+                    data.SetData(pid, R.font_data(default))
                 elif kind == "color":
-                    node[pid] = c4d.Vector(*default)
+                    data.SetVector(pid, c4d.Vector(*default))
                 elif kind == "fields":
-                    node[pid] = c4d.FieldList()
-                elif kind in ("link", "shader"):
-                    pass
+                    data.SetData(pid, c4d.FieldList())
                 elif kind == "deg":
-                    node[pid] = float(default) * 3.141592653589793 / 180.0
-                elif default is not None:
-                    node[pid] = default
+                    data.SetFloat(pid, float(default) * 3.141592653589793 / 180.0)
+                elif kind in ("float", "pct", "dist"):
+                    data.SetFloat(pid, float(default))
+                elif kind in ("int", "cycle"):
+                    data.SetInt32(pid, int(default))
+                elif kind == "bool":
+                    data.SetBool(pid, bool(default))
+                elif kind in ("string", "folder", "file"):
+                    data.SetString(pid, str(default or ""))
             except Exception as e:
                 print("GlyphIt init %s: %s" % (name, e))
-        node[P.NAME_TO_ID["Plates Folder"]] = os.path.join(HERE, "plates")
+        data.SetString(P.NAME_TO_ID["Plates Folder"], os.path.join(HERE, "plates"))
         return True
 
     # ---- Attribute Manager
@@ -188,15 +193,24 @@ class GlyphItObject(plugins.ObjectData):
         single = description.GetSingleDescID()
         parent = None
         stack = []
+        objprops = c4d.DescID(c4d.DescLevel(c4d.ID_OBJECTPROPERTIES))
+        root = c4d.DescID(c4d.DescLevel(0))
         for name, kind, default, extra, pid in P.SPEC:
             if kind == "tab":
+                if name == "Grid":
+                    parent = objprops          # the standard "Object" tab holds the Grid settings
+                    stack = []
+                    continue
                 bc = c4d.GetCustomDataTypeDefault(c4d.DTYPE_GROUP)
                 bc[c4d.DESC_NAME] = bc[c4d.DESC_SHORT_NAME] = name
                 bc[c4d.DESC_COLUMNS] = 1
                 bc[c4d.DESC_DEFAULT] = 1
                 did = _desc_id(pid, c4d.DTYPE_GROUP)
                 if single is None or did.IsPartOf(single)[0]:
-                    description.SetParameter(did, bc, c4d.DescID(0))
+                    # root-level group = its own Attribute Manager tab; if a C4D version refuses
+                    # that, fall back to a group inside the Object tab
+                    if not description.SetParameter(did, bc, root):
+                        description.SetParameter(did, bc, objprops)
                 parent = did
                 stack = []
                 continue
