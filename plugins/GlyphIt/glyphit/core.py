@@ -1,5 +1,5 @@
 """
-GlyphGrid core: every polygon (or ngon / cluster) becomes its own UV island,
+GlyphIt core: every polygon (or ngon / cluster) becomes its own UV island,
 fitted into one cell of an N x N atlas (1, 4, 9, 16 ... "up").
 
 Pure Python, no c4d / numpy dependency, so it runs inside Cinema 4D's bundled
@@ -937,7 +937,7 @@ def compute(points, polys, params=None, ngon_map=None, poly_values=None, progres
                 progress(k / len(groups))
 
     # ---- knockout: islands past the threshold show no glyph, on ANY plate. Their UVs collapse onto
-    # the top-left corner of the atlas, which is black on every GlyphGrid plate (cell margin / empty
+    # the top-left corner of the atlas, which is black on every GlyphIt plate (cell margin / empty
     # first level), so hologram opacity = 0 and emission = 0 there.
     knocked = 0
     kmode = int(prm.get("knockout") or 0)
