@@ -8,7 +8,7 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, HERE)
 from glyphit import __version__  # noqa: E402
 
-SKIP_DIRS = {"__pycache__", "_custom", "_mixed", "_built", ".git"}
+SKIP_DIRS = {"__pycache__", "_custom", "_mixed", "_built", ".git", "tests", "testing", "include", "f2py"}
 SKIP_FILES = {".DS_Store"}
 
 
