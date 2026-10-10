@@ -2973,3 +2973,28 @@ Three identical reports in `~/Library/Logs/DiagnosticReports` on 2026-10-10: `EX
 That is a static destructor in X-Particles' NeXus library running at process exit, after the document
 and plugins are gone. It shows up as "Cinema 4D quit unexpectedly" every time you quit with INSYDIUM
 loaded and is unrelated to Python plugins; disable INSYDIUM in the Plugin Manager to confirm.
+
+## 142. Which UVW tag a Texture tag uses when an object has several: the nearest one to its RIGHT
+
+Tested in 2026.4 with two UVW tags and two Standard materials on one polygon object: a Texture tag
+samples with the first UVW tag that follows it in the tag list (to its right); with none to its
+right it falls back to the first UVW tag. `[Tex A][UVW 2][Tex B][UVW 1]` gives A→UVW 2, B→UVW 1.
+(Secondary rays through a transparent material evaluated the stack differently, so don't rely on
+this for see-through tricks.) Also: a bottom material's Alpha does not cut the object when an
+opaque material sits on top of it in the stack - only the top material's alpha knocks out.
+
+## 143. Standard renderer + per-polygon vertex colours from a generator: the colour-proxy trick
+
+The Standard/Physical renderer only reads vertex colours through the Vertex Map shader (`Xvertexmap`,
+link param 1001), which needs a link to a tag. A link to a tag inside a generator's cache renders
+**white** - the link doesn't survive the render-document clone. A `VertexColorTag` inserted on a
+non-polygon object (the generator itself) has no data (`GetDataAddressW()` returns None). What
+works: a hidden polygon object with the same polygon count (one dummy point, N degenerate polygons)
+carrying a copy of the tag in per-polygon mode; the shader samples the linked tag **by polygon
+index**, whatever object it hangs on, and renders the generator's output with the right colours.
+Glyph It keeps such a "GlyphIt Color Proxy" as a hidden last child of the generator, raw-copies the
+colour bytes (`GetLowlevelDataAddressR/W`) on `EVMSG_CHANGE` / `EVMSG_TIMECHANGED` from a
+MessageData plugin and at `MSG_MULTI_RENDERNOTIFICATION` start. Vertex Map shader Color Space
+(1003) = 0 matches Redshift's vertex-attribute lookup 1:1; 1 blows the colours out. Resizing the
+proxy with `ResizeObject` resizes its tag too - never delete/recreate the tag, or every material
+link to it goes dead (`sh[1001].GetObject()` → None).
