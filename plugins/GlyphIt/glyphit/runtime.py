@@ -2002,7 +2002,7 @@ def color_proxy(op, create=False):
     pr[c4d.ID_BASEOBJECT_XRAY] = False
     pr.InsertUnderLast(op)
     try:
-        pr.SetNBit(c4d.NBIT_OHIDE, c4d.NBITCONTROL_SET)      # keep it out of the Object Manager
+        pr.ChangeNBit(c4d.NBIT_OHIDE, c4d.NBITCONTROL_SET)   # keep it out of the Object Manager
     except Exception:
         pass
     return pr
