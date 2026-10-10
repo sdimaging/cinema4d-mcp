@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-GlyphGrid plate generator: N x N atlases that match glyphgrid_core cell order
+GlyphIt plate generator: N x N atlases that match glyphit.core cell order
 (cell 0 = top-left, left->right, top->bottom).
 
 Plate kinds
@@ -22,13 +22,13 @@ Sequences (looping image sequences for the "plates change over time" look)
                             time offsets
 
 Examples
-  python glyphgrid_plates.py ascii --grid 4 --out plates/ascii16.png
-  python glyphgrid_plates.py ascii --grid 4 --frames 12 --shimmer --flipbook --out plates/ascii16_seq.png
-  python glyphgrid_plates.py bayer --grid 4 --dots 8 --out plates/bayer16.png
-  python glyphgrid_plates.py halftone --grid 3 --shape round --out plates/dots9.png
-  python glyphgrid_plates.py chars --grid 4 --text "SDIMAGING0123456" --out plates/brand16.png
-  python glyphgrid_plates.py logo --grid 2 --images a.png b.png c.png d.png --out plates/logos4.png
-  python glyphgrid_plates.py sheet --out plates/contact.png  (all kinds, 1-4 up)
+  python plates.py ascii --grid 4 --out plates/ascii16.png
+  python plates.py ascii --grid 4 --frames 12 --shimmer --flipbook --out plates/ascii16_seq.png
+  python plates.py bayer --grid 4 --dots 8 --out plates/bayer16.png
+  python plates.py halftone --grid 3 --shape round --out plates/dots9.png
+  python plates.py chars --grid 4 --text "SDIMAGING0123456" --out plates/brand16.png
+  python plates.py logo --grid 2 --images a.png b.png c.png d.png --out plates/logos4.png
+  python plates.py sheet --out plates/contact.png  (all kinds, 1-4 up)
 """
 
 import argparse
@@ -480,7 +480,7 @@ def main(argv=None):
             print("wrote flipbook %dx%d -> %s_flipbook_%dx%d%s" % (c, r, root, c, r, ext))
 
 
-LIBRARY_STYLES = [  # (file key, kind, overrides) -- the GlyphGrid generator's "Plate Style" list
+LIBRARY_STYLES = [  # (file key, kind, overrides) -- the GlyphIt generator's "Plate Style" list
     ("ascii", "ascii", {}),
     ("bayer", "bayer", {"dots": 8}),
     ("dots", "halftone", {"shape": "round"}),
@@ -629,7 +629,7 @@ def collection_plate(folder, cells, size=1024, fill=0.86):
 
 
 def mixed_plate(paths, out, size=2048):
-    """Composite atlas for GlyphGrid Mixed mode: TL = 1-up, TR = 4-up, BL = 9-up, BR = 16-up."""
+    """Composite atlas for GlyphIt Mixed mode: TL = 1-up, TR = 4-up, BL = 9-up, BR = 16-up."""
     half = size // 2
     atlas = Image.new("RGB", (size, size), (0, 0, 0))
     for k, pth in enumerate(paths[:4]):
