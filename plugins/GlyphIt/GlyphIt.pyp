@@ -50,6 +50,7 @@ from glyphit import generator as GEN         # noqa: E402
 
 PLUGIN_ID = P.PLUGIN_ID
 CONVERT_ID = P.CONVERT_ID
+SYNC_ID = P.SYNC_ID
 HELP_LINE_BASE = 1000     # help text line ids: tab help id + HELP_LINE_BASE + k
 
 
@@ -149,12 +150,49 @@ def _param_bc(name, kind, extra, op):
     return bc
 
 
+_STATES = {}        # object GUID -> solver state S (for the Standard colour-proxy sync, main thread)
+
+
+def _state_key(op):
+    try:
+        return str(op.GetGUID())
+    except Exception:
+        return None
+
+
+def sync_color_proxies(doc, force=False):
+    """Main thread: copy fresh per-glyph colours onto every Glyph It colour proxy in doc
+    (only objects that have one, i.e. use the Standard material). Cheap when nothing changed."""
+    if doc is None:
+        return 0
+    n = 0
+    stack = [doc.GetFirstObject()]
+    while stack:
+        o = stack.pop()
+        while o is not None:
+            if o.GetType() == PLUGIN_ID:
+                S = _STATES.get(_state_key(o))
+                if S is not None:
+                    try:
+                        if R.sync_color_proxy(o, S, force=force):
+                            n += 1
+                    except Exception as e:
+                        print("GlyphIt colour proxy:", e)
+            elif o.GetDown() is not None:
+                stack.append(o.GetDown())
+            o = o.GetNext()
+    return n
+
+
 class GlyphItObject(plugins.ObjectData):
     """The Glyph It generator."""
 
     def __init__(self):
         self.S = {}                     # per-object solver state (geometry, result, signatures)
         self.ui = {}                    # plate_pending / mat_pending / dragging
+
+    def Free(self, node):
+        _STATES.pop(_state_key(node), None)
 
     # ---- defaults
     def Init(self, node, isCloneInit=False):
@@ -311,6 +349,9 @@ class GlyphItObject(plugins.ObjectData):
 
     def GetVirtualObjects(self, op, hh):
         doc = op.GetDocument() or c4d.documents.GetActiveDocument()
+        k = _state_key(op)
+        if k is not None and _STATES.get(k) is not self.S:
+            _STATES[k] = self.S
         try:
             out = GEN.build(op, hh, doc, self.S)
         except Exception as e:
@@ -328,6 +369,15 @@ class GlyphItObject(plugins.ObjectData):
             if type == c4d.MSG_MENUPREPARE:
                 return True
             d_ = node.GetDocument()
+            if type == c4d.MSG_MULTI_RENDERNOTIFICATION:
+                # render about to start (Picture Viewer / Render View): the Standard material reads
+                # the colour proxy, make sure it carries this build's colours
+                try:
+                    if isinstance(data, dict) and data.get("start") and c4d.threading.GeIsMainThread():
+                        R.sync_color_proxy(node, self.S)
+                except Exception as e:
+                    print("GlyphIt colour proxy:", e)
+                return True
             if not c4d.threading.GeIsMainThread() or d_ is None or d_ != c4d.documents.GetActiveDocument():
                 return True
             ui = self.ui
@@ -461,36 +511,10 @@ def _bake(op, res):
     if d is None or res is None:
         c4d.gui.StatusSetText("GlyphIt bake: nothing built yet")
         return
-    polys = []
-    o = res.GetDown()
-    while o is not None:
-        if o.IsInstanceOf(c4d.Opolygon):
-            polys.append(o)
-        o = o.GetNext()
-    if not polys:
-        return
-    d.StartUndo()
-    pred = op
-    for k, po in enumerate(polys):
-        cp = po.GetClone(c4d.COPYFLAGS_NO_HIERARCHY)
-        cp.SetName(op.GetName() + " baked" + ("" if len(polys) == 1 else " %d" % (k + 1)))
-        cp.SetMg(op.GetMg() * po.GetMl())
-        cp[c4d.ID_BASEOBJECT_VISIBILITY_RENDER] = c4d.OBJECT_UNDEF
-        cp[c4d.ID_BASEOBJECT_VISIBILITY_EDITOR] = c4d.OBJECT_UNDEF
-        t = op.GetFirstTag()
-        while t is not None:
-            if t.CheckType(c4d.Ttexture):
-                cp.InsertTag(t.GetClone())
-            t = t.GetNext()
-        d.InsertObject(cp, pred=pred)
-        d.AddUndo(c4d.UNDOTYPE_NEW, cp)
-        pred = cp
-    d.AddUndo(c4d.UNDOTYPE_CHANGE_SMALL, op)
-    op[c4d.ID_BASEOBJECT_GENERATOR_FLAG] = False
-    d.EndUndo()
-    d.SetActiveObject(pred)
-    c4d.EventAdd()
-    c4d.gui.StatusSetText("GlyphIt: baked %d object(s)" % len(polys))
+    from glyphit import api
+    out = api.bake(d, op, res=res, undo=True)
+    c4d.gui.StatusSetText("GlyphIt: baked %d object(s), generator switched off and hidden" % len(out)
+                          if out else "GlyphIt bake: nothing built yet")
 
 
 # ------------------------------------------------------------- converter ---
@@ -503,6 +527,19 @@ class ConvertGlyphGrid(plugins.CommandData):
         n = convert.convert_document(doc)
         c4d.gui.MessageDialog("Glyph It: converted %d GlyphGrid object(s)." % n if n else
                               "Glyph It: no GlyphGrid objects found in this scene.")
+        return True
+
+
+class GlyphItSync(plugins.MessageData):
+    """Core-message listener: after every scene change / frame change (main thread) push the
+    generators' per-glyph colours onto their Standard colour proxies."""
+
+    def CoreMessage(self, id, bc):
+        if id in (c4d.EVMSG_CHANGE, c4d.EVMSG_TIMECHANGED):
+            try:
+                sync_color_proxies(c4d.documents.GetActiveDocument())
+            except Exception as e:
+                print("GlyphIt sync:", e)
         return True
 
 
@@ -521,4 +558,5 @@ if __name__ == "__main__":
     plugins.RegisterCommandPlugin(id=CONVERT_ID, str="Convert GlyphGrid scenes to Glyph It", info=0,
                                   icon=_icon("glyphit.png"), help="Replace legacy GlyphGrid Python Generators",
                                   dat=ConvertGlyphGrid())
+    plugins.RegisterMessagePlugin(id=SYNC_ID, str="Glyph It colour sync", info=0, dat=GlyphItSync())
     print("Glyph It for Cinema 4D loaded" if ok else "Glyph It: object registration failed")

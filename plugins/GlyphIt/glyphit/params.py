@@ -14,6 +14,7 @@ The same table drives:
 """
 PLUGIN_ID = 1071110            # registered to sdimaging ("GlyphIt")
 CONVERT_ID = 1071111           # TODO: replace with a registered id ("GlyphItConvert")
+SYNC_ID = 1071112      # TODO register (MessageData: Standard colour-proxy sync)
 
 ID_BASE = 10000
 

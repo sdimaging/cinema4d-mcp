@@ -69,20 +69,29 @@ def sync_colors(obj):
     return R.sync_material_color(obj)
 
 
-def bake(doc, obj):
+def bake(doc, obj, res=None, undo=False):
+    """Editable copies of the current output (UVW + selection + colour tags + material); the
+    generator is switched off and hidden so its source doesn't render underneath the copy."""
     from . import generator  # noqa: F401
-    res = obj.GetCache()
+    if res is None:
+        res = obj.GetCache()
     if res is None:
         doc.ExecutePasses(None, False, False, True, c4d.BUILDFLAGS_NONE)
         res = obj.GetCache()
+    if res is None:
+        return []
     polys = []
     o = res.GetDown() if res else None
     while o is not None:
         if o.IsInstanceOf(c4d.Opolygon):
             polys.append(o)
         o = o.GetNext()
+    if not polys:
+        return []
     out = []
     pred = obj
+    if undo:
+        doc.StartUndo()
     for k, po in enumerate(polys):
         cp = po.GetClone(c4d.COPYFLAGS_NO_HIERARCHY)
         cp.SetName(obj.GetName() + " baked" + ("" if len(polys) == 1 else " %d" % (k + 1)))
@@ -92,12 +101,34 @@ def bake(doc, obj):
         t = obj.GetFirstTag()
         while t is not None:
             if t.CheckType(c4d.Ttexture):
-                cp.InsertTag(t.GetClone())
+                tt = t.GetClone()
+                cp.InsertTag(tt)
+                m = tt.GetMaterial()
+                # a Standard material reads colours through the generator's hidden proxy; the baked
+                # copy carries its own colour tag, so give it a material that reads that directly
+                sh = m[c4d.MATERIAL_LUMINANCE_SHADER] if m is not None and m.GetType() == c4d.Mmaterial else None
+                own = R.proxy_color_tag(cp)
+                if sh is not None and sh.GetType() == c4d.Xvertexmap and own is not None:
+                    m2 = m.GetClone()
+                    m2.SetName(m.GetName() + " baked")
+                    doc.InsertMaterial(m2)
+                    m2[c4d.MATERIAL_LUMINANCE_SHADER][1001] = own
+                    m2.Message(c4d.MSG_UPDATE)
+                    tt.SetMaterial(m2)
             t = t.GetNext()
         doc.InsertObject(cp, pred=pred)
+        if undo:
+            doc.AddUndo(c4d.UNDOTYPE_NEW, cp)
         pred = cp
         out.append(cp)
+    if undo:
+        doc.AddUndo(c4d.UNDOTYPE_CHANGE_SMALL, obj)
     obj[c4d.ID_BASEOBJECT_GENERATOR_FLAG] = False
+    obj[c4d.ID_BASEOBJECT_VISIBILITY_EDITOR] = c4d.OBJECT_OFF
+    obj[c4d.ID_BASEOBJECT_VISIBILITY_RENDER] = c4d.OBJECT_OFF
+    if undo:
+        doc.EndUndo()
+    doc.SetActiveObject(pred)
     c4d.EventAdd()
     return out
 

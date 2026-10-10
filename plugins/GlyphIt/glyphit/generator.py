@@ -11,7 +11,8 @@ from .runtime import (SRC_RANDOM, SRC_VMAP, SRC_FIELD, SRC_INDEX, SRC_HEIGHT, SR
                       UP_AXES, GRID_MAX, QT_LEVELS_MAX, qt_level_cap, param_getter, read_mesh, sample_values,
                       collect_polys, root_signature, fields_signature, image_signature, image_sample,
                       image_boxes, concat_boxes, merge_parts, apply_to_object, write_color_tag,
-                      write_palette_uv, glyph_colors, color_keys, strip_sim_tags, _color_opts)
+                      write_palette_uv, glyph_colors, color_keys, strip_sim_tags, _color_opts,
+                      is_color_proxy)
 
 
 
@@ -181,7 +182,7 @@ def build(op, hh, doc, S):
         while ch is not None:
             if ch.GetInfo() & c4d.OBJECT_MODIFIER:
                 sib_def = sib_def or bool(ch.GetDeformMode())   # switched-off deformers don't count
-            elif src_obj is None:
+            elif src_obj is None and not is_color_proxy(ch):
                 src_obj = ch
             ch = ch.GetNext()
     else:
@@ -306,6 +307,7 @@ def build(op, hh, doc, S):
         if col_sig != S.get("col_sig"):
             recolor(S, keep, opts["color"], img)
             S["col_sig"] = col_sig
+            S["col_stamp"] = S.get("col_stamp", 0) + 1
         return keep.GetClone()
     geo = S.get("geo")
     if not geo:
@@ -320,6 +322,7 @@ def build(op, hh, doc, S):
             if col_sig != S.get("col_sig"):
                 recolor(S, res_, opts["color"], img)
                 S["col_sig"] = col_sig
+                S["col_stamp"] = S.get("col_stamp", 0) + 1
             S["result"] = res_.GetClone()
             return res_
     S["topo"] = topo
@@ -388,6 +391,7 @@ def build(op, hh, doc, S):
     S["stats"] = tot
     S["colkeys"] = [s_.get("keys") for s_ in stats]
     S["col_sig"] = col_sig
+    S["col_stamp"] = S.get("col_stamp", 0) + 1       # the Standard colour proxy re-syncs
     if rest_used:
         move_points(root, geo, gmg, inv, flags["merge"])   # solved at rest, shown deformed
     S["result"] = root.GetClone()
