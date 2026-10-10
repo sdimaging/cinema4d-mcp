@@ -275,7 +275,10 @@ def build(op, hh, doc, S):
             # cache for us (it may live anywhere in the scene) and tells us when it changed.
             try:
                 op.NewDependenceList()
-                op.AddDependence(hh, src_obj)
+                try:
+                    op.AddDependence(hh, src_obj)
+                except TypeError:
+                    op.AddDependence(src_obj)  # 2026+: signature dropped the HierarchyHelp
                 if not op.CompareDependenceList():
                     S["dep_tick"] = S.get("dep_tick", 0) + 1
                 op.TouchDependenceList()
