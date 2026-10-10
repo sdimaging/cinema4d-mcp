@@ -42,7 +42,7 @@ ISLAND_POLY, ISLAND_NGON, ISLAND_CLUSTER, ISLAND_QUADTREE = 0, 1, 2, 3
 GRID_SINGLE, GRID_MIXED = 0, 1
 MIX_LEVELS = (1, 2, 3, 4)          # mixed atlas quadrants: TL 1-up, TR 4-up, BL 9-up, BR 16-up
 MIX_UNITS = 24                      # 2 quadrants x lcm(1,2,3,4)
-ASSIGN_EVEN, ASSIGN_WEIGHTED, ASSIGN_VALUE, ASSIGN_VALUE_EQUALIZED = 0, 1, 2, 3
+ASSIGN_EVEN, ASSIGN_WEIGHTED, ASSIGN_VALUE, ASSIGN_VALUE_EQUALIZED, ASSIGN_SEQUENTIAL = 0, 1, 2, 3, 4
 UVMODE_ATLAS, UVMODE_ENCODED = 0, 1
 
 DEFAULTS = dict(
@@ -369,6 +369,12 @@ def assign_cells(n_isl, ncell, prm, rng, isl_value=None, isl_rand=None):
     cells = [0] * n_isl
     if ncell == 1 or n_isl == 0:
         return cells, [0.0] * n_isl
+    if mode == ASSIGN_SEQUENTIAL:
+        # cells in plate order along the mesh's polygon order: a 4-up "DUDE" plate reads
+        # D U D E D U D E ... (Glyph Offset shifts the start; keyframe it for a marquee)
+        for i in range(n_isl):
+            cells[i] = i % ncell
+        return cells, [c / max(1, ncell - 1) for c in cells]
     order = list(range(n_isl))
     rng.shuffle(order)
 
