@@ -179,11 +179,13 @@ class GlyphItObject(plugins.ObjectData):
                     data.SetInt32(pid, int(default))
                 elif kind == "bool":
                     data.SetBool(pid, bool(default))
-                elif kind in ("string", "folder", "file"):
+                elif kind == "string":
                     data.SetString(pid, str(default or ""))
+                elif kind in ("folder", "file"):
+                    data.SetFilename(pid, str(default or ""))  # DTYPE_FILENAME: a String shows blank in the AM
             except Exception as e:
                 print("GlyphIt init %s: %s" % (name, e))
-        data.SetString(P.NAME_TO_ID["Plates Folder"], os.path.join(HERE, "plates"))
+        data.SetFilename(P.NAME_TO_ID["Plates Folder"], os.path.join(HERE, "plates"))
         return True
 
     # ---- Attribute Manager

@@ -31,6 +31,7 @@ class BaseContainer(dict):
     def SetInt32(self, k, v): self[k] = int(v)
     def SetFloat(self, k, v): self[k] = float(v)
     def SetString(self, k, v): self[k] = str(v)
+    def SetFilename(self, k, v): self[k] = str(v)
     def SetBool(self, k, v): self[k] = bool(v)
     def SetVector(self, k, v): self[k] = v
     def SetData(self, k, v): self[k] = v

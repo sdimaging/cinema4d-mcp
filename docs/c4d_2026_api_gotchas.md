@@ -2952,3 +2952,24 @@ Also: C4D renders and displays only the **last** texture tag (Octane included; w
 - **Texture emission is a light.** With surface brightness off, the power is spread over the whole mesh and importance-sampled, which gives dim, speckled colour noise. For a flat "glow" colour set `TEXEMISSION_SURFACE_BRIGHTNESS` on, `TEXEMISSION_SAMPL_RATE` 0, `VISIBLE_ON_DIFFUSE`/`VISIBLE_ON_SPECULAR` off, `CAST_SHADOWS` off, `DOUBLE_SIDED` on.
 - **Live Viewer and generators:** with the default "All Objects Movable" geometry control, a Python generator's new cache (changed UVs) is not re-sent until the generator is toggled. An Octane Object tag (1029603) with `OBJECTTAG_FORCE_UPDATES` (1307) = 1 on the generator fixes it. Material-only changes (a new texture file path) update without it.
 - `RenderDocument` with Octane stops a running Live Viewer session; it then has to be restarted ("Send your scene and restart new render").
+
+## 139. `BaseObject.AddDependence` lost its HierarchyHelp argument in 2026
+
+`op.AddDependence(hh, link)` raises `TypeError: argument 1 must be c4d.BaseObject, not PyCapsule` in
+2026.4 — the signature is now `AddDependence(link[, dirtyflags])`. Call it in a `try/except TypeError`
+and fall back to the one-argument form so one code path works on 2024–2026.
+
+## 140. `DTYPE_FILENAME` parameters must be initialised with `SetFilename`, not `SetString`
+
+Writing a Python `str` into a description parameter whose type is `DTYPE_FILENAME`
+(`bc.SetString(id, path)` in `NodeData.Init`) "works" for reads — `op[id]` still returns the path and
+the code runs — but the Attribute Manager's filename gadget shows an **empty** field, because it asks
+the container for a `Filename` and gets a `String`. Use `bc.SetFilename(id, path)`.
+
+## 141. Cinema 4D 2026 crashes on quit inside `NeXus.dylib` (INSYDIUM) — not your plugin
+
+Three identical reports in `~/Library/Logs/DiagnosticReports` on 2026-10-10: `EXC_BAD_ACCESS` in
+`NeXus.dylib + 0xf4878` called from `__cxa_finalize_ranges` ← `exit` ← `-[NSApplication terminate:]`.
+That is a static destructor in X-Particles' NeXus library running at process exit, after the document
+and plugins are gone. It shows up as "Cinema 4D quit unexpectedly" every time you quit with INSYDIUM
+loaded and is unrelated to Python plugins; disable INSYDIUM in the Plugin Manager to confirm.
