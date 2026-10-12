@@ -13,7 +13,7 @@ The same table drives:
   * the GlyphGrid -> Glyph It scene converter
 """
 PLUGIN_ID = 1071110            # registered to sdimaging ("GlyphIt")
-CONVERT_ID = 1071111           # TODO: replace with a registered id ("GlyphItConvert")
+CONVERT_ID = 1071224           # registered to sdimaging ("GlyphIt2")
 SYNC_ID = 1071112      # TODO register (MessageData: Standard colour-proxy sync)
 
 ID_BASE = 10000

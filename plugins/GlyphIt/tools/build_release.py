@@ -32,7 +32,7 @@ def main():
                         dirs[:] = []
                         continue
                 for f in files:
-                    if f in SKIP_FILES or f.endswith((".pyc", ".zip")):
+                    if f in SKIP_FILES or f.endswith((".pyc", ".zip", ".whl")):  # .whl: PyPI numpy win wheel carries an empty self-named file
                         continue
                     full = os.path.join(root, f)
                     z.write(full, os.path.join("GlyphIt", os.path.relpath(full, HERE)))
