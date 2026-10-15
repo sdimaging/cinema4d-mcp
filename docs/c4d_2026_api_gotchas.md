@@ -270,6 +270,9 @@ def PluginMessage(msg_id, data):
 
 ## 106. Python expression tag's BaseContainer is a usable C++<->tag contract (status, blobs, versioned auto-upgrading code)
 
+**2026-09-15 live GS-offset addendum (C4D2026.3.4):** `TPYTHON_FRAME=True` suppressed re-evaluation after changing a Python tag User Data offset while paused, even with `ExecutePasses`; stepping the timeline advanced correctly. `TPYTHON_FRAME=False` allowed the offset change on the same frame. Add a filename equality early-return before Octane SetParameter/MSG_UPDATE to avoid reloading unchanged splats on extra evaluations. Validated five independent GS objects, paused offset30->31->30 at frame45 (files0075->0076->0075), then timeline46->45. This validates expression/filename state, not rendered ORBX animation. Evidence: a private production scene's live-repair validation JSON and raw MCP results. Do not put a Script Manager installer in a Python tag; inspect source before automatic patching and retain backups.
+
+
 **Discovered/established 2026-06-09** (SplatFlow bridge tag v7).
 
 - A Python tag can `op.GetDataInstance().SetString/SetInt32` private IDs (10000+) on **itself** during expression execution; C++ reads them via `tag->GetDataInstance()` — a clean status channel (e.g. machine-readable `"BOUND|count|frame"` + human display string).
@@ -2569,6 +2572,12 @@ osl_plugin_id = next((p.GetID() for p in shaders if p.GetName() == "OSL texture"
 shader = c4d.BaseShader(osl_plugin_id)  # works
 ```
 
+**2026-10-15 OSL follow-up:** [Octane OSL practical notes](octane_osl_practical_notes.md)
+separate OTOY-documented animation/mapping rules, numerical caustic-shader
+findings and the native Octane checks still pending. A Blender OSL compile
+does not establish Octane GPU acceptance; do not generalize a constant
+noise probe to all of Octane's documented noise functions.
+
 ## 16. `FieldList` is at top-level `c4d`, NOT in `c4d.modules.mograph`
 
 **Wrong:** `from c4d.modules import mograph; flist = mograph.FieldList()`
@@ -3526,3 +3535,1545 @@ file with a sufficient limit and verify completion. The new entry was
 rewrapped so its live MCP retrieval works; that is not a parser-code fix.
 Parser hardening should recognize real ATX headings and fenced code, with
 regression fixtures. Bridge code is unchanged in this documentation update.
+
+## 137. Do not assert a boolean return from Python c4d.CallCommand
+
+In C4D 2026.3.4, Circuitry's command test used `assert c4d.CallCommand(1070114)`
+and failed even though Execute ran and created the correct Python Generator.
+An instrumented callback confirmed dispatch; the return was None. The local
+2026.3 Python SDK reference declares no return value for this function.
+
+Call it on the main thread, then assert the command's observable result: in this
+case exactly one Opython object, its native controls, a successful evaluated cache,
+and module paths pointing at the installed build. The corrected test passed via
+the registered command. No restart was needed. This is separate from direct
+Execute calls, normal startup loading, and actual menu/typing acceptance.
+
+Evidence: CircuitBoardTool/tools/c4d_activate_live_install.py and the raw
+validation_python/installed_010_outer.json checkpoint, September 12, 2026.
+
+## 138. Compare generated world geometry to the model's rotation convention
+
+Circuitry's routing plane uses x'=cos(a)*x+sin(a)*z and
+z'=-sin(a)*x+cos(a)*z. C4D heading +a produced the opposite rotation in the
+2026.3.4 live fixture. Symmetric boxes hid this until Draft-batched asymmetric
+surface marks were compared with individually parented Medium geometry.
+
+The adapter now uses heading -a for that model convention. World-space axes and
+each detailed component's vertices agree within 1e-6. The previous package test
+multiplied by the inverse parent transform and asserted the stored heading, which
+could not catch a consistently wrong parent rotation. Test world-space points
+against independent model coordinates before declaring model/render agreement.
+
+Avoid comparing rounded coordinate multisets for exact equality: tiny floating
+point differences straddled decimal rounding boundaries after the rotation fix.
+Compare corresponding authored vertices using a tolerance. CircuitBoardTool's
+c4d_live_smoke.py and c4d_art_direction_smoke.py cover this; rejected and corrected
+outer responses are retained under validation_python/*_011_outer.json.
+
+## 139. Rectangular Sweep joins can spike at tiny path reversals
+
+Circuitry's artist-edited logo spline exposed this in C4D 2026.3.4: a 0.8125-wide,
+0.5-high rectangular Sweep had evaluated vertices 19.4996 units from its path
+(40.88 times the rectangular profile's half-diagonal). The route contained tiny
+grid-to-pad backtracks and near reversals. A finite, connected centerline alone
+does not establish safe swept geometry.
+
+For planar copper, Circuitry 0.12 unions finite segment rectangles and inscribed
+round joins before extruding the resulting closed outlines. Unioning the strip
+footprints absorbs reversals and overlaps rather than joining offset lines with
+unbounded miters. All 96 traces in the artist fixture now stay within half-width
+in XZ (5,038 evaluated vertices), including the actual previously failing routes.
+The layout, net identities and artist values are preserved. Separate synthetic
+tests cover short reversals, loops, duplicates and seeded self-overlaps. This
+does not validate arbitrary 3D Sweep frames or the legacy Sweep-animation path.
+
+Evidence: CircuitBoardTool/c4d/circuitry_copper.py, tests/c4d_live_012_smoke.py,
+validation_python/swoosh_sweep_geometry_012.json and artist_copper_bounds_012.json.
+
+## 140. A linked source below a Python Generator can still have its previous cache
+
+Circuitry's native-fracture fixture initially passed first-pass updates while the
+source preceded the generator. Reordering the generator above the fracture then
+changing the fracture seed left the first pass using old geometry. The second
+pass corrected it. Testing only the original object order would have missed this.
+
+Do not treat GetHierarchyClone/GetAndCheckHierarchyClone as a general dependency
+graph for linked external siblings. Trials in this fixture returned old clones,
+None clones or an explicit dirty result without resolving the external ordering.
+The current Python Generator contract explicitly requires Source Mesh to precede
+Circuitry. New generators are inserted last; an unsupported ordering retains the
+last good geometry and reports the required correction. A source-first seed edit
+then gives matching first- and second-pass snapshots. No active-document
+ExecutePasses, reparenting or document writes occur inside generator main().
+
+The official explanation of this classic-API limitation is also recorded at
+https://developers.maxon.net/forum/topic/15383/unexpected-refresh-behavior-when-manipulating-linked-object/10
+This is a bounded workaround, not universal dependency handling for animated or
+simulation-driven inputs. Raw rejected/accepted trials live under CircuitBoardTool/
+validation_python/live012Dependency_012_outer.json and live012Hierarchy*_012_outer.json.
+
+## 141. User-data parents can fail to resolve when the group is inserted later
+
+Discovered in C4D 2026.3.4 while repairing Circuitry 0.12. Reparenting old controls
+to newly appended Advanced groups preserved DescIDs and valid-looking stored
+DESC_PARENTGROUP values, but the native Attribute Manager lost usable controls.
+Comparing GetUserDataContainer with GetDescription exposed 53 fields whose actual
+resolved parent fell back to ID_USERDATA instead of the assigned later group.
+
+Explicit DESC_TITLEBAR / DESC_COLUMNS and LinkBox custom GUI flags alone did not
+fix those parent mismatches. Reinsert descriptions parent-first using the SAME
+DescIDs and restore their values. The disposable fixture retained BaseLinks and
+an existing CTrack/key through repair, Undo/Redo and save/reopen. Do this only on
+the main thread inside the caller's appropriate Undo operation. Never renumber
+artist parameters just to make their displayed order convenient.
+
+Circuitry now sets group title bars, puts link fields near the beginning, and
+uses short wrapped Help labels. Long static labels plausibly widened the label
+column enough to crowd link editors, but that explanation is an inference: this
+session had no native desktop UI surface. Resolved-description, native parameter
+message and saved-scene tests are evidence of correctness, not visual AM approval.
+
+Evidence: CircuitBoardTool/c4d/circuitry_live_ui.py (repair_order/audit),
+tests/c4d_live_013_smoke.py, validation_python/ui013Repro_outer.json (53 errors
+before and after flags-only trial, zero after reorder), ui013Repair_outer.json,
+smoke013final_outer.json. Python Generator message(id,data) handles main-thread
+MSG_DESCRIPTION_POSTSETPARAMETER dict['descid']; native USERINTERACTION SetParameter
+tests verified spline/mesh input switching without writes from generator main().
+
+## 142. C4D 2026 vertex maps use TRANSFER_CONTROL_FIELDS to evaluate their Fields list
+
+Assigning ID_TAGFIELDS on a fresh vertex-map tag alone leaves its evaluated
+weights unchanged when Transfer is Off. The 2026.3 resource includes Ttransfer:
+set tag[c4d.TRANSFER_CONTROL] = c4d.TRANSFER_CONTROL_FIELDS for a Fields-driven tag.
+Do not assume the older ID_TAGFIELD_ENABLE checkbox remains its active UI control.
+The local 2026.3 Python SDK cinema_resource/tag/ttransfer.html and the runtime
+description agree: Transfer is Off / Fields / Property.
+
+Circuitry's test first rejected an ID_TAGFIELDS-only fixture (all weights stayed
+zero), then verified a moving Linear Field with native tag evaluation. Reading
+GetAllHighlevelData after the source's native evaluation supplied the current
+weights to a later Python Generator on the first pass: full / empty / gradient /
+full, with 12 / 0 / 4 / 12 placed small parts. A second pass reused the same geometry.
+No recursive ExecutePasses or document writes occur inside the generator callback.
+This tests a native Linear Field/vertex-map setup in source-before-generator
+ordering, not arbitrary stateful simulations or every tag-priority arrangement.
+
+Evidence: CircuitBoardTool/tests/c4d_fields_013_smoke.py and
+validation_python/fields013v1_outer.json, fields013v2_outer.json (density-count
+refill flaw exposed), fields013v3_outer.json and installedFields013_outer.json.
+
+## 143. Per-face normal offsets can close a concave joint despite local outline insets
+
+Geometric pitfall demonstrated in Circuitry on C4D 2026.3.4: two planar source
+faces met at a dip. Their independent normal-directed board lifts moved the
+generated substrates into each other, even with a percentage inset on both
+outlines. Validate finite thickness after final local frames and lifts, not only
+source coplanarity or 2D outline gaps. Different-height coplanar neighbors also
+need a finite 3D distance test; overlapping projections alone are insufficient.
+
+The bounded correction measures board prisms, then clips each nearby pair into
+opposite half-spaces separated by the requested distance. Generate mounting sites,
+sockets, packages and routed copper only after those corrected outlines exist.
+Recenter local clipped coordinates together with their frame origin so placement
+grids and vertex-map sampling preserve world alignment. Work on private plans;
+never fix this by editing the source or reentering scene evaluation from main().
+
+In the real six-board fixture, evaluated substrate vertices confirm a 6.0000016
+unit gap, both dipped boards retain about 65% area and their rebuilt ribbon joins
+the cut edges. Native checks cover 1,480 ribbon edges against all six substrates,
+Undo, parameter changes, save/reopen and unchanged source points/matrix. These
+checks do not certify arbitrary tall package geometry or universal cable routing.
+
+Area-only scoring can choose the wrong artistic cut (across the seam's length).
+Constrain separators to face the neighbor. A folded inset corner in an older
+logo also rejected one candidate: continue trying other supported separating
+planes instead of aborting on the first candidate, while preserving an explicit
+failure if no valid cut meets the trim limit. Exact fixtures and rejected/accepted
+outer results: CircuitBoardTool/tests/test_python_clearance.py,
+tests/c4d_clearance_014_smoke.py and validation_python/CHECKPOINT_014.md.
+
+## 144. User-data static text can leave blank gadgets and clip multiline Help
+
+Confirmed by artist screenshots in C4D 2026.3.4, Circuitry 0.15. Using instructions
+as DTYPE_STATICTEXT names produced instruction labels plus empty controls. Moving
+a wrapped paragraph into the static-text value round-tripped correctly via the
+API, but still clipped text under the parent title and drew an empty-looking box.
+The earlier hypothesis in #141 that short labels alone solve the Help layout is
+therefore incomplete; stored/native descriptions do not certify its visual layout.
+
+The accepted replacement is DTYPE_STRING / CUSTOMGUI_STRINGMULTI, with a blank
+DESC_SHORT_NAME, DESC_SCALEH true (ALIGNLEFT/FITH false), animation off, and
+DR_MULTILINE_READONLY, WORDWRAP, NO_BORDER, NO_DARK_BACKGROUND, NO_SCROLLBARS true.
+Set DR_MULTILINE_LINECOUNT to an appropriate initial paragraph line count and
+initialize the actual string parameter. Old static rows are hidden. The artist
+explicitly confirmed the corrected layout looked right. Parent-first user-data
+ordering from #141 remains required; preserve parameter values when reordering.
+This verifies this native Help presentation, not every multiline custom GUI flag
+or all Attribute Manager widths. Evidence: CircuitBoardTool/c4d/circuitry_live_ui.py,
+validation_python/help015trial_outer.json, help015wrapping_outer.json and
+CHECKPOINT_015.md; the artist's screenshots of the package and shape help show the rejection.
+
+## 145. BaseBitmap.ScaleIt can replace destination alpha-channel wrappers
+
+Observed in C4D 2026.3.4 while reading a transparent PNG for a Python Generator.
+Allocating a private destination bitmap, AddChannel(True, True), then ScaleIt
+left the earlier channel wrapper invalid. GetAlphaPixel with that wrapper raised
+ReferenceError: the object c4d.bitmaps.BaseBitmap is not alive. A small in-memory
+probe did not fail, so it was insufficient evidence for real-file use.
+
+Reacquire destination.GetInternalChannel() after ScaleIt and use that wrapper for
+pixel reads. The corrected native PNG path passes live generator evaluation,
+alpha/luminance fixtures, cache reuse, modified-file reload and save/reopen.
+Source images and decoded buffers remain private; no document writes occur in
+the generator callback. Evidence: CircuitBoardTool/c4d/circuitry_images.py,
+tests/c4d_images_015_smoke.py, validation_python/images015v1_outer.json,
+images015bitmapFailure_outer.json, images015v2_outer.json and images015installed_outer.json.
+
+## 146. SetMl loses shear; source-following generators may need two transform factors
+
+Verified in C4D 2026.3.4. inverse(generator Mg) * source Mg * source-local frame
+is the correct affine map, but assigning it directly with BaseObject.SetMl can
+lose nonorthogonal components when C4D decomposes it into native rotation/scale.
+Rotated objects under differently non-uniformly scaled parents expose this even
+when every artist object has ordinary transforms. Circuitry's first native
+placement fixture drifted by roughly 2.5 units; a minimal arbitrary-matrix probe
+confirmed SetMl changed the supplied basis.
+
+Factor the linear map into two column-orthogonal matrices (e.g. U*Sigma and V^T
+from a small SVD), then assign them to two private parent nulls. Apply translation
+only on the outer null. Their product retains source scale, reflection and
+inherited shear while each native object has a representable transform. Preserve
+canonical geometry before placement so transform-only edits do not reroute.
+Do not modify an already-owned generator cache. Reject singular transforms.
+
+Evidence: CircuitBoardTool/c4d/circuitry_transforms.py,
+circuitry_spline_placement.py, tests/test_python_transforms.py,
+tests/c4d_spline_placement_016_smoke.py, validation_python/placement016v1_outer.json,
+placement016v2_outer.json, placement016shearProbe_outer.json,
+placement016v3_outer.json and placement016installed_outer.json. Tests include
+mirrored/scaled parents, source offsets, fit, solos, Undo and save/reopen. This
+does not guarantee behavior of downstream effects that deliberately inspect or
+replace those internal transform nulls.
+
+## 147. SplineHelp retained line points can differ from evaluated deformed vertices
+
+Observed in a C4D 2026.3.4 linear spline with Bend. The source's GetDeformCache
+was None; source.GetCache returned a LineObject whose own GetDeformCache held the
+deformed line. source.GetRealSpline still exposed original spline points. Reading
+only that spline therefore ignored deformation while returning valid-looking data.
+
+Initialize SplineHelp with SPLINEHELPFLAGS_USERDEFORMERS (omit GLOBALSPACE for
+source-local results). In the tested fixture, GetPosition and
+GetVertexMatrix(index).off matched the deformed vertices. Even with USERDEFORMERS
+and RETAINLINEOBJECT, GetLineObject().GetPoint still returned original vertices.
+For exact linear corners, read GetVertexMatrix(index).off; obtain segment sizes
+with SplineHelp.GetSegmentCount/GetVertexCount. Python LineObject does not expose
+GetSegment. Retained line point count remains useful as a consistency check.
+
+Circuitry now samples these evaluated vertices, then checks planarity and retains
+the source-local frame before applying the source hierarchy. A native Star and
+planar Bend passed independent deformed-line world-point comparisons with max
+error 1.49e-13 units; strength changes matched on the first source-before-generator
+pass. This does not make nonplanar deformations valid single board outlines.
+Evidence: CircuitBoardTool/tests/c4d_spline_inputs_016_smoke.py,
+validation_python/placement016inputs*_outer.json (rejected assumptions included),
+placement016sourceFinal_outer.json and placement016installed_outer.json.
+
+## 148. Verify a command's native result as well as its return value
+
+In this C4D 2026.3.4 bridge session, calling the registered Circuitry command
+1070114 returned None while successfully creating its native Opython object.
+A lifecycle test using `assert c4d.CallCommand(1070114)` therefore failed before
+checking the valid result. A corrected probe inspected the new object's type,
+parameter revision/defaults, resolved description and evaluated cache; all passed.
+This observation is scoped to that host/command invocation, not a claim that every
+CallCommand returns None or a change to the documented API contract. The reason
+for the return value was not isolated. Do not retry a command solely because its
+return is falsey: inspect whether the intended object/action already occurred.
+Evidence: CircuitBoardTool/validation_python/density017lifecyclefinal.json and
+density017lifecyclefinal2.json (rejected and accepted outer results).
+
+## 149. FieldList userdata needs retained owners and semantic migration comparisons
+
+Verified in C4D 2026.3.4. Reading FieldList userdata returns native wrappers which
+compare unequal with == even for an unchanged empty list. A blanket userdata
+equality assertion can therefore report a migration failure when no data changed.
+For auditing, snapshot GetFlags and each recursive layer's type/name/GetData copy,
+children and GetMaskHead hierarchy while retaining the owning list. A linked
+Linear Field retained identical layer data, link and strength through UI upgrade;
+sample output, Undo/Redo and document save/load also passed. This does not imply
+arbitrary custom userdata can be compared using the same schema.
+
+Chaining read_values(node)['Density Fields'].GetLayersRoot().GetDown() without
+retaining the FieldList caused a dead GeListHead ReferenceError in a native test.
+Hold the FieldList and root explicitly while traversing borrowed native layers.
+GetLayersRoot returns a GeListHead whose GetDown is the first layer, not a layer
+itself. GetLinkedObject takes the document. FLfield rejected an Opython link in
+the fixture; native Field objects are c4d.modules.mograph.FieldObject instances.
+
+Evidence: CircuitBoardTool/tools/c4d_userdata_audit.py,
+tests/c4d_density_fields_018_smoke.py, validation_python/fields018eqprobe_outer.json,
+fields018source2_outer.json, fields018layerprobe_outer.json and
+fields018finaltest0_outer.json. These include rejected assumptions and accepted
+native source/installed tests. Direct sampling uses world positions and identity
+FieldInput transform; translated generators and followed rotated splines pass.
+
+
+## 150. Redshift material Undo must not duplicate graph Undo entries
+
+Verified in C4D 2026.3.4 with Redshift 2026.7.1. Circuitry wrapped material
+changes in document StartUndo/AddUndo(UNDOTYPE_CHANGE, material)/EndUndo and
+also used graph transaction UndoMode.ADD. Undo restored the prior look but Redo
+left the Redshift base-color port at its old value while generator controls
+advanced. With the complete material Undo retained and transaction UndoMode.NONE,
+both Undo and Redo restored matching control and shader values for all five looks.
+This is specific to a caller already recording a complete material Undo, not a
+blanket instruction to disable graph undo in node editing tools.
+
+A normal Mmaterial plus NodeMaterialReference.CreateEmptyGraph in the Redshift
+node space, explicit Standard Material/output nodes and a surface connection
+worked. BaseMaterial(1067447) alone did not initialize that graph. GetPortValue
+may return a maxon.Float64 wrapper; convert with float() for numeric assertions.
+Evidence: CircuitBoardTool/validation_python/materials020next1_outer.json,
+materials020manager5_outer.json (rejected Redo), materials020manager6/7_outer.json
+(accepted lifecycle). Actual renderer appearance was not validated by these tests.
+
+## 151. Programmatic userdata changes can synchronously call description handlers
+
+Circuitry material preset application updated its own renderer/look userdata.
+Guarding only its MSG_DESCRIPTION_POSTSETPARAMETER handler was insufficient:
+a direct API call to apply set parameters, entered the handler synchronously
+and constructed a second material bank before the outer call committed. Guard
+the public mutation entry point as well as the description callback. A per-object
+reentrancy guard eliminated the duplicate bank in the native 15-look test.
+Userdata ordering code must also exclude DTYPE_BUTTON and DTYPE_SEPARATOR when
+copying values; buttons have descriptions but no readable parameter value.
+Evidence: CircuitBoardTool/validation_python/materials020manager_trace_outer.json,
+materials020manager3_outer.json and materials020manager6/7_outer.json.
+
+
+## 152. New documents can already contain the requested renderer video post
+
+In C4D 2026.3.4 / Redshift 2026.7.1, a fresh BaseDocument's active RenderData
+already contained video posts 1036219 (Redshift) and 1054755 (Magic Bullet Looks).
+A preview helper unconditionally inserted another Redshift post. RenderDocument
+then hung; the Redshift log reported Context: Locked:Render followed by
+Context: Busy:Render Waiting until idle. Native readback confirmed two Redshift
+posts in the test and one in a separately allocated fresh document. A private
+three-cube C4DThread fixture reproduced it without any Python Generator present.
+The thread remained in RenderDocument after a custom TestDBreak deadline and an
+explicit End(False). Main-thread bridge commands still ran in the asynchronous
+fixture, allowing artist documents to be saved before a requested restart.
+
+Walk RenderData.GetFirstVideoPost/GetNext and reuse the post with the requested
+type. Insert a BaseVideoPost only if missing. Do not mutate or destroy the private
+render document while its render thread is still active. Duplicate removal before
+rendering is the correction, but post-restart corrected render acceptance remains
+pending at this entry's creation. Do not claim a material graph or API fixture
+proves actual rendering. Source helper code now has phase markers and saves the
+prepared scene before rendering. Synchronous generator preview was the first hang;
+its exact stopping call was not instrumented and must not be asserted retroactively.
+
+Evidence: CircuitBoardTool/validation_python/materials020doubleVP_outer.json,
+materials020minimalRSstatus_outer.json, materials020minimalRScancel_outer.json,
+materials020rendererRecoveryBackup_outer.json; tools/c4d_async_material_probe.py.
+
+## 153. Userdata material links alone do not protect generator materials from Delete Unused
+
+Verified in C4D 2026.3.4: a material referenced only by a userdata BaseLink was
+deleted by native Delete Unused Materials (CallCommand 12168). A real TextureTag
+on an object retained its material even when its restriction named a nonexistent
+selection. The final Circuitry fixture kept all 31 linked material roles using
+real per-role TextureTags with NBIT_OHIDE and an unmatched restriction on the
+generator, while a truly unused material was removed. Shading tags remain on
+actual generated geometry. Generated cache tags had not protected those roles.
+
+Synchronize these reference tags on the main thread when role links change,
+including Undo/load and native replacements. Unlinked old material banks remain
+eligible for cleanup. This is a demonstrated native reference mechanism, not a
+reason to defer material usage correctness to a C++ port. Renderer appearance
+and direct Alt-drop gestures remain separate from tested equivalent link edits.
+Also explicitly use DESC_CUSTOMGUI=CUSTOMGUI_BUTTON for userdata DTYPE_BUTTON;
+Circuitry's stored/resolved descriptions previously existed without visible
+buttons. After that correction the artist confirmed both design buttons visible.
+Evidence: CircuitBoardTool/tests/c4d_runtime_021_smoke.py,
+validation_python/021installedsuites_outer.json, upgrade_021_live.json.
+
+## 154. Managed spline identity, zero points and current private deformation
+
+In the C4D 2026.3.4 fixture, SplineObject.GetGUID changed after ResizeObject;
+GetGUID is a checksum, not sufficient evidence of BaseList2D replacement. Test
+identity with retained object equality and a persistent native BaseLink instead.
+ResizeObject(0,0) succeeded but SetAllPoints([]) raised Invalid object length.
+Skip SetAllPoints for empty managed outputs and retain artist tags/children.
+
+Copying the trace spline and its Bend into a Python Generator's private output
+did not by itself evaluate the deformation. Direct SplineHelp on a detached copy,
+and a dummy-document copy without a modeling pass, were rejected. The final
+implementation uses SendModelingCommand(MCOMMAND_CURRENTSTATETOOBJECT) on a
+copy with current points inside an unlisted dummy document. This is the explicit
+worker-safe modeling pattern in the local 2026.3 c4d.utils SDK documentation.
+It does not ExecutePasses or alter loaded-document hierarchy in GVO. Local Bend
+was verified against the real native evaluated curve. External targets, Fields
+and simulation context were not certified by this bounded test.
+
+After a seed change and main-thread point publication, immediate real-child
+SplineHelp/Oline deformation was still stale (292.55 units in this fixture).
+The next host pass converged. The FIRST private generated deformation was already
+current and matched the later real result with 0.0 error. Preserve these separate
+observations; manual ExecutePasses convergence does not certify an untouched
+viewport or external consumer timing. Registration/automatic event acceptance
+for Circuitry's new MessageData 1070276 remains pending a startup in this entry.
+RegisterMessagePlugin from MCP exec failed with cannot find pyp file, even when
+using an existing PYP command class's globals; use normal plugin startup.
+Evidence: CircuitBoardTool/tests/c4d_runtime_021_smoke.py,
+validation_python/021guidprobe_outer.json, 021runtime1..18_outer.json (rejected
+and accepted trials), 021installedsuites_outer.json (final installed acceptance).
+
+Startup follow-up: after the artist accepted the old render-cancellation dialog,
+normal Quit remained unresponsive. With all documents saved and verified, the
+stuck process was ended; PID46868 loaded both Circuitry registrations normally.
+A small owned loaded document then received its 183-point managed spline via
+SpecialEventAdd automatically in 16 ms. Later calls were no-op with stable hash
+through 5.7 seconds. Disk evidence was captured before any second bridge request.
+The initial snapshot used explicit private L.evaluate; no manual flush or
+ExecutePasses. This verifies queue dispatch while leaving actual UI/viewport and
+external-consumer acceptance distinct. Evidence: CircuitBoardTool/tools/
+c4d_update_handler_021_probe.py and validation_python/
+update_handler_021_before_followup.json, restart_021_verified.json.
+
+## 155. Renderer-followable material ownership cycles and persisted identity
+
+Circuitry native stored a generator BaseLink inside material metadata, while
+the generator referenced that material through role links and TextureTags.
+An Octane Studio+1.9.3 crash report on C4D2026.3.4 showed C00000FD stack overflow
+and repetitive Octane frames; its log stopped at material creation. This cycle
+is a strong suspect, not a symbolized diagnosis of third-party internals.
+Replace bookkeeping backlinks with a persistent text identifier, and migrate
+legacy material metadata on main-thread document import before rendering.
+Do not remove real forward material usage references needed by Delete Unused.
+
+Using owner.GetGUID as the text identity was rejected: a value computed during
+native document-import migration differed from the finalized object's GUID.
+Persist an explicit owner token in the generator container. Clone bank ownership
+must fork on preset editing without modifying the other owner's materials;
+render-document clones need not fork. Save/load, duplicate, Undo and custom
+replacement checks are distinct from material shader-value tests.
+
+After removing backlinks, actual small and recovered-scene Octane shaded frames
+completed successfully at384x384/16samples. This does not certify sustained Live
+Viewer or explain separate earlier hardware-render access violations. Evidence:
+CircuitBoardTool/validation_native/CHECKPOINT_NATIVE_013.md and its raw artifacts.
+
+For bounded Octane QA, BaseVideoPost1029525 provides initialized defaults;
+an empty doc[1029499] container can silently select Info Channels (kernel0).
+Runtime description confirms kernel1 Direct Lighting. Set both VP overrides and
+document sample controls, and inspect image/log for actual beauty kernel/samples.
+The installed old example mentions SET_DEF_ENV_COLOR, absent from this runtime;
+the current local header has SET_ENV_COLOR3190. BaseBitmap.GetPixel returns lists,
+so convert to tuples before unique-color set assertions.
+
+## 156. Native GVO must reuse unchanged output and track external inputs
+
+Circuitry/C4D2026.3.4 rebuilt every GetVirtualObjects call. The artist's live
+flower board had98398 polygons, but unchanged private-document ExecutePasses
+took1.81..2.00seconds repeatedly. Native cache dirty counter increased while
+the point hash stayed identical. Python object equality reported the cache as
+equal across rebuilds: wrapper equality alone is insufficient cache evidence.
+
+Per-ObjectData transient state now records generator DATA dirtiness plus a light
+dependency signature of relevant source hierarchy/caches/tags/world matrices,
+linked masks and FieldList.GetDirty(document). CheckDirty marks DATA only after
+a real dependency change; GVO returns op->GetCache when state matches and
+CheckCache(hh) allows reuse. Never mutate the published cache to report hits.
+Build serial/time stamped on newly allocated output provide separate evidence.
+
+Same exact scene after fix: initial1.623seconds then0.982..2.262milliseconds per
+unchanged document pass, identical96782-point hash, stable cache dirty counter.
+Camera/disabled-Field moves do not rebuild. Seed/source/parent/active Field/tag
+edits rebuild then return to cache. Field time is tracked conservatively for
+procedural layers; static boards without active Fields ignore time. Nested
+source spline edits inside real Extrude/Voronoi update without an owner nudge.
+This is evaluation evidence, not viewport FPS or render timing. Artist handles
+actual presentation/render acceptance. See CircuitBoardTool validation_native/
+CHECKPOINT_NATIVE_015.md, before/after timings and cache lifecycle tests.
+
+Save lifecycle follow-up: after assigning a NEW verified checkpoint path/name,
+native Save command12098 cleared the save state and normal Quit12104 completed
+without the previous extra save dialog. Verify GetCommandName before invoking
+IDs:12112 is Select All. Reverify the new saved file before quitting; never use
+this to overwrite an artist original or bypass a render-cancellation dialog.
+
+September14 follow-up: CallCommand(12098) returned false in one already-saved
+checkpoint workflow while GetChanged() was false and the new checkpoint had
+loaded with the expected object/material counts. Do not assert on that command
+return alone; verify the saved file and document change state before normal Quit.
+
+## 157. A serialized cycle value also needs its resource entry
+
+Native Circuitry016 compiled a new enum value and its handler successfully, but
+its generated .res CYCLE omitted that entry because a whitespace-sensitive text
+replacement did not match. GetDescription lacked value3, and node[parameter]=3
+raised "parameter set failed" in C4D2026.3.4. Make the resource generator own the
+complete cycle, then check runtime DESC_CYCLE and parameter assignment. A C++
+enum and a localized string alone do not expose a usable choice. Resources are
+part of installed build identity even when the DLL hash remains unchanged.
+
+The same host suite caught UNIT PERCENT with resource MAX1: setting0.25 through
+the API clamped to0.01. A resource percentage range uses human percentage units
+(MIN0/MAX100 for stored0..1), unlike the stored BaseContainer float. Direct
+container writes bypassed this clamp and restored geometric parity, establishing
+the resource as the cause. Test public parameter writes/readback, not only the
+planner or direct container access, before declaring a restored controller usable.
+
+## 158. Fragment parity needs contour traversal and complete containment
+
+Circuitry017's actual Extrude/Voronoi fixture exposed two gaps that simple
+rectangle tests missed. Normalizing a planning contour's winding changed which
+mounting corners Python's ordered subsampling chose. Preserve input traversal
+for planning; normalize independent polygon publication as needed. Separately,
+checking a package's corners/edges against holes misses a hole fully covered by
+the package. Test hole containment as well as perimeter intersections. Frozen
+failing artist fragments reproduced the omission without Cinema; host tests then
+matched all ten fragments at100/200% density. See CHECKPOINT_NATIVE_017.md.
+
+For nested diagnostic BaseContainers in C4D2026.3.4, iterating children obtained
+from a temporary parent gave zero-valued child reads in this fixture. Keeping
+the parent container alive and obtaining each child with GetContainer(index)
+returned the correct native data. Establish container ownership/lifetime before
+changing production code in response to apparently empty cache metadata.
+
+## 159. Verify a terminated Windows process remnant before DLL deployment
+
+Normal Cinema Quit on September14 left a child process entry with0threads,
+0handles, no window/path, an exited parent and~0.4MB working set. OpenProcess
+returned AccessDenied; no new crash report appeared. Get-Process by name alone
+therefore blocked the installer even though the installed plugin DLL could be
+opened exclusively for read/write (the probe changed NO bytes).
+
+The CircuitBoardTool installer now permits this narrowly verified remnant case:
+every matching entry must report zero threads/handles and an absent parent, and
+the installed image must pass that exclusive open. Missing metadata, active
+threads/handles, live parent or locked image still stops installation. This is
+not permission to ignore inaccessible live processes, rename a loaded DLL,
+terminate through dialogs or discard scene preservation. The artist documents
+were saved/reloaded before the normal Quit. Successful new PID45372 loaded the
+expected018 DLL and passed host tests afterward; see CHECKPOINT_NATIVE_018.md.
+
+## 160. Cable body refinement can preserve connector geometry
+
+Circuitry018 resamples its existing analytic cable curve and increases native
+wire radial segments instead of placing the whole generator under SDS. Host
+levels0..3 retained byte-identical housing/board/trace/package geometry hashes,
+cable attachment coordinates and ribbon end-section corners. Native wire radius
+and centerlines also matched Python. This preserves square ribbon cross-sections
+and hard socket housings while increasing curved-body resolution. It is not
+Catmull-Clark subdivision and should not be labeled as an SDS object.
+
+The same actual-logo fixture showed that an unnecessarily broad circular socket
+keepout plus a fixed-width socket eliminated the nearby mounting edge. Exact
+oriented-rectangle/circle clearance and smaller sockets only where needed fixed
+the long jump. Relaxing short-edge sampling alone did not fix it. Keep rejected
+hypotheses distinct from demonstrated causes; validate against actual geometry
+and the user's source, not just a connected-network count.
+
+## 161. Publish real generator children through the actual main-thread queue
+
+Circuitry019–021 publishes a real editable trace-spline child from a native
+generator. GVO only stages immutable point/segment data. A coalesced Maxon Job
+on GetMainThreadQueue scans loaded documents and changes children there. The job
+captures no object/document/plugin-instance pointer: Undo, removal and close can
+retire them before it runs. ExecuteOnMainThread can execute inline and is not a
+guarantee of deferred scene mutation. Shutdown cancels/waits the owned job.
+
+Use forward and backward owner links, validate hierarchy, and preserve artist
+tags, name, transform and local deformers while resizing the owned spline.
+Detached output stays independent. A private cache clone is refilled from the
+fresh snapshot; local deformers evaluate through Current State to Object in an
+owned unlisted document. Do not recursively ExecutePasses from GVO. External
+deformer targets and arbitrary feedback hierarchies are not thereby certified.
+
+Lifecycle tests must allow the real event loop to run between phases. Eleven
+immediate bridge calls inside one sub-second orchestration were too tight: the
+initial publication caused a single settling rebuild (serial 2 to 3). A proper
+spaced run settled and measured about 0.15ms unchanged passes. This is different
+from continuous idle rebuilding. Inspect bridge inner text: an outer isError
+false can contain "Python execution error"; stop dependent test phases on that
+failure. Evidence: CircuitBoardTool native_output_019/021 reports and raw output.
+
+## 162. A custom image filename needs asset and rename messages
+
+Circuitry021's native object implements MSG_GETALLASSETS with AssetData.Add
+(owner and parameter ID), plus MSG_RENAMETEXTURES and
+MSG_MULTI_CLEARSUGGESTEDFOLDER through HandleModifyFilenameMessage. A filename
+control alone did not establish scene asset collection. Staged-plugin testing
+verified GetAllAssets and Save Project with Assets, copied the image, rewrote
+the relative path, reopened and regenerated the scene without the prototype/MCP.
+
+Resolve relative paths against the scene directory and tex folder, use UTF-8
+filesystem paths, and fingerprint resolved path/mtime/size for idle invalidation.
+Cache both successful decode/contours and invalid-input geometry/status until
+inputs change. Width/material changes should not retrace unchanged pixels.
+For embedded Python test scripts, explicitly read UTF-8; default Windows decoding
+can turn a correct Unicode fixture name into mojibake before native code sees it.
+Evidence: native_images_021.json and release_clean_c4dpy_021.json.
+
+## 163. c4dpy functional success and shutdown success are separate gates
+
+On this Windows/Cinema2026.3.4 installation, isolated native021 package checks
+completed successfully without the Circuitry Python/MCP plugins. After an
+explicit sys.exit(0), c4dpy returned -1073740791 (0xC0000409). A minimal script
+with Circuitry absent (FindPlugin returned None) failed at shutdown with the
+same code. The underlying host/other-plugin cause is undiagnosed; do not assign
+it to Circuitry or a renderer without further evidence. The functional report
+proves the tested operations; it does not prove clean host exit or qualify
+headless/Team Render support. Preserve both process exit code and script report.
+Evidence: CircuitBoardTool validation_native/headless_shutdown_021.json.
+
+## 164. A cancelled SDK modeling result must not become a cached input error
+
+Circuitry021's live 300% Flower board was blank with an idle cached copper
+triangulation error. The preserved input rebuilt at 100/200/300/500%, and a dirty
+retry restored the artist board without parameter changes. The original host
+break flag was not recorded: cancellation as the trigger is inferred. What was
+demonstrated is that a transient failure had become indefinitely cached.
+
+The GVO implementation had cached all std::exceptions without checking the
+HierarchyHelp calling thread. Native022 checks TestBreak before heavy trace
+work/publication and again before classifying SDK null returns as invalid input.
+On cancellation it unwinds private allocations, retains the last trace snapshot
+and sets retry state for CheckDirty. Only completed builds and actual input
+errors become idle cache states. This prevents cancellation from being treated
+as a permanent invalid contour while preserving invalid-image error caching.
+
+Do not infer cancellation-test success from a private worker finishing cleanly.
+Overridden Python C4DThread.TestDBreak received zero callbacks during these
+ExecutePasses attempts, and StopAllThreads did not interrupt that unlisted
+worker's generation. Those attempts did not exercise the guard. Record an
+actual aborted-build counter or equivalent before claiming that gate. Fresh
+native Flower/Field fixtures passed nine density/coverage combinations and idle
+hash checks; direct artist slider interaction was requested separately.
+Evidence: CircuitBoardTool CHECKPOINT_NATIVE_022.md and its linked JSON reports.
+
+## 165. Coverage filters can conceal shared-edge topology failures
+
+Circuitry023 investigated an artist remesh with only 27 points / 52 triangular
+faces. Upward coverage worked; All Faces produced no output. Two source edges
+had four incident faces each. The normal filter removed enough participating
+faces to hide the extractor's global non-manifold rejection. Polygon budget or
+non-planar quads did not explain this particular repro. Preserve exact topology
+and committed controls before simplifying the source or offering density advice.
+
+For this planar-patch generator, treating junction faces as independent boards
+retained every valid candidate. Merely blocking the ambiguous edge in adjacency
+was insufficient: alternate adjacency paths can merge the same faces again.
+The extractor isolates all faces incident to the junction from region merging,
+while keeping ordinary manifold region/contour behavior. This is a product-level
+policy, not a general C4D modeling repair; it leaves the input mesh untouched.
+
+The next stage exposed a second all-or-nothing error: one pair could not meet
+the configured clearance/trim limits. Native fitting mode now omits the later
+candidate and reports it explicitly, removes it before connector planning, and
+uses stable source identities for population seeds. It never lowers requested
+clearance. The strict core mode remains available and covered by parity tests.
+In both Faces/Planar Regions, exact host tests produce 51 boards at clearance 6
+(one reported omission), all 52 at clearance 0.5, and stable idle caches. Clone,
+cold load and ordinary-density Voronoi/Python differential checks pass. This does
+not certify warped quads, every invalid contour, or useful population on tiny
+curved faces; release and artist interaction acceptance remain separate gates.
+Later on September 17, the artist directly confirmed the Upward / All Faces switch
+stays visible in the viewport; that interaction gate passed for this fixture.
+Evidence: CircuitBoardTool CHECKPOINT_NATIVE_023.md, native_surface_023.json and
+surface_core_023.json. Tests used owned unlisted documents and no renderer calls.
+
+## 166. Surface detail normalization must include the entire design space
+
+Circuitry024's torus repro had 20 valid panels around 26–61 units across, ample
+population budgets, but only two packages and no small parts or routes. Scaling
+package bodies alone left absolute package margins, pin extents, row spacing and
+routing constants sized for the original large board. More requested parts did
+not create valid sites. At least one fitted package is required by this planner
+before it creates small-component banks and their circuit graph.
+
+Normalize the actual planning outline and every spatial mask/keepout into a
+consistent design space, run both planner and router there, and map all emitted
+detail back through a uniform scaled frame. This includes package subgeometry,
+pins, passives, copper thickness/layers, vias and managed spline coordinates.
+Convert the physical board-top offset into design units before mapping; otherwise
+the populated surface floats or sinks as scale changes. Diagnostic route metadata
+must use physical coordinates too. Do not normalize only centers or only widths.
+Board mechanical thickness, mounts and cables remain separate explicit controls.
+
+Native024 provides default-on Shape/Normalize Surface Detail (2018), with OFF
+retaining the old assembly look. The exact torus at 100% now populates 20/20 panels
+(60 packages, 600 parts, 1,202 routes). A fresh object also populates all 20. Physical
+panel sizes 3/30/300/3,000 retain the same part/package/route counts; copper bounds
+and trace-spline mid-height align. Match copper and spline routes by stable IDs:
+layer/role mesh traversal order differs from planner segment order. Field tests
+must cut the actual selected population; the first 20 torus faces were not
+symmetric about world origin. A Field at population median produced partial
+coverage and returning to full restored the exact geometry hash. These are numeric
+geometry checks, not render or appearance acceptance.
+
+Evidence: CircuitBoardTool CHECKPOINT_NATIVE_024.md and linked test reports.
+Native024 also corrected misplaced native023 foundation test code: the old log
+had build errors despite a recorded pass. Always check the actual compiler exit
+and run the newly built executable; a PowerShell wrapper's final successful
+command or stale LASTEXITCODE can misrepresent the preceding operation.
+
+## 167. Populated panels are not necessarily visually filled panels
+
+Circuitry024's scale fix placed 600 parts on all 20 torus panels, but the artist
+still rejected the look as sparse. Each face had only 10–46 allocated parts on a
+fixed 300-unit design canvas. Nearest-chip-first placement consumed those budgets
+in central rows, and satellites also clustered near the hero. A count-based
+acceptance gate missed the actual composition failure.
+
+Native025 sizes normalized design space to the requested population and its
+packing envelopes, using sampled usable area to handle overlapping/external
+keepouts without double subtraction. It distributes satellite anchors and short
+regular-grid component banks over regions of the face. A distribution-only
+candidate left tiny remote islands and was rejected before deployment. The final
+version retains count caps, contour/clearance checks, field thinning and legacy
+behavior with normalization disabled; board/socket/ribbon geometry hashes match.
+
+At the same 100% / 600-part budget, exact torus output has 599 parts / 60 packages
+on 20 panels; mean route bounding-rectangle fraction grew ~0.098 to ~0.474. This
+is layout extent, not physical copper area or a rendered coverage percentage.
+Builds measured ~1.1s at 100%; unchanged output remains cached. Dense 500% rebuilding
+still took ~23s in this session, so no universal performance improvement is claimed.
+Numeric scale/mask/persistence/spline checks passed. Crucially, the artist then
+confirmed **"This fills the panels well"**. Preserve that actual artist acceptance
+alongside the metrics. Evidence: CircuitBoardTool CHECKPOINT_NATIVE_025.md and
+surface_fill_025_before/after.json. No Cinema render calls were used.
+
+## 168. Uniform output scaling does not repair upstream package proportions
+
+Circuitry025 scaled package/copper/passive geometry through a uniform surface
+frame, but the planner's fixed 14/8-unit carrier heights survived manual footprint
+reductions to 10/5 units. Actual package geometry was ~2.3 times as tall as wide.
+Scaling all three axes faithfully preserves that bad ratio. Native026 derives
+carrier/housing height from fitted footprint relative to the original 160/60-unit
+package references, counting density/fit once. Initial live geometry checks show
+~0.27–0.28 height/width across 3/30/300-unit panels. Existing accepted panel coverage
+and legacy normalization-OFF differential checks remain unchanged.
+
+Hardware was a separate omission. Native026 uses panel short side / 300 for all
+mount dimensions and seating/keepout offsets, independently of density or Fields.
+This prevents density edits moving holes or changing supports. Top/bottom contact
+planes, height edits, scale invariance and density stability passed live checks.
+Board thickness/lift/clearance/cables remain explicit scene units, not normalized.
+
+A follow-on audit found that fixed .45 pin-lead thickness can protrude below the
+new small carrier. The compiled final correction caps lead thickness to a quarter
+of carrier height, only in normalized mode. Its install/live acceptance is pending
+as of this entry: Cinema commands were cancelled-before-start during artist work.
+Do not promote the initial host pass to validation of this last compiled change.
+See CircuitBoardTool CHECKPOINT_NATIVE_026.md for candidate provenance and status.
+
+Amendment: the combined native026 build is installed on GUI PID69064. Pin lower
+bounds, production primitive pins, height edits, mount seating and density-stable
+hardware pass live checks. Final surrounding height/width is ~0.258–0.262 after
+removing below-board lead thickness; primary ~0.276. The artist checkpoint is
+restored. These are geometry checks; visual/renderer acceptance is still pending.
+
+## 169. Connector meshes need graph terminals; spline output must omit solid vias
+
+Circuitry sockets/cables were mechanically connected to panels, but no terminal
+in the circuit graph represented them. Reserving the housing as a routing keepout
+cannot create a feed automatically. Native026 adds inward-facing feed terminals
+just outside each socket reservation and attaches them to nearby already-routed
+internal nets, reusing net identity. Incremental routing reserves existing copper
+and leaves every original path/layer unchanged. A short explicit contact tail
+enters its own socket housing; routing beyond that tail uses normal obstacle and
+copper clearance checks. Failed feeds stay explicit in Build Status (metadata147).
+
+Both geometry and spline output include these new feed paths. The old via loop
+ran even when trace geometry was replaced by splines, leaving 10-sided solid posts.
+It now runs only in geometry mode and produces hollow chamfered barrels at quality-
+dependent radial resolution with Phong smoothing. Barrels crossing part bodies or
+leaving the contour are omitted. These are visual plated details, not physical
+through-board drilling or certification of electrical correctness.
+
+Live native026 checks: two-panel fixture has six routed feeds, both sockets fed;
+32 via meshes are closed/manifold with annular topology (Euler characteristic 0).
+Spline mode keeps all 181 route segments and no solid vias. Restored artist torus
+has 19 links, 114 feeds and zero unfed sockets, retaining accepted internal layout
+and population. Preserve these deliberate additions when comparing legacy Python:
+exclude only CONNECTOR_ branches from old-route assertions, not all copper checks.
+Evidence: CircuitBoardTool CHECKPOINT_NATIVE_026.md final section, successful raw
+envelopes, connector_vias_026.json and native_final_state_026.json. Artist rendering
+and visual acceptance remain separate gates.
+
+## 170. Multiple spline segments are not automatically holes; normalize after source extraction
+
+Circuitry native027 corrected a merged two-island spline that produced only one
+populated board, while the same source under Extrude correctly produced two.
+Evaluated curve sampling was accurate: the mistake was declaring every contour
+after the largest one a hole. Classify closed coplanar loops by containment depth,
+independent of winding: even depth is a board, immediate children are holes, and
+islands within holes are boards. Validate segment crossings/touching first; a
+single containment point does not distinguish a hole from an overlapping loop.
+Retain each region's own center/frame while applying whole-source Fit uniformly.
+
+Run the resulting BoardInputs through shared planning, normalization and assembly
+logic. Source-type checks around detail scaling caused tall spline packages even
+after the equivalent surface path was fixed. Native027 uses the same normalized
+population space, footprint-relative package heights and panel-relative hardware
+for built-in/spline/mesh/image boards; legacy sizing remains an explicit OFF mode.
+Multiple spline islands share existing socket/clearance/cable/feed generation.
+Source-specific eligibility and masks still belong in the source adapter.
+
+Evidence on C4D2026.3.4 GUI PID67184: exact artist comparison gives2 populated
+boards/600 parts/6 packages/1 cable/0 unfed sockets in both modes, unchanged
+Extrude geometry hash. Nine built-in/spline/surface cases across40/400/4000 units
+match scale, population and package ratios. Nested-hole/island, source transforms,
+Fit, source-link redirect and roundtrip checks pass. Six curved-spline boundary
+checks retain Python agreement (<1e-12 error), and14 cache checks pass. See
+CircuitBoardTool validation_native/CHECKPOINT_NATIVE_027.md and raw envelopes.
+An initial3-unit built-in test silently clamped to its existing40-unit UI minimum;
+cross-source fixtures must use the common exposed dimension range. No renderer
+or actual UI-drop acceptance is implied by the API link-assignment checks.
+
+## 171. Rotate the planning space, not the completed circuit geometry
+
+Circuitry native028 adds one coherent layout angle per panel. Rotating an already
+fitted component hierarchy would break boundary, mounting and socket clearances.
+Instead, rotate the physical planning outline and its keepout holes by the inverse
+angle, fit and route in that coordinate system, then rotate the detail emission
+frame back into the original source frame. Normalize before rotation so an angled
+bounding box does not itself resize the design. Physical board/mount/socket/cable
+geometry stays unchanged. Map socket terminal positions, directions and contact
+tails into the same planning frame; map copper path metadata back to the physical
+board frame as well as transforming the visible geometry.
+
+Density needs the same coordinate contract. An axis-aligned Field grid cannot
+simply inherit the rotated bounds: sample through a layout-to-original-grid
+transform. Barycentric vertex-map triangles can instead be inverse-rotated into
+the planning frame. This retains masks in source space when layout angles change.
+
+Live evidence on C4D2026.3.4 GUI PID56572: fixed23/45/90-degree layouts and seeded
+free/45/90-step variants retain exact mechanical geometry hashes and six socket
+feeds with zero unfed sockets. All copper stays within the panels; 192 spline
+routes align with their corresponding rotated copper meshes. A hard X Field stays
+fixed while the layout rotates23 degrees. Core tests cover barycentric mask values.
+Returning controls to zero restores the prior geometry exactly. Actual artist027
+spline/Extrude fixture hashes are also unchanged with new features disabled.
+
+The companion Max Fit heuristic uses existing packages/components as obstacles
+and two smaller-component passes within the requested budget. Core fixture80->106,
+live full-generator fixture79->102; main packages unchanged in each. These are
+different settings, not a promised universal count. Live descriptions, Randomize
+retention, Reset/Undo, cache reuse and save/reopen pass. See CircuitBoardTool
+CHECKPOINT_NATIVE_028.md and layout_028_outer_live.json. No renderer or viewport
+appearance claim follows from these numeric checks; artist preview is separate.
+
+## 172. A Cloner cache may contain generators and instance references, not polygon children
+
+Circuitry's old mesh reader evaluated the linked source once, then walked only
+GetDown/GetNext. A real artist Cloner produced Null -> Plane primitive -> polygon
+cache, so it found no polygons although all nine planes were visible. At every
+node prefer GetDeformCache, then GetCache, replacing that node's input hierarchy
+with its evaluated output. Recurse those caches as well as ordinary children.
+Do not traverse the linked source's unrelated document siblings.
+
+Render instances require mesh occurrences, not only polygon pointers: retain the
+referenced polygon plus its mapped world matrix. InstanceObject::GetReferenceObject
+resolves the source, and GetInstanceMatrices supplies GLOBAL matrices for multi-
+instances (documented in pinned2026.3 lib_instanceobject.h). Transform reference
+world geometry by instanceWorld * inverse(referenceWorld). Apply any outer instance
+mapping as well. Detect cycles with an active recursion path; a global visited set
+would incorrectly remove repeated valid occurrences of the same reference mesh.
+Dependency fingerprints must include external reference geometry and instance
+matrices, even when they are outside the linked hierarchy.
+
+Observed multi-instance Cloner cache: first clone remained a Plane generator in a
+Null, with BIT_CONTROLOBJECT set and an evaluated polygon cache. An Instance node
+held eight global matrices for the remaining clones. Normal traversal plus those
+eight occurrences yields nine boards. Blindly skipping control-bit primitives
+would omit the first clone; blindly adding another prototype would duplicate it.
+
+Native029 live evidence on C4D2026.3.4 PID11108: exact artist scene yields nine
+boards,600 parts,23 packages,eight cables,zero unfed sockets in all three modes.
+World-space board point sets agree within1e-5, including transformed/nonuniformly
+scaled Cloner tests. Random effector, clone count, Plane size, external reference,
+idle and save/load checks pass; accepted Extrude/Voronoi geometry is preserved.
+See CircuitBoardTool CHECKPOINT_NATIVE_029.md and cloner_sources_029_outer_first.json.
+This supports evaluated polygon-region sources, not all arbitrary generator or
+renderer-specific deformation semantics. No live cache mutation or recursive
+GetVirtualObjects/ExecutePasses calls are required inside the generator snapshot.
+
+## 173. SDK defaults disable C++ unwinding: caught errors can strand RAII locks
+
+Circuitry native029 image errors exposed a deployment-only crash. The SDK target
+generated `/EHs-c-` and `_HAS_EXCEPTIONS=0`, while the independent pure-core CMake
+tests used `/EHsc`. The plugin throws recoverable validation errors and catches
+them at GetVirtualObjects, but without unwinding an intervening lock_guard can
+remain locked. A later image evaluation attempts to lock its own nonrecursive
+mutex; the runtime aborts rather than recovering.
+
+Windows dump Cinema4D PID11108, September19: fail-fast0xc0000409 parameter7,
+thread53440. Matching native029 PDB resolves stack candidates to
+std::_Mutex_base::lock and CircuitryReadImage; imageMutex owner53440/count1.
+Raw scans are not a full unwound backtrace. Exact first error in the artist
+session was not recovered. A reference .jpg image was actually WebP: Cinema decode
+rejected it inside this lock, demonstrating a plausible triggering path.
+
+Pinned SDK2026.3 supports `ExceptionHandling=true` in projectdefinition.txt;
+sdk_update_projects.cmake and sdk_compiler_helper.cmake generate /EHsc and
+_HAS_EXCEPTIONS=1. Enable this for a plugin that uses exception-based recovery,
+and add compile-time _CPPUNWIND/_HAS_EXCEPTIONS guards. Keep exceptions contained
+within plugin callback boundaries; this does not authorize throwing through SDK.
+Do not substitute recursive mutexes or manually unlock selected error branches.
+
+Native030 installed on GUI PID64372 passes repeated empty-mask and missing-alpha
+errors followed by valid work on both same/other generators, decode failure then
+valid PNG, image geometry/cache and accepted spline/Extrude exact hashes. Prior
+tests of only missing paths were insufficient: path resolution throws BEFORE
+the mutex. Test errors INSIDE resource ownership scopes and subsequent recovery.
+Evidence: CircuitBoardTool validation_native/CHECKPOINT_NATIVE_030.md, raw outer
+envelopes, crash symbol scan and matching forensic DLL/PDB. No render performed.
+
+## 174. Custom geometry fitting needs evaluated bounds and inherited material ancestry
+
+Circuitry native035, Cinema2026.3.4/SDK2026.3, September19: artist package sources
+can have remote axes, nested transforms, generators and deformers. Measure
+evaluated polygon points in the linked source's local frame; fit uniformly in
+X/Z and translate minimumY to the receiving surface. GetRad/GetMp on a Null or
+the unevaluated source alone cannot describe that entire hierarchy.
+
+Snapshot evaluated/deformed caches in preference to the source input hierarchy;
+handle instance occurrences separately and guard cycles. Never recursively
+ExecutePasses inside GVO. Self-contained evaluated polygon clones avoid repeated
+expression execution and output links back into live input graphs. Retain UVW,
+selection and shading tags but remove expression tags from evaluated mesh copies.
+This is copied geometry, not a claim of renderer-native multi-instance memory use.
+
+When a linked library's direct children are alternatives, each child can inherit
+texture tags from the library Null. Preserve material-bearing ancestors with
+their projection transforms, without copying their unrelated children. Include
+ancestor texture-tag edits in dependency state, and exclude the receiving
+generator's own material-usage tags. Skip procedural material-role binding for
+custom subtrees, even when an artist mesh is named like a built-in part.
+
+33 private host checks pass: fitted bounds, primitive/deformer updates, child
+sources, material inheritance/editing, Fields, save/load, clones and idle reuse.
+Use tolerance appropriate to float point buffers (here1e-4 model units) when
+comparing transformed bounds; built-in board top was thickness/2, not thickness.
+Evidence CircuitBoardTool/tests/c4d_custom_packages_035.py and
+validation_native/CHECKPOINT_NATIVE_035.md. GUI PID58904. No renderer test or
+universal support claim for procedural render-only objects.
+
+
+## 175. Native mechanical animation: local anchors and safe pose-only cache reuse
+
+Circuitry native037/038 on GUI C4D2026.3.4 demonstrates a pose-only GVO branch:
+compare complete source dependencies and all parameters except offset/rotation.
+If only those change, clone the completed cache, update dedicated subgroup
+matrices and publish the new owned result. Never mutate the published cache.
+Other edits rebuild normally; idle still reuses.48screws on the artist assembly
+measured56-63ms per keyed pose vs5.61s initial evaluation. Hierarchy copying still
+costs memory/CPU; this is not viewport FPS or universal renderer certification.
+
+Use a bearing-plane matrix at each mount. Local+Y points outward, including bottom
+mounts with a proper rotated basis (not reflection). Offset alongY and rotate
+aboutY. Custom fitting uses radialXZ extent and authored axis/seat correction;
+never totalY bounds. Verified10x shaft length leaves head scale/seat unchanged.
+
+Mixed custom/procedural hierarchies need explicit material ownership boundaries:
+artist marker180 inherits through descendants; generated contacts marker210
+re-enables role binding only inside that subtree. Preserve custom/inherited
+shaders while contacts use the linked pad material.33 custom-source host checks
+pass. Names alone do not establish ownership.
+
+Evidence: CircuitBoardTool/tests/c4d_screws_037.py,
+c4d_screw_animation_037.py,c4d_custom_packages_038.py and associated checkpoint/raw
+reports. No agent render calls.
+
+
+## 176. Generated Phong control and testing actual custom meshes
+
+Circuitry native040 / C4D2026.3.4 uses the local SDK tphong.h definitions:
+PHONGTAG_STYLE0 Uniform,1 Angle Weighted,2 Area Weighted,3 Angle and Area
+Weighted,4 Square Area Weighted. SetPhong(on,angleLimit,angleRadians), then
+set PHONGTAG_PHONG_USEEDGES and PHONGTAG_STYLE on each generated mesh tag.
+Angles use radians internally. Phong must exist on child meshes; an exposed
+parameter on the parent alone does not smooth the generated geometry.
+
+Validate CreatePhongNormals on adjacent faces sharing the same vertex, not
+only tag presence. Cylinder resolution changes silhouette; Phong only changes
+normals. Ensure desired circular faces share indices. Preserve authored custom
+Phong and normal tags by inherited ownership markers; selectively opt generated
+contacts back in. Snapshot hierarchies may contain identically named outer
+Nulls and inner evaluated PolygonObjects. Tests must identify the actual mesh,
+not stop at the first matching name. Initial040 custom-preservation assertion
+was a test selecting a wrapper Null; the mesh retained authored17deg/style2.
+
+Evidence: CircuitBoardTool/tests/c4d_shading_040.py, shading_040.json and raw
+outer attempt1/2. Six groups cover computed smooth normals, five algorithms,
+limits/edge flags/off, resolution, custom ownership and save/load. No renders
+and no universal renderer visual certification.
+
+
+## 177. Thin generated contacts must account for every attached routing layer
+
+Circuitry041 replaced three mismatched pin cubes with closed stamped-strip
+meshes. A test found8 lower-layer return traces did not meet feet positioned
+only at the highest attached layer.042 uses the actual connection layer range
+and adds a thin downward toe at shared terminals. Validate actual route-end
+heights against emitted geometry, not only2D terminal positions. The042500%
+fixture has339 contacts and zero geometric misses. Avoid retaining redundant
+via barrels where a physical package lead already carries the connection.
+
+For contours, raster-pitch simplification can remove visible curvature from
+thin traces even when it removes raster noise.042 offsets the sampled source
+rings and simplifies relative to trace width. Recheck swept-width containment,
+holes, clearances and concave collapse after every simplification/offset step.
+An exact-circle test catches coarse chords that generic containment misses.
+
+Evidence: CircuitBoardTool/validation_native/CHECKPOINT_NATIVE_042.md,
+tests/c4d_lead_contacts_042.py, tests/c4d_package_finish_042.py and native_contour_tests.cpp.
+Actual viewport before/after was inspected with a desktop screen-capture tool;
+this is desktop capture, not C4D rendering.
+Use returned app/window identities; do not substitute the render-based MCP
+viewport screenshot for the actual presented viewport. No Octane render invoked.
+
+
+## 178. New native parameter defaults can alter loaded legacy objects
+
+Circuitry045 added enum2204 with Init default1. A saved pre-control artist
+scene loaded with2204=1 on all three generators, despite no stored control.
+A GetInt32 fallback0 alone does not preserve absent parameters: initialization
+may already fill the container.046 uses Init0 and getter0, retaining the old
+look; new appearances are opt-in. Verify legacy load and explicit nondefault
+save/load in the live host. Evidence: c4d_component_mix_045.py (rejected),
+c4d_component_mix_046.py and047 (pass), corresponding outer/results JSON.
+
+## 179. Copper intersection endpoint keys need a bounded precision repair
+
+Circuitry046's rounded base-board fixture produced Open copper boundary for
+Network and Hybrid. Exporting spline paths isolated two failing native unions.
+Coincident calculated intersections could land in adjacent quantization bins.
+047 uses exact lookup first, then a nearest unvisited boundary start within
+32*epsilon only; ring closure uses the same tiny bound. Do not bridge visible
+gaps or discard failed paths. Spline success does not establish mesh success.
+Two extracted paths at0.1/1/1000 scale pass finite/area checks. The original
+Hybrid live fixture now triangulates successfully. See native_copper_precision_tests.cpp
+and CHECKPOINT_NATIVE_047.md for evidence and remaining limits.
+
+
+## 180. Layer pitch and component cap overlap need geometry checks, not Phong fixes
+
+Circuitry047's black capacitor sleeve had a solid cap exactly coincident with
+its separate silver lid.048 lowers the hidden cap below the lid underside and
+extends the rolled rim over the sleeve/lid seam. Test actual emitted point bounds
+on rotated sources, not just shading tags.74 live can assemblies passed.
+
+Copper layer spacing was an independent base-to-base pitch:0.1thickness with
+0.35pitch leaves0.25 empty space.048 resolves Auto0 to thickness*1.02 and clamps
+manual pitch to at least that spacing. Do this once before density scaling and
+use the same resolved pitch for copper, vias, lead toes and spline centers.
+Upper routes still float above the board; this does not implement local bridges.
+
+A lead-contact test's width-radius capsule incorrectly associated a nearby via
+past a lead tip with that lead. Inspect owner/endpoint evidence before changing
+geometry.048 narrowed this sampled test to actual centerline terminal positions:
+350 matched, zero misses. Keep the initial failure and diagnostic evidence.
+Evidence: CircuitBoardTool/validation_native/CHECKPOINT_NATIVE_048.md and tests
+c4d_component_sources_048.py, c4d_layer_pitch_048.py, c4d_lead_contacts_048.py.
+
+## 181. Section seed isolation requires geometry ownership, not name-only filters
+
+Circuitry049 adds zero-default section offsets while retaining the common
+master seed for density thinning and source layout. Capture pre-install world
+geometry/polygon fingerprints, then compare zero-offset results on both a single
+board and connected panels. Init defaults matter (entry178); deterministic new
+seeds alone do not prove legacy parity. Also test reset-to-zero, save/load and
+Randomize/Reset semantics separately. Geometry dependencies still propagate:
+changed footprints or holes can legitimately alter copper routing.
+
+The first live cable-isolation test falsely failed because its name filter
+included CONNECTOR_* routes under TRACES alongside physical external cables.
+Use ownership/group ancestry as well as names. Preserve the original baseline
+comparison; add a separate physical-cable fingerprint excluding copper routes.
+No production change was needed. Both exact legacy fixtures and all five seed
+tests pass after correcting classification; retain rejected raw results.
+Evidence: CircuitBoardTool/validation_native/CHECKPOINT_NATIVE_049.md,
+section_seeds_049_previous.json, section_seeds_049_rejected.json,
+section_seeds_049.json and raw outer results; tests/c4d_section_seeds_049.py.
+API control descriptions and visible Attribute Manager acceptance remain
+separate checks; cached evaluation timings are not viewport frame rates.
+
+## 182. A routing feature must be tested after host normalization and placement
+
+Circuitry050's initial coordinated-bus candidates passed core rectangular-board
+tests but produced zero groups on the live default board. Normalize Detail uses
+prepareSurfacePlanning plus fillSurface placement; these spread package anchors
+and need lateral turns, not just straight trunks. Turning normalization off
+isolated the cause but was not a fix. Add normalized core fixtures as assertions,
+then validate the same default, curved spline and connected panels in the host.
+
+Bundling only after part placement leaves useful corridors occupied.050 reserves
+only fully validated bus segments before placing small components; all lanes
+must pass width/hole/footprint/copper checks before any reservation is committed.
+Failed candidates retain the original router. Nested doglegs reverse turn order
+along the pins to avoid braided crossings. Keep corridor seed selection separate
+from the exposed routing-priority seed if that control promises not to move parts.
+Test geometry and acceptance counts; a successful nonempty cache alone did not
+catch the initial feature doing nothing. Report actual counts in Build Status.
+
+Evidence: CircuitBoardTool/validation_native/CHECKPOINT_NATIVE_050.md,
+bundles_050_rejected.json, bundle_probe_050_outer.json, bundle_core_050.json,
+bundles_050.json and corresponding raw outer results. Source coverage does not
+mean all nonparallel package sides or arbitrary paths have a coordinated solver.
+
+
+## 183. Coordinate package-to-bank feeds without reallocating connectivity
+
+Circuitry051 found that greedy nearest-pin assignment could invert neighboring
+bank feeds before geometric routing began. For local links from one package
+side, sort the already allocated source pin pool and pair it with targets in
+spatial order. Preserve the exact pin set, owner/side, target ports, net/group/ID
+and component-chain order; bus/return and component-chain sources remain intact.
+Tests must compare synthesis on the same placed parts, not separate layouts.
+Validate grouped copper against later fallback routes as well as its own lanes.
+When extending bundle routing to different target owners/depths, use the nearest
+target projection for the common trunk envelope, then validate every full-width
+lane. Bounded splitting of contiguous pin groups permits smaller valid fans.
+
+Evidence: CircuitBoardTool/validation_native/CHECKPOINT_NATIVE_051.md,
+tests/native_feed_tests.cpp, feed_baseline_051.json, feeds_051.json and raw outer
+results. Three live source fixtures preserve050-on component positions and
+external cables; disabled geometry matches exactly. These checks establish
+bounded aesthetic coordination, not universal routing or more completed nets.
+
+
+## 184. Board angle filtering and finite obstruction tests are independent
+
+Circuitry's cube had six boards and no cables: the board-normal dot<=0 guard
+rejected all90-degree corners. Exposing an inclusive angle limit alone was not
+enough: the next test projected candidate chord samples through every board
+without checking distance to its plane. Test finite slab intersection first,
+then the clipped2D segment against outline and hole boundaries. Full segments
+catch crossings that four fixed samples can miss. This remains a chord test,
+not a swept cubic-cable or arbitrary source-mesh collision solver.
+
+Visible boards are centered on source faces: materialization subtracts half
+thickness from the frame origin before emitting0..thickness. Zero lift on a
+200-unit cube with thickness5 therefore spans97.5..102.5, not100..105. UI moves
+must retain IDs and saved values; check description parent groups and save/load.
+Artist values may change between diagnosis and preservation:052's lift changed
+18 to12. Fixtures must not silently replace the latest saved values.
+Evidence: CircuitBoardTool/validation_native/CHECKPOINT_NATIVE_052.md,
+connections_052.json, rejected fixtures and raw outer results. Default/flower/
+flat-panel geometries remain exact; cube connects all six boards at90 with five
+links and supports zero lift and all four cable styles.
+
+
+## 185. Neighbor degree targets need topology and ownership-aware acceptance
+
+Circuitry053's first balanced greedy network still stranded two opposite cube
+faces at target1. Prefer scarce available unique neighbors after current degree,
+before cost, so early links do not consume their last choices. Keep bounded
+socket alternatives per board pair and enforce pair uniqueness and socket spacing.
+Preserve old tree/chain candidate selection exactly. A bounded greedy target is
+not an exact degree solver: live cube target3 gave3,3,3,3,2,2, while target4 gave
+four per face/12cables. Report actual degree range and unmet targets to artists.
+
+Package pin tests must use PINS ancestry, not Lead_ name alone: passive parts
+also contain Lead_ meshes. A first base-thickness test falsely expected those
+unrelated leads to shrink. Corrected ownership proves192package pins lower with
+unchanged copper foot heights at25% substrate thickness;100% resets exactly.
+Evidence: CircuitBoardTool/validation_native/CHECKPOINT_NATIVE_053.md,
+neighbors_053.json/outer and rejected results; native_neighbor_network_tests.cpp.
+
+## 186. Stacked sockets need alternate sites and stable planning precision
+
+Matching board normals are0 degrees apart. A maximum normal-angle control does
+not solve a stacked cable: sockets face outward beside each plate, so routing
+must leave the edge, turn along the stack axis and return. Use local frames for
+both the path and ribbon cross-section; fixed world-up thickness collapses on
+upright sections. Validate finite board slabs and distinguish this from arbitrary
+scene or cable/cable collision. Intermediate boards need separate socket sites
+above and below; retaining only the cheapest pair stranded a four-board chain.
+
+Evaluated Extrude hierarchy transforms can retain coordinate differences near
+1e-12 after rotation/reset. In054 those tiny differences changed planning choices
+and output topology. Quantizing stack route cost alone was insufficient; also
+stabilizing the new stack planning outlines/keepouts and fitting dimensions to
+1e-8 restored topology, with maximum emitted-point error3.21e-12. Physical source
+geometry and legacy modes stayed unchanged. Do not weaken exact topology tests
+to accept this silently. Check numerical point tolerance separately from hashes.
+
+Per-board Field control should apply the outline-average weight once. Applying
+the average to counts and then reusing the same grid to thin placements applies
+the mask twice. Keep spatial vertex-map masking independent. Refit reduced counts
+only when density auto-scaling is enabled. Validate zero masks, movement/reset,
+idle and save/load, not just static counts.
+
+Evidence: CircuitBoardTool/validation_native/CHECKPOINT_NATIVE_054.md,
+stacks_054.json, stack_curves_054.json and retained rejected/raw outer results.
+These are bounded GUI-host tests, not clean-install or renderer certification.
+
+
+## 187. Join a flat private mesh list with material proxies; preserve corner normals (Circuitry055)
+
+Cinema2026.3.4: a14,998-mesh generator cache joined through MCOMMAND_JOIN in a
+private document, with MDATA_JOIN_MERGE_SELTAGS enabled, becomes one mesh with18
+material tags and18 selections. Final direct-button action took1.017s after
+initial cache evaluation;1,242,058 polygons and material coverage were unchanged.
+This is not proof that the editor Connect Objects + Delete command is equivalent
+in cost. Artist reported that command hanging after Make Editable; cause unknown.
+
+Resolve source texture materials while the source remains in its own document.
+Use cheap private Standard placeholders keyed by original material identity,
+insert the joined mesh into the private document before resolving its links,
+then remap to original materials after insertion into the artist document. This
+avoids copying renderer networks. Restrict hierarchy statistics to root+children;
+a generic sibling walker can accidentally include temporary siblings in counts.
+
+A joined object has one Phong tag. Freeze per-source corner normals with
+PolygonObject::CreatePhongNormals and NormalTag::Set before joining to preserve
+custom assets with different Phong settings. Existing explicit normals remain.
+CreatePhongNormals memory is caller-owned (DeleteMem). NormalTag::Alloc count is
+polygon count; four normals per polygon. Python NormalTag.Get(handle,index)
+returns an a/b/c/d dictionary. Custom UVs, inherited UV material,11,568 corner
+normals, transformed bounds, Undo/Redo and save/reload checked on055. Numerical
+point signatures can cross rounding bins; use a bounded positional comparison
+and an independent normal tolerance, not rounded-key equality alone.
+
+Evidence: CircuitBoardTool/validation_native/CHECKPOINT_NATIVE_055.md and raw
+consolidate_055_outer.json. No renderer/UI appearance certification. Non-UV
+projection spaces, layered shaders and arbitrary per-child renderer attributes
+require wider review before promising universal bake parity.
+
+
+## 188. A cold linked cache needs a bounded normal-event-loop follow-up (Circuitry056)
+
+A Cube below its Circuitry consumer had no polygon cache during the first pass.
+An unlisted document recovered on a second ExecutePasses, but a cold GUI scene
+remained on the cached input error with no user event. Thus two-pass private tests
+alone would incorrectly qualify the workflow. Preserve first-pass and actual
+normal-event-loop observations separately.
+
+056 queues one main-thread EventAdd(ENQUEUE_REDRAW) per failed mesh dependency
+state, using the existing pointer-free publication queue. CheckDirty then sees
+the newly available source cache; no GVO recursion, broad dirtying or forced
+ExecutePasses is needed. An unsupported empty source must not request a redraw
+forever. Four mixed cold sources recovered without tool-forced passes, and the
+empty Null error remained at serial1 over later phases. Queue callbacks capture
+no scene pointers so deletion remains safe. The clone/deformer/spline/Undo/load
+lifecycle was rerun because the shared queue changed.
+
+Evidence: CircuitBoardTool cold_source_order_055.json (failed),
+cold_source_order_056.json (passed), phased raw results and CHECKPOINT_NATIVE_056.
+Fresh-preference c4dpy loaded the staged056 product without Python prototype/MCP,
+passed six examples and consolidated roundtrip, and exited0. This driver returned
+naturally; older021/022 drivers explicitly called sys.exit(0). Do not claim that
+this isolates the cause of old shutdown failures or qualifies headless rendering.
+
+
+## 189. MCP scripts that mutate or evaluate a visible document must call `c4d.StopAllThreads()` first
+
+**Discovered 2026-09-23** (Circuitry native, heavy 250-board scenes): three C4D crashes, all from the test harness, none from plugin code. ACCESS_VIOLATION at `c4d_base+a385ec` inside a hierarchy walk, once on the Python main thread, once on a viewport-scheduler worker; an untouched release binary crashed identically under the same harness.
+
+**Wrong assumption:** the MCP `execute_python_script` handler runs on the main thread, so it is safe to edit the active document and call `ExecutePasses`/`DoUndo`.
+**Actual behavior:** the handler does not stop the viewport/scheduler threads. They keep evaluating the same document while the script edits it. The race widens as evaluation gets longer.
+**Fix:** start every mutating script with `c4d.StopAllThreads()` and call it again before each `doc.ExecutePasses(...)` / `doc.DoUndo()`. Prefer `LoadDocument` (never displayed) documents for regression checks. Plugin `MSG_DESCRIPTION_COMMAND` handlers that edit the scene call `StopAllThreads()` after the main-thread check, before `AddUndo`. With this, the exact crashing sequence plus 10 stress rounds ran clean.
+**When it bites:** any agent test loop against a heavy scene the user can see.
+
+
+## 190. Display color is not in the object's data container: write it through `SetParameter`
+
+**Discovered 2026-09-23** adding random viewport colors to generated cache objects.
+
+**Wrong assumption:** `op.GetDataInstance().SetInt32(ID_BASEOBJECT_USECOLOR, 2)` plus `SetVector(ID_BASEOBJECT_COLOR, c)` sets the display color, like any other object parameter.
+**Actual behavior:** the container write is silently ignored. `op[c4d.ID_BASEOBJECT_USECOLOR]` still reads 0, and the viewport is unchanged. The reverse also holds: a parameter write does not appear in the container (both verified on a fresh `Opolygon`).
+**Fix (C++):** `node->SetParameter(ConstDescID(DescLevel(ID_BASEOBJECT_USECOLOR)), GeData(ID_BASEOBJECT_USECOLOR_ALWAYS), DESCFLAGS_SET::NONE)`, and the same for `ID_BASEOBJECT_COLOR`. Read it back with `GetParameter`. USECOLOR 1 (Automatic) shows the material color when a material exists; 2 (Always) shows the display color. Renders are unaffected.
+**When it bites:** generators coloring cache objects, "random color" tools, density or debug previews.
+
+
+## 191. Cinema adds `ID_BASELIST_ICON_COLOR` (1041671) to an object's container on its first parameter edit
+
+**Discovered 2026-09-23.** A generator compares a filtered copy of its BaseContainer to decide between a cheap cache re-dress and a full rebuild. The first edit of a text field on a generator from an older scene always forced a full rebuild; later edits did not.
+
+**Actual behavior:** the first parameter edit on an older object inserts `ID_BASELIST_ICON_COLOR` (1041671, value like `Vector(1,0.9,0.4)`) into the object's own container. A "did anything geometry-relevant change?" key built from the whole container sees a new key. (Python wrappers of SplineData/FieldList values also differ in identity on each read, but not in content.)
+**Fix:** exclude the icon-settings range `ID_BASELIST_ICON_SETTINGS_GROUP..ID_BASELIST_ICON_PRESET_BUTTONS` (1041666-1041672), along with your own cosmetic IDs, from rebuild keys.
+
+
+## 192. Texture tag precedence: a parent's restricted tag loses to a child's own; Join reorders overlapping assignments
+
+**Discovered 2026-09-23** building per-board material overrides on a generator whose cache meshes each carry their own texture tag.
+
+1. A texture tag on a parent (even restricted to a selection name) loses to the child mesh's own texture tag. To override, insert the new tag on each mesh after its existing tag: `node->InsertTag(tag, node->GetLastTag())`. The rightmost tag wins, and `InsertTag(tag)` with no predecessor inserts first.
+2. `MCOMMAND_JOIN` with `MDATA_JOIN_MERGE_SELTAGS` merges texture tags per material in first-seen order across the joined objects. Where assignments overlap (an override over a base material), the base can end up right of the override and win again after Join. **Fix:** before joining, drop every texture tag left of a later tag that fully covers the mesh (empty restriction, `TEXTURETAG_MIX` off, `TEXTURETAG_TILE` on). Selections then never overlap and order no longer matters. Verified: override selections summed exactly to the polygon total after Join.
+
+
+## 193. A MoGraph Cloner cannot use a generator whose cache is a hierarchy, and through Connect it ignores selections
+
+**Discovered 2026-09-23** testing whether particle-style consumers can use a polygon selection ("Cable Ports") published inside a generator's cache, without Make Editable.
+
+- Cloner, Object mode, `MG_OBJECT_LINK` = a generator whose cache is a Null with polygon children, Distribution Polygon: **0 clones**, with or without `MG_POLY_SELECTION`.
+- The same generator under a Connect object with the Cloner linked to the Connect: clones on every polygon, but `MG_POLY_SELECTION` is ignored. Selection tags do not survive Connect's merge.
+**Implication:** selection-driven distribution or emission from a live generator needs a real mesh: Make Editable, a consolidate/join step (merged selection tags are kept), or a generator-published real child object. Test the consumer before promising "no Make Editable".
+
+
+## 194. A dynamic `DESC_MAX` from `GetDDescription` clamps values when the description was cached before the data existed
+
+**Discovered 2026-09-23.** A "Highlight Board" slider set `DESC_MAX = boardCount` read from the cache. On a freshly loaded scene the description was built before the first build, so the max was 1, and `op[id] = 5` stored 1.
+**Fix:** keep `MAX` static and generous in the `.res`. Only set `DESC_MAXSLIDER` dynamically (it shapes the drag range but never clamps), and report out-of-range values in a status string.
+
+
+## 195. A generator's dependency on a child it writes must exclude that child's own dirty count
+
+**Discovered 2026-09-23** (Circuitry managed spline children). The generator hashed its managed child (`GetDirty(DATA)`, points, tags) into its dependency state, then its main-thread publication job wrote new points into that child. Every publish bumped the child's DATA dirty, so `CheckDirty` forced a second full rebuild after every parameter change.
+**Fix:** for a child whose points you own, hash only what the user controls: the child's pointer, its matrix, its tags (pointer and dirty count), and its own children (deformers). Result: publication no longer rebuilds, and adding a tag or deformer to the child still does. A 10-phase clone/undo/delete-before-callback acceptance test still passed.
+
+
+## 196. Viewport overlays over geometry: use the OBJECT pass with `DRAW_PARAMETER_SETZ = DRAW_Z_ALWAYS`, not HIGHLIGHTS
+
+**Discovered 2026-09-23** drawing a translucent board highlight from `ObjectData::Draw`.
+- The SDK warns against drawing in `DRAWPASS::HIGHLIGHTS` (it is the selection-highlight pass; see `GetHighlightPassColor`).
+- In `DRAWPASS::OBJECT`: `SetMatrix_Matrix(op, op->GetMg())`, `SetDrawParam(DRAW_PARAMETER_SETZ, GeData(DRAW_Z_ALWAYS))`, `SetTransparency(-170)`, `DrawPolygon(...)`. Then `DrawLine(..., NOCLIP_Z)` with `DRAW_PARAMETER_LINEWIDTH` for outlines. Restore `DRAW_Z_LOWEREQUAL`, transparency 0 and line width 1.0 afterwards.
+- Verified in the live viewport, with a PrintWindow capture (#198).
+
+
+## 197. `.res` LONG 0/1 cycle to BOOL keeps scenes and scripts working; `SelectAll` takes a range
+
+- Changing `LONG X { CYCLE { A; B; } }` (values 0/1) to `BOOL X { }` under the same ID kept saved scenes, C++ `GetInt32(X)==1` checks and test scripts writing `op[X] = 0/1` working unchanged (a 10-phase output test passed). Remove the cycle-member strings from the `.str` when you do it.
+- 2026: `BaseSelect::SelectAll(Int32 min, Int32 max, Bool deselectAll = true)` has no single-argument form; select every polygon with `SelectAll(0, count - 1)`.
+
+
+## 198. Seeing the real viewport from an agent: `PrintWindow(hwnd, dc, 2)`, not `CopyFromScreen`
+
+**Discovered 2026-09-23.** `System.Drawing.Graphics.CopyFromScreen` of the C4D window rectangle captured whatever window was on top (the IDE). `PrintWindow` with `PW_RENDERFULLCONTENT` (2) on `Get-Process 'Cinema 4D'` `.MainWindowHandle` captured C4D's own window, DirectX viewport and plugin overlays included, while C4D was fully occluded. Downscale before viewing (e.g. to 1200 px wide). Use it when you need what the artist actually sees, including `Draw()` overlays and display colors.
+
+
+## 199. Save a copy of an unsaved user document before quitting C4D: `SaveDocument` does not rename it
+
+**Discovered 2026-09-23** needing to quit C4D to install a plugin while the user's scene had unsaved changes.
+`c4d.documents.SaveDocument(doc, other_path, c4d.SAVEDOCUMENTFLAGS_DONTADDTORECENTLIST, c4d.FORMAT_C4DEXPORT)` wrote a full copy (304 MB in 0.3 s). The open document kept its name, path and changed flag. Verify the copy with `LoadDocument` (object count, materials, key parameters) before `KillDocument` on the live one. Never overwrite the user's file, and never quit with a save dialog pending.
+
+
+## 200. Octane Universal shading models: find IDs and values from the description's cycle, then set plain ints
+
+**Discovered 2026-09-24** switching preset materials to energy-preserving models (Octane for C4D 2026.4).
+Walk `mat.GetDescription(c4d.DESCFLAGS_DESC_NONE)`, match `DESC_NAME`, and read `DESC_CYCLE` for the option values:
+- `2645` "Diffuse BRDF model": 0 Octane, 1 Lambertian, 2 Oren-Nayar, **3 Oren-Nayar (energy preserving)**
+- `2585` "BSDF model": 0 Octane, 1 Beckmann, 2 GGX, **6 GGX(energy preserving)**, 7 STD (the values are not contiguous)
+- `2644` "Compatibility mode": a version code such as 15030000 ("2026.4"). The field shows blank when the stored code is not a listed option.
+Set with `mat[2645] = 3; mat[2585] = 6`. Material libraries loaded with `LoadDocument` can be patched this way and saved in place; compare the other parameters before and after.
+
+
+## 201. Redshift node ports: `GraphDescription.ApplyDescription` stores an enum *label* as a string in an int64 port
+
+**Discovered 2026-09-24.** The Redshift Standard Material `diffuse_model` port is `int64` (default 0). `GraphDescription.ApplyDescription(graph, {"$query": {...,"$type": "Standard Material"}, "Diffuse Model": "EON"})` succeeded, but the port then read back a `maxon.String` "EON", not the enum value. No conversion happens, so the port is corrupted. Port descriptions (`PortDescriptionData`/`Ui`) returned None on a loaded material, and `NodeMaterial.GetDescIDForNodePort` raised ValueError.
+**Pattern:** set the integer directly in a transaction (`port.SetPortValue(maxon.Int64(n))`). Take the enum order from Redshift's string table `Redshift/res/core/Data/Strings/en-US/rscore.json` (keys `...standardmaterial.inparam.diffuse_model.enum.*`, listed in declaration order: Oren-Nayar, d'Eon Lambertian Spheres, EON). Confirm the label once in the Attribute Manager. EON only differs from Lambert when Diffuse Roughness > 0.
+
+
+## 202. A document returned by `LoadDocument` dies with its Python reference: keep the document, not just its materials
+
+**Discovered 2026-09-24.** `mats = c4d.documents.LoadDocument(path, ...).GetMaterials()` followed by reading `mats[0]` raised `the object 'c4d.BaseMaterial' is not alive`. The unlisted document was freed as soon as nothing referenced it. Keep `doc = LoadDocument(...)` alive (e.g. in a list) while using its objects or materials.
+
+
+## 203. Agent tests must never `SetActiveDocument` while the artist is working
+
+**Discovered 2026-09-24.** A test made its own document active to read a label from the Attribute Manager, and that switched the artist's view away from the scene they were editing. Restore it at once (`SetActiveDocument(previous)`, `KillDocument(test)`, `EventAdd()`). Prefer unlisted `LoadDocument`/`BaseDocument()` documents, which need no UI. When a UI check is unavoidable, ask first or wait until the artist is done.
+
+
+## 204. `execute_python_script` returns "cancelled_before_start" while the artist's main thread is busy; `ping` still answers
+
+**Discovered 2026-09-24.** With an artist working in Cinema (a dialog open or a long main-thread operation), every script call timed out with `state=cancelled_before_start`, even with a 5 s timeout, for several minutes. `ping` answered instantly because it does not acquire the main thread. From outside, `Get-Process 'Cinema 4D'` showed `Responding: True` and low CPU, so this was waiting on the artist, not a hang.
+**Pattern:** `cancelled_before_start` guarantees nothing ran, so do not retry in a loop. Use `ping` for liveness and check the process from outside (`Responding`, CPU seconds over a few seconds, `MainWindowTitle`). Continue work that needs no Cinema, and resume when a short script call succeeds.
+
+## 205. A primitive's BIT_CONTROLOBJECT is not by itself evidence that a linked generator consumed it
+
+**Discovered 2026-09-29, C4D 2026.3.4, Bubblor regression tests.** In a fresh unlisted document containing only a native cube and sphere, both objects changed from `GetBit(BIT_CONTROLOBJECT) == False` to `True` after ordinary `ExecutePasses`. Their renderable polygon caches retained `False`. A source-preservation test that asserted the bit remained false on a linked primitive therefore failed even though the primitive's geometry was intact.
+
+Compare equivalent native controls and inspect the renderable cache and editable polygon sources, source dimensions, visibility modes, and repeat evaluations. Do not clear this internal bit on artist objects to make a test pass. Bubblor's corrected lifecycle gate checks an unconsumed polygon cache plus an editable polygon source and passes clone/save/reload tests too. These are API checks, not viewport visibility acceptance.
+
+Related source-evaluation result: Bubblor's cold first evaluation could not rely on an already-built linked source cache. Its final implementation clones the source into an owned temporary document and uses the local SDK's documented threaded `SendModelingCommand(MCOMMAND_CURRENTSTATETOOBJECT, ...)` pattern, then flattens the result. This passed cold/repeat evaluation, nested pieces, a deformed polygon fixture, keyed source motion and rewind. It does **not** establish compatibility with external linked dependencies or simulation state outside the copied subtree. Evidence and raw tool results: `Projects/Bubblor/FIXES_2026-09-29.md` and `tests/results/`.
+
+## 206. Stable Field growth must be tested with downstream layout stages and between animation keys
+
+**Demonstrated 2026-09-29, C4D 2026.3.4, Bubblor.** A new grow/shrink mode kept scatter positions stable but initially applied Field radii before cohesion. Changing radii then changed cohesion partners, causing up to 65.886 units of vertex motion in one frame in the Pearl Orchard fixture. Applying growth after scatter/merge/cohesion preserved anchors. The native moving-Field regression now checks 61 sequential frames, rewind, save/reload, and cohesion-enabled anchors, rather than treating a scatter-only fixture as sufficient. This is a generator pipeline finding, not a fault in C4D Field sampling.
+
+Separately, checking only frames 0/30/60/90/120 missed small folded quads between morph keys. Scanning every frame 0–120 caught them; constraining both contact and bridge deformation produced 484 clean frames across four fixtures. Count finite coordinates, triangle areas and quad triangle-normal consistency; these checks do not prove general self-intersection freedom. Native `RenderDocument` previews validate rendered output, not actual viewport interaction or FPS. Repros, rejected candidates, final hash and raw results are retained in `Projects/Bubblor/RELEASE_READINESS_2026-09-29.md` and `tests/results/battle/`.
+
+## 207. FieldList HasContent does not establish that its Field-object links still resolve
+
+**Demonstrated 2026-09-29, C4D 2026.3.4, artist-edited Bubblor scene.** A Placement Field layer remained after its object was deleted. `HasContent()` was true; the live container could still expose an undo-retained object wrapper, but the link was unresolved after native save/reload. Sampling returned zero, silently shrinking large-tier shells under an 80% grow/shrink mask. Check `FieldLayer::GetLinkedObject(doc)._object` and document membership when applying a product-specific empty-list fallback. Bubblor now treats lists made only of unresolved direct FLfield layers as absent; it preserves native semantics for mixed/grouped lists and intentionally zero-valued live/Solid layers. Never interpret a sampled zero by itself as a missing Field. Tests cover Placement, Scale and Inflation slots in both layout modes. Evidence: `Projects/Bubblor/ARTIST_FEEDBACK_2026-09-29.md` and `tests/results/user_feedback/`.
+
+## 208. PolygonObject storage tags must not be cloned when splitting a generated mesh; cache colors require registration support
+
+**Demonstrated 2026-09-29, C4D 2026.3.4, Bubblor.** C++ iteration over a polygon object's tags includes internal geometry storage. GetPointCount/GetPointR and GetPolygonCount/GetPolygonR use Tpoint/Tpolygon tags (see c4d_baseobject.h). A split-output implementation that cloned every unknown tag replaced each shell's allocated arrays with the whole build's arrays. Its per-shell vertex maps retained shorter allocations. A subsequent lock/flatten operation read beyond those map arrays and crashed in BubblorFlattenCache. Copy only the semantic tags appropriate to the new topology, remap their data explicitly, and validate vertex-map GetDataCount against the source point count. The custom frozen-mesh serialization must also omit internal storage tags because points/polygons are serialized separately. Corrected bounds/map-length assertions, lock/save/reload and deformation tests pass; original crash DLL/PDB/minidump are retained.
+
+Separately, SetParameter(ID_BASEOBJECT_USECOLOR/COLOR) on generated objects was not sufficient: without OBJECT_USECACHECOLOR in RegisterObjectPlugin, Cinema overwrote their colors with the owner's settings after publication. The SDK's ge_prepass.h documents this flag. Once opted in, explicitly copy the owner's ObjectColorProperties for normal-shading output, and set each shell's color for per-bubble output. Native display RGB values round to Float32; e.g. requested .8 reads as .800000011920929. Use an appropriate tolerance. Hardware-render previews verify the resulting colors, not interactive viewport FPS.
+
+Evidence: Projects/Bubblor/APPEARANCE_AND_BUILD_WORKFLOW_2026-09-29.md and tests/results/appearance/. The final installed candidate passes 64 bounded native checks, including four 31-frame Cloth smoke tests on frozen generators and editable copies. This does not certify long simulation/cache workflows or arbitrary tag remapping.
+
+## 209. Procedural appearance identity must survive solver reindexing and merge traversal
+
+**Demonstrated 2026-09-29, C4D 2026.3.4, Bubblor.** Just moving a merge control from 100% to 99.9999% reordered its output traversal without moving the 12 test shells. Colors keyed to the compact output index changed on 11 shells. Assign persistent appearance identity before traversal; keep a separate compact index for solver use. Carry appearance identity through growth/culling, merged-parent inheritance, generated metadata, frozen mesh serialization and cloning. Compare colors and positions by identity, not output array index. The corrected regression preserves all 12 colors, and continuous Burst tests maintain identities during reverse/random scrubbing and lock/save/reopen.
+
+A transform test also must control its dependencies: the artist's Bubblor had native Fields parented underneath it. Moving the generator moved those Fields and legitimately changed their samples. Use independent fixed inputs to test world/local output conversion, or account for the Fields' world transforms. Do not patch generator matrix conversion to satisfy a test that unknowingly moved its inputs. Evidence: Projects/Bubblor/BUBBLE_BURST_2026-09-29.md and tests/results/burst/.
+
+## 210. Live generators need explicit cache reuse and dependency validation; benchmark metadata outside the timer
+
+**Demonstrated 2026-09-29, C4D 2026.3.4, Bubblor.** An unchanged linked-source generator rebuilt on every ExecutePasses call: 1,016.16 ms warm median on an artist's 2,495-bubble scene, versus 0.2266 ms locked. Reusing the native GetCache when CheckCache is false and parameter/dependency state matches reduced live evaluation to 1.1409 ms. Track evaluated source hierarchies/caches/tags and world transforms, generator transform, FieldList GetDirty(doc), and document time when procedural Fields may animate. CheckDirty must invalidate changed inputs; successful publication alone records valid build state, and failed/cancelled work must remain retryable. No geometry evaluation belongs in Draw. This implementation passed source edits without manual dirtiness, deformer/spline/parent changes, moving Fields, keyed animation and rewind, static timeline reuse, clone/save/Undo, and frozen Cloth tests.
+
+Read published scalar statistics in Draw instead of scanning geometry, and use GetContainerInstance where a full metadata copy is unnecessary. A first timing harness copied thousands of per-bubble metadata entries inside the timer, reporting roughly 8 ms instead of about 1 ms for ExecutePasses itself. Keep metadata extraction outside the timed region and retain a build serial to prove no rebuild occurred. Neither number measures viewport FPS. Evidence: Projects/Bubblor/DENSITY_AND_CACHE_2026-09-29.md and tests/results/density/.
+
+## 211. Init defaults can change old-scene behavior unless native disk-level migration distinguishes them
+
+**Demonstrated 2026-09-29, C4D 2026.3.4, Bubblor.** Adding a new capped-count mode with Init default 1 and GetInt32 fallback 0 did not preserve old scenes: loading an older scene exposed value 1, seeded by Init. New native disk level 2 now identifies new saves; Read explicitly sets legacy count behavior for levels below 2. No binary payload change was needed because the parameter is in the normal container. Validate both directions: an old artist scene unlocks to exactly the same full point hash as its saved frozen mesh (2,495 shells), while a newly saved capped-count scene preserves its mode, density, fill setting and HUD after reopening. A compile and new-object test alone would miss this migration defect. Evidence: the density report and 12 new gates in Projects/Bubblor/tests/density_regression.py; final build C8BA686D… passes 88 bounded checks.
+
+## 212. Effort controls should extend a deterministic search; use a multiline widget for multiline AM data
+
+**Demonstrated 2026-09-29, C4D 2026.3.4, Bubblor.** Field-aware scattering generated all candidate positions, then drew random radii and mask gates from the same RNG. Increasing the position-pool size advanced the RNG before the first radius, reshuffling the existing packing and sometimes reducing counts (85 to 83; 27 to 21). Processing successive fixed-base-size batches preserves the Effort-1 result and extends its accepted sequence. Test full shell hashes/prefixes and monotonic acceptance in isolated scatter, then test coupled artist scenes separately because added neighbors legitimately affect downstream solvers and tiers. The original count-only smoke test had plateaued at 11 and missed this defect; 50 of 75 focused effort cases failed before the fix and all 75 passed afterward. Full-shell Effort-1 hashes remained identical in 72 configurations.
+
+The artist also supplied an Attribute Manager screenshot where a four-line dynamic STATICTEXT value overpainted the preceding HUD checkbox. Use a native STRING with CUSTOMGUI MULTISTRING for that content, not a single-line static label. GetDEnabling can make it read-only and disable controls with no effect under current conditions while preserving their stored values. Python BaseList2D.GetEnabling takes only the DescID; it does not use the four-argument C++ callback signature. Native description/enabling checks confirm the widget and states; actual on-screen visual acceptance is separate and must not be inferred from API success. Evidence: Projects/Bubblor/COUNT_CONTROLS_AUDIT_2026-09-29.md and tests/results/controls/. Build B933EEF9… passes 235 bounded native cases.
+
+## 213. A normal Instance's evaluated cache retains external references that an isolated subtree clone loses
+
+**Demonstrated 2026-09-29, C4D 2026.3.4, Bubblor.** Cloning a normal Instance alone into a temporary document for Current State to Object lost its external source link and yielded no bubbles. The native Instance had a valid cache: a referenced primitive with its own polygon cache, in Instance-local coordinates. After declaring source evaluation dependencies through GetAccessedObjects, flattening that evaluated cache with the Instance's world matrix produced correct geometry without mutating the input. Eleven bounded checks cover cold first pass, parent/reference/Instance transforms, source/child edits, retargeting, a multi-piece reference, save/reload, cache reuse and clearing/restoring the link. This is a targeted correction, not evidence for render/multi-instance support or arbitrary linked dependency graphs. Other source types retain the private evaluation path described in entry 205.
+
+For an independent reference test, native Python SendModelingCommand CURRENTSTATETOOBJECT output retained the input's parent-relative matrix. Inserting it under an identity root discarded the original parent transform and falsely reported a 233-unit mismatch. Giving the reference root the original parent world matrix reduced the maximum point difference below 6.6e-14. Do not patch the implementation to compensate for a reference fixture with lost transforms. Evidence: Projects/Bubblor/HERO_LAB_READINESS_2026-09-29.md and tests/results/hero_lab/. Build 5A26F635… passes 260 native contract checks, plus five scene mesh audits, 61 animation frames and four exact-hash performance comparisons.
+
+## 214. Validate contact formation separately from mesh integrity when changing a bubble solver
+
+**Demonstrated 2026-09-29, C4D 2026.3.4, Bubblor.** The legacy inflation path capped contact radii at 100% and applied excess inflation as exposed bulging. Raising its stored value to 300% produced larger lobes, not the artist's desired cellular contact network. Most topology diagnostics still passed. Read the actual contact radius computation; rendered growth alone does not prove stronger contact solving, and a valid mesh does not establish the intended art result.
+
+An opt-in native cell mode now constrains expanding shells to complementary base-radius contact planes, preserves a small seed interior, relaxes inside the constraints, and re-constrains bridge deformation. The first quad prototype had 157 warped faces and was rejected. Triangular sampling with constrained relaxation passed the revised tests. Validate every vertex against all applicable contact half-spaces, not just counts/finite coordinates; the maximum tested post-bridge violation was 5.33e-14. Contact maps must represent the constrained cells rather than their now-overlapping spherical envelopes. Disable old controls that have no role in the new model and show its actual topology while preserving the stored legacy choice. Updating the UI inflation range also requires auditing internal variation clamps.
+
+The 300% wall study develops broad cell walls, but sparse 3D exterior cells can still grow long lobes. That is a visual boundary behavior, not automatically a torn mesh. Keep art review, collision constraints, manifold checks, and performance measurements separate. An 82-cell animation evaluated around 16 ms, while a 1,585-cell rebuild took 0.49 seconds; neither is a measured viewport FPS claim. Evidence: Projects/Bubblor/FOAM_SOLVER_2026-09-29.md and tests/results/foam/. Build BC4A9B97… passed 295 native checks, plus 61 animation frames and a dense mesh stress audit. This is an artistic cell model, not proof of physical foam equilibrium, volume conservation or universally welded geometry.
+
+## 215. Cache rest layouts separately and validate convex-solver optimizations against the previous native mesh
+
+**Demonstrated 2026-09-29, C4D 2026.3.4, Bubblor.** A generator's final-output cache avoids idle work but still repeats scatter, source baking, cohesion and Field sampling on every surface slider edit. A separate rest-layout snapshot keyed by retained BaseContainer data plus evaluated source/Field/time dependencies allows downstream edits to reuse that work. Keep complete custom Field data in the key: freshly replaced FieldLists cannot safely be identified only by a dirty counter. Tests replaced Scale, Inflation and Placement lists repeatedly and compared cached results against fresh document-clone rebuilds. Clone caches must invalidate, not inherit links or snapshots accidentally.
+
+A primitive can acquire its first native polygon cache after the first generator evaluation. In the tested private cube fixture, the next surface edit conservatively rebuilt the layout once; subsequent edits reused it. Distinguish this dependency-settling miss from a failed warm cache. Do not remove source-cache dependency tracking to make the first assertion pass.
+
+The foam solver's positive-weight Laplacian relaxation and fold-guard interpolation are convex combinations. For an intersection of half-spaces and a sphere, these operations remain inside the same convex cell, so projecting against every plane after every pass was redundant. Retaining initial/final projection and fold guards reduced measured high-detail inflation edits from 1.78/1.90 seconds to 0.54/0.63 seconds, with maximum coordinate differences of 8.53e-14 from the previous binary. This reasoning does not apply to negative-weight Taubin steps, arbitrary bridges, or nonconvex domains. Bridges retain explicit final constraints.
+
+Optional exterior support planes constrain free growth without changing interior contact planes; do not label those envelope faces as bubble contacts. A convex outline is not an exact source/concavity boundary or volume-conserving liquid model. Native keyed animation checks, independent axial bounds, sparse seed sweeps, topology audits and visual comparisons remain separate evidence. Dynamic descriptions should expose the effective topology's real detail range rather than allowing apparently meaningful values that silently saturate. Evidence: Projects/Bubblor/COMPACT_FOAM_2026-09-29.md and tests/results/compact_foam/. Build DCFDB8DC… passed 344 bounded native checks, two 61-frame animation sweeps and three high-detail scene mesh audits; this is not universal renderer or viewport-interaction certification.
+
+## 216. Parallel solver work needs ordered bridge reduction and complete-pass shape validation
+
+**Demonstrated 2026-09-29, C4D 2026.3.4, Bubblor.** The 2026.3 SDK's synchronous maxon::ParallelFor::Dynamic supports independent per-cell point slices without touching live C4D objects. Keep scene API work outside workers, immutable geometry/planes shared, and allocations or mutable results local to each task. A lambda returning Result<void> permits allocation errors to propagate. Bridge pairs share output vertices, so computing deltas in parallel and reducing in original pair/vertex order preserves deterministic floating-point sums and guide order. Bounded 64-pair batches avoid storing the entire pair graph's contributions. The intermediate parallel-only candidate matched saved artist meshes exactly; the strong-bridge ribbon edit dropped from 5.50 s to about 1.30 s on a 24-core Threadripper.
+
+Exact parity is not sufficient safety evidence. A broad saved-scene audit found the existing full-strength bridge sequence could progressively collapse tiny faces even though each individual pass had a fold guard. The final foam safeguard compares the fully projected result against the pre-bridge surface, checks relative face area and orientation about the surface centroid, and limits deformation per affected cell. Both endpoints lie inside the same convex contact cell, so interpolation preserves containment. The ribbon's Exterior diagnostics improved from 186 near-degenerate / 17 inward-radial faces to zero; Whole Surface improved from 18 / 58 to zero. A safe Pearl mesh stayed identical. Historical rejected prototypes must not be mixed into a clean-showcase glob: Legacy_200 already had two inward diagnostics in the earlier audit, explicitly retained as a known diagnostic example.
+
+A contact-masked scalar radial smoother can preserve deep contact vertices while softening exposed regions. Fixed valid sphere rays and strictly positive distances preserve radial triangle orientation; per-ray upper bounds maintain convex cell containment. An isolated sphere remains unchanged, avoiding the whole-surface Laplacian shrinkage. In the tested fixture 5,210 protected vertices moved exactly zero. This is not volume preservation, physical soap-film equilibrium, or a guarantee of smooth-looking flat contact junctions. Smoothing width also depends on template resolution. High outline restraint can deliberately flatten the exterior.
+
+Evidence: Projects/Bubblor/EXTERIOR_SMOOTHING_2026-09-29.md and tests/results/exterior/{outer_results,final_outer_results,final_acceptance}.json. Final build FC0B8EEA passed 371 bounded native contracts, three 61-frame pressure/outline/exterior sweeps and nine saved showcase audits. Full-detail Pearl (5.74M points) smoothing edits measured 10.88 s before, 1.86 s parallel Whole Surface, 1.51 s Exterior; detail 4 was a separate lower-resolution 0.48 s option. ExecutePasses timing excludes viewport drawing. Compiler/API/mesh checks do not establish actual Attribute Manager interaction, artist approval, Octane behavior or universal release readiness. Preserve BaseTime numerator/denominator across restarts; restoring decimal seconds with the default denominator can slightly shift an exact frame.
+
+## 217. Foam contact validation must test mutual reach, not only topology and containment
+
+**Demonstrated 2026-09-29, C4D 2026.3.4, Bubblor.** A base-radius power partition combined with separately inflated spherical bounds can clip a large cell before its tiny neighbor reaches the opposite side, leaving an empty halo despite manifold topology and exact half-space containment. In the artist's controlled Pearl case, six large cells had 107 / 133 / 115 / 92 / 120 / 99 premature plane contacts, with axial reach deficits up to 17.09 scene units. The preceding 371 contracts did not test opposing-surface reach and therefore did not rule this out.
+
+The deployed correction divides center separation by current inflated radius ratio: hA = distance * radiusA / (radiusA + radiusB). It preserves complementary planes and positive seed interiors while making hA/radiusA equal hB/radiusB. Disjoint spheres are not clipped. Current radius must include each bubble's Inflation Field factor. Three native two-cell fixtures verify exact spheres before mutual reach and coincident facing planes after it; a nonuniform native Field test verifies moving boundaries and exact rewind. All six controlled artist cells now have zero premature center-axis contact deficits. This guarantees axial reach, not that every point on an infinite plane lies in both spherical bounds; finite tessellation, smoothing and outline constraints can still leave seams. Do not market it as volume conservation or gapless physical foam.
+
+For diagnostic radius extraction, Random Variation can modify global inflation: a solver-bypass mesh at displayed 100% is not necessarily the unscaled base radius. Disable variation in explicitly labeled controlled tests, or account for its effective multiplier. Keep actual-scene render comparisons separate so the artist's layout and parameters are still represented. Evidence: Projects/Bubblor/HALO_FIX_2026-09-29.md, tests/halo_regression.py and tests/results/halo/. Built/installed 1CB8C226 passed 385 bounded native contracts, including 14 new reach checks, nine saved-scene mesh audits, three 61-frame pressure/outline/exterior sweeps, and a 1,585-cell stress test. Both artist documents and unsaved flags were restored; native geometry checks do not replace artist visual acceptance.
+
+## 218. Replace contradictory legacy controls with an effective-state adapter, and test applicability separately from visible effect
+
+**Demonstrated 2026-09-29, C4D 2026.3.4, Bubblor.** Legacy Remove/Protect flags implemented `remove && !protect`. A single new description ID derives its BOOL through GetDParameter and writes both old bits through SetDParameter, setting DATA dirty and PARAM_SET. Removing the two old widgets, while retaining stored IDs and solver reads, preserves all four old-scene combinations without migration. Native clone, save/reload, undo/redo and a real orphan fixture verified the adapter; 60 tiny bubbles became 10 and returned to 60, with the large shell unchanged. The combined UI control is ANIM OFF; existing legacy tracks remain stored.
+
+An apparently inert slider can have three distinct causes. Force Tightness used only polygon source snapshots and was genuinely inapplicable to a Text Spline, despite invalidating a 2.5-second build. It is now labelled Limit Distance to Mesh Surface and disabled for spline/missing sources; the margin is a maximum center distance, not an exact offset or inter-bubble tightness. Use the same cheap OBJECT_ISSPLINE classifier as the actual source path. Conversely, a packing rejection ceiling can be active but produce the same accepted sequence at 50% and 100%; 0% changed the artist layout, and a crowded fixture accepted 17 versus 25 large bubbles. Cleanup can likewise be active with no eligible orphans. Numeric tests must independently prove actual effects on eligible fixtures, plus no-op/applicability and legacy behavior, instead of expecting every slider change to visibly alter every scene.
+
+Evidence: Projects/Bubblor/CONTROL_CLARITY_2026-09-29.md and tests/results/control_clarity/. Build 3B52549A passed 115 focused native checks. The initial distance oracle was corrected to leave already-near centers unchanged, with the failed output retained. Artist edits continued after the verified restart restore; do not overwrite new live settings to satisfy a stale hash assertion. Compare the private checkpoint for old-build parity and preserve current artist edits separately. Description/enabling API checks remain distinct from actual mouse/keyboard UI acceptance.
+
+## 219. Rope simulation can deform a spline's evaluated line cache rather than the editable spline cache
+
+**Demonstrated 2026-10-04, C4D 2026.4.0, Weavr (SDK 2026.3).** A 61-frame
+Rope probe read `Ospline.GetDeformCache()` and fell back to editable points.
+It reported no motion for a stock spline, a frozen Weavr copy and live Weavr.
+The solver was running: the actual output was under
+`Ospline.GetCache().GetDeformCache()` (evaluated Oline). Traverse the evaluated
+cache chain, preferring deformation over undeformed cache data, before
+concluding that simulation is inactive. Both default-device and explicit CPU
+stock probes moved identically. `MSG_MENUPREPARE` and making the test document
+active were not the missing fix. The Simulation SceneHook's own parameter
+container is also not its default simulation object's settings: its branch
+contains the initialized Simulation Scene with gravity/time-scale values.
+
+The corrected private-document probe stepped frames 0..60 sequentially with
+SetTime/ExecutePasses. It required actual free-point movement, finite aligned
+output and held black Pins. The live and frozen Orb evaluated positions hashed
+identically at all 61 frames; 22 checks passed. This does not certify B-Spline
+point-map indexing, every mode, long simulations, concurrent document teardown
+or third-party rendering. Independent segments without Connectors can still
+fall away; map pinning is not welded topology. Retain the rejected test reports
+instead of erasing the false-negative evidence. Repro and full reports:
+`Projects/Weavr/scripts/weavr_native_rope_playback_gate.py` and
+`Projects/Weavr/docs/gate/release_20261004/rope_playback_final.json`.
+
+## 220. NeXus vertex emission needs real per-entry options; clone finalized geometry before remapping the emitter
+
+**Demonstrated 2026-10-05, C4D 2026.4.0, INSYDIUM XP build 1920, SplatFlow QA.** nxEmitter 1067563 exposes its Objects list (20021) as custom datatype 1051396, not InExcludeData. Assigning InExcludeData returned success but replaced the datatype without creating real entries; reject that approach. After a manual source drop and per-entry Points (20043=2) / One per Element (20072=true), an eight-vertex mesh emitted exactly eight unique particles. A same-position points-only clone emitted none. Three-point/one-triangle and five-point/two-triangle clones emitted exactly three/five particles. These are bounded fixtures, not proof that every degenerate topology is acceptable.
+
+Use one AliasTrans initialized against the configured template document: clone the source, finish all geometry, then clone its nxEmitter with the same translator and Translate(True). This remapped the custom-list source successfully without further manual dragging. Never resize source topology while it is linked: a prior investigator reported a crash, and the user separately crashed C4D changing Random to Regular during this QA. Windows reported ucrtbase fatal-app-exit 0xc0000409, not a symbolized NeXus root cause. Keep Random for this proven Points setup.
+
+The attached dynamic DescID getter under 50000/row/20043 or 20072 returned 0 even after effective user edits; nested containers and detached-clone reads reported 2/true. Getter success/defaults are not enough to prove the custom UI's committed state. Validate actual unique emitted positions. Direct scripted custom-list insertion remains unproven. Evidence: local SplatFlow QA scenes (mesh points one-per-element, cloned-geometry matrix) and their raw check JSON.
+
+## 221. A NeXus bridge can report BOUND while reading positions before CPU-transfer settlement
+
+**Demonstrated 2026-10-05 in the same C4D/INSYDIUM build as #220.** GPU-only mode 21038=0 produced a Null cache; modes 1/2 exposed an XP emitter via xparticles.ToEmitter(nx.GetCache()). In mode 2, a scene-local SplatFlow bridge at Generators +100 reported BOUND on the current frame but output positions lagged the final cache by one velocity timestep. A same-time expression-only refresh corrected the proxy without moving the simulation. Generators +499 instead passed first evaluation, with no refresh: three fresh-tag/reset runs over frames 0..30 for Skip=1 (8 particles) and Skip=3 (3), then a private saved-scene reload with stored mappings cleared. All 248 numeric count/position checks passed, with exact zero proxy/cache position error on nonzero frames. This does not certify a downstream spline/generator evaluated earlier in the pass, UI playback, dense scenes, arbitrary forces, or exports.
+
+Birth matching still used a strict geometric bijection; this fixture needed a first-birth-step candidate pos - velocity * (age + 1/fps), not classic XP's pos - velocity * age. That observation is not a general integration law and must not bypass rest validation. Frame 0 was empty. An initial run at document end frame 30 lost one particle under Full Lifetime and correctly became UNBOUND; extending the QA duration to 300 isolated timing without relaxing the count gate. Preserve both failed and passing results. Never call recursive evaluation from a tag or generator to hide ordering defects. Evidence: a local SplatFlow QA prototype scene, its priority-499 test script and the raw post-checkbox / cold-reload JSON. Production SplatFlow v1.0.2/source/release files were unchanged.
+
+## 222. A generator Free callback that edits its document can corrupt full-object Undo
+
+**Demonstrated 2026-10-06, C4D 2026.4.0, SplatFlow SDK 2026.3.** In a private document, a loaded SplatFlow with a managed display disappeared together with its display after full UNDOSTYPE_CHANGE Undo, even when the edit was only a rename. A bare/unloaded SplatFlow and a Null control did not fail. CHANGE_SMALL parameter tests had passed and therefore concealed this different lifecycle defect. The existing NodeData Free callback removed a linked display from the live document while Cinema freed Undo/transient snapshots.
+
+Do not perform live document/hierarchy edits from Free. Release node-owned memory normally, and retire product-owned derived geometry later from an appropriate main-thread scene hook with explicit ownership and current-document reference checks. SplatFlow marks hidden point displays separately from managed native splines; its retirement pass deletes only marked hidden display objects without a live owner/reference. It preserves ownerless native splines as static snapshots and clears markers on explicit editable copies. It does not delete emitters, emission sources or artist geometry by name.
+
+The built/installed candidate passes full-object parameter Undo/Redo for classic XP/native C4D compatibility/Direct PG; NeXus Setup and repair Undo/Redo at frame zero; generator deletion/Undo/Redo while preserving native/explicit editable splines and unrelated points. These bounded private API tests do not establish every possible teardown or UI interaction. Evidence: SplatFlow/tests/managed_lifecycle_gate.py, managed_cleanup_gate.py, nexus_structure_gate.py and their raw result JSON; current details in SplatFlow/NEXUS_1_1_0_WORKLOG.md.
+
+## 223. Current-frame binding metadata does not prove XP/native particle positions are current; prepare saved-tag upgrades before first execution
+
+**Demonstrated 2026-10-06, C4D 2026.4.0, XP 4.0.1920, SplatFlow.** Extending #221 to classic XP and native C4D compatibility tags found current-frame BOUND status but pre-simulation coordinates at default Expression priority. An eight-point gravity fixture differed from the final particles by 3.05767 (XP) and 1.09000 (C4D) at frame two. Generators+499 managed readers and Generator+500 managed spline publication fix the checked first-pass positions. This is the tested product ordering, not a universal priority prescription for all plugins.
+
+Upgrading an older saved tag only during the later Generator phase is too late: the upgrade invalidates the Python mapping after its frame-zero execution, leaving frame one UNBOUND. A change-guarded Initial-phase preparation fixes this before the first tag execution. Export may refresh expression/generator consumers at the same timeline time after a complete simulation evaluation; no recursive ExecutePasses belongs in tags, generators or draw callbacks.
+
+The final candidate passes full and Skip-3 classic XP/native compatibility/Direct PG fixtures, all three PLY encodings, SPZ3/4 reimport, cold replay and 161,688 active-particle XP/Direct PG smoke exports. Numerical assertions compare actual current particles, not just status strings or old point buffers. Managed spline points match, but a native Sweep referencing them differs on first pass versus same-time settled evaluation in all three paths. Do not infer arbitrary downstream zero-latency, interactive viewport acceptance, production NeXus or cache playback from these tests. Evidence: SplatFlow/tests/classic_runtime_gate.py and managed_lifecycle_gate.py and their raw runtime / lifecycle JSON.
+
+## 224. A native plugin creation command can return false despite creating its object
+
+**Demonstrated 2026-10-06, C4D2026.4.0, new NeXus beta.** GetCommandName(1067563) returned nxEmitter. CallCommand(1067563) returned false, causing the initial QA assertion to reject preparation. A separate inspection found exactly one newly created nxEmitter in the owned active document at frame0. Do not replay uncertain creation because of the return value alone. Verify the owned document, expected object count/type and active object first, then complete that same object if the side effect is confirmed. The command-name search tool returned zero matches, yet this native command did create the object; name-filter results are not a complete behavioral guarantee. Native-menu versus BaseObject scalar defaults differed in colour vectors, not a proven simulation setting. Evidence: QA/driver_trial_2026-10-06/MENU8000_PREPARE_RAW.json, MENU8000_PREPARE_RECOVERED_RAW.json and QA/nexus_61692_menu_transport8000/creation_comparison.json.
+
+## 225. Separate beta-engine loadedness isolation from particle-binding qualification
+
+**Demonstrated 2026-10-06, C4D 2026.4.0, RTX 5090, a NeXus 2026.1 beta build.** After a verified reboot and a GPU driver update, an eight-shot native-Play control passed frames 0..58, while an 8,000-shot emission still crashed Cinema at its first emission boundary (Windows fail-fast 0xc0000409 in ucrtbase, with a matching GPU driver event). Native-menu creation did not change it. To separate the plugin from the engine, a final cold host started with the SplatFlow DLL moved outside the scanned plugin folders: no SplatFlow registration and no SplatFlow module loaded. The saved scene held one nxEmitter and zero tags, with no source mesh, template or observer. Native Play still crashed the same way, so SplatFlow and its callbacks are not necessary for this failure. Other plugins and the bridge stayed loaded; the exact beta/host/driver/hardware cause is unproven. Do not loosen binding/export gates or loop identical shots to mask it. Restore the exact DLL and preferences afterwards, and recover only the identified, already-crashed host.
+
+The user clarified that their working alternative is classic XP plus NeXus modifiers, not the new-beta nxEmitter. A tiny nxGravity-child-on-classic-XP control under this installation produced no motion and legacy GPU status 0; it is not the same proven working recipe and was correctly rejected before export. Classic XP CPU gravity separately passed frames 0..12 with exact proxy/filament positions, three PLY encodings and SPZ3/4 reimport on the updated driver. Neither result certifies arbitrary hybrid GPU setups; compare against the actual working scene. Evidence: the project's driver-trial QA JSON and a minimal no-tag repro scene.
+
+**Emission-count follow-up.** Another cold host with SplatFlow unloaded passed native 8- and 1,000-shot emissions with exact counts and finite moving positions (zero tags, forces or source meshes; display off; GPU-to-CPU transfer 2). A 4,000-shot emission crashed the same way. Stop at the first new failure: 8,000 was not repeated, and neither count is an exact threshold. An early 8-shot read of frame 0 / count 0 was inconclusive; native transport then advanced and passed, so it was not an emitter failure. Paused snapshots can cross a loop boundary, so compare differing frames plus finite position hashes rather than assuming monotonic frames. Afterwards the exact DLL was restored and its module path and hash verified in a healthy reopen; the bridge was not autostarted, so no post-reopen registration readback is claimed.
+
+## 226. Finish independent cell smoothing locally; separate Python mesh readback from native memory soaks
+
+**Demonstrated 2026-10-08, C4D 2026.4.0, Bubblor built with SDK 2026.3.** Foam smoothing has no adjacency between bubbles. Completing all passes inside each bubble worker removes per-pass global barriers and replaces full-mesh scratch arrays with small worker-local arrays. Preserve arithmetic order and the Whole Surface per-pass fold guard; independent work is not permission to remove geometric safeguards. Acquiring writable Float32 vertex-map buffers on the private output before workers run also avoids five full-mesh Float64 temporary maps. Each worker writes disjoint point slices and does not call live scene APIs. Disabled map outputs need not be calculated.
+
+The candidate matches the preceding build's native geometry exactly in four dense performance fixtures and 18 seed/mode/inflation cases; map/selection hashes match in six mode/bridge cases, and all 32 map-toggle combinations pass. On the same 2026.4 host, warm 5.74M-point Pearl edits fall from 330.78 to 172.78 ms Exterior and 559.84 to 320.70 ms Whole Surface. These exclude viewport draw. Full regression contracts pass 401/401, with three additional 61-frame procedural loops, stable counts and exact endpoint hashes. This does not certify arbitrary renderer behavior or artist acceptance. New examples use Standard rendering, with Whole Surface chosen for softer compressed junctions where Exterior intentionally preserves angular deep contacts.
+
+A first 600-edit private-memory soak failed after repeatedly hashing the complete mesh inside the measured loop. Native sphere, empty generator, fixed/alternating smoothing and disabled-tag controls stayed essentially flat without those readbacks. Thirty identical full hashes of a detached 269,730-point / 532,800-face static polygon, after destroying its Bubblor document, reproduced about 175 MiB growth. Bubblor evaluation is therefore not necessary for that observed readback growth; the exact host/Python allocation cause remains unproven. Moving full readbacks outside the measured loop yielded zero net private-memory growth after warm-up over 600 edits and an exact final mesh rewind. Keep deterministic geometry assertions and memory measurements as separate gates, retain the failing harness evidence, and do not label a bounded soak universally leak-free.
+
+The normal installation remained unchanged because an old process still mapped its DLL and scene preservation could not be inspected. An isolated g_prefspath profile allowed candidate loading and testing without replacing that mapped file. OS module path, candidate hash and native API preferences confirmed the QA installation. Both the custom socket bridge and configured native MCP were usable; a native asynchronous Standard render completed. This is not a comparative connector reliability benchmark. Evidence: Projects/Bubblor/PRODUCTION_PASS_2026-10-08.md, tests/results/production_20261008/ and dist/Bubblor_candidate_2026-10-08_DA22D8D0.zip.
+
+## 227. Qualify an isolated native candidate in c4dpy before restarting the artist GUI
+
+**Demonstrated 2026-10-09, Cinema 4D 2026.4.0, Bubblor 87F6E3D4.** The installed c4dpy.exe loaded a candidate DLL/resources under a separate g_prefspath while the artist continued using the earlier DLL in the GUI. A second private preference directory held the old DA22D8D0 reference. Both hosts ran the same 18 mesh/map hash cases and exited naturally with code 0; the candidate additionally passed eight focused groups, 144 affected existing contracts, a 61-frame Field loop and Standard-rendered comparisons. This is positive evidence for this local headless workflow, not a universal resolution of entry 163's historical exit failure. Do not force sys.exit to manufacture a clean shutdown. Headless registration/API/render checks still do not prove GUI interaction or native viewport FPS.
+
+For the subsequent GUI update, both current artist documents were cloned to new checkpoints, loaded privately, and compared for hierarchy, transforms, source links, scalar generator parameters, materials, frame and FPS before removing any in-memory original. The GUI then quit normally. After confirming exit, the explicitly selected QA installation was backed up and updated. The new process mapped the expected DLL path/hash; both artist documents were restored at frame 30 with the prior active scene, selected objects, names and original paths. Original scene files were not overwritten. Changing document names/paths during restoration marked both tabs changed, including the previously clean one; this is not evidence of lost scene content. Keep the verified checkpoint and manifest regardless.
+
+Evidence: Projects/Bubblor/CONTACT_GUIDES_2026-10-09.md, tests/guides_contacts_regression.py, tests/contact_candidate_acceptance.py, tools/contact_session_checkpoint.py, and tests/results/contacts_20261009/. Candidate/package qualification remains separate from the prior 401-contract sweep and 600-edit soak; those older results must not be relabeled as tests of the new binary.
+
+## 228. Prune dense native spline output during collection without changing the solver
+
+**Demonstrated 2026-10-09, C4D 2026.4.0, Bubblor F960C923.** An artificial 100,000 guide ceiling prevented the artist's intended dense correspondence web. The corrected native generator emitted 14,109,959 linear segments (28,219,918 points) in a private copy of the current Star scene. Stable 10% selection emitted 1,412,294; adding a 0.1–1 cm length range emitted 46,695. Bubble-mesh hashes were identical across those output-only changes. Guide Limit 0 means no artistic count cap; native signed point indexing and allocation success remain actual storage constraints. These counts are a tested case, not a guarantee of smooth drawing at that density.
+
+Pruning hashes fixed bubble/vertex/iteration identities, not positions, time or filtered traversal order. Thresholding that hash gives deterministic nested subsets as Keep changes; the requested percentage is statistical, not an exact quota. Filter before appending segments and allocating the SplineObject so rejected records need not occupy the full dense output buffer. Bridge deformation must continue through every match even when a guide is discarded or an optional count limit is reached. Exact old/new parity was verified on all 887,558 nonzero-length guides of a separate reference fixture, including order, mesh and vertex-map hashes. On the largest scene use native counts and bounded GetPoint samples; avoid materializing tens of millions of Python vectors just to count output (see entry 226).
+
+Native Current State to Object preserved 4,141 pruned editable guides in the lifecycle fixture. Bubblor's custom Make Geometry Copy is a polygon-only flattening operation and does not preserve splines; do not infer identical output types from similarly named bake commands. Evidence: Projects/Bubblor/DENSE_GUIDES_2026-10-09.md, tests/dense_pruning_regression.py and tests/results/dense_pruning_20261009/. Five focused groups and 33 affected existing contracts passed; the previous wider suites are not new-binary qualification.

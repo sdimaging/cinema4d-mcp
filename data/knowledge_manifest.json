@@ -106,6 +106,25 @@
    ]
   },
   {
+   "id": "octane_osl",
+   "title": "Octane OSL",
+   "entries": [
+    {
+     "path": "docs/octane_osl_practical_notes.md",
+     "title": "Octane OSL animation, projection and caustic-shader review",
+     "type": "markdown",
+     "topics": [
+      "explicit Time input versus subframe time",
+      "Projection and inverse UVW transform",
+      "noise support and evidence limits",
+      "caustic shader energy bounds",
+      "F3 nearest-feature search",
+      "CPU preview versus native Octane validation"
+     ]
+    }
+   ]
+  },
+  {
    "id": "research",
    "title": "Active research lanes (handoff bundles)",
    "entries": [
