@@ -1,0 +1,23 @@
+{
+  "review_date": "2026-10-15",
+  "source": "Projects/OctaneOSL/CausticNoise/CausticNoise.osl",
+  "source_sha256_observed_during_review": "E5E54D55E0D6DD70890E1C5D8E706699CC731ADC26F16A4F3A0133965CA06584",
+  "intermediate_snapshot_sha256": "93B3685A8EB5D515E794448B03BAB68FFD0DB0F567A8D355DCFA487FF8FFC3A1",
+  "latest_reviewed_snapshot_sha256": "ACE1CAEAF7E4B4C79B00CB98184F9E2B54AF9CC3A7C557C2F73F5EC63BB1C1A8",
+  "initial_source_lines": 119,
+  "intermediate_snapshot_lines": 126,
+  "latest_snapshot_lines": 135,
+  "concurrent_change": "Another writer first added Projection and inverse UVTransform, then replaced the matrix with manual Scale, Rotate Z and Offset. The projection concern is resolved; the two reviewed brightness formulas remain unchanged.",
+  "source_modified_by_review": false,
+  "native_octane_compilation_performed": false,
+  "native_octane_render_performed": false,
+  "numeric_validation": "CPU float64 mirror of the reviewed formulas; sampled coordinates differ from GPU float32 sine-hash layouts",
+  "raw_results": "math-review.json",
+  "reproducer": "check_math.py",
+  "official_sources": [
+    "https://docs.otoy.com/osl/features/",
+    "https://docs.otoy.com/osl/input%20types/",
+    "https://docs.otoy.com/osl/projections/",
+    "https://docs.otoy.com/osl/extras/"
+  ]
+}
