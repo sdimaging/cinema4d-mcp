@@ -44,3 +44,14 @@ docs/scene_nodes_advanced_studies/scenes/*/frames/
 docs/scene_nodes_advanced_studies/scenes/*/sliders/
 *.c4d
 
+scripts/glyphgrid/plates/**/_built/
+scripts/glyphgrid/plates/**/_mixed/
+scripts/glyphgrid/plates/**/_custom/
+Claude outputs/
+
+# Glyph It plugin: bundled wheels (tools/fetch_libs.py) and generated plates
+plugins/GlyphIt/libs/*/
+plugins/GlyphIt/plates/library/_custom/
+plugins/GlyphIt/plates/library/_mixed/
+plugins/GlyphIt/plates/collections/*/_built/
+GlyphIt-*.zip
