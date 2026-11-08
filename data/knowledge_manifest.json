@@ -91,7 +91,7 @@
    "entries": [
     {
      "path": "docs/c4d_2026_api_gotchas.md",
-     "title": "47 runtime gotchas (each contradicting older docs / training data)",
+      "title": "136 runtime gotchas with historical corrections and evidence limits",
      "type": "markdown",
      "topics": [
       "GetNimbusRef 1-arg",
@@ -101,6 +101,25 @@
       "synthesize_port connection-based recipe",
       "BaseDraw constants",
       "vmap Float32 quantization"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "octane_osl",
+   "title": "Octane OSL",
+   "entries": [
+    {
+     "path": "docs/octane_osl_practical_notes.md",
+     "title": "Octane OSL animation, projection and caustic-shader review",
+     "type": "markdown",
+     "topics": [
+      "explicit Time input versus subframe time",
+      "Projection and inverse UVW transform",
+      "noise support and evidence limits",
+      "caustic shader energy bounds",
+      "F3 nearest-feature search",
+      "CPU preview versus native Octane validation"
      ]
     }
    ]
