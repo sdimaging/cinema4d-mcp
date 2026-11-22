@@ -5,6 +5,7 @@ import socket
 import json
 import math
 import time
+import uuid
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 from contextlib import asynccontextmanager
@@ -87,7 +88,8 @@ def send_to_c4d(connection: C4DConnection, command: Dict[str, Any]) -> Dict[str,
 
     # Auto-convert WSL `/mnt/c/...` paths to Windows `C:\...` since C4D
     # runs in Windows and its Python can't open WSL-mount paths directly.
-    _normalize_paths_in_command(command)
+    command = _normalize_paths_in_command(dict(command))
+    command.setdefault("request_id", uuid.uuid4().hex)
 
     # If MCP_AUTH_TOKEN is set client-side, attach it to every command so
     # the C4D plugin's auth gate accepts us.
@@ -100,6 +102,7 @@ def send_to_c4d(connection: C4DConnection, command: Dict[str, Any]) -> Dict[str,
 
     # Long-running operations need longer timeouts
     if command_type in [
+        "viewport_screenshot", "viewport_screenshot_multiview",
         "render_frame",
         "render_preview",
         "snapshot_scene",
@@ -152,6 +155,9 @@ def send_to_c4d(connection: C4DConnection, command: Dict[str, Any]) -> Dict[str,
                     break
 
                 response_data += chunk
+                if len(response_data) > 8 * 1024 * 1024:
+                    return {"error": "C4D response exceeded 8 MiB; request smaller/file output. Do not blindly retry mutations.",
+                            "may_have_executed": True, "request_id": command["request_id"]}
 
                 # For long operations, log progress on data receipt
                 elapsed = time.time() - start_time
@@ -188,11 +194,17 @@ def send_to_c4d(connection: C4DConnection, command: Dict[str, Any]) -> Dict[str,
         response_text = response_data.decode("utf-8").strip()
 
         try:
-            return json.loads(response_text)
+            if b"\n" not in response_data:
+                return {"error": "Incomplete C4D response; execution outcome is unknown. Do not retry mutations blindly.",
+                        "may_have_executed": True, "request_id": command["request_id"]}
+            response = json.loads(response_text.split('\n', 1)[0])
+            if isinstance(response, dict) and response.get("request_id", command["request_id"]) != command["request_id"]:
+                return {"error": "C4D response request_id mismatch; outcome is unknown", "may_have_executed": True}
+            return response
         except json.JSONDecodeError as e:
             # If JSON parsing fails, log the exact response for debugging
             logger.error(f"Failed to parse JSON response: {str(e)}")
-            logger.error(f"Raw response (first 200 chars): {response_text[:200]}...")
+            # Do not copy script output or secrets into transport logs.
             return {"error": f"Invalid response from Cinema 4D: {str(e)}"}
 
     except socket.timeout:
@@ -230,7 +242,13 @@ def _fmt_props(d, indent="  "):
 def format_c4d_response(response: Dict[str, Any], command_type: str) -> str:
     """Format a Cinema 4D response dict as readable markdown."""
     if "error" in response:
-        return f"❌ Error: {response['error']}"
+        detail = f"❌ Error: {response['error']}"
+        for key in ('execution_id', 'execution_state', 'request_id', 'may_have_executed'):
+            if key in response:
+                detail += f"\n{key}: {response[key]}"
+        if response.get('output'):
+            detail += '\nCaptured output:\n' + response['output']
+        return detail
 
     status = response.get("status", "ok")
 
@@ -400,6 +418,10 @@ def format_c4d_response(response: Dict[str, Any], command_type: str) -> str:
         variables = response.get("variables", {})
         warning = response.get("warning", "")
         lines = ["✅ Script executed successfully"]
+        if response.get('output_truncated'):
+            lines.append('Warning: stdout truncated at 65,536 characters; write large results to a file.')
+        if response.get('variables_truncated'):
+            lines.append('Warning: variable preview truncated at 64 names.')
         if output:
             lines.append(f"**Output:**\n```\n{output}\n```")
         elif result and result != "No output":
@@ -1437,7 +1459,8 @@ async def animate_camera(
 
 
 @mcp.tool()
-async def execute_python_script(script: str, ctx: Context) -> str:
+async def execute_python_script(script: str, ctx: Context, include_variables: bool = False,
+                                timeout_seconds: float = 60.0) -> str:
     """
     Execute a Python script in Cinema 4D's Python environment.
 
@@ -1455,8 +1478,11 @@ async def execute_python_script(script: str, ctx: Context) -> str:
         - For MoGraph/effector data, iterate frames sequentially (0..N) rather than
           jumping directly to a later frame — sequential stepping produces more
           faithful results.
-        - Security restrictions block certain keywords: import os, subprocess, exec(, eval(.
-          Keep scripts within the c4d API surface.
+        - This is trusted arbitrary Python, NOT a sandbox or keyword-filtered API.
+          Use authentication and a trusted network/bind address.
+        - stdout is bounded to 65,536 characters; variables are opt-in, bounded previews.
+        - timeout_seconds is 0.1..110 seconds. A running timeout is NOT cancellation:
+          poll get_execution_status with the returned execution_id; do not repeat writes.
         - For heavy operations (dense frame loops, complex MoGraph scenes), split work
           into multiple smaller scripts rather than one large monolith.
         - Use print() to return results — output is captured and returned.
@@ -1467,9 +1493,22 @@ async def execute_python_script(script: str, ctx: Context) -> str:
 
         # Send command to Cinema 4D
         response = send_to_c4d(
-            connection, {"command": "execute_python", "script": script}
+            connection, {"command": "execute_python", "script": script,
+                         "include_variables": include_variables, "timeout_seconds": timeout_seconds}
         )
         return format_c4d_response(response, "execute_python")
+
+
+@mcp.tool()
+async def get_execution_status(execution_id: str, ctx: Context = None) -> str:
+    """Poll a timed-out main-thread operation. Unknown/expired does not mean never ran.
+
+    cancelled_before_start guarantees no execution. running means do not retry.
+    completed includes the final result; only 64 recent timed-out operations are retained.
+    """
+    async with c4d_connection_context() as connection:
+        response = send_to_c4d(connection, {"command": "get_execution_status", "execution_id": execution_id})
+        return json.dumps(response, ensure_ascii=False)
 
 
 @mcp.tool()
@@ -4163,6 +4202,7 @@ async def viewport_screenshot(
     frame: Optional[int] = None,
     save_path: Optional[str] = None,
     ctx: Context = None,
+    inline: bool = False,
 ) -> str:
     """Capture a viewport-style screenshot of the active C4D scene.
 
@@ -4179,8 +4219,8 @@ async def viewport_screenshot(
         viewer — verify Octane-specific behavior in C4D directly.
 
     `save_path` options:
-      - None (default): the image is returned inline as a base64 PNG.
-        Practical limit ~800x450 due to MCP response token budget (~60K).
+      - None (default): write a unique PNG in the C4D host's temp directory.
+      - inline=True: opt into inline PNG, capped at 384 KiB before base64.
       - file path: the PNG is written to disk and the response returns
         {path, width, height, renderer} instead of base64. Use this for
         captures larger than ~1024x768, or when the inline path
@@ -4191,6 +4231,7 @@ async def viewport_screenshot(
             return "❌ Not connected to Cinema 4D"
         command: Dict[str, Any] = {
             "command": "viewport_screenshot",
+            "inline": inline,
             "width": width,
             "height": height,
             "renderer": renderer,

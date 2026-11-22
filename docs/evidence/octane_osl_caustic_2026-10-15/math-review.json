@@ -1,0 +1,89 @@
+{
+  "evidence_limit": "CPU float64 mirror of exact OSL formulas; not an Octane render",
+  "default_variation_range": [
+    0.2000000000020587,
+    0.9999999999951685
+  ],
+  "variation_1_negative_fraction": 0.5064811706542969,
+  "variation_1_example": {
+    "x": 0.650390625,
+    "y": 0.13671875,
+    "value": 0.0,
+    "variation": -0.9999999999948531,
+    "a": 0.15989998856348064,
+    "b": -0.9023813347051086,
+    "web": -0.7064086548668167,
+    "base": 0.07061937436590313
+  },
+  "high_hotspots_negative_web_fraction": 0.07302093505859375,
+  "high_hotspots_example": {
+    "x": 0.0078125,
+    "y": 0.248046875,
+    "value": 0.0,
+    "variation": 1.0,
+    "a": 11.25958649915685,
+    "b": 11.312361838243508,
+    "web": -9.271180819465584,
+    "base": 0.09427037917650061
+  },
+  "high_hotspots_parameters": {
+    "Variation": 0,
+    "Hotspots": 10,
+    "SecondLayer": 1,
+    "EdgeWidth": 0.5
+  },
+  "screen_blend_derivative_wrt_a_at_b_8": -1.0,
+  "screen_blend_at_a_b_10": -5.0,
+  "neighbor_search": [
+    {
+      "seed": 0,
+      "time": 0,
+      "mismatching_fraction": 0.00055,
+      "max_distance_gap_error": 0.1259216815740971,
+      "x": 0.9043162437590017,
+      "y": 0.41625987217004945,
+      "edge_gap_3x3": 0.10555511867615858,
+      "edge_gap_5x5": 0.10555511867615858,
+      "junction_gap_3x3": 0.8695891964259741,
+      "junction_gap_5x5": 0.743667514851877
+    },
+    {
+      "seed": 0,
+      "time": 3.5,
+      "mismatching_fraction": 0.000225,
+      "max_distance_gap_error": 0.042402706176399185,
+      "x": 0.16945761332005183,
+      "y": 0.47081425411395783,
+      "edge_gap_3x3": 0.20968217991003946,
+      "edge_gap_5x5": 0.20968217991003946,
+      "junction_gap_3x3": 1.1145865295290958,
+      "junction_gap_5x5": 1.0721838233526966
+    },
+    {
+      "seed": 1,
+      "time": 9,
+      "mismatching_fraction": 7.5e-05,
+      "max_distance_gap_error": 0.020496907160681088,
+      "x": 0.6882615816778908,
+      "y": 0.47997467108972136,
+      "edge_gap_3x3": 0.011209019900867145,
+      "edge_gap_5x5": 0.011209019900867145,
+      "junction_gap_3x3": 1.0052766518349616,
+      "junction_gap_5x5": 0.9847797446742805
+    },
+    {
+      "seed": 13,
+      "time": 17,
+      "mismatching_fraction": 0.000325,
+      "max_distance_gap_error": 0.05877520178778761,
+      "x": 0.6081496039401543,
+      "y": 0.5931788462209315,
+      "edge_gap_3x3": 0.18198912714810195,
+      "edge_gap_5x5": 0.18198912714810195,
+      "junction_gap_3x3": 1.047929775953534,
+      "junction_gap_5x5": 0.9891545741657464
+    }
+  ],
+  "tile_boundary_max_error": 1.2878587085651816e-14,
+  "small_time_step_mean_difference": 0.0002566858525963675
+}
