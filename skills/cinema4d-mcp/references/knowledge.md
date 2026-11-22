@@ -13,6 +13,9 @@ of guides, Scene Nodes studies, recipes and data. No duplicated archive.
 | Fields, MoGraph, particles | 16, 18, 78–80, 89, 91–93, 109–110 | Catalog and project timing/state tests |
 | Rendering / custom GPU | 5–6, 12, 15, 75–77, 82–86, 105, 117, 130, 133 | Camera/shading introspection; renders are not untouched screens |
 | Scene Nodes / assets / capsules | Search: graph, ports, capsule, Neutron, asset | `docs/scene_nodes_doctrine.md`, `docs/scene_nodes_guide.md`, `docs/scene_nodes_capsule_theory.md`, `docs/scene_nodes_advanced_studies/` |
+| Scene Nodes sims (Neutron, Memory/LCV, built-in MCP) | 229–244 | `docs/scene_nodes_advanced_studies/recipes/SN_RECIPE_rd_growth_deformer.md` |
+| Python Generators, caches, user-data UI, fonts/bitmaps | 245–253, 255–265, 267–271 | `plugins/GlyphIt/README.md` |
+| Octane (materials, lights, OSL, motion blur, takes, handoff) | 254, 266, 272–283 | `docs/octane_c4d_headless_reference.md`, `docs/octane_osl_practical_notes.md`, `skills/c4d-octane-headless/` |
 
 Follow supersession notices. #54 is explicitly incorrect and points to #55.
 #124 describes a loaded-DLL rename mechanism, not the recommended normal

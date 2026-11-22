@@ -91,7 +91,7 @@
    "entries": [
     {
      "path": "docs/c4d_2026_api_gotchas.md",
-      "title": "136 runtime gotchas with historical corrections and evidence limits",
+     "title": "136 runtime gotchas with historical corrections and evidence limits",
      "type": "markdown",
      "topics": [
       "GetNimbusRef 1-arg",
@@ -120,6 +120,20 @@
       "caustic shader energy bounds",
       "F3 nearest-feature search",
       "CPU preview versus native Octane validation"
+     ]
+    },
+    {
+     "path": "docs/octane_c4d_headless_reference.md",
+     "title": "Octane for C4D from Python \u2014 headless reference (IDs, OSL camera, motion blur, calibration)",
+     "type": "markdown",
+     "topics": [
+      "parameter IDs",
+      "OSL camera",
+      "motion blur",
+      "shutter drag",
+      "takes",
+      "Cycles calibration",
+      "SaveProject collect"
      ]
     }
    ]

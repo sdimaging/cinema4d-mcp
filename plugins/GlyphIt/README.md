@@ -261,4 +261,4 @@ python3 -m pip install --target ~/Library/Preferences/Maxon/python/python311/lib
 - Linked Target objects and fields are tracked by their dirty state. Keyframed changes need **Rebuild Every Frame**.
 - Back faces read mirrored when seen through a hologram material. That is expected; flip it per side with two materials if needed.
 
-See gotchas #245–#264 at the end of `docs/c4d_2026_api_gotchas.md` for the API lessons behind this tool.
+See gotchas #245–#271 at the end of `docs/c4d_2026_api_gotchas.md` for the API lessons behind this tool.

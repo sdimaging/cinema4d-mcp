@@ -288,6 +288,8 @@ loading every historical gotcha into every task. The read-only
 complete IDs, searches bodies or opens the curated manifest without pinging C4D.
 
 Example: `python skills/cinema4d-mcp/scripts/knowledge.py --id 132 133`.
+
+[`skills/c4d-octane-headless/SKILL.md`](skills/c4d-octane-headless/SKILL.md) is a narrower companion skill for building, lighting and rendering Octane scenes from Python (c4dpy / Script Manager); it routes to the Octane reference and gotchas #272–#283.
 Set `C4D_MCP_REPO` or pass `--repo` if the checkout is elsewhere. Install/link
 the skill folder into your agent's supported skill directory; it does not
 install the MCP connection or alter C4D settings. Skill packaging follows the
@@ -301,7 +303,9 @@ In-depth practical guides shipped alongside the code:
 - **[`docs/scene_nodes_capsule_theory.md`](docs/scene_nodes_capsule_theory.md)** — **Many "atomic" SN nodes are actually CAPSULES with internal sub-graphs.** `loopcarriedvalue`, `legacyobjectaccess`, `cube`, `transformmatrix`, etc. all have bodies. Capsules can nest. This is the load-bearing insight for genuinely rebuilding any artist-authored Scene Nodes graph from scratch. Includes Python recipe for walking + reconstructing capsule interiors.
 - **[`docs/scene_nodes_guide.md`](docs/scene_nodes_guide.md)** — comprehensive Scene Nodes guide: 6-layer architecture, 22 codified patterns, 40 verified `$type` labels, port-type taxonomy, anti-patterns, recommended workflows.
 - **[`docs/gesture_differ_findings.md`](docs/gesture_differ_findings.md)** — full reverse-engineering history of the right-click "Add Input" gesture down to its public-API recipe; backs the `scene_nodes_synthesize_port` tool.
-- **[`docs/c4d_2026_api_gotchas.md`](docs/c4d_2026_api_gotchas.md)** — 136 runtime-discovered Python/native/automation gotchas, including viewport cancellation, timing-sensitive probes, evaluated inputs and false-positive QA. Historical discoveries retain their corrections and evidence limits.
+- **[`docs/c4d_2026_api_gotchas.md`](docs/c4d_2026_api_gotchas.md)** — 283 runtime-discovered Python/native/automation gotchas, including viewport cancellation, timing-sensitive probes, evaluated inputs and false-positive QA. Historical discoveries retain their corrections and evidence limits.
+- **[`docs/octane_c4d_headless_reference.md`](docs/octane_c4d_headless_reference.md)** — Octane for C4D from Python, measured on 2026.4: parameter ID tables (materials, lights, object/camera/environment tags, render settings), OSL camera (units, inputs, DOF random), motion blur and one-exposure shutter drag, Cycles → Octane calibration, collecting scenes for transfer.
+- **[`docs/octane_osl_practical_notes.md`](docs/octane_osl_practical_notes.md)** — Octane OSL texture shaders: subframe time, exposing projection/transform inputs, noise and energy checks, how C4D shows OSL inputs.
 - **[`docs/scene_nodes_advanced_studies/`](docs/scene_nodes_advanced_studies/)** — deep-study folder dissecting advanced procedural Scene Nodes scenes. Each scene gets a structured `record.json` (machine-readable signature) + `study.md` (human-readable analysis), plus extracted recipe candidates. Includes: Recursive Subdivision, Reaction Diffusion, Volume Infection, Spiderweb, Spline Grower Ornament, Coral Structures, Crystal Cutter, Mycelium, Voxelizer, Relax Spline, Oct-Tree Distribution, Match Size (5 variants — including a verified 1-1 replica of the 203-node hand-built deformer via in-place parallel replacement), Spiderweb Setups. Each study extracts transferable patterns into the global recipe library.
 
 ---

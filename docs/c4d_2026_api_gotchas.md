@@ -5397,3 +5397,80 @@ MessageData plugin and at `MSG_MULTI_RENDERNOTIFICATION` start. Vertex Map shade
 proxy with `ResizeObject` resizes its tag too - never delete/recreate the tag, or every material
 link to it goes dead (`sh[1001].GetObject()` → None).
 
+## 272. A Python tag cannot see sub-frame time: motion blur samples keyframes, not `doc.GetTime()`
+
+Found 2026-11-20 building a one-exposure "shutter drag" (object travels, then holds, inside one open shutter) with Octane motion blur in C4D 2026.4.
+
+**Wrong assumption:** a Python tag that poses an object from `doc.GetTime()` gets called at every motion-blur time sample, with the sub-frame time.
+
+**Actual behavior:** the tag *is* called once per time sample (25 calls for 25 samples, logged to a file), but `doc.GetTime()` always reports a whole frame (only frame 4 and frame 5 appear). So a time-driven tag produces no blur at all. Keyframed tracks are evaluated at the real sub-frame times: a keyed object in the same render blurs correctly, and a keyed hold inside the shutter renders as trail + sharp image.
+
+**Fix:** give the tag a keyed clock to read. Add a REAL user-data value ("Clock") with a looping track that counts down to every frame (keys at frame 0.02 = 0.98, 1.0 = 0, 1.02 = 0; `ID_CTRACK_BEFORE`/`ID_CTRACK_AFTER` = `ID_CTRACK_REPEAT`), and pose from `op.GetObject()[clock_did]` instead of the document time. Sampled values in the render: 0.4851, 0.5255, ... 0.9699 — exactly the sub-frame times. Everything else (sliders, the pose maths) stays live.
+
+## 273. Sub-frame keys: build `BaseTime(num, den)`, never `BaseTime(float_seconds)`
+
+`c4d.BaseTime(f / fps)` for fractional frames (f = 4.04, 4.576) placed keys at slightly wrong times, so a "hold from 0.576 of the frame" started in the wrong place. `c4d.BaseTime(int(round(f * 1000)), fps * 1000)` is exact. Same for render frame ranges: `c4d.BaseTime(frame, fps)`.
+
+## 274. Objects need an Octane Object tag on themselves or a parent to get motion blur
+
+With Octane full motion blur on (render setting `VP_MOTIONBLUR` 1013 = 2, `VP_MOTIONBLUR_TIMESTEPS` 1014 = time samples per frame) and camera motion blur on (camera tag 1448 = 1), animated objects WITHOUT an Octane Object tag (1029603) render frozen. One tag on a parent null (default "Enable motion data" 1285 = 1 Transform) is enough for the whole hierarchy. Camera tag shutter: type 1560 (1 = frame length), length 1561, alignment 1451 (1 Before = the shutter ends on the frame, 2 Centre, 3 After = starts on the frame). With "Before", frame 0 needs the project start time set before 0 (`DOCUMENT_MINTIME`) or the shutter has nothing to sample.
+
+## 275. Octane compiles OSL on `RenderDocument`, and only then do the shader's inputs exist as parameters
+
+Extends #254. For the Octane **OSL camera** (camera tag type 1439 = 3, code in 1901): writing the code and pressing Compile (1711) from Python does nothing, but the first `RenderDocument` compiles it ("Compilation OK" in log 1903, `OSL_NEED_COMPILE` 1900 back to 0). Only after that do the shader's input parameters show up in the tag's description, under group 1715 (Parameters): floats get ids 3300, 3301, ... in declaration order, ints 3200+, checkbox ints 3100+. They are named after the OSL variable (`[[ string label = ... ]]` is ignored), can be read and written by id, and survive save/reload. So: set code → render once (a 96 px, 8 spp render is enough) → then find the inputs with `GetDescription()` and drive them. Not tested on the OSL Texture node.
+
+## 276. `RenderDocument` renders the whole frame range if the render data says so
+
+Looping over frames and calling `RenderDocument` with render data set to "All Frames" renders the entire range into the bitmap on every call (5 min per call, last frame returned). Force `rd[c4d.RDATA_FRAMESEQUENCE] = c4d.RDATA_FRAMESEQUENCE_CURRENTFRAME` (or MANUAL with FROM = TO) in per-frame loops.
+
+## 277. Spline Wrap: no `c4d.Osplinewrap` constant, full-size bounding box, and never write its parameters from an expression
+
+Spline Wrap is object 1019221. Parameters used: spline link 1001, rail link 1019, axis 1006 (4 = +Z, 5 = −Z), Extend end mode 1005 = 1, Keep Length 1012 = 1, Rotation from Rail 1020, Scale from Rail 1021, Fix Bounding Box 1018, box centre 1022, **box size 1023 = the FULL size** (not half).
+- A Python tag that rewrites the points of the spline the wrap follows works in the same pass: the wrap follows immediately.
+- Writing the *deformer's own* parameters (its Spline Rotation curve) from a tag freezes the wrap: it stops following the spline.
+- A Tracer ("Connect all objects") reads its targets one pass late, so a strap built on it trails fast moves by a frame. Writing the spline points from the tag fixes that.
+- For twist, put the rail along the band's WIDTH axis (Banking −90°). A rail offset along the normal changes length on the inside and outside of every bend, its correspondence with the spline drifts, and twisted bends crumple (4–6 mm errors). A width-axis rail stays congruent through any bend.
+
+## 278. Hiding a parent hides its children in the render, so never parent visible geometry under helper nulls you hide
+
+A buckle parented under a strap-end target null vanished from clay renders because the render setup hid all target nulls (render visibility OFF on a parent overrides the children). Make the rig null a sibling and place it by matrix from the tag, or leave helper nulls visible (nulls and splines never render anyway).
+
+## 279. FBX import: creased meshes come in wrapped in a Subdivision Surface, and the root carries the axis conversion
+
+Importing a Blender FBX whose mesh had creases wrapped it in an SDS generator in C4D 2026; if the mesh is already subdivided, unwrap it (move the mesh out, delete the SDS) or the render subdivides twice. The FBX root null carries the −90° X conversion, so "up" inside an assembly is local −Z: do offsets and rotations through the parent's rotation, or zero the root first.
+
+## 280. A tree walker that also follows `GetNext()` from its start object visits the siblings too
+
+Classic but expensive: a recursive `walk(o)` that loops `while o: ...; o = o.GetNext()` and is called on one assembly also visits every following sibling of that assembly. In the Nocterna port it reparented the whole watch into one take's "Set" group, so the watch only rendered in that take. For "this object and its descendants" use:
+
+```python
+def subtree(o):
+    yield o
+    for c in o.GetChildren():
+        yield from subtree(c)
+```
+
+## 281. Takes: what overrides cleanly from Python, and what doesn't
+
+- `tk = td.AddTake(name, parent, None)`; `tk.SetCamera(td, cam)`; `tk.SetRenderData(td, rd)`.
+- Overrides: `o = tk.FindOrAddOverrideParam(td, node, descid, value)` then `o.UpdateSceneNode(td, descid)`. Works for object visibility (`ID_BASEOBJECT_VISIBILITY_EDITOR`/`_RENDER`, DTYPE_LONG), PSR, shader/material parameters (texture file paths, emission power) and **user data** (pass the DescID from `GetUserDataContainer()`). All survive save/reload.
+- When rendering a take headless: `td.SetCurrentTake(tk)`, then `ExecutePasses` twice, then point the render/active BaseDraw at `tk.GetCamera(td)`; `RenderDocument` does not switch cameras by itself.
+- Child takes inherit the parent take's overrides, so "variant" takes can hang under the base shot take.
+
+## 282. "Save Project with Assets" works from Python and headless
+
+```python
+assets, missing = [], []
+c4d.documents.SaveProject(doc, c4d.SAVEPROJECT_ASSETS | c4d.SAVEPROJECT_SCENEFILE | c4d.SAVEPROJECT_DONTTOUCHDOCUMENT,
+                          target_folder, assets, missing)
+```
+
+Copies the scene plus every texture into `target_folder` (textures into `tex/`) and rewrites the paths relative. Octane image textures, light-tag textures and environment textures are collected too (62 assets for a 353 MB Octane scene, 0 missing; on reload no absolute paths left). It found a set-piece texture a hand copy had missed, so use it for every Mac↔PC transfer.
+
+## 283. `c4dpy` practicalities (2026.4, macOS)
+
+- `"/Applications/Maxon Cinema 4D 2026/c4dpy.app/Contents/MacOS/c4dpy" /abs/path/script.py`; loads Octane and renders with it.
+- 2026.4 runs next to the open GUI and several instances in parallel (2026.0 blocked with "License needs activation" while the GUI was open).
+- Pass arguments through environment variables; write a `DONE` marker (with the traceback on failure) so a launcher can poll.
+- Build in a fresh `BaseDocument()`, set `DOCUMENT_DOCUNIT` (e.g. mm) before creating anything, and save with `SaveDocument(..., FORMAT_C4DEXPORT)`.
+- Lines like `CRITICAL: Stop: Damaged block (or from a different allocator)` at exit appear on every run with Octane loaded and do not affect the output.
